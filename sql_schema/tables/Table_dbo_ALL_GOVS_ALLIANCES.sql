@@ -1,9 +1,0 @@
-﻿SET ANSI_NULLS ON
-SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ALL_GOVS_ALLIANCES]') AND type in (N'U'))
-BEGIN
-CREATE TABLE [dbo].[ALL_GOVS_ALLIANCES](
-	[GovernorID] [float] NOT NULL,
-	[Alliance] [nvarchar](max) COLLATE Latin1_General_CI_AS NULL
-) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
-END

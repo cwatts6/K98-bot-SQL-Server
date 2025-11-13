@@ -1,9 +1,0 @@
-﻿SET ANSI_NULLS ON
-SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SCAN_LIST]') AND type in (N'U'))
-BEGIN
-CREATE TABLE [dbo].[SCAN_LIST](
-	[SCANORDER] [float] NOT NULL,
-	[ScanDate] [datetime] NOT NULL
-) ON [PRIMARY]
-END
