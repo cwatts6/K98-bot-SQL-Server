@@ -1,0 +1,18 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[Update_ALL_Complete]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[Update_ALL_Complete](
+	[ID] [int] IDENTITY(1,1) NOT NULL,
+	[CompletionTime] [datetime] NOT NULL,
+PRIMARY KEY CLUSTERED 
+(
+	[ID] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF__Update_AL__Compl__76832543]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[Update_ALL_Complete] ADD  DEFAULT (getdate()) FOR [CompletionTime]
+END
+

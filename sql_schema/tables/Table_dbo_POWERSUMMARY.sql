@@ -1,0 +1,22 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[POWERSUMMARY]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[POWERSUMMARY](
+	[GovernorID] [float] NOT NULL,
+	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
+	[PowerRank] [float] NOT NULL,
+	[Power] [float] NOT NULL,
+	[StartingPower] [float] NULL,
+	[OverallPowerDelta] [float] NULL,
+	[PowerDelta12Months] [float] NULL,
+	[PowerDelta6Months] [float] NULL,
+	[PowerDelta3Months] [float] NULL
+) ON [PRIMARY]
+END
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[POWERSUMMARY]') AND name = N'IX_POWERSUMMARY_PowerRank')
+CREATE NONCLUSTERED INDEX [IX_POWERSUMMARY_PowerRank] ON [dbo].[POWERSUMMARY]
+(
+	[PowerRank] ASC
+)
+INCLUDE([Power],[StartingPower],[OverallPowerDelta],[PowerDelta12Months],[PowerDelta6Months],[PowerDelta3Months]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]

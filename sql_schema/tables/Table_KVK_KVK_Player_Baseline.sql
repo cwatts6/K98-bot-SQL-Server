@@ -1,0 +1,16 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[KVK_Player_Baseline]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [KVK].[KVK_Player_Baseline](
+	[KVK_NO] [int] NOT NULL,
+	[governor_id] [bigint] NOT NULL,
+	[baseline_scan_id] [int] NOT NULL,
+	[starting_power] [bigint] NOT NULL,
+ CONSTRAINT [PK_KVK_Player_Baseline] PRIMARY KEY CLUSTERED 
+(
+	[KVK_NO] ASC,
+	[governor_id] ASC
+)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+) ON [PRIMARY]
+END

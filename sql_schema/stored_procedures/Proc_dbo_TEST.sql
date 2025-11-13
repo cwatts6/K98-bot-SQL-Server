@@ -1,0 +1,90 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[TEST]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[TEST] AS' 
+END
+ALTER PROCEDURE [dbo].[TEST]
+WITH EXECUTE AS CALLER
+AS
+BEGIN
+
+
+    SELECT GovernorID,
+			GovernorName,
+           [DEADS],
+		   ScanDate,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER ASC) AS RowAscALL,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER DESC) AS RowDescALL
+		   INTO DALL
+    FROM KingdomScanData4
+	ORDER BY GovernorID
+	
+	SELECT GovernorID,
+           [DEADS],
+		   ScanDate,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER ASC) AS RowAsc12,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER DESC) AS RowDesc12
+		   INTO D12
+    FROM KingdomScanData4
+	WHERE SCANDATE >= DATEADD(month, -12, GETDATE())
+	
+
+	SELECT GovernorID,
+           [DEADS],
+		   ScanDate,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER ASC) AS RowAsc6,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER DESC) AS RowDesc6
+		   INTO D6
+    FROM KingdomScanData4
+	WHERE SCANDATE >= DATEADD(month, -6, GETDATE())
+	
+	SELECT GovernorID,
+           [DEADS],
+		   ScanDate,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER ASC) AS RowAsc3,
+           ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY SCANORDER DESC) AS RowDesc3
+		   INTO D3
+    FROM KingdomScanData4
+	WHERE SCANDATE >= DATEADD(month, -3, GETDATE())
+;
+
+DECLARE 
+@MAXSCAN AS FLOAT = (SELECT MAX(SCANORDER) FROM KingdomScanData4)
+
+SELECT DISTINCT ([GovernorID]) -- Governor T5_Kills #K TEMP TABLE
+		,GovernorName
+		,[DEADS]
+		INTO #D
+		FROM KingdomScanData4
+		WHERE SCANORDER = @MAXSCAN
+
+DROP TABLE DEADSSUMMARY
+
+SELECT DALL.GovernorID,
+		#D.GovernorName,
+		#D.[DEADS],
+MAX(CASE WHEN RowAscALL = 1 THEN DALL.[DEADS] END) AS [StartingDEADS],
+(MAX(CASE WHEN RowDescALL = 1 THEN DALL.[DEADS] END) - MAX(CASE WHEN RowASCALL = 1 THEN DALL.[DEADS] END)) AS [OverallDEADSDelta],
+  (MAX(CASE WHEN RowDesc12 = 1 THEN D12.[DEADS] END) - MAX(CASE WHEN RowASC12 = 1 THEN D12.[DEADS] END)) AS [DEADSDelta12Months],
+  (MAX(CASE WHEN RowDesc6 = 1 THEN D6.[DEADS] END) - MAX(CASE WHEN RowASC6 = 1 THEN D6.[DEADS] END)) AS [DEADSDelta6Months],
+  (MAX(CASE WHEN RowDesc3 = 1 THEN D3.[DEADS] END) - MAX(CASE WHEN RowASC3 = 1 THEN D3.[DEADS] END)) AS [DEADSDelta3Months]
+  INTO DEADSSUMMARY
+FROM DALL
+JOIN #D on DALL.GovernorID=#D.GovernorID
+JOIN D12 ON DALL.GovernorID=D12.GovernorID
+JOIN D6 ON D12.GovernorID=D6.GovernorID
+JOIN D3 ON D6.GovernorID=D3.GovernorID
+GROUP BY DALL.GovernorID, #D.GovernorName, #D.[DEADS]
+ORDER BY #D.GovernorName ASC;
+
+--SELECT *
+--FROM DEADSSUMMARY
+--ORDER BY GovernorName
+
+DROP TABLE DALL, D12, D6, D3
+DROP TABLE #D
+
+END;
+
+

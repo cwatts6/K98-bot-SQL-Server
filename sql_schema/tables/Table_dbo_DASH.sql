@@ -1,0 +1,31 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DASH]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[DASH](
+	[RANK] [varchar](3) COLLATE Latin1_General_CI_AS NOT NULL,
+	[KVK_RANK] [varchar](3) COLLATE Latin1_General_CI_AS NOT NULL,
+	[Gov_ID] [varchar](9) COLLATE Latin1_General_CI_AS NOT NULL,
+	[Governor_Name] [varchar](15) COLLATE Latin1_General_CI_AS NOT NULL,
+	[Starting Power] [float] NULL,
+	[T4_Kills] [float] NULL,
+	[T5_Kills] [float] NULL,
+	[T4&T5_Kills] [float] NULL,
+	[Kill Target] [float] NULL,
+	[% of Kill target] [float] NULL,
+	[Deads] [float] NULL,
+	[T4_Deads] [float] NULL,
+	[T5_Deads] [float] NULL,
+	[Dead_Target] [float] NULL,
+	[% of Dead_Target] [float] NULL,
+	[KVK_NO] [float] NULL,
+	[Pass 4 Kills] [float] NULL,
+	[Pass 6 Kills] [float] NULL,
+	[Pass 7 Kills] [float] NULL,
+	[Pass 8 Kills] [float] NULL,
+	[POWER_DELTA] [float] NULL,
+	[DKP_Score] [float] NULL,
+	[DKP Target] [float] NULL,
+	[% of DKP Target] [float] NULL
+) ON [PRIMARY]
+END

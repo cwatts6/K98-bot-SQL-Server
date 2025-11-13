@@ -1,0 +1,9 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[RALLY_JOINED]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[RALLY_JOINED](
+	[GovernorID] [float] NOT NULL,
+	[TotalOccurrences] [int] NULL
+) ON [PRIMARY]
+END

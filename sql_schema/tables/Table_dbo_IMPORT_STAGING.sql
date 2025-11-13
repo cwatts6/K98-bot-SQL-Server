@@ -1,0 +1,31 @@
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[IMPORT_STAGING]') AND type in (N'U'))
+BEGIN
+CREATE TABLE [dbo].[IMPORT_STAGING](
+	[Name] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
+	[Governor ID] [float] NOT NULL,
+	[Alliance] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
+	[Power] [float] NOT NULL,
+	[Total Kill Points] [float] NOT NULL,
+	[Dead Troops] [float] NOT NULL,
+	[T1-Kills] [float] NOT NULL,
+	[T2-Kills] [float] NOT NULL,
+	[T3-Kills] [float] NOT NULL,
+	[T4-Kills] [float] NOT NULL,
+	[T5-Kills] [float] NOT NULL,
+	[Kills (T4+)] [float] NULL,
+	[KILLS] [float] NULL,
+	[RSS Gathered] [float] NULL,
+	[RSS Assistance] [float] NOT NULL,
+	[Alliance Helps] [float] NOT NULL,
+	[ScanDate] [datetime] NULL,
+	[SCANORDER] [float] NULL,
+	[Troops Power] [float] NULL,
+	[City Hall] [float] NULL,
+	[Tech Power] [float] NULL,
+	[Building Power] [float] NULL,
+	[Commander Power] [float] NULL,
+	[Updated_on] [varchar](50) COLLATE Latin1_General_CI_AS NULL
+) ON [PRIMARY]
+END
