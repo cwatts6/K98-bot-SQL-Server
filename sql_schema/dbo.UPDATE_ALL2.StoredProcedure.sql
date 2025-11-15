@@ -29,19 +29,32 @@ BEGIN
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
 
-        DECLARE @actual_param1 FLOAT = COALESCE(@param1, (SELECT TOP (1) KINGDOM_RANK FROM KS), 0);
-		DECLARE @actual_param2 NVARCHAR(100) = COALESCE(@param2, (SELECT TOP (1) KINGDOM_SEED FROM KS), N'');
-		DECLARE @StartTime DATETIME = GETDATE();
+        -- Get deterministic defaults from KS. Choose "latest" row by [Last Update] if present.
+        DECLARE @actual_param1 FLOAT = NULL,
+                @actual_param2 NVARCHAR(100) = NULL;
+
+        SELECT TOP (1)
+            @actual_param1 = COALESCE(@param1, KINGDOM_RANK, 0),
+            @actual_param2 = COALESCE(@param2, KINGDOM_SEED, N'')
+        FROM dbo.KS
+        WHERE KINGDOM_RANK IS NOT NULL OR KINGDOM_SEED IS NOT NULL
+        ORDER BY [Last Update] DESC; 
+
+        IF @actual_param1 IS NULL SET @actual_param1 = COALESCE(@param1, 0);
+        IF @actual_param2 IS NULL SET @actual_param2 = COALESCE(@param2, N'');
+
+        DECLARE @StartTime DATETIME = GETDATE();
 
         -- 1) Refresh latest data
         EXEC @rc = dbo.IMPORT_STAGING_PROC;
         IF @rc <> 0
         BEGIN
-            -- Import failed – abort Phase A and bubble up
             RAISERROR('IMPORT_STAGING_PROC failed (rc=%d).', 16, 1, @rc);
+            -- RAISERROR will jump to CATCH; no explicit rollback here
         END
 
         -- 2) Insert into KingdomScanData5
+        -- Add deterministic tiebreaker to ROW_NUMBER to ensure stable ranks for ties
         INSERT INTO dbo.KingdomScanData5 (
               PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
             , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
@@ -49,7 +62,7 @@ BEGIN
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
         )
         SELECT
-              ROW_NUMBER() OVER (ORDER BY [Power] DESC)
+              ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC)  -- deterministic tiebreaker
             , RTRIM([Name])
             , [Governor ID]
             , [Alliance]
@@ -62,18 +75,22 @@ BEGIN
             , [RSS Gathered], [RSS Assistance], [Alliance Helps]
             , [ScanDate], [SCANORDER]
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
-        FROM dbo.IMPORT_STAGING;
+        FROM dbo.IMPORT_STAGING WITH (TABLOCK) -- consider TABLOCK for minimal logging if allowed & appropriate
+        ;
 
         SET @rowsKS5 = @@ROWCOUNT;
 
-		IF @rowsKS5 = 0
-		BEGIN
-			RAISERROR('No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).', 16, 1);
-		END
+        IF @rowsKS5 = 0
+        BEGIN
+            RAISERROR('No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).', 16, 1);
+        END
+
+		-- Cache MAX(SCANORDER) values to avoid repeated scans
+        DECLARE @MaxScanOrder5 BIGINT = (SELECT ISNULL(MAX(SCANORDER), 0) FROM dbo.KingdomScanData5);
+        DECLARE @MaxScanOrder4 BIGINT = (SELECT ISNULL(MAX(SCANORDER), 0) FROM dbo.KingdomScanData4);
 
         -- 3) Promote to KS4 if newer (AsOfDate is computed in KS4; do not include it)
-        IF (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData5) >
-           (SELECT ISNULL(MAX(SCANORDER), 0) FROM dbo.KingdomScanData4)
+        IF @MaxScanOrder5 > @MaxScanOrder4
         BEGIN
             INSERT INTO dbo.KingdomScanData4 (
                   PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
@@ -87,7 +104,7 @@ BEGIN
                 , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
             FROM dbo.KingdomScanData5
-            WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData5);
+            WHERE SCANORDER = @MaxScanOrder5;
         END
 
         -- 4) Truncate staging (safe post-insert)
@@ -95,20 +112,21 @@ BEGIN
 
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
-		SELECT
-			(SELECT ISNULL(MAX(SCANORDER), 0) FROM dbo.KingdomScanData5)    AS Ks5_MaxScanOrder,
-			@rowsKS5                                                        AS Ks5_RowsInserted,
-			(SELECT COUNT(*) FROM dbo.IMPORT_STAGING)                       AS ImportStaging_RowsAfterPhaseA,
-			(SELECT COUNT(*) FROM dbo.KingdomScanData4
-			  WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData4)) AS Ks4_RowsInLatest;
+        -- Return / Log Phase A summary values using cached variables
+        SELECT
+            @MaxScanOrder5    AS Ks5_MaxScanOrder,
+            @rowsKS5          AS Ks5_RowsInserted,
+            (SELECT COUNT(*) FROM dbo.IMPORT_STAGING)                       AS ImportStaging_RowsAfterPhaseA,
+            (SELECT COUNT(*) FROM dbo.KingdomScanData4 WHERE SCANORDER = @MaxScanOrder4) AS Ks4_RowsInLatest;
+
         ----------------------------------------------------------------
-        -- Phase B: Downstream builds (non-critical)
+        -- Phase B: Downstream builds (non-critical) - separate transaction
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
 
         EXEC dbo.CREATE_THE_AVERAGES;
 
-        -- Safe drop
+        -- Safe drop / rebuild
         IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
             DROP TABLE dbo.EXCEL_FOR_DASHBOARD;
 
@@ -119,13 +137,15 @@ BEGIN
 
         TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
 
-        INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD ( [Rank],[KVK_RANK],[Gov_ID],[Governor_Name],[Starting Power],
+        INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
+            [Rank],[KVK_RANK],[Gov_ID],[Governor_Name],[Starting Power],
             [Power_Delta], T4_Kills, T5_Kills, [T4&T5_Kills], [Kill Target], [% of Kill target], [Deads],
             T4_Deads, T5_Deads, [Dead Target], [% of Dead Target], [Zeroed], [DKP_SCORE], [DKP Target],
             [% of DKP Target], [Helps], [RSS_Assist], [RSS_Gathered],
             [Pass 4 Kills],[Pass 6 Kills],[Pass 7 Kills],[Pass 8 Kills],
             [Pass 4 Deads],[Pass 6 Deads],[Pass 7 Deads],[Pass 8 Deads],
-            [TrainingPower_Delta], [HealedPower_Est], [HealedTroops_Est], [KVK_NO])
+            [TrainingPower_Delta], [HealedPower_Est], [HealedTroops_Est], [KVK_NO]
+        )
         SELECT
             [Rank],[KVK_RANK],[Gov_ID], ISNULL(RTRIM(Governor_Name), ''),
             [Starting Power],
@@ -139,20 +159,21 @@ BEGIN
             ISNULL([RSS_Gathered],0),
             ISNULL([Pass 4 Kills],0), ISNULL([Pass 6 Kills],0), ISNULL([Pass 7 Kills],0), ISNULL([Pass 8 Kills],0),
             ISNULL([Pass 4 Deads],0), ISNULL([Pass 6 Deads],0), ISNULL([Pass 7 Deads],0), ISNULL([Pass 8 Deads],0),
-			ISNULL([TrainingPower_Delta],0), 
-			ISNULL([HealedPower_Est],0), 
-			ISNULL([HealedTroops_Est],0),
+            ISNULL([TrainingPower_Delta],0), 
+            ISNULL([HealedPower_Est],0), 
+            ISNULL([HealedTroops_Est],0),
             [KVK_NO]
         FROM dbo.EXCEL_FOR_DASHBOARD
         WHERE Gov_ID <> 12025033;
 
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
  
-        INSERT INTO dbo.POWER_BY_MONTH
-        SELECT TOP (5000000) *
+ 
+        INSERT INTO dbo.POWER_BY_MONTH (GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH])
+        SELECT TOP (5000000) GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH]
         FROM (
             SELECT GovernorID, RTRIM(GovernorName) AS GovernorName,
-                   MAX([Power]) AS POWER, MAX(KillPoints) AS KILLPOINTS,
+                   MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
                    MAX([T4&T5_KILLS]) AS [T4&T5KILLS],
                    MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
             FROM dbo.KingdomScanData4
@@ -160,8 +181,9 @@ BEGIN
             GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
 
             UNION ALL
+
             SELECT GovernorID, RTRIM(GovernorName) AS GovernorName,
-                   MAX([Power]) AS POWER, MAX(KillPoints) AS KILLPOINTS,
+                   MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
                    MAX([T4&T5_KILLS]) AS [T4&T5KILLS],
                    MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
             FROM dbo.THE_AVERAGES
@@ -217,7 +239,19 @@ BEGIN
 
     END TRY
     BEGIN CATCH
+		        -- Capture error details (insert into an error audit table if available)
+        DECLARE @ErrNum INT = ERROR_NUMBER();
+        DECLARE @ErrMsg NVARCHAR(MAX) = ERROR_MESSAGE();
+        DECLARE @ErrLine INT = ERROR_LINE();
+        DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
+
+        -- Optional: store in error log table (uncomment if you have ErrorAudit table)
+   
+        INSERT INTO dbo.ErrorAudit (ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo)
+        VALUES (GETDATE(), ISNULL(@ErrProc, 'UPDATE_ALL2'), @ErrNum, @ErrMsg, @ErrLine, N'Phase info: ' + COALESCE(CONVERT(NVARCHAR(100), @MaxScanOrder5), N''));
+        
         IF XACT_STATE() <> 0 ROLLBACK;
+		-- Re-throw preserving original error context
         THROW;
     END CATCH
 END
