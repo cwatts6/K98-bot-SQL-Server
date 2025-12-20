@@ -508,5 +508,44 @@ SELECT
     [Pass 8 Deads],
     [KVK_NO]
 FROM dbo.[EXCEL_FOR_KVK_13]
+UNION ALL
+
+SELECT
+    [Rank],
+    [KVK_RANK],
+    [Gov_ID],
+    [Governor_Name],
+    [Starting Power],
+    [Power_Delta],
+    [T4_KILLS],
+    [T5_KILLS],
+    [T4&T5_Kills],
+    [KILLS_OUTSIDE_KVK],
+    [Kill Target],
+    [% of Kill Target]         AS [% of Kill Target],
+    [Deads],
+    [DEADS_OUTSIDE_KVK],
+    [T4_Deads],
+    [T5_Deads],
+    [Dead_Target]      AS [Dead_Target],
+    [% of Dead Target]   AS [% of Dead Target],
+    [% of Dead Target]   AS [% of Dead_Target],
+    [Zeroed],
+    [DKP_SCORE]             AS [DKP_SCORE],
+    [DKP Target],
+    [% of DKP Target]          AS [% of DKP Target],
+    [Helps],
+    [RSS_Assist],
+    [RSS_Gathered],
+    [Pass 4 Kills],
+    [Pass 6 Kills],
+    [Pass 7 Kills],
+    [Pass 8 Kills],
+    [Pass 4 Deads],
+    [Pass 6 Deads],
+    [Pass 7 Deads],
+    [Pass 8 Deads],
+    [KVK_NO]
+FROM dbo.[EXCEL_FOR_KVK_14]
 
 '
