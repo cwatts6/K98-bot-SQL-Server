@@ -1,2 +1,4 @@
-# Normalize text files
+# Normalize text files and preserve common SQL/text encodings
 * text=auto
+*.sql text eol=crlf
+*.ps1 text eol=crlf
