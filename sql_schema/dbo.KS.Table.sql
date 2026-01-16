@@ -10,6 +10,7 @@ CREATE TABLE [dbo].[KS](
 	[DEAD] [float] NULL,
 	[Last Update] [datetime] NULL,
 	[KINGDOM_RANK] [varchar](4) COLLATE Latin1_General_CI_AS NOT NULL,
-	[KINGDOM_SEED] [varchar](1) COLLATE Latin1_General_CI_AS NOT NULL
+	[KINGDOM_SEED] [varchar](1) COLLATE Latin1_General_CI_AS NOT NULL,
+	[CH25] [int] NULL
 ) ON [PRIMARY]
 END

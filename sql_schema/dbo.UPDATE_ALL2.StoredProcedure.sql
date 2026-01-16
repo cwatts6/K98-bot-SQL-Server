@@ -193,19 +193,20 @@ BEGIN
 
         EXEC dbo.sp_RefreshInactiveGovernors;
 
-        TRUNCATE TABLE dbo.KS;
+        --TRUNCATE TABLE dbo.KS;
 
         DECLARE @MAXDATE DATETIME = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
 		--DECLARE @actual_param1 FLOAT = 735
 		--DECLARE @actual_param2 NVARCHAR(100) = 'A'
 
-        INSERT INTO dbo.KS (KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [Last Update], KINGDOM_RANK, KINGDOM_SEED)
+        INSERT INTO dbo.KS (KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [CH25], [Last Update], KINGDOM_RANK, KINGDOM_SEED)
         SELECT
             SUM(CAST([Power] AS BIGINT)),
             COUNT(GovernorID),
             SUM([KillPoints]),
             SUM([TOTAL_KILLS]),
             SUM([DEADS]),
+			CAST(SUM(CASE WHEN [City Hall] = 25 THEN 1 ELSE 0 END) AS INT) AS CH25,
             @MAXDATE,
             @actual_param1,
             @actual_param2
