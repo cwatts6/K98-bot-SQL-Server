@@ -26,6 +26,20 @@ CREATE TABLE [dbo].[DASH](
 	[POWER_DELTA] [float] NULL,
 	[DKP_Score] [float] NULL,
 	[DKP Target] [float] NULL,
-	[% of DKP Target] [float] NULL
+	[% of DKP Target] [float] NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL
 ) ON [PRIMARY]
 END

@@ -38,7 +38,21 @@ CREATE TABLE [dbo].[STATS_FOR_UPLOAD](
 	[Pass 8 Deads] [float] NOT NULL,
 	[KVK_NO] [float] NULL,
 	[LAST_REFRESH] [date] NULL,
-	[STATUS] [varchar](20) COLLATE Latin1_General_CI_AS NOT NULL
+	[STATUS] [varchar](20) COLLATE Latin1_General_CI_AS NOT NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF__STATS_FOR__STATU__2F1FB17D]') AND type = 'D')

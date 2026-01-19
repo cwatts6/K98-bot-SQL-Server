@@ -11,17 +11,19 @@ BEGIN
     SET NOCOUNT ON;
 
     BEGIN TRY
-        -- Step 1: Execute dependent procedures
+        -- Step 1: Execute dependent procedures (add healing and ranged summaries)
         EXEC DEADSSUMMARY_PROC;
         EXEC POWERSUMMARY_PROC;
         EXEC KILLSSUMMARY_PROC;
         EXEC KT4SUMMARY_PROC;
         EXEC KT5SUMMARY_PROC;
+		EXEC HEALEDSUMMARY_PROC;
+		EXEC RANGEDSUMMARY_PROC;
 
         -- Step 2: Clear export table
         TRUNCATE TABLE SUMMARY_CHANGE_EXPORT;
 
-        -- Step 3: Insert combined summary data
+        -- Step 3: Insert combined summary data including Healed and Ranged metrics
         INSERT INTO SUMMARY_CHANGE_EXPORT
         SELECT 
             P.GOVERNORID,
@@ -44,26 +46,44 @@ BEGIN
             [T5_KillsDelta12Months],
             [T5_KillsDelta6Months],
             [T5_KillsDelta3Months],
-            [POWER],
-            [StartingPower],
-            [OverallPowerDelta],
-            [PowerDelta12Months],
-            [PowerDelta6Months],
-            [PowerDelta3Months],
-            [DEADS],
-            [StartingDEADS],
-            [OverallDEADSDelta],
-            [DEADSDelta12Months],
-            [DEADSDelta6Months],
-            [DEADSDelta3Months]
+            P.[POWER],
+            P.[StartingPower],
+            P.[OverallPowerDelta],
+            P.[PowerDelta12Months],
+            P.[PowerDelta6Months],
+            P.[PowerDelta3Months],
+            D.[DEADS],
+            D.[StartingDEADS],
+            D.[OverallDEADSDelta],
+            D.[DEADSDelta12Months],
+            D.[DEADSDelta6Months],
+            D.[DEADSDelta3Months],
+
+            -- Healed summary fields (nullable, fallback 0)
+            ISNULL(H.HealedTroops, 0)           AS HealedTroops,
+            ISNULL(H.StartingHealed, 0)         AS StartingHealed,
+            ISNULL(H.OverallHealedDelta, 0)     AS OverallHealedDelta,
+            ISNULL(H.HealedDelta12Months, 0)    AS HealedDelta12Months,
+            ISNULL(H.HealedDelta6Months, 0)     AS HealedDelta6Months,
+            ISNULL(H.HealedDelta3Months, 0)     AS HealedDelta3Months,
+
+            -- Ranged summary fields
+            ISNULL(R.RangedPoints, 0)           AS RangedPoints,
+            ISNULL(R.StartingRanged, 0)         AS StartingRanged,
+            ISNULL(R.OverallRangedDelta, 0)     AS OverallRangedDelta,
+            ISNULL(R.RangedDelta12Months, 0)    AS RangedDelta12Months,
+            ISNULL(R.RangedDelta6Months, 0)     AS RangedDelta6Months,
+            ISNULL(R.RangedDelta3Months, 0)     AS RangedDelta3Months
         FROM POWERSUMMARY AS P
         JOIN KILL4summary AS K4 ON P.GOVERNORID = K4.GOVERNORID
         JOIN KILL5SUMMARY AS K5 ON P.GOVERNORID = K5.GOVERNORID
         JOIN KILLSUMMARY AS K ON P.GOVERNORID = K.GOVERNORID
         JOIN DEADSSUMMARY AS D ON P.GOVERNORID = D.GOVERNORID
+		JOIN HEALEDSUMMARY AS H ON P.GOVERNORID = H.GOVERNORID
+		JOIN RANGEDSUMMARY AS R ON P.GOVERNORID = R.GOVERNORID
         ORDER BY P.GOVERNORNAME;
 
-        -- Step 4: Return result
+        -- Step 4: Return result (optional)
         --SELECT * FROM SUMMARY_CHANGE_EXPORT;
     END TRY
     BEGIN CATCH
@@ -82,5 +102,5 @@ BEGIN
 
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
-END;
+END
 

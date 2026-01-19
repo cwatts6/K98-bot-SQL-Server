@@ -9,6 +9,8 @@ CREATE TABLE [dbo].[POWER_BY_MONTH](
 	[KILLPOINTS] [float] NULL,
 	[T4&T5KILLS] [float] NULL,
 	[DEADS] [float] NULL,
-	[MONTH] [date] NULL
+	[MONTH] [date] NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL
 ) ON [PRIMARY]
 END

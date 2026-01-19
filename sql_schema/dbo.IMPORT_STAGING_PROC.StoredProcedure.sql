@@ -9,155 +9,246 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
-	TRUNCATE TABLE IMPORT_STAGING_CSV;
+    ----------------------------------------------------------------
+    -- This procedure:
+    -- 1) loads stats.csv into dbo.IMPORT_STAGING_CSV via BULK INSERT
+    -- 2) maps CSV columns into canonical dbo.IMPORT_STAGING
+    -- 3) applies a few cleanup fixes, computes deltas against last scan,
+    -- 4) archives the CSV file and returns summary info.
+    --
+    -- Assumptions:
+    -- - dbo.IMPORT_STAGING_CSV physical column order and names match the CSV header.
+    -- - SQL Server service account has read access to the CSV path.
+    ----------------------------------------------------------------
 
-	DECLARE @FileExists INT;
+    DECLARE @FileExists INT;
+    DECLARE @NextScanOrder BIGINT;
+    DECLARE @InsertedRows INT = 0;
+    DECLARE @LatestDate DATETIME;
+    DECLARE @FormattedDate VARCHAR(50);
+    DECLARE @MoveCommand NVARCHAR(4000);
 
-	EXEC master.dbo.xp_fileexist 'C:\discord_file_downloader\downloads\stats.csv', @FileExists OUTPUT;
+	DECLARE @CsvPath NVARCHAR(4000) = N'C:\discord_file_downloader\downloads\stats.csv';
+
+    -- Check file exists
+    EXEC master.dbo.xp_fileexist @CsvPath, @FileExists OUTPUT;
 
     IF @FileExists = 1
+    BEGIN
+        BEGIN TRY
+            ----------------------------------------------------------------
+            -- Step 1: truncate CSV staging table (fresh load)
+            ----------------------------------------------------------------
+            TRUNCATE TABLE dbo.IMPORT_STAGING_CSV;
 
-    BEGIN TRY
-        DECLARE @NextScanOrder INT = (SELECT ISNULL(MAX(SCANORDER), 0) + 1 FROM KingdomScanData4);
-        DECLARE @InsertedRows INT;
-        DECLARE @LatestDate DATETIME;
-        DECLARE @FormattedDate VARCHAR(50);
-        DECLARE @MoveCommand NVARCHAR(4000);
-		
+            ----------------------------------------------------------------
+            -- Step 2: BULK INSERT CSV -> IMPORT_STAGING_CSV
+            -- Uses CSV-format options robust to quoted fields and UTF-8.
+            ----------------------------------------------------------------
+			
+            DECLARE @bulksql NVARCHAR(MAX) = N'
+                BULK INSERT dbo.IMPORT_STAGING_CSV
+                FROM ''' + REPLACE(@CsvPath, '''', '''''') + N'''
+                WITH (
+                    FORMAT = ''CSV'',
+                    FIRSTROW = 2,
+                    FIELDTERMINATOR = '','',
+                    FIELDQUOTE = ''"'',
+                    ROWTERMINATOR = ''0x0a'',
+                    CODEPAGE = ''65001'',
+                    TABLOCK
+                );';
 
-         -- Step 2: Bulk insert from CSV
-        BULK INSERT IMPORT_STAGING_CSV
-        FROM 'C:\discord_file_downloader\downloads\stats.csv'
-        WITH (
-            FORMAT = 'CSV',
-            FIRSTROW = 2,
-            FIELDTERMINATOR = ',',  
-            ROWTERMINATOR = '\n',  
-            CODEPAGE = '65001',
-            TABLOCK
-        );
+            EXEC sp_executesql @bulksql;
 
-        -- Step 3: Truncate target staging table
-        TRUNCATE TABLE IMPORT_STAGING;
+            ----------------------------------------------------------------
+            -- Step 3: Determine next scan order (preserve original behaviour)
+            ----------------------------------------------------------------
+            SELECT @NextScanOrder = ISNULL(MAX(SCANORDER), 0) + 1 FROM dbo.KingdomScanData4;
+            IF @NextScanOrder IS NULL SET @NextScanOrder = 1;
 
-        -- Step 4: Insert into IMPORT_STAGING with inline ScanDate parsing
-        INSERT INTO IMPORT_STAGING (
-            [Name], [Governor ID], [Alliance], [Power],
-            [Total Kill Points], [Dead Troops], [T1-Kills], [T2-Kills], [T3-Kills],
-            [T4-Kills], [T5-Kills], [Kills (T4+)], [KILLS], [RSS Gathered],
-            [RSS Assistance], [Alliance Helps], [ScanDate], [SCANORDER],
-            [Troops Power], [City Hall], [Tech Power], [Building Power],
-            [Commander Power], [Updated_on]
-        )
-        SELECT
-            [Name], [GovernorID], [Alliance], [Power],
-            [TotalKillPoints], [DeadTroops], [T1_Kills], [T2_Kills], [T3_Kills],
-            [T4_Kills], [T5_Kills],
-            ([T4_Kills] + [T5_Kills]),
-            ([T1_Kills] + [T2_KILLS] + [T3_KILLS] + [T4_Kills] + [T5_Kills]),
-            [RssGathered], [RssAssistance], [AllianceHelps],
-            TRY_CAST(
-                CONCAT(
-                    '20', SUBSTRING(updated_on, 6, 2), '-',        
-                    CASE SUBSTRING(updated_on, 3, 3)
-                        WHEN 'Jan' THEN '01'
-                        WHEN 'Feb' THEN '02'
-                        WHEN 'Mar' THEN '03'
-                        WHEN 'Apr' THEN '04'
-                        WHEN 'May' THEN '05'
-                        WHEN 'Jun' THEN '06'
-                        WHEN 'Jul' THEN '07'
-                        WHEN 'Aug' THEN '08'
-                        WHEN 'Sep' THEN '09'
-                        WHEN 'Oct' THEN '10'
-                        WHEN 'Nov' THEN '11'
-                        WHEN 'Dec' THEN '12'
-                    END, '-',
-                    SUBSTRING(updated_on, 1, 2), ' ',
-                    SUBSTRING(updated_on, 9, 2), ':',
-                    SUBSTRING(updated_on, 12, 2), ':00'
-                ) AS DATETIME
-            ) AS ScanDate,
-            @NextScanOrder,
-            [TroopsPower], [CityHall], [TechPower], [BuildingPower], [CommanderPower],
-            [updated_on]
-        FROM IMPORT_STAGING_CSV;
+            ----------------------------------------------------------------
+            -- Step 4: Truncate canonical staging and insert mapped values
+            ----------------------------------------------------------------
+            TRUNCATE TABLE dbo.IMPORT_STAGING;
 
-        SET @InsertedRows = @@ROWCOUNT;
+            INSERT INTO dbo.IMPORT_STAGING (
+                [Name], [Governor ID], [Alliance], [Power],
+                [Total Kill Points], [Dead Troops], [T1-Kills], [T2-Kills], [T3-Kills],
+                [T4-Kills], [T5-Kills], [Kills (T4+)], [KILLS], [Rss Gathered],
+                [Rss Assistance], [Alliance Helps], [ScanDate], [SCANORDER],
+                [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power],
+                [Updated_on],
+                -- new fields
+                [HealedTroops], [RangedPoints], [Civilization], [KvKPlayed],
+                [MostKvKKill], [MostKvKDead], [MostKvKHeal],
+                [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
+                [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal]
+            )
+            SELECT
+                RTRIM(ISNULL([Name], '')) AS [Name],
 
-        -- Step 5: Clean up known alliance typos
-        UPDATE IMPORT_STAGING
-        SET ALLIANCE = '[k98A]SparTanS'
-        WHERE ALLIANCE = '[k98A]SparTanS$S';
+                -- Governor id in CSV is "Governor ID"
+                [Governor ID] AS [Governor ID],
 
-        UPDATE IMPORT_STAGING
-        SET ALLIANCE = '[K98B]TrojanS'
-        WHERE ALLIANCE = '[K98B]Trojan$S';
+                [Alliance],
+                -- numeric conversions are defensive: remove commas and TRY_CAST where useful
+                CASE WHEN TRY_CAST(REPLACE([Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Power], ',', '') AS BIGINT) ELSE NULL END AS [Power],
 
-        -- Step 6: Delta update from latest scan
-        WITH LatestScan AS (
-            SELECT GovernorID,
-                   KillPoints, Deads, T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills,
-                   [T4&T5_KILLS], [TOTAL_KILLS], RSS_Gathered, RSSAssistance, Helps
-            FROM KingdomScanData4
-            WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM KingdomScanData4)
-        )
-        UPDATE I
-        SET 
-            [Total Kill Points] = CASE WHEN I.[Total Kill Points] < K.KillPoints THEN K.KillPoints ELSE I.[Total Kill Points] END,
-            [Dead Troops] = CASE WHEN I.[Dead Troops] < K.Deads THEN K.Deads ELSE I.[Dead Troops] END,
-            [T1-Kills] = CASE WHEN I.[T1-Kills] < K.T1_Kills THEN K.T1_Kills ELSE I.[T1-Kills] END,
-            [T2-Kills] = CASE WHEN I.[T2-Kills] < K.T2_Kills THEN K.T2_Kills ELSE I.[T2-Kills] END,
-            [T3-Kills] = CASE WHEN I.[T3-Kills] < K.T3_Kills THEN K.T3_Kills ELSE I.[T3-Kills] END,
-            [T4-Kills] = CASE WHEN I.[T4-Kills] < K.T4_Kills THEN K.T4_Kills ELSE I.[T4-Kills] END,
-            [T5-Kills] = CASE WHEN I.[T5-Kills] < K.T5_Kills THEN K.T5_Kills ELSE I.[T5-Kills] END,
-            [Kills (T4+)] = CASE WHEN I.[Kills (T4+)] < K.[T4&T5_KILLS] THEN K.[T4&T5_KILLS] ELSE I.[Kills (T4+)] END,
-            [KILLS] = CASE WHEN I.[KILLS] < K.[TOTAL_KILLS] THEN K.[TOTAL_KILLS] ELSE I.[KILLS] END,
-            [RSS Gathered] = CASE WHEN I.[RSS Gathered] < K.RSS_Gathered THEN K.RSS_Gathered ELSE I.[RSS Gathered] END,
-            [RSS Assistance] = CASE WHEN I.[RSS Assistance] < K.RSSAssistance THEN K.RSSAssistance ELSE I.[RSS Assistance] END,
-            [Alliance Helps] = CASE WHEN I.[Alliance Helps] < K.Helps THEN K.Helps ELSE I.[Alliance Helps] END
-        FROM IMPORT_STAGING AS I
-        JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
+                CASE WHEN TRY_CAST(REPLACE([Total Kill Points], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Total Kill Points], ',', '') AS BIGINT) ELSE NULL END AS [Total Kill Points],
+                CASE WHEN TRY_CAST(REPLACE([Dead Troops], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Dead Troops], ',', '') AS BIGINT) ELSE NULL END AS [Dead Troops],
+                CASE WHEN TRY_CAST(REPLACE([T1-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T1-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T1-Kills],
+                CASE WHEN TRY_CAST(REPLACE([T2-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T2-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T2-Kills],
+                CASE WHEN TRY_CAST(REPLACE([T3-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T3-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T3-Kills],
+                CASE WHEN TRY_CAST(REPLACE([T4-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T4-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T4-Kills],
+                CASE WHEN TRY_CAST(REPLACE([T5-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T5-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T5-Kills],
 
+                -- derived fields
+                ([T4-Kills] + [T5-Kills]) AS [Kills (T4+)],
+                ([T1-Kills] + [T2-Kills] + [T3-Kills] + [T4-Kills] + [T5-Kills]) AS [KILLS],
 
+                CASE WHEN TRY_CAST(REPLACE([Rss Gathered], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Rss Gathered], ',', '') AS BIGINT) ELSE NULL END AS [RssGathered],
+                CASE WHEN TRY_CAST(REPLACE([Rss Assistance], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Rss Assistance], ',', '') AS BIGINT) ELSE NULL END AS [RssAssistance],
+                CASE WHEN TRY_CAST(REPLACE([Alliance Helps], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Alliance Helps], ',', '') AS BIGINT) ELSE NULL END AS [AllianceHelps],
 
-        -- Step 7: Move the CSV file to archive with formatted name
-        SELECT TOP 1 @LatestDate = [ScanDate]
-        FROM IMPORT_STAGING
-        ORDER BY [Updated_on] DESC;
+                -- convert updated_on string like '19Jan26-15h57m' into DATETIME; best-effort parse
+                TRY_CAST(
+                    CONCAT(
+                        '20', SUBSTRING([updated_on], 6, 2), '-',        
+                        CASE SUBSTRING([updated_on], 3, 3)
+                            WHEN 'Jan' THEN '01'
+                            WHEN 'Feb' THEN '02'
+                            WHEN 'Mar' THEN '03'
+                            WHEN 'Apr' THEN '04'
+                            WHEN 'May' THEN '05'
+                            WHEN 'Jun' THEN '06'
+                            WHEN 'Jul' THEN '07'
+                            WHEN 'Aug' THEN '08'
+                            WHEN 'Sep' THEN '09'
+                            WHEN 'Oct' THEN '10'
+                            WHEN 'Nov' THEN '11'
+                            WHEN 'Dec' THEN '12'
+                        END, '-',
+                        SUBSTRING([updated_on], 1, 2), ' ',
+                        SUBSTRING([updated_on], 9, 2), ':',
+                        SUBSTRING([updated_on], 12, 2), ':00'
+                    ) AS DATETIME
+                ) AS ScanDate,
 
-        SET @FormattedDate = FORMAT(@LatestDate, 'yyyyMMdd_HHmm');
-        SET @MoveCommand = 'CMD /C MOVE "C:\discord_file_downloader\downloads\stats.csv" "C:\discord_file_downloader\downloads\Import_Archive\Stats_' + @FormattedDate + '.csv"';
+                @NextScanOrder AS SCANORDER,
 
-        CREATE TABLE #dummy_output (output NVARCHAR(4000));
-        INSERT INTO #dummy_output
-        EXEC xp_cmdshell @MoveCommand;
+                CASE WHEN TRY_CAST(REPLACE([Troops Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Troops Power], ',', '') AS BIGINT) ELSE NULL END AS [TroopsPower],
+                CASE WHEN TRY_CAST([City Hall] AS INT) IS NOT NULL THEN CAST([City Hall] AS INT) ELSE NULL END AS [CityHall],
+                CASE WHEN TRY_CAST(REPLACE([Tech Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Tech Power], ',', '') AS BIGINT) ELSE NULL END AS [TechPower],
+                CASE WHEN TRY_CAST(REPLACE([Building Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Building Power], ',', '') AS BIGINT) ELSE NULL END AS [BuildingPower],
+                CASE WHEN TRY_CAST(REPLACE([Commander Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Commander Power], ',', '') AS BIGINT) ELSE NULL END AS [CommanderPower],
 
-        -- Step 8: Output summary
-        PRINT '--- IMPORT STAGING SUMMARY ---';
-        PRINT 'Rows Inserted: ' + CAST(@InsertedRows AS VARCHAR);
-        PRINT 'ScanOrder Used: ' + CAST(@NextScanOrder AS VARCHAR);
-        PRINT 'File Moved To: C:\discord_file_downloader\downloads\Import_Archive\Stats_' + @FormattedDate + '.csv';
-        PRINT 'File Move Output:';
-        PRINT 'File Move Output:';
+                [updated_on],
 
-SELECT output 
-FROM #dummy_output 
-WHERE output IS NOT NULL AND LTRIM(RTRIM(output)) <> '';
+                -- new fields mapping (CSV headers)
+                CASE WHEN TRY_CAST(REPLACE([Healed Troops], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Healed Troops], ',', '') AS BIGINT) ELSE NULL END AS [HealedTroops],
+                CASE WHEN TRY_CAST(REPLACE([Ranged Points], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Ranged Points], ',', '') AS BIGINT) ELSE NULL END AS [RangedPoints],
+                [Civilization] AS [Civilization],
+                CASE WHEN TRY_CAST([KvK Played] AS INT) IS NOT NULL THEN CAST([KvK Played] AS INT) ELSE NULL END AS [KvKPlayed],
+                CASE WHEN TRY_CAST(REPLACE([Most KvK Kill], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Most KvK Kill], ',', '') AS BIGINT) ELSE NULL END AS [MostKvKKill],
+                CASE WHEN TRY_CAST(REPLACE([Most KvK Dead], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Most KvK Dead], ',', '') AS BIGINT) ELSE NULL END AS [MostKvKDead],
+                CASE WHEN TRY_CAST(REPLACE([Most KvK Heal], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Most KvK Heal], ',', '') AS BIGINT) ELSE NULL END AS [MostKvKHeal],
+                CASE WHEN TRY_CAST(REPLACE([Acclaim], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Acclaim], ',', '') AS BIGINT) ELSE NULL END AS [Acclaim],
+                CASE WHEN TRY_CAST(REPLACE([Highest Acclaim], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Highest Acclaim], ',', '') AS BIGINT) ELSE NULL END AS [HighestAcclaim],
+                CASE WHEN TRY_CAST(REPLACE([AOO Joined], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Joined], ',', '') AS BIGINT) ELSE NULL END AS [AOOJoined],
+                CASE WHEN TRY_CAST([AOO Won] AS INT) IS NOT NULL THEN CAST([AOO Won] AS INT) ELSE NULL END AS [AOOWon],
+                CASE WHEN TRY_CAST(REPLACE([AOO Avg Kill], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Avg Kill], ',', '') AS BIGINT) ELSE NULL END AS [AOOAvgKill],
+                CASE WHEN TRY_CAST(REPLACE([AOO Avg Dead], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Avg Dead], ',', '') AS BIGINT) ELSE NULL END AS [AOOAvgDead],
+                CASE WHEN TRY_CAST(REPLACE([AOO Avg Heal], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Avg Heal], ',', '') AS BIGINT) ELSE NULL END AS [AOOAvgHeal]
+            FROM dbo.IMPORT_STAGING_CSV;
 
-        DROP TABLE #dummy_output;
+            SET @InsertedRows = @@ROWCOUNT;
 
-        RETURN 0; -- Success
+            ----------------------------------------------------------------
+            -- Step 5: Clean up known alliance typos (preserve original rules)
+            ----------------------------------------------------------------
+            UPDATE IMPORT_STAGING
+            SET ALLIANCE = '[k98A]SparTanS'
+            WHERE ALLIANCE = '[k98A]SparTanS$S';
 
-    END TRY
-    BEGIN CATCH
-        PRINT 'Error occurred: ' + ERROR_MESSAGE();
-        RETURN 1; -- Failure
-    END CATCH
- ELSE
+            UPDATE IMPORT_STAGING
+            SET ALLIANCE = '[K98B]TrojanS'
+            WHERE ALLIANCE = '[K98B]Trojan$S';
+
+            ----------------------------------------------------------------
+            -- Step 6: Delta update from latest scan (preserve original behaviour)
+            ----------------------------------------------------------------
+            WITH LatestScan AS (
+                SELECT GovernorID,
+                       KillPoints, Deads, T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills,
+                       [T4&T5_KILLS], [TOTAL_KILLS], RSS_Gathered, RSSAssistance, Helps
+                FROM dbo.KingdomScanData4
+                WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData4)
+            )
+            UPDATE I
+            SET 
+                [Total Kill Points] = CASE WHEN I.[Total Kill Points] < K.KillPoints THEN K.KillPoints ELSE I.[Total Kill Points] END,
+                [Dead Troops] = CASE WHEN I.[Dead Troops] < K.Deads THEN K.Deads ELSE I.[Dead Troops] END,
+                [T1-Kills] = CASE WHEN I.[T1-Kills] < K.T1_Kills THEN K.T1_Kills ELSE I.[T1-Kills] END,
+                [T2-Kills] = CASE WHEN I.[T2-Kills] < K.T2_Kills THEN K.T2_Kills ELSE I.[T2-Kills] END,
+                [T3-Kills] = CASE WHEN I.[T3-Kills] < K.T3_Kills THEN K.T3_Kills ELSE I.[T3-Kills] END,
+                [T4-Kills] = CASE WHEN I.[T4-Kills] < K.T4_Kills THEN K.T4_Kills ELSE I.[T4-Kills] END,
+                [T5-Kills] = CASE WHEN I.[T5-Kills] < K.T5_Kills THEN K.T5_Kills ELSE I.[T5-Kills] END,
+                [Kills (T4+)] = CASE WHEN I.[Kills (T4+)] < K.[T4&T5_KILLS] THEN K.[T4&T5_KILLS] ELSE I.[Kills (T4+)] END,
+                [KILLS] = CASE WHEN I.[KILLS] < K.[TOTAL_KILLS] THEN K.[TOTAL_KILLS] ELSE I.[KILLS] END,
+                [RSS Gathered] = CASE WHEN I.[RSS Gathered] < K.RSS_Gathered THEN K.RSS_Gathered ELSE I.[RSS Gathered] END,
+                [RSS Assistance] = CASE WHEN I.[RSS Assistance] < K.RSSAssistance THEN K.RSSAssistance ELSE I.[RSS Assistance] END,
+                [Alliance Helps] = CASE WHEN I.[Alliance Helps] < K.Helps THEN K.Helps ELSE I.[Alliance Helps] END
+            FROM dbo.IMPORT_STAGING AS I
+            JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
+
+            ----------------------------------------------------------------
+            -- Step 7: Archive the CSV (move to Import_Archive folder with formatted name)
+            ----------------------------------------------------------------
+            SELECT TOP 1 @LatestDate = ScanDate
+            FROM dbo.IMPORT_STAGING
+            WHERE ScanDate IS NOT NULL
+            ORDER BY ScanDate DESC;
+
+            IF @LatestDate IS NULL
+                SET @LatestDate = GETDATE();
+
+            SET @FormattedDate = FORMAT(@LatestDate, 'yyyyMMdd_HHmm');
+            SET @MoveCommand = 'CMD /C MOVE "' + @CsvPath + '" "C:\discord_file_downloader\downloads\Import_Archive\Stats_' + @FormattedDate + '.csv"';
+
+            CREATE TABLE #dummy_output (output NVARCHAR(4000));
+            INSERT INTO #dummy_output
+            EXEC xp_cmdshell @MoveCommand;
+
+            ----------------------------------------------------------------
+            -- Step 8: Output summary & cleanup
+            ----------------------------------------------------------------
+            PRINT '--- IMPORT STAGING SUMMARY ---';
+            PRINT 'Rows Inserted: ' + CAST(@InsertedRows AS VARCHAR(20));
+            PRINT 'ScanOrder Used: ' + CAST(@NextScanOrder AS VARCHAR(20));
+            PRINT 'File Moved To: C:\discord_file_downloader\downloads\Import_Archive\Stats_' + @FormattedDate + '.csv';
+            PRINT 'File Move Output:';
+
+            SELECT output 
+            FROM #dummy_output 
+            WHERE output IS NOT NULL AND LTRIM(RTRIM(output)) <> '';
+
+            DROP TABLE #dummy_output;
+
+            RETURN 0; -- Success
+        END TRY
+        BEGIN CATCH
+            DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
+            PRINT 'Error occurred: ' + COALESCE(@ErrMsg, N'(no message)');
+            RETURN 1; -- Failure
+        END CATCH
+    END
+    ELSE
     BEGIN
         PRINT '⚠️ File not found. Import skipped.';
+        RETURN 1;
+    END
 END
-END;
 

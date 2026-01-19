@@ -28,6 +28,20 @@ CREATE TABLE [dbo].[KingdomScanData5](
 	[Tech Power] [float] NULL,
 	[Building Power] [float] NULL,
 	[Commander Power] [float] NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[SCAN_UNO] ASC

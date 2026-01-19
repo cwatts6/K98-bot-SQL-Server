@@ -21,6 +21,20 @@ CREATE TABLE [dbo].[ALL_GOVS](
 	[RSSAssistance] [bigint] NULL,
 	[Last Scan] [datetime] NULL,
 	[Previous Scan] [datetime] NULL,
-	[First Scan] [datetime] NULL
+	[First Scan] [datetime] NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL
 ) ON [PRIMARY]
 END

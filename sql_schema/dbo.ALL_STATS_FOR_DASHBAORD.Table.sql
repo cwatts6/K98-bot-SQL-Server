@@ -35,8 +35,19 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[Pass 7 Deads] [float] NOT NULL,
 	[Pass 8 Deads] [float] NOT NULL,
 	[KVK_NO] [float] NULL,
-	[TrainingPower_Delta] [bigint] NULL,
-	[HealedPower_Est] [bigint] NULL,
-	[HealedTroops_Est] [bigint] NULL
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL
 ) ON [PRIMARY]
 END

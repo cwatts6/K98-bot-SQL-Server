@@ -34,11 +34,69 @@ DECLARE @FIRSTSCAN AS FLOAT = 1
         SUM([Deads]) AS Deads,
         SUM([Helps]) AS Helps,
         SUM([RSSAssistance]) AS RSSAssist,
-        SUM([RSS_Gathered]) AS RSSGathered
+        SUM([RSS_Gathered]) AS RSSGathered,
+		SUM([HealedTroops]) AS HealedTroops,
+		SUM([RangedPoints]) AS RangedPoints
     INTO #BaseData
     FROM dbo.kingdomscandata4
     WHERE SCANORDER >= @FIRSTSCAN
     GROUP BY GovernorID, SCANORDER;
+
+	IF OBJECT_ID('tempdb..#BaseData') IS NOT NULL
+	BEGIN
+		-- create a clustered index if not already present
+		-- This helps the OUTER APPLY (previous-row) lookup scale reasonably.
+		BEGIN TRY
+			CREATE CLUSTERED INDEX IX_BaseData_Gov_Scan ON #BaseData (GovernorID ASC, SCANORDER ASC);
+		END TRY
+		BEGIN CATCH
+			-- ignore if index exists or creation fails
+		END CATCH
+	END
+
+		-- HealedTroopsDelta: previous non-NULL lookup
+	IF OBJECT_ID('dbo.HealedTroopsDelta','U') IS NOT NULL
+	BEGIN
+		TRUNCATE TABLE dbo.HealedTroopsDelta;
+	END
+
+	INSERT INTO dbo.HealedTroopsDelta (GovernorID, DeltaOrder, HealedTroopsDelta)
+	SELECT
+		b.GovernorID,
+		b.SCANORDER,
+		b.HealedTroops - ISNULL(prev.HealedTroops, 0) AS HealedTroopsDelta
+	FROM #BaseData AS b
+	OUTER APPLY (
+		SELECT TOP (1) b2.HealedTroops
+		FROM #BaseData AS b2
+		WHERE b2.GovernorID = b.GovernorID
+		  AND b2.SCANORDER < b.SCANORDER
+		  AND b2.HealedTroops IS NOT NULL
+		ORDER BY b2.SCANORDER DESC
+	) AS prev
+	WHERE b.HealedTroops IS NOT NULL;
+
+	-- RangedPointsDelta: same pattern
+	IF OBJECT_ID('dbo.RangedPointsDelta','U') IS NOT NULL
+	BEGIN
+		TRUNCATE TABLE dbo.RangedPointsDelta;
+	END
+
+	INSERT INTO dbo.RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
+	SELECT
+		b.GovernorID,
+		b.SCANORDER,
+		b.RangedPoints - ISNULL(prev.RangedPoints, 0) AS RangedPointsDelta
+	FROM #BaseData AS b
+	OUTER APPLY (
+		SELECT TOP (1) b2.RangedPoints
+		FROM #BaseData AS b2
+		WHERE b2.GovernorID = b.GovernorID
+		  AND b2.SCANORDER < b.SCANORDER
+		  AND b2.RangedPoints IS NOT NULL
+		ORDER BY b2.SCANORDER DESC
+	) AS prev
+	WHERE b.RangedPoints IS NOT NULL;
 
     -- T4 Kill Delta
     INSERT INTO T4KillDelta

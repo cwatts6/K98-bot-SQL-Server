@@ -60,9 +60,11 @@ BEGIN
             , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
             , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
+            , HealedTroops, RangedPoints, Civilization, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
+            , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
         )
         SELECT
-              ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC)  -- deterministic tiebreaker
+              ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC)
             , RTRIM([Name])
             , [Governor ID]
             , [Alliance]
@@ -75,8 +77,9 @@ BEGIN
             , [RSS Gathered], [RSS Assistance], [Alliance Helps]
             , [ScanDate], [SCANORDER]
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
-        FROM dbo.IMPORT_STAGING WITH (TABLOCK) -- consider TABLOCK for minimal logging if allowed & appropriate
-        ;
+            , [HealedTroops], [RangedPoints], [Civilization], [KvKPlayed], [MostKvKKill], [MostKvKDead], [MostKvKHeal]
+            , [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal]
+        FROM dbo.IMPORT_STAGING WITH (TABLOCK);
 
         SET @rowsKS5 = @@ROWCOUNT;
 
@@ -97,12 +100,16 @@ BEGIN
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
                 , RSS_Gathered, RSSAssistance, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
+                , HealedTroops, RangedPoints, Civilization, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
+                , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
             )
             SELECT
                   PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
                 , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
+                , HealedTroops, RangedPoints, Civilization, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
+                , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
             FROM dbo.KingdomScanData5
             WHERE SCANORDER = @MaxScanOrder5;
         END
@@ -144,7 +151,10 @@ BEGIN
             [% of DKP Target], [Helps], [RSS_Assist], [RSS_Gathered],
             [Pass 4 Kills],[Pass 6 Kills],[Pass 7 Kills],[Pass 8 Kills],
             [Pass 4 Deads],[Pass 6 Deads],[Pass 7 Deads],[Pass 8 Deads],
-            [TrainingPower_Delta], [HealedPower_Est], [HealedTroops_Est], [KVK_NO]
+            [RangedPoints], [HealedTroops], [Civilization], [KvKPlayed],
+            [MostKvKKill], [MostKvKDead], [MostKvKHeal], [Acclaim], [HighestAcclaim],
+            [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+            [KVK_NO]
         )
         SELECT
             [Rank],[KVK_RANK],[Gov_ID], ISNULL(RTRIM(Governor_Name), ''),
@@ -159,9 +169,20 @@ BEGIN
             ISNULL([RSS_Gathered],0),
             ISNULL([Pass 4 Kills],0), ISNULL([Pass 6 Kills],0), ISNULL([Pass 7 Kills],0), ISNULL([Pass 8 Kills],0),
             ISNULL([Pass 4 Deads],0), ISNULL([Pass 6 Deads],0), ISNULL([Pass 7 Deads],0), ISNULL([Pass 8 Deads],0),
-            ISNULL([TrainingPower_Delta],0), 
-            ISNULL([HealedPower_Est],0), 
-            ISNULL([HealedTroops_Est],0),
+            ISNULL([RangedPoints],0), 
+            ISNULL([HealedTroops],0),
+            ISNULL([Civilization], N''),
+            ISNULL([KvKPlayed],0),
+            ISNULL([MostKvKKill],0),
+            ISNULL([MostKvKDead],0),
+            ISNULL([MostKvKHeal],0),
+            ISNULL([Acclaim],0),
+            ISNULL([HighestAcclaim],0),
+            ISNULL([AOOJoined],0),
+            ISNULL([AOOWon],0),
+            ISNULL([AOOAvgKill],0),
+            ISNULL([AOOAvgDead],0),
+            ISNULL([AOOAvgHeal],0),
             [KVK_NO]
         FROM dbo.EXCEL_FOR_DASHBOARD
         WHERE Gov_ID <> 12025033;
@@ -169,13 +190,17 @@ BEGIN
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
  
  
-        INSERT INTO dbo.POWER_BY_MONTH (GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH])
-        SELECT TOP (5000000) GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH]
+        INSERT INTO dbo.POWER_BY_MONTH (GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH], HealedTroops, RangedPoints)
+        SELECT TOP (5000000) GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH], HealedTroops, RangedPoints
         FROM (
             SELECT GovernorID, RTRIM(GovernorName) AS GovernorName,
-                   MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
+                   MAX([Power]) AS [POWER], 
+				   MAX(KillPoints) AS KILLPOINTS,
                    MAX([T4&T5_KILLS]) AS [T4&T5KILLS],
-                   MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
+                   MAX(Deads) AS DEADS, 
+				   MAX(HealedTroops) AS HealedTroops, 
+				   MAX(RangedPoints) AS RangedPoints, 
+				   EOMONTH(ScanDate) AS [MONTH]
             FROM dbo.KingdomScanData4
             WHERE GovernorID NOT IN (0, 12025033)
             GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
@@ -185,7 +210,7 @@ BEGIN
             SELECT GovernorID, RTRIM(GovernorName) AS GovernorName,
                    MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
                    MAX([T4&T5_KILLS]) AS [T4&T5KILLS],
-                   MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
+                   MAX(Deads) AS DEADS, MAX(HealedTroops) AS HealedTroops, MAX(RangedPoints) AS RangedPoints, EOMONTH(ScanDate) AS [MONTH]
             FROM dbo.THE_AVERAGES
             GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
         ) AS T
@@ -196,10 +221,10 @@ BEGIN
         --TRUNCATE TABLE dbo.KS;
 
         DECLARE @MAXDATE DATETIME = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
-		--DECLARE @actual_param1 FLOAT = 735
-		--DECLARE @actual_param2 NVARCHAR(100) = 'A'
+		--DECLARE @actual_param1 FLOAT = 912;
+		--DECLARE @actual_param2 NVARCHAR(100) = 'C';
 
-        INSERT INTO dbo.KS (KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [CH25], [Last Update], KINGDOM_RANK, KINGDOM_SEED)
+        INSERT INTO dbo.KS (KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [CH25], HealedTroops, RangedPoints, [Last Update], KINGDOM_RANK, KINGDOM_SEED)
         SELECT
             SUM(CAST([Power] AS BIGINT)),
             COUNT(GovernorID),
@@ -207,6 +232,8 @@ BEGIN
             SUM([TOTAL_KILLS]),
             SUM([DEADS]),
 			CAST(SUM(CASE WHEN [City Hall] = 25 THEN 1 ELSE 0 END) AS INT) AS CH25,
+			SUM(ISNULL([HealedTroops],0)),
+            SUM(ISNULL([RangedPoints],0)),
             @MAXDATE,
             @actual_param1,
             @actual_param2

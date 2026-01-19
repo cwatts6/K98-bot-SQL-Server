@@ -22,6 +22,8 @@ CREATE TABLE [dbo].[THE_AVERAGES](
 	[Helps] [float] NULL,
 	[ScanDate] [datetime] NOT NULL,
 	[SCANORDER] [float] NOT NULL,
-	[SCAN_UNO] [varchar](9) COLLATE Latin1_General_CI_AS NOT NULL
+	[SCAN_UNO] [varchar](9) COLLATE Latin1_General_CI_AS NOT NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL
 ) ON [PRIMARY]
 END

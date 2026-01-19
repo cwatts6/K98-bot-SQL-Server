@@ -126,51 +126,45 @@ BEGIN
     WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
     GROUP BY GovernorID;
 
-    -----------------------------------------------
-    -- 5. Latest snapshot at @Scan
-    -----------------------------------------------
-    SELECT GovernorID, GovernorName, PowerRank, [Power]
-    INTO #Snapshot
-    FROM dbo.KingdomScanData4
-    WHERE ScanOrder = @Scan;
+	SELECT GovernorID, SUM(COALESCE(HealedTroopsDelta, 0)) AS HealedDelta
+    INTO #Healed
+    FROM dbo.HealedTroopsDelta
+    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
+    GROUP BY GovernorID;
 
-    -----------------------------------------------
-    -- 5.1 Training power (Troops Power) positive deltas in window
-    -----------------------------------------------
-    IF OBJECT_ID('tempdb..#TrainPower') IS NOT NULL DROP TABLE #TrainPower;
-
-    WITH KS AS (
-        SELECT 
-            k.GovernorID,
-            k.ScanOrder,
-            k.[Troops Power] AS TroopsPower
-        FROM dbo.KingdomScanData4 AS k
-        WHERE k.ScanOrder > @Scan AND k.ScanOrder <= @KVK_END_SCAN
-    ),
-    D AS (
-        SELECT
-            GovernorID,
-            CASE 
-                WHEN (TroopsPower - LAG(TroopsPower) OVER (PARTITION BY GovernorID ORDER BY ScanOrder)) > 0
-                    THEN (TroopsPower - LAG(TroopsPower) OVER (PARTITION BY GovernorID ORDER BY ScanOrder))
-                ELSE 0
-            END AS TP_PositiveDelta
-        FROM KS
-    )
-    SELECT
-        GovernorID,
-        CAST(SUM(TP_PositiveDelta) AS bigint) AS TrainingPower_Delta
-    INTO #TrainPower
-    FROM D
+	SELECT GovernorID, SUM(COALESCE(RangedPointsDelta, 0)) AS RangedDelta
+    INTO #Ranged
+    FROM [dbo].[RangedPointsDelta]
+    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
     GROUP BY GovernorID;
 
     -----------------------------------------------
+    -- 5. Latest snapshot at @Scan
+    -----------------------------------------------
+    SELECT GovernorID, GovernorName, PowerRank, [Power], [Civilization], [MostKvKKill], [MostKvKDead], MostKvKHeal, [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal]
+	INTO #Snapshot
+    FROM dbo.KingdomScanData4
+    WHERE ScanOrder = @Scan;
+
+
+  -----------------------------------------------
     -- 6. Stage
     -----------------------------------------------
     INSERT INTO dbo.STAGING_STATS (
         GovernorID,
         PowerRank,
         [Power],
+		[Civilization], 
+		[MostKvKKill], 
+		[MostKvKDead], 
+		[MostKvKHeal],
+		[Acclaim],
+		[HighestAcclaim],
+		[AOOJoined],
+		[AOOWon],
+		[AOOAvgKill],
+		[AOOAvgDead],
+		[AOOAvgHeal],
         Power_Delta,
         GovernorName,
         T4KillsDelta,
@@ -189,12 +183,25 @@ BEGIN
         P8DeadsDelta,
         HelpsDelta,
         RSSASSISTDelta,
-        RSSGatheredDelta
+        RSSGatheredDelta,
+		[HealedTroops],
+		[RangedPoints]
     )
     SELECT 
         s.GovernorID,
         s.PowerRank,
         s.[Power],
+		s.[Civilization], 
+		s.[MostKvKKill], 
+		s.[MostKvKDead], 
+		s.[MostKvKHeal],
+		s.[Acclaim],
+		s.[HighestAcclaim],
+		s.[AOOJoined],
+		s.[AOOWon],
+		s.[AOOAvgKill],
+		s.[AOOAvgDead],
+		s.[AOOAvgHeal],
         COALESCE(p.PowerDelta, 0)              AS Power_Delta,
         s.GovernorName,
         COALESCE(kt4.T4KillsDelta, 0),
@@ -213,7 +220,9 @@ BEGIN
         COALESCE(d.P8DeadsDelta, 0),
         COALESCE(h.HelpsDelta, 0),
         COALESCE(ra.RSSAssistDelta, 0),
-        COALESCE(rg.RSSGatheredDelta, 0)
+        COALESCE(rg.RSSGatheredDelta, 0),
+		COALESCE(he.HealedDelta, 0) AS [HealedTroops],
+        COALESCE(ran.RangedDelta, 0) AS [RangedPoints]
     FROM #Snapshot s
     LEFT JOIN #Power       p   ON p.GovernorID  = s.GovernorID
     LEFT JOIN #KillsT4     kt4 ON kt4.GovernorID = s.GovernorID
@@ -223,11 +232,13 @@ BEGIN
     LEFT JOIN #Helps       h   ON h.GovernorID  = s.GovernorID
     LEFT JOIN #RSSAssist   ra  ON ra.GovernorID = s.GovernorID
     LEFT JOIN #RSSGathered rg  ON rg.GovernorID = s.GovernorID
+	LEFT JOIN #Healed he ON he.GovernorID = s.GovernorID
+	LEFT JOIN #Ranged ran ON ran.GovernorID = s.GovernorID
     WHERE s.GovernorID IS NOT NULL
     ORDER BY s.PowerRank;
 
     -- Cleanup temps from stage step
-    DROP TABLE IF EXISTS #Deads, #Kills, #KillsT4, #KillsT5, #Helps, #RSSAssist, #RSSGathered, #Power, #Snapshot;
+    DROP TABLE IF EXISTS #Deads, #Kills, #KillsT4, #KillsT5, #Helps, #RSSAssist, #RSSGathered, #Power, #Snapshot, #Healed, #Ranged;
 
     -----------------------------------------------
     -- 8. DKP + HoH (normalize DKP column name)
@@ -263,6 +274,17 @@ BEGIN
             S.[GovernorName]                                AS [Governor_Name],
             S.[Power]                                       AS [Starting Power],
             S.Power_Delta,
+			S.[Civilization],
+			S.[KvKPlayed], 
+			S.[MostKvKKill],
+			S.[MostKvKDead],
+			S.[MostKvKHeal],
+			S.[Acclaim],
+			S.[HighestAcclaim],
+			S.[AOOJoined],
+			S.[AOOWon],
+			S.[AOOAvgKill],
+			S.[AOOAvgDead]
             S.[T4KillsDelta]                                AS [T4_KILLS],
             S.[T5KillsDelta]                                AS [T5_KILLS],
             S.[T4&T5_KILLSDelta]                            AS [T4&T5_Kills],
@@ -304,17 +326,8 @@ BEGIN
             S.P6DeadsDelta                                  AS [Pass 6 Deads],
             S.P7DeadsDelta                                  AS [Pass 7 Deads],
             S.P8DeadsDelta                                  AS [Pass 8 Deads],
-            COALESCE(TP.TrainingPower_Delta, 0)             AS [TrainingPower_Delta],
-            CASE 
-                WHEN COALESCE(S.Power_Delta,0) + COALESCE(S.DeadsDelta,0) * 7.0 - COALESCE(TP.TrainingPower_Delta,0) > 0
-                THEN CAST(COALESCE(S.Power_Delta,0) + COALESCE(S.DeadsDelta,0) * 7.0 - COALESCE(TP.TrainingPower_Delta,0) AS bigint)
-                ELSE 0
-            END                                             AS [HealedPower_Est],
-            CASE 
-                WHEN COALESCE(S.Power_Delta,0) + COALESCE(S.DeadsDelta,0) * 7.0 - COALESCE(TP.TrainingPower_Delta,0) > 0
-                THEN CAST(ROUND( (COALESCE(S.Power_Delta,0) + COALESCE(S.DeadsDelta,0) * 7.0 - COALESCE(TP.TrainingPower_Delta,0)) / 7.0, 0) AS bigint)
-                ELSE 0
-            END                                             AS [HealedTroops_Est],
+			s.[HealedTroops],
+			S.[RangedPoints]
             ' + CAST(@KVK AS nvarchar(10)) + N'             AS [KVK_NO]
         INTO ' + @ExcelTblFull + N'
         FROM dbo.STAGING_STATS AS S
@@ -322,12 +335,11 @@ BEGIN
         LEFT JOIN ' + @TargetsTblFull + N' AS T ON T.GovernorID = S.GovernorID
         LEFT JOIN #DKP  AS D  ON D.GovernorID = S.GovernorID
         LEFT JOIN dbo.ZEROED AS Z ON Z.GovernorID = S.GovernorID AND Z.ScanOrder = @pScan
-        LEFT JOIN #TrainPower AS TP ON TP.GovernorID = S.GovernorID
         ORDER BY S.PowerRank ASC;';
 
     EXEC sp_executesql @sql, N'@pScan int', @pScan = @Scan;
 
-    DROP TABLE IF EXISTS #DKP, #HD1, #TrainPower;
+    DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
 

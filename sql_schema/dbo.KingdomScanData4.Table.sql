@@ -28,7 +28,21 @@ CREATE TABLE [dbo].[KingdomScanData4](
 	[Tech Power] [float] NULL,
 	[Building Power] [float] NULL,
 	[Commander Power] [float] NULL,
-	[AsOfDate]  AS (CONVERT([date],[ScanDate])) PERSISTED
+	[AsOfDate]  AS (CONVERT([date],[ScanDate])) PERSISTED,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[KingdomScanData4]') AND name = N'CIX_KS4_ScanOrder_Governor')

@@ -36,9 +36,20 @@ CREATE TABLE [dbo].[EXCEL_FOR_KVK_14](
 	[Pass 6 Deads] [float] NULL,
 	[Pass 7 Deads] [float] NULL,
 	[Pass 8 Deads] [float] NULL,
-	[TrainingPower_Delta] [bigint] NULL,
-	[HealedPower_Est] [bigint] NULL,
-	[HealedTroops_Est] [bigint] NULL,
-	[KVK_NO] [int] NOT NULL
+	[KVK_NO] [int] NOT NULL,
+	[HealedTroops] [bigint] NULL,
+	[RangedPoints] [bigint] NULL,
+	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[KvKPlayed] [int] NULL,
+	[MostKvKKill] [bigint] NULL,
+	[MostKvKDead] [bigint] NULL,
+	[MostKvKHeal] [bigint] NULL,
+	[Acclaim] [bigint] NULL,
+	[HighestAcclaim] [bigint] NULL,
+	[AOOJoined] [bigint] NULL,
+	[AOOWon] [int] NULL,
+	[AOOAvgKill] [bigint] NULL,
+	[AOOAvgDead] [bigint] NULL,
+	[AOOAvgHeal] [bigint] NULL
 ) ON [PRIMARY]
 END
