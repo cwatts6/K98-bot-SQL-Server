@@ -12,7 +12,9 @@ RETURN
         SELECT kw.Kingdom AS kingdom,
                SUM(ISNULL(kw.T4_Kills,0)) AS t4,
                SUM(ISNULL(kw.T5_Kills,0)) AS t5,
-               SUM(ISNULL(kw.Deads,0)) AS deads
+               SUM(ISNULL(kw.Deads,0)) AS deads,
+			   SUM(ISNULL(kw.kp_gain,0))AS KP,
+			   SUM(ISNULL(kw.healed_troops,0)) AS healed_troops
         FROM KVK.KVK_Kingdom_Windowed kw
         JOIN W ON W.WindowName = kw.WindowName
         WHERE kw.KVK_NO = @kvk_no

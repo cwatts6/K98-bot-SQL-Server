@@ -46,6 +46,12 @@ CREATE TABLE [dbo].[SUMMARY_CHANGE_EXPORT](
 	[OverallRangedDelta] [float] NULL,
 	[RangedDelta12Months] [float] NULL,
 	[RangedDelta6Months] [float] NULL,
-	[RangedDelta3Months] [float] NULL
+	[RangedDelta3Months] [float] NULL,
+	[KillPoints] [float] NULL,
+	[StartingKillPoints] [float] NULL,
+	[OverallKillPointsDelta] [float] NULL,
+	[KillPointsDelta12Months] [float] NULL,
+	[KillPointsDelta6Months] [float] NULL,
+	[KillPointsDelta3Months] [float] NULL
 ) ON [PRIMARY]
 END

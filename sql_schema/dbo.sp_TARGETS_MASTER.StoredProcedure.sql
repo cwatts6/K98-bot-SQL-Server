@@ -9,21 +9,21 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
-	DECLARE @aw_on bit = 1;  -- marker to restore later
-	SET ANSI_WARNINGS OFF;
+    PRINT N'DBG: sp_TARGETS_MASTER start';
+    SET ANSI_WARNINGS OFF;
 
     BEGIN TRY
         -- Defensive cursor cleanup (handles both local/global)
-		IF CURSOR_STATUS('global', 'kvk_cursor_master') >= -1
-		BEGIN
-			IF CURSOR_STATUS('global', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
-			DEALLOCATE kvk_cursor_master;
-		END
-		IF CURSOR_STATUS('local', 'kvk_cursor_master') >= -1
-		BEGIN
-			IF CURSOR_STATUS('local', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
-			DEALLOCATE kvk_cursor_master;
-		END;
+        IF CURSOR_STATUS('global', 'kvk_cursor_master') >= -1
+        BEGIN
+            IF CURSOR_STATUS('global', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
+            DEALLOCATE kvk_cursor_master;
+        END
+        IF CURSOR_STATUS('local', 'kvk_cursor_master') >= -1
+        BEGIN
+            IF CURSOR_STATUS('local', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
+            DEALLOCATE kvk_cursor_master;
+        END;
 
         DECLARE @KVK INT
               , @Now DATETIME = GETDATE()
@@ -34,11 +34,12 @@ BEGIN
 
         -- Build the KVK list from ANY of the two keys so we don't miss ones with only DRAFTSCAN
         DECLARE kvk_cursor_master CURSOR LOCAL FAST_FORWARD FOR
-			SELECT DISTINCT KVKVersion
-			FROM dbo.ProcConfig
-			WHERE ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
+            SELECT DISTINCT KVKVersion
+            FROM dbo.ProcConfig
+            WHERE ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
 
         -- Create delta tables once
+        PRINT N'Calling CREATE_DELTA_TABLES';
         EXEC dbo.CREATE_DELTA_TABLES;
 
         OPEN kvk_cursor_master;
@@ -46,7 +47,7 @@ BEGIN
 
         WHILE @@FETCH_STATUS = 0
         BEGIN
-            PRINT 'Processing KVKVersion: ' + CAST(@KVK AS NVARCHAR(20));
+            PRINT CONCAT('Processing KVKVersion: ', CAST(@KVK AS NVARCHAR(20)));
 
             -- Pull config values
             SELECT @ConfiguredScan = NULL, @DraftScan = NULL;
@@ -65,36 +66,61 @@ BEGIN
 
             IF @MaxAvailableScan IS NULL
             BEGIN
-                PRINT '⚠ No scan data in KingdomScanData4; skipping KVK ' + CAST(@KVK AS NVARCHAR(20));
+                PRINT CONCAT('WARN: No scan data in KingdomScanData4; skipping KVK ', CAST(@KVK AS NVARCHAR(20)));
                 GOTO NextKVK;
             END
 
             -- Choose the scan to use:
-            -- 1) Prefer MATCHMAKING if it exists and is available
             IF @ConfiguredScan IS NOT NULL AND @ConfiguredScan <= @MaxAvailableScan
             BEGIN
                 SET @Scan = @ConfiguredScan;
-                PRINT '✅ Using MATCHMAKING_SCAN (' + CAST(@Scan AS VARCHAR(30)) + ') for KVK ' + CAST(@KVK AS NVARCHAR(20));
+                PRINT CONCAT('Using MATCHMAKING_SCAN (', CAST(@Scan AS VARCHAR(30)), ') for KVK ', CAST(@KVK AS NVARCHAR(20)));
             END
             ELSE IF @DraftScan IS NOT NULL
             BEGIN
-                -- Use draft but never exceed data ceiling
                 SET @Scan = CASE WHEN @DraftScan <= @MaxAvailableScan THEN @DraftScan ELSE @MaxAvailableScan END;
-                PRINT '📝 Using DRAFTSCAN (' + CAST(@DraftScan AS VARCHAR(30)) + ' → applied ' + CAST(@Scan AS VARCHAR(30)) + ') for KVK ' + CAST(@KVK AS NVARCHAR(20));
+                PRINT CONCAT('Using DRAFTSCAN (', CAST(@DraftScan AS VARCHAR(30)), ' -> applied ', CAST(@Scan AS VARCHAR(30)), ') for KVK ', CAST(@KVK AS NVARCHAR(20)));
             END
             ELSE
             BEGIN
-                PRINT '⚠ Neither MATCHMAKING_SCAN (available) nor DRAFTSCAN set; skipping KVK ' + CAST(@KVK AS NVARCHAR(20));
+                PRINT CONCAT('WARN: Neither MATCHMAKING_SCAN nor DRAFTSCAN set; skipping KVK ', CAST(@KVK AS NVARCHAR(20)));
                 GOTO NextKVK;
             END
 
-            -- Execute per-KVK pipeline
-            PRINT '▶ Processing KVK ' + CAST(@KVK AS VARCHAR(20)) + ' with SCANORDER = ' + CAST(@Scan AS VARCHAR(30));
+            PRINT CONCAT('Processing KVK ', CAST(@KVK AS VARCHAR(20)), ' with SCANORDER = ', CAST(@Scan AS VARCHAR(30)));
 
-            EXEC dbo.sp_Prep_TargetTable          @KVK, @Scan;
-            EXEC dbo.sp_ExcelOutput_ByKVK         @KVK, @Scan;   -- if this proc is independent of @Scan
-            EXEC dbo.sp_Prep_ExcelOutputTable     @KVK, @Scan;
-            EXEC dbo.sp_Prep_ExcelExportTable     @KVK;
+            -- Per-KVK pipeline (local TRY/CATCHs keep errors informative)
+            BEGIN TRY
+                EXEC dbo.sp_Prep_TargetTable @KVK, @Scan;
+            END TRY
+            BEGIN CATCH
+                PRINT CONCAT('ERR: sp_Prep_TargetTable failed: ', ISNULL(ERROR_MESSAGE(), '(no message)'));
+                THROW;
+            END CATCH
+
+            BEGIN TRY
+                EXEC dbo.sp_ExcelOutput_ByKVK @KVK, @Scan;
+            END TRY
+            BEGIN CATCH
+                PRINT CONCAT('ERR: sp_ExcelOutput_ByKVK failed: ', ISNULL(ERROR_MESSAGE(), '(no message)'));
+                THROW;
+            END CATCH
+
+            BEGIN TRY
+                EXEC dbo.sp_Prep_ExcelOutputTable @KVK, @Scan;
+            END TRY
+            BEGIN CATCH
+                PRINT CONCAT('ERR: sp_Prep_ExcelOutputTable failed: ', ISNULL(ERROR_MESSAGE(), '(no message)'));
+                THROW;
+            END CATCH
+
+            BEGIN TRY
+                EXEC dbo.sp_Prep_ExcelExportTable @KVK;
+            END TRY
+            BEGIN CATCH
+                PRINT CONCAT('ERR: sp_Prep_ExcelExportTable failed: ', ISNULL(ERROR_MESSAGE(), '(no message)'));
+                THROW;
+            END CATCH
 
             NextKVK:
             FETCH NEXT FROM kvk_cursor_master INTO @KVK;
@@ -102,15 +128,15 @@ BEGIN
 
         -- Safe cursor cleanup
         IF CURSOR_STATUS('global', 'kvk_cursor_master') >= -1
-			BEGIN
-				IF CURSOR_STATUS('global', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
-				DEALLOCATE kvk_cursor_master;
-			END
-			IF CURSOR_STATUS('local', 'kvk_cursor_master') >= -1
-			BEGIN
-				IF CURSOR_STATUS('local', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
-				DEALLOCATE kvk_cursor_master;
-			END
+        BEGIN
+            IF CURSOR_STATUS('global', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
+            DEALLOCATE kvk_cursor_master;
+        END
+        IF CURSOR_STATUS('local', 'kvk_cursor_master') >= -1
+        BEGIN
+            IF CURSOR_STATUS('local', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
+            DEALLOCATE kvk_cursor_master;
+        END
 
         -------------------------------------------------------------------
         -- Create/refresh v_TARGETS_FOR_UPLOAD pointing at latest KVK export
@@ -125,43 +151,67 @@ BEGIN
         )
         SELECT @LatestKVK = MAX(kvk) FROM src;
 
+        PRINT CONCAT('LatestKVK = ', ISNULL(CAST(@LatestKVK AS nvarchar(10)), '(null)'));
+
         IF @LatestKVK IS NULL
         BEGIN
-            PRINT '⚠ No EXCEL_EXPORT_KVK_TARGETS_xx tables found. Skipping v_TARGETS_FOR_UPLOAD refresh.';
+            PRINT N'WARN: No EXCEL_EXPORT_KVK_TARGETS_xx tables found. Skipping v_TARGETS_FOR_UPLOAD refresh.';
         END
         ELSE
         BEGIN
-            DECLARE @src sysname = QUOTENAME('dbo') + N'.' + QUOTENAME('EXCEL_EXPORT_KVK_TARGETS_' + CAST(@LatestKVK AS nvarchar(10)));
+            DECLARE @plainName nvarchar(128) = N'dbo.EXCEL_EXPORT_KVK_TARGETS_' + CAST(@LatestKVK AS nvarchar(10));
+            DECLARE @srcQuoted sysname = QUOTENAME('dbo') + N'.' + QUOTENAME('EXCEL_EXPORT_KVK_TARGETS_' + CAST(@LatestKVK AS nvarchar(10)));
             DECLARE @sql nvarchar(max);
 
-            -- Drop any existing object named v_TARGETS_FOR_UPLOAD
-            IF OBJECT_ID(N'dbo.v_TARGETS_FOR_UPLOAD', 'V') IS NOT NULL
-                DROP VIEW dbo.v_TARGETS_FOR_UPLOAD;
-            IF OBJECT_ID(N'dbo.v_TARGETS_FOR_UPLOAD', 'U') IS NOT NULL
-                DROP TABLE dbo.v_TARGETS_FOR_UPLOAD;
+            IF OBJECT_ID(@plainName, 'U') IS NULL
+            BEGIN
+                PRINT CONCAT('WARN: Expected table ', @plainName, ' does not exist. Skipping v_TARGETS_FOR_UPLOAD refresh.');
+            END
+            ELSE
+            BEGIN
+                IF OBJECT_ID(N'dbo.v_TARGETS_FOR_UPLOAD', 'V') IS NOT NULL
+                    DROP VIEW dbo.v_TARGETS_FOR_UPLOAD;
+                IF OBJECT_ID(N'dbo.v_TARGETS_FOR_UPLOAD', 'U') IS NOT NULL
+                    DROP TABLE dbo.v_TARGETS_FOR_UPLOAD;
 
-            -- Recreate as a view pointing to the newest KVK export table
-            SET @sql = N'CREATE VIEW dbo.v_TARGETS_FOR_UPLOAD AS SELECT * FROM ' + @src + N';';
-            EXEC sys.sp_executesql @sql;
+                SET @sql = N'CREATE VIEW dbo.v_TARGETS_FOR_UPLOAD AS SELECT * FROM ' + @srcQuoted + N';';
+                PRINT N'About to execute dynamic SQL to create view:';
+                PRINT @sql;
 
-            PRINT '✅ v_TARGETS_FOR_UPLOAD now points at ' + @src;
+                BEGIN TRY
+                    EXEC sys.sp_executesql @sql;
+                    PRINT CONCAT('v_TARGETS_FOR_UPLOAD now points at ', @srcQuoted);
+                END TRY
+                BEGIN CATCH
+                    DECLARE @dynMsg nvarchar(4000) = ERROR_MESSAGE();
+                    DECLARE @dynLine int = ERROR_LINE();
+                    DECLARE @fullMsg nvarchar(4000) = N'sp_TARGETS_MASTER: dynamic CREATE VIEW failed for ' + @srcQuoted + N': ' + ISNULL(@dynMsg, N'(no message)');
+                    PRINT N'ERROR: ' + @fullMsg + N' (line ' + CAST(ISNULL(@dynLine,0) AS nvarchar(10)) + N')';
+                    RAISERROR(@fullMsg, 16, 1);
+                END CATCH
+            END
         END
-	SET ANSI_WARNINGS ON;
+
+        SET ANSI_WARNINGS ON;
     END TRY
-	BEGIN CATCH
+    BEGIN CATCH
         IF CURSOR_STATUS('global', 'kvk_cursor_master') >= -1
-			BEGIN
-				IF CURSOR_STATUS('global', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
-				DEALLOCATE kvk_cursor_master;
-			END
-			IF CURSOR_STATUS('local', 'kvk_cursor_master') >= -1
-			BEGIN
-				IF CURSOR_STATUS('local', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
-				DEALLOCATE kvk_cursor_master;
-			END
+        BEGIN
+            IF CURSOR_STATUS('global', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
+            DEALLOCATE kvk_cursor_master;
+        END
+        IF CURSOR_STATUS('local', 'kvk_cursor_master') >= -1
+        BEGIN
+            IF CURSOR_STATUS('local', 'kvk_cursor_master') = 0 CLOSE kvk_cursor_master;
+            DEALLOCATE kvk_cursor_master;
+        END
 
         DECLARE @ErrMsg NVARCHAR(MAX) = ERROR_MESSAGE();
-        RAISERROR('sp_TARGETS_MASTER failed: %s', 16, 1, @ErrMsg);
+        DECLARE @ErrProc SYSNAME = ERROR_PROCEDURE();
+        DECLARE @ErrLine INT = ERROR_LINE();
+
+        PRINT CONCAT(N'ERROR in sp_TARGETS_MASTER: ', ISNULL(@ErrProc, N'(no procedure)'), N' line ', CAST(ISNULL(@ErrLine, 0) AS NVARCHAR(10)), N': ', ISNULL(@ErrMsg, N'(no message)'));
+
+        THROW;
     END CATCH
 END
-

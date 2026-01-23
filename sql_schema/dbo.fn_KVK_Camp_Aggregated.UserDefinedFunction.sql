@@ -13,7 +13,9 @@ RETURN
                MAX(cw.[camp_name]) AS camp_name,
                SUM(ISNULL(cw.T4_Kills,0)) AS t4,
                SUM(ISNULL(cw.T5_Kills,0)) AS t5,
-               SUM(ISNULL(cw.Deads,0)) AS deads
+               SUM(ISNULL(cw.Deads,0)) AS deads,
+			   SUM(ISNULL(cw.kp_gain,0))AS KP,
+			   SUM(ISNULL(cw.healed_troops,0)) AS healed_troops
         FROM KVK.KVK_Camp_Windowed cw
         JOIN W ON W.WindowName = cw.WindowName
         WHERE cw.KVK_NO = @kvk_no

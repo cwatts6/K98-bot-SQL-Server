@@ -8,12 +8,13 @@ ALTER PROCEDURE [dbo].[CREATE_DELTA_TABLES]
 WITH EXECUTE AS CALLER
 AS
 BEGIN
-   
-SET NOCOUNT ON;
+    SET NOCOUNT ON;
 
-DECLARE @FIRSTSCAN AS FLOAT = 1
+    DECLARE @FIRSTSCAN AS FLOAT = 1;
 
-    -- Truncate existing delta tables
+    ----------------------------------------------------------------
+    -- Truncate existing delta tables (preserve pattern used originally)
+    ----------------------------------------------------------------
     TRUNCATE TABLE T4T5KillDelta;
     TRUNCATE TABLE T4KillDelta;
     TRUNCATE TABLE T5KillDelta;
@@ -23,7 +24,9 @@ DECLARE @FIRSTSCAN AS FLOAT = 1
     TRUNCATE TABLE RSSGatheredDelta;
     TRUNCATE TABLE POWERDelta;
 
-    -- Build temporary base data table
+    ----------------------------------------------------------------
+    -- Build temporary base data table (include KillPoints)
+    ----------------------------------------------------------------
     SELECT 
         GovernorID,
         SCANORDER,
@@ -31,141 +34,260 @@ DECLARE @FIRSTSCAN AS FLOAT = 1
         SUM(T5_Kills) AS T5_Kills,
         SUM([T4&T5_Kills]) AS T4T5_Kills,
         SUM([Power]) AS Power,
+        SUM([KillPoints]) AS KillPoints,              -- NEW
         SUM([Deads]) AS Deads,
         SUM([Helps]) AS Helps,
         SUM([RSSAssistance]) AS RSSAssist,
         SUM([RSS_Gathered]) AS RSSGathered,
-		SUM([HealedTroops]) AS HealedTroops,
-		SUM([RangedPoints]) AS RangedPoints
+        SUM([HealedTroops]) AS HealedTroops,
+        SUM([RangedPoints]) AS RangedPoints
     INTO #BaseData
     FROM dbo.kingdomscandata4
     WHERE SCANORDER >= @FIRSTSCAN
     GROUP BY GovernorID, SCANORDER;
 
-	IF OBJECT_ID('tempdb..#BaseData') IS NOT NULL
-	BEGIN
-		-- create a clustered index if not already present
-		-- This helps the OUTER APPLY (previous-row) lookup scale reasonably.
-		BEGIN TRY
-			CREATE CLUSTERED INDEX IX_BaseData_Gov_Scan ON #BaseData (GovernorID ASC, SCANORDER ASC);
-		END TRY
-		BEGIN CATCH
-			-- ignore if index exists or creation fails
-		END CATCH
-	END
+    IF OBJECT_ID('tempdb..#BaseData') IS NOT NULL
+    BEGIN
+        -- create a clustered index if not already present
+        -- This helps the OUTER APPLY (previous-row) lookup scale reasonably.
+        BEGIN TRY
+            CREATE CLUSTERED INDEX IX_BaseData_Gov_Scan ON #BaseData (GovernorID ASC, SCANORDER ASC);
+        END TRY
+        BEGIN CATCH
+            -- ignore if index exists or creation fails
+        END CATCH
+    END
 
-		-- HealedTroopsDelta: previous non-NULL lookup
-	IF OBJECT_ID('dbo.HealedTroopsDelta','U') IS NOT NULL
-	BEGIN
-		TRUNCATE TABLE dbo.HealedTroopsDelta;
-	END
+    ----------------------------------------------------------------
+    -- Use OUTER APPLY (previous non-NULL lookup) consistently for deltas
+    -- This prevents spurious large deltas when intermediate scans have NULLs
+    ----------------------------------------------------------------
 
-	INSERT INTO dbo.HealedTroopsDelta (GovernorID, DeltaOrder, HealedTroopsDelta)
-	SELECT
-		b.GovernorID,
-		b.SCANORDER,
-		b.HealedTroops - ISNULL(prev.HealedTroops, 0) AS HealedTroopsDelta
-	FROM #BaseData AS b
-	OUTER APPLY (
-		SELECT TOP (1) b2.HealedTroops
-		FROM #BaseData AS b2
-		WHERE b2.GovernorID = b.GovernorID
-		  AND b2.SCANORDER < b.SCANORDER
-		  AND b2.HealedTroops IS NOT NULL
-		ORDER BY b2.SCANORDER DESC
-	) AS prev
-	WHERE b.HealedTroops IS NOT NULL;
+    -- HealedTroopsDelta (existing pattern)
+    IF OBJECT_ID('dbo.HealedTroopsDelta','U') IS NOT NULL
+    BEGIN
+        TRUNCATE TABLE dbo.HealedTroopsDelta;
+    END
 
-	-- RangedPointsDelta: same pattern
-	IF OBJECT_ID('dbo.RangedPointsDelta','U') IS NOT NULL
-	BEGIN
-		TRUNCATE TABLE dbo.RangedPointsDelta;
-	END
+    INSERT INTO dbo.HealedTroopsDelta (GovernorID, DeltaOrder, HealedTroopsDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.HealedTroops - ISNULL(prev.HealedTroops, 0) AS BIGINT) AS HealedTroopsDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.HealedTroops
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.HealedTroops IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.HealedTroops IS NOT NULL;
 
-	INSERT INTO dbo.RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
-	SELECT
-		b.GovernorID,
-		b.SCANORDER,
-		b.RangedPoints - ISNULL(prev.RangedPoints, 0) AS RangedPointsDelta
-	FROM #BaseData AS b
-	OUTER APPLY (
-		SELECT TOP (1) b2.RangedPoints
-		FROM #BaseData AS b2
-		WHERE b2.GovernorID = b.GovernorID
-		  AND b2.SCANORDER < b.SCANORDER
-		  AND b2.RangedPoints IS NOT NULL
-		ORDER BY b2.SCANORDER DESC
-	) AS prev
-	WHERE b.RangedPoints IS NOT NULL;
+    -- RangedPointsDelta (existing pattern)
+    IF OBJECT_ID('dbo.RangedPointsDelta','U') IS NOT NULL
+    BEGIN
+        TRUNCATE TABLE dbo.RangedPointsDelta;
+    END
 
-    -- T4 Kill Delta
-    INSERT INTO T4KillDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        T4_Kills - COALESCE(LAG(T4_Kills) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    INSERT INTO dbo.RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.RangedPoints - ISNULL(prev.RangedPoints, 0) AS BIGINT) AS RangedPointsDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.RangedPoints
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.RangedPoints IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.RangedPoints IS NOT NULL;
 
+    ----------------------------------------------------------------
+    -- T4 Kill Delta (previous non-NULL lookup)
+    ----------------------------------------------------------------
+    INSERT INTO T4KillDelta (GovernorID, DeltaOrder, T4KILLSDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.T4_Kills - ISNULL(prev.T4_Kills, 0) AS FLOAT) AS T4KILLSDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.T4_Kills
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.T4_Kills IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.T4_Kills IS NOT NULL;
+
+    ----------------------------------------------------------------
     -- T5 Kill Delta
-    INSERT INTO T5KillDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        T5_Kills - COALESCE(LAG(T5_Kills) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO T5KillDelta (GovernorID, DeltaOrder, T5KILLSDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.T5_Kills - ISNULL(prev.T5_Kills, 0) AS FLOAT) AS T5KILLSDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.T5_Kills
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.T5_Kills IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.T5_Kills IS NOT NULL;
 
+    ----------------------------------------------------------------
     -- T4&T5 Kill Delta
-    INSERT INTO T4T5KillDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        T4T5_Kills - COALESCE(LAG(T4T5_Kills) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO T4T5KillDelta (GovernorID, DeltaOrder, [T4&T5_KILLSDelta])
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.T4T5_Kills - ISNULL(prev.T4T5_Kills, 0) AS FLOAT) AS T4T5_KillsDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.T4T5_Kills
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.T4T5_Kills IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.T4T5_Kills IS NOT NULL;
 
+    ----------------------------------------------------------------
     -- Power Delta
-    INSERT INTO POWERDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        Power - COALESCE(LAG(Power) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO POWERDelta (GovernorID, DeltaOrder, [Power_Delta])
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.Power - ISNULL(prev.Power, 0) AS FLOAT) AS PowerDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.Power
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.Power IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.Power IS NOT NULL;
 
+    ----------------------------------------------------------------
     -- Deads Delta
-    INSERT INTO DeadsDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        Deads - COALESCE(LAG(Deads) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO DeadsDelta (GovernorID, DeltaOrder, DeadsDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.Deads - ISNULL(prev.Deads, 0) AS FLOAT) AS DeadsDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.Deads
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.Deads IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.Deads IS NOT NULL;
 
+    ----------------------------------------------------------------
     -- Helps Delta
-    INSERT INTO HelpsDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        Helps - COALESCE(LAG(Helps) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO HelpsDelta (GovernorID, DeltaOrder, HelpsDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.Helps - ISNULL(prev.Helps, 0) AS FLOAT) AS HelpsDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.Helps
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.Helps IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.Helps IS NOT NULL;
 
+    ----------------------------------------------------------------
     -- RSS Assistance Delta
-    INSERT INTO RSSASSISTDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        RSSAssist - COALESCE(LAG(RSSAssist) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO RSSASSISTDelta (GovernorID, DeltaOrder, RSSAssistDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.RSSAssist - ISNULL(prev.RSSAssist, 0) AS FLOAT) AS RSSAssistDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.RSSAssist
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.RSSAssist IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.RSSAssist IS NOT NULL;
 
+    ----------------------------------------------------------------
     -- RSS Gathered Delta
-    INSERT INTO RSSGatheredDelta
-    SELECT 
-        GovernorID,
-        SCANORDER,
-        RSSGathered - COALESCE(LAG(RSSGathered) OVER (PARTITION BY GovernorID ORDER BY SCANORDER), 0)
-    FROM #BaseData;
+    ----------------------------------------------------------------
+    INSERT INTO RSSGatheredDelta (GovernorID, DeltaOrder, RSSGatheredDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.RSSGathered - ISNULL(prev.RSSGathered, 0) AS FLOAT) AS RSSGatheredDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.RSSGathered
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.RSSGathered IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.RSSGathered IS NOT NULL;
 
+    ----------------------------------------------------------------
+    -- KillPoints Delta (NEW) - previous non-NULL lookup
+    ----------------------------------------------------------------
+    IF OBJECT_ID('dbo.KillPointsDelta','U') IS NOT NULL
+    BEGIN
+        TRUNCATE TABLE dbo.KillPointsDelta;
+    END
+
+    INSERT INTO dbo.KillPointsDelta (GovernorID, DeltaOrder, KillPointsDelta)
+    SELECT
+        b.GovernorID,
+        b.SCANORDER,
+        CAST(b.KillPoints - ISNULL(prev.KillPoints, 0) AS BIGINT) AS KillPointsDelta
+    FROM #BaseData AS b
+    OUTER APPLY (
+        SELECT TOP (1) b2.KillPoints
+        FROM #BaseData AS b2
+        WHERE b2.GovernorID = b.GovernorID
+          AND b2.SCANORDER < b.SCANORDER
+          AND b2.KillPoints IS NOT NULL
+        ORDER BY b2.SCANORDER DESC
+    ) AS prev
+    WHERE b.KillPoints IS NOT NULL;
+
+    ----------------------------------------------------------------
     -- Cleanup
+    ----------------------------------------------------------------
     IF OBJECT_ID('tempdb..#BaseData') IS NOT NULL DROP TABLE #BaseData;
 
-
-
-END;
+    SET NOCOUNT OFF;
+END
 

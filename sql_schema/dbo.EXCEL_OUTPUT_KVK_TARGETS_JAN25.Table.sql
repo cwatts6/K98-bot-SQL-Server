@@ -18,6 +18,7 @@ CREATE TABLE [dbo].[EXCEL_OUTPUT_KVK_TARGETS_JAN25](
 	[Kills_for_May24 KVK] [float] NULL,
 	[DEADS_for_May24 KVK] [float] NULL,
 	[DKP_For_May24 KVK] [float] NULL,
-	[% of DKP Target For May24 KVK] [float] NULL
+	[% of DKP Target For May24 KVK] [float] NULL,
+	[KillPoints] [nvarchar](4000) COLLATE Latin1_General_CI_AS NULL
 ) ON [PRIMARY]
 END

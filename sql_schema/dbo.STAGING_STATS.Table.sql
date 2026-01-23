@@ -38,6 +38,21 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[AOOWon] [int] NULL,
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
-	[AOOAvgHeal] [bigint] NULL
+	[AOOAvgHeal] [bigint] NULL,
+	[KillPointsDelta] [bigint] NULL,
+	[KillPoints] [bigint] NULL,
+	[HealedTroopsDelta] [bigint] NULL,
+	[Starting_Deads] [float] NULL,
+	[Starting_T4&T5_KILLS] [float] NULL,
+	[MaxPreKvkPoints] [bigint] NULL,
+	[MaxHonorPoints] [bigint] NULL,
+	[PreKvkRank] [bigint] NULL,
+	[HonorRank] [bigint] NULL,
+	[RangedPointsDelta] [bigint] NULL
 ) ON [PRIMARY]
 END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_STAGING_STATS_RangedPointsDelta]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[STAGING_STATS] ADD  CONSTRAINT [DF_STAGING_STATS_RangedPointsDelta]  DEFAULT ((0)) FOR [RangedPointsDelta]
+END
+

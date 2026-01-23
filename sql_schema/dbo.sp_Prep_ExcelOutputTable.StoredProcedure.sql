@@ -113,7 +113,7 @@ BEGIN
                T.Dead_Target,
                (T.Kill_Target * 3 + T.Dead_Target * 8) AS [DKP Target],
                LK.[t4&t5_kills] AS [Kills KVK ' + CAST(@Prev1 AS VARCHAR) + '],
-               LK.deads AS [DEADS KVK ' + CAST(@Prev1 AS VARCHAR) + '],
+               LK.Deads_Delta AS [DEADS KVK ' + CAST(@Prev1 AS VARCHAR) + '],
                LK.dkp_score AS [DKP KVK ' + CAST(@Prev1 AS VARCHAR) + '],
                LK.[% of DKP Target] AS [% DKP Target KVK ' + CAST(@Prev1 AS VARCHAR) + '],
                0 AS [Kills KVK ' + CAST(@Prev2 AS VARCHAR) + '],
@@ -152,11 +152,11 @@ BEGIN
                T.Dead_Target,
                (T.Kill_Target * 3 + T.Dead_Target * 8) AS [DKP Target],
                LK.[t4&t5_kills] AS [Kills KVK ' + CAST(@Prev1 AS VARCHAR) + '],
-               LK.deads AS [DEADS KVK ' + CAST(@Prev1 AS VARCHAR) + '],
+               LK.Deads_Delta AS [DEADS KVK ' + CAST(@Prev1 AS VARCHAR) + '],
                LK.dkp_score AS [DKP KVK ' + CAST(@Prev1 AS VARCHAR) + '],
                LK.[% of DKP Target] AS [% DKP Target KVK ' + CAST(@Prev1 AS VARCHAR) + '],
                JK.[t4&t5_kills] AS [Kills KVK ' + CAST(@Prev2 AS VARCHAR) + '],
-               JK.deads AS [DEADS KVK ' + CAST(@Prev2 AS VARCHAR) + '],
+               JK.Deads_Delta AS [DEADS KVK ' + CAST(@Prev2 AS VARCHAR) + '],
                JK.dkp_score AS [DKP KVK ' + CAST(@Prev2 AS VARCHAR) + '],
                JK.[% of DKP Target] AS [% DKP Target KVK ' + CAST(@Prev2 AS VARCHAR) + ']
         FROM (

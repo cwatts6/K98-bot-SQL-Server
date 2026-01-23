@@ -11,19 +11,20 @@ BEGIN
     SET NOCOUNT ON;
 
     BEGIN TRY
-        -- Step 1: Execute dependent procedures (add healing and ranged summaries)
+        -- Step 1: Execute dependent procedures (add healing, ranged, and new killpoints summaries)
         EXEC DEADSSUMMARY_PROC;
         EXEC POWERSUMMARY_PROC;
         EXEC KILLSSUMMARY_PROC;
         EXEC KT4SUMMARY_PROC;
         EXEC KT5SUMMARY_PROC;
-		EXEC HEALEDSUMMARY_PROC;
-		EXEC RANGEDSUMMARY_PROC;
+        EXEC KILLPOINTSSUMMARY_PROC;   -- NEW: compute KillPoints summary
+        EXEC HEALEDSUMMARY_PROC;
+        EXEC RANGEDSUMMARY_PROC;
 
         -- Step 2: Clear export table
         TRUNCATE TABLE SUMMARY_CHANGE_EXPORT;
 
-        -- Step 3: Insert combined summary data including Healed and Ranged metrics
+        -- Step 3: Insert combined summary data including Healed, Ranged, and KillPoints metrics
         INSERT INTO SUMMARY_CHANGE_EXPORT
         SELECT 
             P.GOVERNORID,
@@ -73,14 +74,23 @@ BEGIN
             ISNULL(R.OverallRangedDelta, 0)     AS OverallRangedDelta,
             ISNULL(R.RangedDelta12Months, 0)    AS RangedDelta12Months,
             ISNULL(R.RangedDelta6Months, 0)     AS RangedDelta6Months,
-            ISNULL(R.RangedDelta3Months, 0)     AS RangedDelta3Months
+            ISNULL(R.RangedDelta3Months, 0)     AS RangedDelta3Months,
+
+            -- KillPoints summary fields (NEW — nullable/fallbacks)
+            ISNULL(KP.KillPoints, 0)            AS KillPoints,
+            ISNULL(KP.StartingKillPoints, 0)    AS StartingKillPoints,
+            ISNULL(KP.OverallKillPointsDelta, 0) AS OverallKillPointsDelta,
+            ISNULL(KP.KillPointsDelta12Months, 0) AS KillPointsDelta12Months,
+            ISNULL(KP.KillPointsDelta6Months, 0)  AS KillPointsDelta6Months,
+            ISNULL(KP.KillPointsDelta3Months, 0)  AS KillPointsDelta3Months
         FROM POWERSUMMARY AS P
         JOIN KILL4summary AS K4 ON P.GOVERNORID = K4.GOVERNORID
         JOIN KILL5SUMMARY AS K5 ON P.GOVERNORID = K5.GOVERNORID
         JOIN KILLSUMMARY AS K ON P.GOVERNORID = K.GOVERNORID
         JOIN DEADSSUMMARY AS D ON P.GOVERNORID = D.GOVERNORID
-		JOIN HEALEDSUMMARY AS H ON P.GOVERNORID = H.GOVERNORID
-		JOIN RANGEDSUMMARY AS R ON P.GOVERNORID = R.GOVERNORID
+        JOIN HEALEDSUMMARY AS H ON P.GOVERNORID = H.GOVERNORID
+        JOIN RANGEDSUMMARY AS R ON P.GOVERNORID = R.GOVERNORID
+        LEFT JOIN KILLPOINTSSUMMARY AS KP ON P.GOVERNORID = KP.GOVERNORID
         ORDER BY P.GOVERNORNAME;
 
         -- Step 4: Return result (optional)
@@ -98,9 +108,7 @@ BEGIN
             @ErrorSeverity = ERROR_SEVERITY(),
             @ErrorState = ERROR_STATE();
 
-        -- Optional: log error to a table or log system here
-
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
-END
+END;
 

@@ -15,10 +15,12 @@ RETURN
            COALESCE(MAX(p.Name), CONVERT(varchar(100), p.[governor_id])) AS name,
            MAX(p.Kingdom) AS kingdom,
            MAX(p.CampID) AS campid,
+		   SUM(ISNULL(p.kp_gain,0))AS KP,
            SUM(ISNULL(p.T4_Kills,0)) AS t4,
            SUM(ISNULL(p.T5_Kills,0)) AS t5,
            SUM(ISNULL(p.Deads,0)) AS deads,
-           MAX(ISNULL(p.Starting_Power,0)) AS sp
+           MAX(ISNULL(p.Starting_Power,0)) AS sp,
+		   SUM(ISNULL(p.healed_troops,0)) AS healed_troops
     FROM KVK.KVK_Player_Windowed p
     JOIN W ON W.WindowName = p.WindowName
     WHERE p.KVK_NO = @kvk_no

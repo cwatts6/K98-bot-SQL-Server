@@ -11,113 +11,204 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE 
-        @LatestKVK INT,
-        @MaxScan FLOAT,
-        @TableName NVARCHAR(100),
-        @sql NVARCHAR(MAX);
+        @LatestKVK       INT,
+        @MaxScan         INT,
+        @TableName       NVARCHAR(128),
+        @sql             NVARCHAR(MAX),
 
-    -- Step 1: Get max scan value
+        @MatchmakingScan INT,
+        @DraftScan       INT,
+        @ScanToUse       INT;
+
+    ------------------------------------------------------------
+    -- Step 1: Get max scan available
+    ------------------------------------------------------------
     SELECT @MaxScan = MAX(SCANORDER)
-    FROM KingdomScanData4;
+    FROM dbo.KingdomScanData4;
 
+    IF @MaxScan IS NULL
+    BEGIN
+        RAISERROR('SP_Stats_for_Upload: No scan data available.',16,1);
+        RETURN;
+    END
+
+    ------------------------------------------------------------
     -- Step 2: Get latest eligible KVKVersion
+    ------------------------------------------------------------
     SELECT TOP 1 @LatestKVK = KVKVersion
-    FROM ProcConfig
+    FROM dbo.ProcConfig
     WHERE ConfigKey = 'MATCHMAKING_SCAN'
-      AND TRY_CAST(ConfigValue AS FLOAT) <= @MaxScan
+      AND TRY_CAST(ConfigValue AS INT) <= @MaxScan
     ORDER BY KVKVersion DESC;
 
-    -- Step 3: Build table name dynamically
-    SET @TableName = QUOTENAME('EXCEL_FOR_KVK_' + CAST(@LatestKVK AS NVARCHAR(10)));
+    IF @LatestKVK IS NULL
+    BEGIN
+        RAISERROR('SP_Stats_for_Upload: no eligible KVK found (MATCHMAKING_SCAN <= max scan).',16,1);
+        RETURN;
+    END
 
-    -- Step 4: Build dynamic SQL for insert (explicit column list to avoid misalignment)
-    SET @sql = '
-    TRUNCATE TABLE STATS_FOR_UPLOAD;
+    ------------------------------------------------------------
+    -- Step 3: Load MATCHMAKING_SCAN and DRAFTSCAN for this KVK
+    ------------------------------------------------------------
+    SELECT
+        @MatchmakingScan = MAX(CASE WHEN ConfigKey = 'MATCHMAKING_SCAN' THEN TRY_CAST(ConfigValue AS INT) END),
+        @DraftScan       = MAX(CASE WHEN ConfigKey = 'DRAFTSCAN'        THEN TRY_CAST(ConfigValue AS INT) END)
+    FROM dbo.ProcConfig
+    WHERE KVKVersion = @LatestKVK
+      AND ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
 
-    DECLARE @MaxScan AS FLOAT = (SELECT MAX(SCANORDER) FROM KingdomScanData4),
-            @MAXDATE AS DATETIME = (SELECT MAX(ScanDate) FROM KingdomScanData4);
+    ------------------------------------------------------------
+    -- Step 4: Decide which scan to use for refresh
+    ------------------------------------------------------------
+    SET @ScanToUse = NULL;
 
-    DECLARE @X_KVK AS FLOAT = (
-        SELECT TOP 1 TRY_CAST(KVKVersion AS FLOAT)
-        FROM ProcConfig 
+    IF @MatchmakingScan IS NOT NULL AND @MaxScan >= @MatchmakingScan
+        SET @ScanToUse = @MatchmakingScan;
+    ELSE IF @DraftScan IS NOT NULL AND @MaxScan >= @DraftScan
+        SET @ScanToUse = @DraftScan;
+
+    IF @ScanToUse IS NULL
+    BEGIN
+        -- You said: "else do not execute"
+        -- I also recommend not truncating/uploading in this case (keeps last good output).
+        PRINT 'SP_Stats_for_Upload: Skipping refresh + upload. MaxScan=' + CAST(@MaxScan AS varchar(20))
+            + ', MatchmakingScan=' + COALESCE(CAST(@MatchmakingScan AS varchar(20)), 'NULL')
+            + ', DraftScan=' + COALESCE(CAST(@DraftScan AS varchar(20)), 'NULL');
+        RETURN;
+    END
+
+    ------------------------------------------------------------
+    -- Step 5: Refresh the EXCEL_FOR_KVK table first
+    ------------------------------------------------------------
+    EXEC dbo.sp_ExcelOutput_ByKVK @KVK = @LatestKVK, @Scan = @ScanToUse;
+
+    ------------------------------------------------------------
+    -- Step 6: Build table name dynamically
+    ------------------------------------------------------------
+    SET @TableName = QUOTENAME('dbo') + N'.' + QUOTENAME('EXCEL_FOR_KVK_' + CAST(@LatestKVK AS NVARCHAR(10)));
+
+    ------------------------------------------------------------
+    -- Step 7: Truncate + insert from refreshed table
+    ------------------------------------------------------------
+    SET @sql = N'
+    TRUNCATE TABLE dbo.STATS_FOR_UPLOAD;
+
+    DECLARE @MAXDATE DATETIME = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
+
+    DECLARE @X_KVK INT = (
+        SELECT TOP 1 TRY_CAST(KVKVersion AS INT)
+        FROM dbo.ProcConfig 
         WHERE ConfigKey = ''MATCHMAKING_SCAN''
-          AND TRY_CAST(ConfigValue AS FLOAT) <= @MaxScan
+          AND TRY_CAST(ConfigValue AS INT) <= (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData4)
         ORDER BY KVKVersion DESC
     );
 
-    INSERT INTO STATS_FOR_UPLOAD (
-        [Rank],[KVK_RANK],[Governor ID],[Governor_Name],[Power],[Power Delta],
-        [T4_Kills],[T5_Kills],[T4&T5_Kills],[OFF_SEASON_KILLS],[Kill Target],[% of Kill target],
-        [Deads],[OFF_SEASON_DEADS],[T4_Deads],[T5_Deads],[Dead Target],[% of Dead Target],
-        [Zeroed],[DKP_SCORE],[DKP Target],[% of DKP Target],[Helps],
-        [RSS_Assist],[RSS_Gathered],[Pass 4 Kills],[Pass 6 Kills],[Pass7 Kills],[Pass 8 Kills],
-        [Pass 4 Deads],[Pass 6 Deads],[Pass 7 Deads],[Pass 8 Deads],[KVK_NO],[LAST_REFRESH],[STATUS],
-        [HealedTroops],[RangedPoints],[Civilization],[KvKPlayed],[MostKvKKill],[MostKvKDead],[MostKvKHeal],
-        [Acclaim],[HighestAcclaim],[AOOJoined],[AOOWon],[AOOAvgKill],[AOOAvgDead],[AOOAvgHeal]
+    INSERT INTO dbo.STATS_FOR_UPLOAD
+    (
+        [Rank],[KVK_RANK],[Gov_ID],[Governor_Name],
+        [Starting Power],[Power_Delta],
+        [Civilization],[KvKPlayed],[MostKvKKill],[MostKvKDead],[MostKvKHeal],
+        [Acclaim],[HighestAcclaim],[AOOJoined],[AOOWon],[AOOAvgKill],[AOOAvgDead],[AOOAvgHeal],
+        [Starting_T4&T5_KILLS],[T4_KILLS],[T5_KILLS],[T4&T5_Kills],[KILLS_OUTSIDE_KVK],[Kill Target],[% of Kill Target],
+        [Starting_Deads],[Deads_Delta],[DEADS_OUTSIDE_KVK],[T4_Deads],[T5_Deads],[Dead_Target],[% of Dead Target],
+        [Zeroed],
+        [DKP_SCORE],[DKP Target],[% of DKP Target],
+        [HelpsDelta],[RSS_Assist_Delta],[RSS_Gathered_Delta],
+        [Pass 4 Kills],[Pass 6 Kills],[Pass 7 Kills],[Pass 8 Kills],
+        [Pass 4 Deads],[Pass 6 Deads],[Pass 7 Deads],[Pass 8 Deads],
+        [Starting_HealedTroops],[HealedTroopsDelta],
+        [Starting_KillPoints],[KillPointsDelta],
+        [RangedPoints],[RangedPointsDelta],
+        [Max_PreKvk_Points],[Max_HonorPoints],[PreKvk_Rank],[Honor_Rank],
+        [KVK_NO],
+        [LAST_REFRESH],[STATUS]
     )
-    SELECT 
+    SELECT
         [Rank],
-        KVK_RANK,
-        Gov_ID AS [Governor ID],
-        RTRIM(Governor_Name) AS [Governor_Name],
-        [Starting Power] AS [Power],
-        ISNULL(Power_Delta, 0) AS [Power Delta],
-        ISNULL(T4_KILLS, 0) AS [T4_Kills],
-        ISNULL(T5_KILLS, 0) AS [T5_Kills],
-        ISNULL([T4&T5_Kills], 0) AS [T4&T5_Kills],
-        ISNULL(KILLS_OUTSIDE_KVK, 0) AS [OFF_SEASON_KILLS],
-        ISNULL([Kill Target], 0) AS [Kill Target],
-        ISNULL([% of Kill target], 0) AS [% of Kill target],
-        ISNULL(Deads, 0) AS Deads,
-        ISNULL(DEADS_OUTSIDE_KVK, 0) AS [OFF_SEASON_DEADS],
-        ISNULL(T4_Deads, 0) AS T4_Deads,
-        ISNULL(T5_Deads, 0) AS T5_Deads,
-        ISNULL([Dead_Target], 0) AS [Dead Target],
-        ISNULL([% of Dead Target], 0) AS [% of Dead Target],
-        ISNULL(Zeroed, 0) AS Zeroed,
-        ISNULL([DKP_Score], 0) AS [DKP_SCORE],
-        ISNULL([DKP Target], 0) AS [DKP Target],
-        ISNULL([% of DKP Target], 0) AS [% of DKP Target],
-        ISNULL(HELPS, 0) AS Helps,
-        ISNULL(RSS_Assist, 0) AS RSS_Assist,
-        ISNULL(RSS_Gathered, 0) AS RSS_Gathered,
-        ISNULL([Pass 4 Kills], 0) AS [Pass 4 Kills],
-        ISNULL([Pass 6 Kills], 0) AS [Pass 6 Kills],
-        ISNULL([Pass 7 Kills], 0) AS [Pass7 Kills],
-        ISNULL([Pass 8 Kills], 0) AS [Pass 8 Kills],
-        ISNULL([Pass 4 Deads], 0) AS [Pass 4 Deads],
-        ISNULL([Pass 6 Deads], 0) AS [Pass 6 Deads],
-        ISNULL([Pass 7 Deads], 0) AS [Pass 7 Deads],
-        ISNULL([Pass 8 Deads], 0) AS [Pass 8 Deads],
-        KVK_NO,
-        CAST(@MAXDATE AS DATE) AS LAST_REFRESH,
+        [KVK_RANK],
+        CAST([Gov_ID] AS bigint) AS [Gov_ID],
+        RTRIM([Governor_Name]) AS [Governor_Name],
+
+        [Starting Power],
+        ISNULL([Power_Delta],0),
+
+        [Civilization],
+        ISNULL([KvKPlayed],0),
+        ISNULL([MostKvKKill],0),
+        ISNULL([MostKvKDead],0),
+        ISNULL([MostKvKHeal],0),
+
+        ISNULL([Acclaim],0),
+        ISNULL([HighestAcclaim],0),
+        ISNULL([AOOJoined],0),
+        ISNULL([AOOWon],0),
+        ISNULL([AOOAvgKill],0),
+        ISNULL([AOOAvgDead],0),
+        ISNULL([AOOAvgHeal],0),
+
+        ISNULL([Starting_T4&T5_KILLS],0),
+        ISNULL([T4_KILLS],0),
+        ISNULL([T5_KILLS],0),
+        ISNULL([T4&T5_Kills],0),
+        ISNULL([KILLS_OUTSIDE_KVK],0),
+        ISNULL([Kill Target],0),
+        ISNULL([% of Kill Target],0),
+
+        ISNULL([Starting_Deads],0),
+        ISNULL([Deads_Delta],0),
+        ISNULL([DEADS_OUTSIDE_KVK],0),
+        ISNULL([T4_Deads],0),
+        ISNULL([T5_Deads],0),
+        ISNULL([Dead_Target],0),
+        ISNULL([% of Dead Target],0),
+
+        ISNULL([Zeroed],0),
+
+        ISNULL([DKP_SCORE],0),
+        ISNULL([DKP Target],0),
+        ISNULL([% of DKP Target],0),
+
+        ISNULL([HelpsDelta],0),
+        ISNULL([RSS_Assist_Delta],0),
+        ISNULL([RSS_Gathered_Delta],0),
+
+        ISNULL([Pass 4 Kills],0),
+        ISNULL([Pass 6 Kills],0),
+        ISNULL([Pass 7 Kills],0),
+        ISNULL([Pass 8 Kills],0),
+
+        ISNULL([Pass 4 Deads],0),
+        ISNULL([Pass 6 Deads],0),
+        ISNULL([Pass 7 Deads],0),
+        ISNULL([Pass 8 Deads],0),
+
+        ISNULL([Starting_HealedTroops],0),
+        ISNULL([HealedTroopsDelta],0),
+
+        ISNULL([Starting_KillPoints],0),
+        ISNULL([KillPointsDelta],0),
+
+        ISNULL([RangedPoints],0),
+        ISNULL([RangedPointsDelta],0),
+
+        ISNULL([Max_PreKvk_Points],0),
+        ISNULL([Max_HonorPoints],0),
+        ISNULL([PreKvk_Rank],0),
+        ISNULL([Honor_Rank],0),
+
+        [KVK_NO],
+
+        CAST(@MAXDATE AS date) AS [LAST_REFRESH],
         CASE 
-            WHEN Gov_ID IN (
+            WHEN CAST([Gov_ID] AS bigint) IN (
                 SELECT GovernorID 
-                FROM [ROK_TRACKER].[dbo].[EXEMPT_FROM_STATS] 
+                FROM dbo.EXEMPT_FROM_STATS
                 WHERE KVK_NO IN (0, @X_KVK)
             ) THEN ''EXEMPT''
             ELSE ''INCLUDED''
-        END AS STATUS,
-        -- New metric columns (placed after STATUS)
-        ISNULL([HealedTroops], 0) AS HealedTroops,
-        ISNULL([RangedPoints], 0) AS RangedPoints,
-        ISNULL([Civilization], '''') AS Civilization,
-        ISNULL([KvKPlayed], 0) AS KvKPlayed,
-        ISNULL([MostKvKKill], 0) AS MostKvKKill,
-        ISNULL([MostKvKDead], 0) AS MostKvKDead,
-        ISNULL([MostKvKHeal], 0) AS MostKvKHeal,
-        ISNULL([Acclaim], 0) AS Acclaim,
-        ISNULL([HighestAcclaim], 0) AS HighestAcclaim,
-        ISNULL([AOOJoined], 0) AS AOOJoined,
-        ISNULL([AOOWon], 0) AS AOOWon,
-        ISNULL([AOOAvgKill], 0) AS AOOAvgKill,
-        ISNULL([AOOAvgDead], 0) AS AOOAvgDead,
-        ISNULL([AOOAvgHeal], 0) AS AOOAvgHeal
-    FROM ' + @TableName + '
-    ORDER BY [RANK] ASC;';
+        END AS [STATUS]
+    FROM ' + @TableName + N';';
 
-    -- Step 5: Execute the dynamic SQL
     EXEC sp_executesql @sql;
 END;
 

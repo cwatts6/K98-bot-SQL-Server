@@ -55,7 +55,7 @@ BEGIN
         IF OBJECT_ID(''dbo.EXCEL_FOR_DASHBOARD'', ''U'') IS NOT NULL
             DROP TABLE dbo.EXCEL_FOR_DASHBOARD;
 
-        SELECT TOP (5000000)
+        SELECT TOP (50000000)
                T.*,
                T.[% of Dead Target] AS [% of Dead_Target]  -- alias for compatibility
         INTO dbo.EXCEL_FOR_DASHBOARD
