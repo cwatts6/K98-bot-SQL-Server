@@ -65,6 +65,7 @@ CREATE TABLE [dbo].[DASH](
 	[Max_HonorPoints] [bigint] NULL,
 	[PreKvk_Rank] [bigint] NULL,
 	[Honor_Rank] [bigint] NULL,
-	[Deads_Delta] [bigint] NULL
+	[Deads_Delta] [bigint] NULL,
+	[AutarchTimes] [bigint] NULL
 ) ON [PRIMARY]
 END
