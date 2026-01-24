@@ -69,8 +69,6 @@ BEGIN
 
     IF @ScanToUse IS NULL
     BEGIN
-        -- You said: "else do not execute"
-        -- I also recommend not truncating/uploading in this case (keeps last good output).
         PRINT 'SP_Stats_for_Upload: Skipping refresh + upload. MaxScan=' + CAST(@MaxScan AS varchar(20))
             + ', MatchmakingScan=' + COALESCE(CAST(@MatchmakingScan AS varchar(20)), 'NULL')
             + ', DraftScan=' + COALESCE(CAST(@DraftScan AS varchar(20)), 'NULL');
@@ -90,9 +88,9 @@ BEGIN
     ------------------------------------------------------------
     -- Step 7: Truncate + insert from refreshed table
     ------------------------------------------------------------
-    SET @sql = N'
-    TRUNCATE TABLE dbo.STATS_FOR_UPLOAD;
+    SET @sql = N'TRUNCATE TABLE dbo.STATS_FOR_UPLOAD;';
 
+    SET @sql += N'
     DECLARE @MAXDATE DATETIME = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
 
     DECLARE @X_KVK INT = (
@@ -119,6 +117,7 @@ BEGIN
         [Starting_HealedTroops],[HealedTroopsDelta],
         [Starting_KillPoints],[KillPointsDelta],
         [RangedPoints],[RangedPointsDelta],
+        [AutarchTimes],
         [Max_PreKvk_Points],[Max_HonorPoints],[PreKvk_Rank],[Honor_Rank],
         [KVK_NO],
         [LAST_REFRESH],[STATUS]
@@ -191,6 +190,8 @@ BEGIN
         ISNULL([RangedPoints],0),
         ISNULL([RangedPointsDelta],0),
 
+        ISNULL([AutarchTimes],0),
+
         ISNULL([Max_PreKvk_Points],0),
         ISNULL([Max_HonorPoints],0),
         ISNULL([PreKvk_Rank],0),
@@ -210,5 +211,26 @@ BEGIN
     FROM ' + @TableName + N';';
 
     EXEC sp_executesql @sql;
-END;
+
+    ------------------------------------------------------------
+    -- Step 8: Rebuild/reorganize indexes for optimal performance
+    ------------------------------------------------------------
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.STATS_FOR_UPLOAD') AND name = N'IX_STATS_FOR_UPLOAD_GovID')
+    BEGIN
+        ALTER INDEX [IX_STATS_FOR_UPLOAD_GovID] ON dbo.STATS_FOR_UPLOAD REBUILD WITH (ONLINE = OFF);
+        PRINT 'SP_Stats_for_Upload: Rebuilt index IX_STATS_FOR_UPLOAD_GovID';
+    END
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.STATS_FOR_UPLOAD') AND name = N'IX_STATS_FOR_UPLOAD_KVK_NO')
+    BEGIN
+        ALTER INDEX [IX_STATS_FOR_UPLOAD_KVK_NO] ON dbo.STATS_FOR_UPLOAD REBUILD WITH (ONLINE = OFF);
+        PRINT 'SP_Stats_for_Upload: Rebuilt index IX_STATS_FOR_UPLOAD_KVK_NO';
+    END
+
+    UPDATE STATISTICS dbo.STATS_FOR_UPLOAD;
+
+    PRINT 'SP_Stats_for_Upload: Completed successfully for KVK ' + CAST(@LatestKVK AS VARCHAR(10)) 
+        + ' using scan ' + CAST(@ScanToUse AS VARCHAR(10)) 
+        + ' at ' + CONVERT(VARCHAR, GETDATE(), 120);
+END
 

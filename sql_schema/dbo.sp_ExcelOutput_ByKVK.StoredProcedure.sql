@@ -466,7 +466,8 @@ BEGIN
         @pScan = @Scan,
         @pKVK  = @KVK;
 
-	EXEC dbo.sp_Create_Excel_For_Kvk_Indexes @ExcelTblFull, @ExcelTbl;
+	-- Call index creation procedure with BOTH parameters
+	EXEC dbo.sp_Create_Excel_For_Kvk_Indexes @FullTableName = @ExcelTblFull, @TableBase = @ExcelTbl;
 
     DROP TABLE IF EXISTS #DKP, #HD1;
 
