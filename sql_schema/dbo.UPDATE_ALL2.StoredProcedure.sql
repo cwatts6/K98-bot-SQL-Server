@@ -229,61 +229,63 @@ BEGIN
         EXEC dbo.CREATE_DASH2;
         EXEC dbo.SP_Stats_for_Upload;
 
-        TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
+TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
 
-        INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
-            [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
-            [Starting Power], [Power_Delta], [Civilization], [KvKPlayed],
-            [MostKvKKill], [MostKvKDead], [MostKvKHeal],
-            [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
-            [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
-            [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
-            [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill Target],
-            [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
-            [T4_Deads], [T5_Deads], [Dead Target], [% of Dead Target], [% of Dead_Target],
-            [Zeroed], [DKP_SCORE], [DKP Target], [% of DKP Target],
-            HelpsDelta, RSS_Assist_Delta, RSS_Gathered_Delta,
-            [Pass 4 Kills], [Pass 6 Kills], [Pass 7 Kills], [Pass 8 Kills],
-            [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
-            [Starting HealedTroops], [HealedTroopsDelta],
-            [Starting KillPoints], [KillPointsDelta],
-            [RangedPoints], [RangedPointsDelta],
-            [Max_PreKvk_Points], [Max_HonorPoints],
-            [PreKvk_Rank], [Honor_Rank], [KVK_NO]
-        )
-        SELECT
-            ed.[Rank], ed.[KVK_RANK], ed.[Gov_ID],
-            ISNULL(RTRIM(ed.[Governor_Name]), ''),
-            ISNULL(ed.[Starting Power], 0), ISNULL(ed.[Power_Delta], 0),
-            ISNULL(ed.[Civilization], N''), ISNULL(ed.[KvKPlayed], 0),
-            ISNULL(ed.[MostKvKKill], 0), ISNULL(ed.[MostKvKDead], 0), ISNULL(ed.[MostKvKHeal], 0),
-            ISNULL(ed.[Acclaim], 0), ISNULL(ed.[HighestAcclaim], 0),
-            ISNULL(ed.[AOOJoined], 0), ISNULL(ed.[AOOWon], 0),
-            ISNULL(ed.[AOOAvgKill], 0), ISNULL(ed.[AOOAvgDead], 0), ISNULL(ed.[AOOAvgHeal], 0),
-            ISNULL(ed.[Starting_T4&T5_KILLS], 0), ISNULL(ed.[T4_KILLS], 0),
-            ISNULL(ed.[T5_KILLS], 0), ISNULL(ed.[T4&T5_Kills], 0),
-            ISNULL(ed.[KILLS_OUTSIDE_KVK], 0), ISNULL(ed.[Kill Target], 0),
-            ISNULL(ed.[% of Kill Target], 0),
-            ISNULL(ed.[Starting_Deads], 0), ISNULL(ed.[Deads_Delta], 0),
-            ISNULL(ed.[DEADS_OUTSIDE_KVK], 0), ISNULL(ed.[T4_Deads], 0), ISNULL(ed.[T5_Deads], 0),
-            ISNULL(ed.[Dead_Target], 0), ISNULL(ed.[% of Dead Target], 0),
-            ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)),
-            ISNULL(ed.[Zeroed], 0), ISNULL(ed.[DKP_SCORE], 0),
-            ISNULL(ed.[DKP Target], 0), ISNULL(ed.[% of DKP Target], 0),
-            ISNULL(ed.[HelpsDelta], 0), ISNULL(ed.[RSS_Assist_Delta], 0),
-            ISNULL(ed.[RSS_Gathered_Delta], 0),
-            ISNULL(ed.[Pass 4 Kills], 0), ISNULL(ed.[Pass 6 Kills], 0),
-            ISNULL(ed.[Pass 7 Kills], 0), ISNULL(ed.[Pass 8 Kills], 0),
-            ISNULL(ed.[Pass 4 Deads], 0), ISNULL(ed.[Pass 6 Deads], 0),
-            ISNULL(ed.[Pass 7 Deads], 0), ISNULL(ed.[Pass 8 Deads], 0),
-            ISNULL(ed.[Starting_HealedTroops], 0), ISNULL(ed.[HealedTroopsDelta], 0),
-            ISNULL(ed.[Starting_KillPoints], 0), ISNULL(ed.[KillPointsDelta], 0),
-            ISNULL(ed.[RangedPoints], 0), ISNULL(ed.[RangedPointsDelta], 0),
-            ISNULL(ed.[Max_PreKvk_Points], 0), ISNULL(ed.[Max_HonorPoints], 0),
-            ISNULL(ed.[PreKvk_Rank], 0), ISNULL(ed.[Honor_Rank], 0),
-            ISNULL(ed.[KVK_NO], 0)
-        FROM dbo.EXCEL_FOR_DASHBOARD AS ed
-        WHERE ed.Gov_ID <> 12025033;
+INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
+    [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
+    [Starting Power], [Power_Delta], [Civilization], [KvKPlayed],
+    [MostKvKKill], [MostKvKDead], [MostKvKHeal],
+    [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
+    [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+    [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
+    [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill Target],
+    [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
+    [T4_Deads], [T5_Deads], [Dead Target], [% of Dead Target], [% of Dead_Target],
+    [Zeroed], [DKP_SCORE], [DKP Target], [% of DKP Target],
+    HelpsDelta, RSS_Assist_Delta, RSS_Gathered_Delta,
+    [Pass 4 Kills], [Pass 6 Kills], [Pass 7 Kills], [Pass 8 Kills],
+    [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
+    [Starting HealedTroops], [HealedTroopsDelta],
+    [Starting KillPoints], [KillPointsDelta],
+    [RangedPoints], [RangedPointsDelta],
+    [AutarchTimes],
+    [Max_PreKvk_Points], [Max_HonorPoints],
+    [PreKvk_Rank], [Honor_Rank], [KVK_NO]
+)
+SELECT
+    ed.[Rank], ed.[KVK_RANK], ed.[Gov_ID],
+    ISNULL(RTRIM(ed.[Governor_Name]), ''),
+    ISNULL(ed.[Starting Power], 0), ISNULL(ed.[Power_Delta], 0),
+    ISNULL(ed.[Civilization], N''), ISNULL(ed.[KvKPlayed], 0),
+    ISNULL(ed.[MostKvKKill], 0), ISNULL(ed.[MostKvKDead], 0), ISNULL(ed.[MostKvKHeal], 0),
+    ISNULL(ed.[Acclaim], 0), ISNULL(ed.[HighestAcclaim], 0),
+    ISNULL(ed.[AOOJoined], 0), ISNULL(ed.[AOOWon], 0),
+    ISNULL(ed.[AOOAvgKill], 0), ISNULL(ed.[AOOAvgDead], 0), ISNULL(ed.[AOOAvgHeal], 0),
+    ISNULL(ed.[Starting_T4&T5_KILLS], 0), ISNULL(ed.[T4_KILLS], 0),
+    ISNULL(ed.[T5_KILLS], 0), ISNULL(ed.[T4&T5_Kills], 0),
+    ISNULL(ed.[KILLS_OUTSIDE_KVK], 0), ISNULL(ed.[Kill Target], 0),
+    ISNULL(ed.[% of Kill Target], 0),
+    ISNULL(ed.[Starting_Deads], 0), ISNULL(ed.[Deads_Delta], 0),
+    ISNULL(ed.[DEADS_OUTSIDE_KVK], 0), ISNULL(ed.[T4_Deads], 0), ISNULL(ed.[T5_Deads], 0),
+    ISNULL(ed.[Dead_Target], 0), ISNULL(ed.[% of Dead Target], 0),
+    ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)),
+    ISNULL(ed.[Zeroed], 0), ISNULL(ed.[DKP_SCORE], 0),
+    ISNULL(ed.[DKP Target], 0), ISNULL(ed.[% of DKP Target], 0),
+    ISNULL(ed.[HelpsDelta], 0), ISNULL(ed.[RSS_Assist_Delta], 0),
+    ISNULL(ed.[RSS_Gathered_Delta], 0),
+    ISNULL(ed.[Pass 4 Kills], 0), ISNULL(ed.[Pass 6 Kills], 0),
+    ISNULL(ed.[Pass 7 Kills], 0), ISNULL(ed.[Pass 8 Kills], 0),
+    ISNULL(ed.[Pass 4 Deads], 0), ISNULL(ed.[Pass 6 Deads], 0),
+    ISNULL(ed.[Pass 7 Deads], 0), ISNULL(ed.[Pass 8 Deads], 0),
+    ISNULL(ed.[Starting_HealedTroops], 0), ISNULL(ed.[HealedTroopsDelta], 0),
+    ISNULL(ed.[Starting_KillPoints], 0), ISNULL(ed.[KillPointsDelta], 0),
+    ISNULL(ed.[RangedPoints], 0), ISNULL(ed.[RangedPointsDelta], 0),
+    ISNULL(ed.[AutarchTimes], 0),
+    ISNULL(ed.[Max_PreKvk_Points], 0), ISNULL(ed.[Max_HonorPoints], 0),
+    ISNULL(ed.[PreKvk_Rank], 0), ISNULL(ed.[Honor_Rank], 0),
+    ISNULL(ed.[KVK_NO], 0)
+FROM dbo.EXCEL_FOR_DASHBOARD AS ed
+WHERE ed.Gov_ID <> 12025033;
 
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
 

@@ -61,6 +61,7 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[KillPointsDelta] [bigint] NOT NULL,
 	[% of Dead_Target] [decimal](9, 4) NOT NULL,
 	[RangedPointsDelta] [bigint] NULL,
+	[AutarchTimes] [bigint] NULL,
 	[Max_PreKvk_Points] [bigint] NULL,
 	[Max_HonorPoints] [bigint] NULL,
 	[PreKvk_Rank] [int] NULL,
