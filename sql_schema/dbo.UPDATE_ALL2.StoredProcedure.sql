@@ -19,9 +19,9 @@ BEGIN
     SET CONCAT_NULL_YIELDS_NULL ON;
     SET QUOTED_IDENTIFIER ON;
     SET NUMERIC_ROUNDABORT OFF;
-	SET XACT_ABORT ON;
+    SET XACT_ABORT ON;
 
-	DECLARE @rc INT, @rowsKS5 INT;
+    DECLARE @rc INT, @rowsKS5 INT, @rowsKS4 INT = 0;
 
     BEGIN TRY
         ----------------------------------------------------------------
@@ -50,21 +50,19 @@ BEGIN
         IF @rc <> 0
         BEGIN
             RAISERROR('IMPORT_STAGING_PROC failed (rc=%d).', 16, 1, @rc);
-            -- RAISERROR will jump to CATCH; no explicit rollback here
         END
 
         -- 2) Insert into KingdomScanData5
-        -- Add deterministic tiebreaker to ROW_NUMBER to ensure stable ranks for ties
         INSERT INTO dbo.KingdomScanData5 (
               PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
             , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
             , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
-            , HealedTroops, RangedPoints, Civilization, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
+            , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
             , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
         )
         SELECT
-              ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC)
+              ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC) AS PowerRank
             , RTRIM([Name])
             , [Governor ID]
             , [Alliance]
@@ -77,7 +75,7 @@ BEGIN
             , [RSS Gathered], [RSS Assistance], [Alliance Helps]
             , [ScanDate], [SCANORDER]
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
-            , [HealedTroops], [RangedPoints], [Civilization], [KvKPlayed], [MostKvKKill], [MostKvKDead], [MostKvKHeal]
+            , [HealedTroops], [RangedPoints], [Civilization], [AutarchTimes], [KvKPlayed], [MostKvKKill], [MostKvKDead], [MostKvKHeal]
             , [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal]
         FROM dbo.IMPORT_STAGING WITH (TABLOCK);
 
@@ -88,11 +86,17 @@ BEGIN
             RAISERROR('No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).', 16, 1);
         END
 
-		-- Cache MAX(SCANORDER) values to avoid repeated scans
-        DECLARE @MaxScanOrder5 BIGINT = (SELECT ISNULL(MAX(SCANORDER), 0) FROM dbo.KingdomScanData5);
-        DECLARE @MaxScanOrder4 BIGINT = (SELECT ISNULL(MAX(SCANORDER), 0) FROM dbo.KingdomScanData4);
+        -- SMART INDEX MAINTENANCE: Only update stats for KS5 (lightweight)
+        -- Full index rebuild happens nightly via maintenance job
+        PRINT 'Updating statistics for KingdomScanData5 (quick sample)...';
+        UPDATE STATISTICS dbo.KingdomScanData5 WITH SAMPLE 20 PERCENT;
+        PRINT 'KingdomScanData5 statistics refreshed.';
 
-        -- 3) Promote to KS4 if newer (AsOfDate is computed in KS4; do not include it)
+        -- Cache MAX(SCANORDER) values to avoid repeated scans
+        DECLARE @MaxScanOrder5 BIGINT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData5 ORDER BY SCANORDER DESC);
+        DECLARE @MaxScanOrder4 BIGINT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC);
+
+        -- 3) Promote to KS4 if newer
         IF @MaxScanOrder5 > @MaxScanOrder4
         BEGIN
             INSERT INTO dbo.KingdomScanData4 (
@@ -100,7 +104,7 @@ BEGIN
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
                 , RSS_Gathered, RSSAssistance, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
-                , HealedTroops, RangedPoints, Civilization, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
+                , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
                 , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
             )
             SELECT
@@ -108,10 +112,94 @@ BEGIN
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
                 , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
-                , HealedTroops, RangedPoints, Civilization, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
+                , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
                 , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
             FROM dbo.KingdomScanData5
             WHERE SCANORDER = @MaxScanOrder5;
+
+            SET @rowsKS4 = @@ROWCOUNT;
+
+            ----------------------------------------------------------------
+            -- SMART INDEX MAINTENANCE for KS4: Check fragmentation first
+            -- Thresholds: 
+            --   - Skip if < 10% fragmentation
+            --   - REORGANIZE if 10-30% fragmentation (online, low impact)
+            --   - REBUILD if > 30% fragmentation
+            ----------------------------------------------------------------
+            PRINT 'Checking KingdomScanData4 index fragmentation...';
+            
+            DECLARE @IndexMaintLog TABLE (
+                IndexName NVARCHAR(128),
+                FragmentationPercent DECIMAL(5,2),
+                Action NVARCHAR(20)
+            );
+
+            -- Check fragmentation of critical indexes
+            DECLARE @IndexName NVARCHAR(128);
+            DECLARE @Fragmentation DECIMAL(5,2);
+            DECLARE @SQL NVARCHAR(MAX);
+
+            DECLARE idx_cursor CURSOR LOCAL FAST_FORWARD FOR
+                SELECT 
+                    i.name AS IndexName,
+                    ips.avg_fragmentation_in_percent AS Fragmentation
+                FROM sys.dm_db_index_physical_stats(
+                    DB_ID(), 
+                    OBJECT_ID('dbo.KingdomScanData4'), 
+                    NULL, NULL, 'LIMITED'
+                ) AS ips
+                INNER JOIN sys.indexes AS i 
+                    ON ips.object_id = i.object_id 
+                    AND ips.index_id = i.index_id
+                WHERE 
+                    i.name IN (
+                        'CIX_KS4_ScanOrder_Governor',
+                        'IX_KSD4_Governor_ScanOrder', 
+                        'IX_KS4_Governor_ScanDate',
+                        'IX_KSD4_Gov_ScanOrder'
+                    )
+                    AND ips.avg_fragmentation_in_percent IS NOT NULL;
+
+            OPEN idx_cursor;
+            FETCH NEXT FROM idx_cursor INTO @IndexName, @Fragmentation;
+
+            WHILE @@FETCH_STATUS = 0
+            BEGIN
+                IF @Fragmentation < 10
+                BEGIN
+                    -- Skip - fragmentation is low
+                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, 'SKIPPED');
+                    PRINT '  ' + @IndexName + ': ' + CAST(@Fragmentation AS VARCHAR(10)) + '% - Skipped';
+                END
+                ELSE IF @Fragmentation < 30
+                BEGIN
+                    -- REORGANIZE - medium fragmentation, online operation
+                    SET @SQL = N'ALTER INDEX [' + @IndexName + N'] ON dbo.KingdomScanData4 REORGANIZE;';
+                    EXEC sp_executesql @SQL;
+                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, 'REORGANIZED');
+                    PRINT '  ' + @IndexName + ': ' + CAST(@Fragmentation AS VARCHAR(10)) + '% - Reorganized';
+                END
+                ELSE
+                BEGIN
+                    -- REBUILD - high fragmentation
+                    SET @SQL = N'ALTER INDEX [' + @IndexName + N'] ON dbo.KingdomScanData4 REBUILD WITH (SORT_IN_TEMPDB = ON, MAXDOP = 0);';
+                    EXEC sp_executesql @SQL;
+                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, 'REBUILT');
+                    PRINT '  ' + @IndexName + ': ' + CAST(@Fragmentation AS VARCHAR(10)) + '% - Rebuilt';
+                END
+
+                FETCH NEXT FROM idx_cursor INTO @IndexName, @Fragmentation;
+            END
+
+            CLOSE idx_cursor;
+            DEALLOCATE idx_cursor;
+
+            -- Always update statistics after any index maintenance
+            UPDATE STATISTICS dbo.KingdomScanData4 WITH SAMPLE 25 PERCENT;
+            PRINT 'KingdomScanData4 statistics refreshed.';
+
+            -- Log index maintenance actions
+            SELECT * FROM @IndexMaintLog;
         END
 
         -- 4) Truncate staging (safe post-insert)
@@ -119,11 +207,12 @@ BEGIN
 
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
-        -- Return / Log Phase A summary values using cached variables
+        -- Return / Log Phase A summary values
         SELECT
             @MaxScanOrder5    AS Ks5_MaxScanOrder,
             @rowsKS5          AS Ks5_RowsInserted,
-            (SELECT COUNT(*) FROM dbo.IMPORT_STAGING)                       AS ImportStaging_RowsAfterPhaseA,
+            @rowsKS4          AS Ks4_RowsInserted,
+            (SELECT COUNT(*) FROM dbo.IMPORT_STAGING) AS ImportStaging_RowsAfterPhaseA,
             (SELECT COUNT(*) FROM dbo.KingdomScanData4 WHERE SCANORDER = @MaxScanOrder4) AS Ks4_RowsInLatest;
 
         ----------------------------------------------------------------
@@ -133,183 +222,97 @@ BEGIN
 
         EXEC dbo.CREATE_THE_AVERAGES;
 
-        -- Safe drop / rebuild
         IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
             DROP TABLE dbo.EXCEL_FOR_DASHBOARD;
 
         EXEC dbo.sp_Rebuild_ExcelForDashboard;
         EXEC dbo.CREATE_DASH2;
-
         EXEC dbo.SP_Stats_for_Upload;
 
-TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
+        TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
 
-INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
-    [Rank],
-    [KVK_RANK],
-    [Gov_ID],
-    [Governor_Name],
-    [Starting Power],
-    [Power_Delta],
-    [Civilization],
-    [KvKPlayed],
-    [MostKvKKill],
-    [MostKvKDead],
-    [MostKvKHeal],
-    [Acclaim],
-    [HighestAcclaim],
-    [AOOJoined],
-    [AOOWon],
-    [AOOAvgKill],
-    [AOOAvgDead],
-    [AOOAvgHeal],
-
-    [Starting T4&T5_KILLS],
-    [T4_KILLS],
-    [T5_KILLS],
-    [T4&T5_Kills],
-    [KILLS_OUTSIDE_KVK],
-    [Kill Target],
-    [% of Kill Target],
-
-    [Starting Deads],
-    Deads_Delta,              -- will store Deads_Delta here
-    [DEADS_OUTSIDE_KVK],
-    [T4_Deads],
-    [T5_Deads],
-    [Dead Target],
-    [% of Dead Target],
-    [% of Dead_Target],
-
-    [Zeroed],
-    [DKP_SCORE],
-    [DKP Target],
-    [% of DKP Target],
-
-     HelpsDelta,
-    RSS_Assist_Delta,
-    RSS_Gathered_Delta,       -- will store RSS_Gathered_Delta here
-
-    [Pass 4 Kills],
-    [Pass 6 Kills],
-    [Pass 7 Kills],
-    [Pass 8 Kills],
-    [Pass 4 Deads],
-    [Pass 6 Deads],
-    [Pass 7 Deads],
-    [Pass 8 Deads],
-
-    [Starting HealedTroops],
-    [HealedTroopsDelta],
-    [Starting KillPoints],
-    [KillPointsDelta],
-    [RangedPoints],
-    [RangedPointsDelta],
-
-    [Max_PreKvk_Points],
-    [Max_HonorPoints],
-    [PreKvk_Rank],
-    [Honor_Rank],
-    [KVK_NO]
-)
-SELECT
-    ed.[Rank],
-    ed.[KVK_RANK],
-    ed.[Gov_ID],
-    ISNULL(RTRIM(ed.[Governor_Name]), '') AS [Governor_Name],
-
-    ISNULL(ed.[Starting Power], 0) AS [Starting Power],
-    ISNULL(ed.[Power_Delta], 0) AS [Power_Delta],
-    ISNULL(ed.[Civilization], N'') AS [Civilization],
-    ISNULL(ed.[KvKPlayed], 0) AS [KvKPlayed],
-
-    ISNULL(ed.[MostKvKKill], 0) AS [MostKvKKill],
-    ISNULL(ed.[MostKvKDead], 0) AS [MostKvKDead],
-    ISNULL(ed.[MostKvKHeal], 0) AS [MostKvKHeal],
-
-    ISNULL(ed.[Acclaim], 0) AS [Acclaim],
-    ISNULL(ed.[HighestAcclaim], 0) AS [HighestAcclaim],
-    ISNULL(ed.[AOOJoined], 0) AS [AOOJoined],
-    ISNULL(ed.[AOOWon], 0) AS [AOOWon],
-    ISNULL(ed.[AOOAvgKill], 0) AS [AOOAvgKill],
-    ISNULL(ed.[AOOAvgDead], 0) AS [AOOAvgDead],
-    ISNULL(ed.[AOOAvgHeal], 0) AS [AOOAvgHeal],
-
-    ISNULL(ed.[Starting_T4&T5_KILLS], 0) AS [Starting T4&T5_KILLS],
-    ISNULL(ed.[T4_KILLS], 0) AS [T4_KILLS],
-    ISNULL(ed.[T5_KILLS], 0) AS [T5_KILLS],
-    ISNULL(ed.[T4&T5_Kills], 0) AS [T4&T5_Kills],
-    ISNULL(ed.[KILLS_OUTSIDE_KVK], 0) AS [KILLS_OUTSIDE_KVK],
-    ISNULL(ed.[Kill Target], 0) AS [Kill Target],
-    ISNULL(ed.[% of Kill Target], 0) AS [% of Kill Target],
-
-    ISNULL(ed.[Starting_Deads], 0) AS [Starting Deads],
-    ISNULL(ed.[Deads_Delta], 0) AS [Deads_Delta],
-    ISNULL(ed.[DEADS_OUTSIDE_KVK], 0) AS [DEADS_OUTSIDE_KVK],
-    ISNULL(ed.[T4_Deads], 0) AS [T4_Deads],
-    ISNULL(ed.[T5_Deads], 0) AS [T5_Deads],
-    ISNULL(ed.[Dead_Target], 0) AS [Dead Target],           -- FIX underscore->space
-    ISNULL(ed.[% of Dead Target], 0) AS [% of Dead Target],
-    ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)) AS [% of Dead_Target],
-
-    ISNULL(ed.[Zeroed], 0) AS [Zeroed],
-    ISNULL(ed.[DKP_SCORE], 0) AS [DKP_SCORE],
-    ISNULL(ed.[DKP Target], 0) AS [DKP Target],
-    ISNULL(ed.[% of DKP Target], 0) AS [% of DKP Target],
-
-    ISNULL(ed.[HelpsDelta], 0) AS [HelpsDelta],
-    ISNULL(ed.[RSS_Assist_Delta], 0) AS [RSS_Assist_Delta],
-	ISNULL(ed.[RSS_Gathered_Delta], 0) AS [RSS_Gathered_Delta],
-
-    ISNULL(ed.[Pass 4 Kills], 0) AS [Pass 4 Kills],
-    ISNULL(ed.[Pass 6 Kills], 0) AS [Pass 6 Kills],
-    ISNULL(ed.[Pass 7 Kills], 0) AS [Pass 7 Kills],
-    ISNULL(ed.[Pass 8 Kills], 0) AS [Pass 8 Kills],
-    ISNULL(ed.[Pass 4 Deads], 0) AS [Pass 4 Deads],
-    ISNULL(ed.[Pass 6 Deads], 0) AS [Pass 6 Deads],
-    ISNULL(ed.[Pass 7 Deads], 0) AS [Pass 7 Deads],
-    ISNULL(ed.[Pass 8 Deads], 0) AS [Pass 8 Deads],
-
-    ISNULL(ed.[Starting_HealedTroops], 0) AS [Starting HealedTroops], -- FIX
-    ISNULL(ed.[HealedTroopsDelta], 0) AS [HealedTroopsDelta],
-    ISNULL(ed.[Starting_KillPoints], 0) AS [Starting KillPoints],     -- FIX
-    ISNULL(ed.[KillPointsDelta], 0) AS [KillPointsDelta],
-    ISNULL(ed.[RangedPoints], 0) AS [RangedPoints],
-    ISNULL(ed.[RangedPointsDelta], 0) AS [RangedPointsDelta],
-
-    ISNULL(ed.[Max_PreKvk_Points], 0) AS [Max_PreKvk_Points],
-    ISNULL(ed.[Max_HonorPoints], 0) AS [Max_HonorPoints],
-    ISNULL(ed.[PreKvk_Rank], 0) AS [PreKvk_Rank],
-    ISNULL(ed.[Honor_Rank], 0) AS [Honor_Rank],
-    ISNULL(ed.[KVK_NO], 0) AS [KVK_NO]
-FROM dbo.EXCEL_FOR_DASHBOARD AS ed
-WHERE ed.Gov_ID <> 12025033;
-
+        INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
+            [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
+            [Starting Power], [Power_Delta], [Civilization], [KvKPlayed],
+            [MostKvKKill], [MostKvKDead], [MostKvKHeal],
+            [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
+            [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+            [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
+            [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill Target],
+            [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
+            [T4_Deads], [T5_Deads], [Dead Target], [% of Dead Target], [% of Dead_Target],
+            [Zeroed], [DKP_SCORE], [DKP Target], [% of DKP Target],
+            HelpsDelta, RSS_Assist_Delta, RSS_Gathered_Delta,
+            [Pass 4 Kills], [Pass 6 Kills], [Pass 7 Kills], [Pass 8 Kills],
+            [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
+            [Starting HealedTroops], [HealedTroopsDelta],
+            [Starting KillPoints], [KillPointsDelta],
+            [RangedPoints], [RangedPointsDelta],
+            [Max_PreKvk_Points], [Max_HonorPoints],
+            [PreKvk_Rank], [Honor_Rank], [KVK_NO]
+        )
+        SELECT
+            ed.[Rank], ed.[KVK_RANK], ed.[Gov_ID],
+            ISNULL(RTRIM(ed.[Governor_Name]), ''),
+            ISNULL(ed.[Starting Power], 0), ISNULL(ed.[Power_Delta], 0),
+            ISNULL(ed.[Civilization], N''), ISNULL(ed.[KvKPlayed], 0),
+            ISNULL(ed.[MostKvKKill], 0), ISNULL(ed.[MostKvKDead], 0), ISNULL(ed.[MostKvKHeal], 0),
+            ISNULL(ed.[Acclaim], 0), ISNULL(ed.[HighestAcclaim], 0),
+            ISNULL(ed.[AOOJoined], 0), ISNULL(ed.[AOOWon], 0),
+            ISNULL(ed.[AOOAvgKill], 0), ISNULL(ed.[AOOAvgDead], 0), ISNULL(ed.[AOOAvgHeal], 0),
+            ISNULL(ed.[Starting_T4&T5_KILLS], 0), ISNULL(ed.[T4_KILLS], 0),
+            ISNULL(ed.[T5_KILLS], 0), ISNULL(ed.[T4&T5_Kills], 0),
+            ISNULL(ed.[KILLS_OUTSIDE_KVK], 0), ISNULL(ed.[Kill Target], 0),
+            ISNULL(ed.[% of Kill Target], 0),
+            ISNULL(ed.[Starting_Deads], 0), ISNULL(ed.[Deads_Delta], 0),
+            ISNULL(ed.[DEADS_OUTSIDE_KVK], 0), ISNULL(ed.[T4_Deads], 0), ISNULL(ed.[T5_Deads], 0),
+            ISNULL(ed.[Dead_Target], 0), ISNULL(ed.[% of Dead Target], 0),
+            ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)),
+            ISNULL(ed.[Zeroed], 0), ISNULL(ed.[DKP_SCORE], 0),
+            ISNULL(ed.[DKP Target], 0), ISNULL(ed.[% of DKP Target], 0),
+            ISNULL(ed.[HelpsDelta], 0), ISNULL(ed.[RSS_Assist_Delta], 0),
+            ISNULL(ed.[RSS_Gathered_Delta], 0),
+            ISNULL(ed.[Pass 4 Kills], 0), ISNULL(ed.[Pass 6 Kills], 0),
+            ISNULL(ed.[Pass 7 Kills], 0), ISNULL(ed.[Pass 8 Kills], 0),
+            ISNULL(ed.[Pass 4 Deads], 0), ISNULL(ed.[Pass 6 Deads], 0),
+            ISNULL(ed.[Pass 7 Deads], 0), ISNULL(ed.[Pass 8 Deads], 0),
+            ISNULL(ed.[Starting_HealedTroops], 0), ISNULL(ed.[HealedTroopsDelta], 0),
+            ISNULL(ed.[Starting_KillPoints], 0), ISNULL(ed.[KillPointsDelta], 0),
+            ISNULL(ed.[RangedPoints], 0), ISNULL(ed.[RangedPointsDelta], 0),
+            ISNULL(ed.[Max_PreKvk_Points], 0), ISNULL(ed.[Max_HonorPoints], 0),
+            ISNULL(ed.[PreKvk_Rank], 0), ISNULL(ed.[Honor_Rank], 0),
+            ISNULL(ed.[KVK_NO], 0)
+        FROM dbo.EXCEL_FOR_DASHBOARD AS ed
+        WHERE ed.Gov_ID <> 12025033;
 
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
- 
- 
-        INSERT INTO dbo.POWER_BY_MONTH (GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH], HealedTroops, RangedPoints)
-        SELECT TOP (5000000) GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], DEADS, [MONTH], HealedTroops, RangedPoints
+
+        INSERT INTO dbo.POWER_BY_MONTH (
+            GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS], 
+            DEADS, [MONTH], HealedTroops, RangedPoints
+        )
+        SELECT 
+            GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS],
+            DEADS, [MONTH], HealedTroops, RangedPoints
         FROM (
-            SELECT GovernorID, RTRIM(GovernorName) AS GovernorName,
-                   MAX([Power]) AS [POWER], 
-				   MAX(KillPoints) AS KILLPOINTS,
-                   MAX([T4&T5_KILLS]) AS [T4&T5KILLS],
-                   MAX(Deads) AS DEADS, 
-				   MAX(HealedTroops) AS HealedTroops, 
-				   MAX(RangedPoints) AS RangedPoints, 
-				   EOMONTH(ScanDate) AS [MONTH]
+            SELECT 
+                GovernorID, RTRIM(GovernorName) AS GovernorName,
+                MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
+                MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, 
+                MAX(HealedTroops) AS HealedTroops, MAX(RangedPoints) AS RangedPoints, 
+                EOMONTH(ScanDate) AS [MONTH]
             FROM dbo.KingdomScanData4
             WHERE GovernorID NOT IN (0, 12025033)
             GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
 
             UNION ALL
 
-            SELECT GovernorID, RTRIM(GovernorName) AS GovernorName,
-                   MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
-                   MAX([T4&T5_KILLS]) AS [T4&T5KILLS],
-                   MAX(Deads) AS DEADS, MAX(HealedTroops) AS HealedTroops, MAX(RangedPoints) AS RangedPoints, EOMONTH(ScanDate) AS [MONTH]
+            SELECT 
+                GovernorID, RTRIM(GovernorName) AS GovernorName,
+                MAX([Power]) AS [POWER], MAX(KillPoints) AS KILLPOINTS,
+                MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, 
+                MAX(HealedTroops) AS HealedTroops, MAX(RangedPoints) AS RangedPoints, 
+                EOMONTH(ScanDate) AS [MONTH]
             FROM dbo.THE_AVERAGES
             GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
         ) AS T
@@ -317,25 +320,18 @@ WHERE ed.Gov_ID <> 12025033;
 
         EXEC dbo.sp_RefreshInactiveGovernors;
 
-        --TRUNCATE TABLE dbo.KS;
+        DECLARE @MAXDATE DATETIME = (SELECT TOP 1 ScanDate FROM dbo.KingdomScanData4 ORDER BY ScanDate DESC);
 
-        DECLARE @MAXDATE DATETIME = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
-		--DECLARE @actual_param1 FLOAT = 912;
-		--DECLARE @actual_param2 NVARCHAR(100) = 'C';
-
-        INSERT INTO dbo.KS (KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [CH25], HealedTroops, RangedPoints, [Last Update], KINGDOM_RANK, KINGDOM_SEED)
+        INSERT INTO dbo.KS (
+            KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [CH25], 
+            HealedTroops, RangedPoints, [Last Update], KINGDOM_RANK, KINGDOM_SEED
+        )
         SELECT
-            SUM(CAST([Power] AS BIGINT)),
-            COUNT(GovernorID),
-            SUM([KillPoints]),
-            SUM([TOTAL_KILLS]),
-            SUM([DEADS]),
-			CAST(SUM(CASE WHEN [City Hall] = 25 THEN 1 ELSE 0 END) AS INT) AS CH25,
-			SUM(ISNULL([HealedTroops],0)),
-            SUM(ISNULL([RangedPoints],0)),
-            @MAXDATE,
-            @actual_param1,
-            @actual_param2
+            SUM(CAST([Power] AS BIGINT)), COUNT(GovernorID), SUM([KillPoints]),
+            SUM([TOTAL_KILLS]), SUM([DEADS]),
+            CAST(SUM(CASE WHEN [City Hall] = 25 THEN 1 ELSE 0 END) AS INT),
+            SUM(ISNULL([HealedTroops], 0)), SUM(ISNULL([RangedPoints], 0)),
+            @MAXDATE, @actual_param1, @actual_param2
         FROM dbo.KingdomScanData4
         WHERE ScanDate = @MAXDATE;
 
@@ -348,15 +344,14 @@ WHERE ed.Gov_ID <> 12025033;
         SELECT SCANORDER, ScanDate
         FROM dbo.KingdomScanData4
         GROUP BY SCANORDER, ScanDate;
- 
-        -- status/log
+
         DECLARE @EndTime DATETIME = GETDATE();
         DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);
 
         INSERT INTO dbo.SP_TaskStatus (TaskName, Status, LastRunTime, LastRunCounter, DurationSeconds)
         VALUES (
             'UPDATE_ALL2', 'Complete', @EndTime,
-            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WHERE TaskName='UPDATE_ALL2'),0) + 1,
+            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WHERE TaskName='UPDATE_ALL2'), 0) + 1,
             @DurationSeconds
         );
 
@@ -364,21 +359,29 @@ WHERE ed.Gov_ID <> 12025033;
 
         INSERT INTO dbo.Update_ALL_Complete (CompletionTime) VALUES (GETDATE());
 
+        SELECT 
+            @rowsKS5 AS RowsInsertedKS5,
+            @rowsKS4 AS RowsInsertedKS4,
+            @DurationSeconds AS DurationSeconds,
+            'SUCCESS' AS Status;
+
     END TRY
     BEGIN CATCH
-		        -- Capture error details (insert into an error audit table if available)
         DECLARE @ErrNum INT = ERROR_NUMBER();
         DECLARE @ErrMsg NVARCHAR(MAX) = ERROR_MESSAGE();
         DECLARE @ErrLine INT = ERROR_LINE();
         DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
 
-        -- Optional: store in error log table (uncomment if you have ErrorAudit table)
-   
-        INSERT INTO dbo.ErrorAudit (ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo)
-        VALUES (GETDATE(), ISNULL(@ErrProc, 'UPDATE_ALL2'), @ErrNum, @ErrMsg, @ErrLine, N'Phase info: ' + COALESCE(CONVERT(NVARCHAR(100), @MaxScanOrder5), N''));
-        
+        INSERT INTO dbo.ErrorAudit (
+            ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo
+        )
+        VALUES (
+            GETDATE(), ISNULL(@ErrProc, 'UPDATE_ALL2'), @ErrNum, @ErrMsg, @ErrLine, 
+            N'Phase info: KS5_Rows=' + ISNULL(CAST(@rowsKS5 AS NVARCHAR(20)), N'NULL') + 
+            N', KS4_Rows=' + ISNULL(CAST(@rowsKS4 AS NVARCHAR(20)), N'NULL')
+        );
+
         IF XACT_STATE() <> 0 ROLLBACK;
-		-- Re-throw preserving original error context
         THROW;
     END CATCH
 END

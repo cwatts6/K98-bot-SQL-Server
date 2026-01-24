@@ -48,7 +48,8 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[MaxHonorPoints] [bigint] NULL,
 	[PreKvkRank] [bigint] NULL,
 	[HonorRank] [bigint] NULL,
-	[RangedPointsDelta] [bigint] NULL
+	[RangedPointsDelta] [bigint] NULL,
+	[AutarchTimes] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_STAGING_STATS_RangedPointsDelta]') AND type = 'D')

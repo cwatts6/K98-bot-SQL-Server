@@ -24,6 +24,7 @@ CREATE TABLE [dbo].[IMPORT_STAGING_CSV](
 	[Building Power] [bigint] NULL,
 	[Commander Power] [bigint] NULL,
 	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+	[Autarch Times] [int] NULL,
 	[Ranged Points] [bigint] NULL,
 	[KvK Played] [int] NULL,
 	[Most KvK Kill] [bigint] NULL,

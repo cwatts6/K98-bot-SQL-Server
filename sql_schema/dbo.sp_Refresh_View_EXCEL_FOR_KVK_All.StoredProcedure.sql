@@ -94,6 +94,8 @@ BEGIN
             CAST(NULL AS bigint)         AS [RangedPoints],
             CAST(NULL AS bigint)         AS [RangedPointsDelta],
 
+            CAST(NULL AS bigint)         AS [AutarchTimes],
+
             CAST(NULL AS float)          AS [Max_PreKvk_Points],
             CAST(NULL AS float)          AS [Max_HonorPoints],
             CAST(NULL AS int)            AS [PreKvk_Rank],
@@ -134,6 +136,8 @@ BEGIN
 
         @RangedSrc NVARCHAR(200),
         @RangedDeltaSrc NVARCHAR(200),
+
+        @AutarchTimesSrc NVARCHAR(200),
 
         @MaxPreKvkSrc NVARCHAR(200),
         @MaxHonorSrc NVARCHAR(200),
@@ -332,7 +336,15 @@ BEGIN
                 ELSE 'CAST(0 AS bigint)'
             END;
 
-        -- Optional new columns (default if old tables don’t have them)
+        -- AutarchTimes (new field with backward compatibility)
+        SET @AutarchTimesSrc =
+            CASE
+                WHEN EXISTS (SELECT 1 FROM sys.columns WHERE object_id=@obj_id AND name='AutarchTimes')
+                    THEN '[AutarchTimes]'
+                ELSE 'CAST(0 AS bigint)'
+            END;
+
+        -- Optional new columns (default if old tables don't have them)
         SET @MaxPreKvkSrc =
             CASE WHEN EXISTS (SELECT 1 FROM sys.columns WHERE object_id=@obj_id AND name='Max_PreKvk_Points')
                 THEN '[Max_PreKvk_Points]' ELSE 'CAST(0.0 AS float)' END;
@@ -412,6 +424,8 @@ SELECT
 
     ' + @RangedSrc + '         AS [RangedPoints],
     ' + @RangedDeltaSrc + '    AS [RangedPointsDelta],
+
+    ' + @AutarchTimesSrc + '   AS [AutarchTimes],
 
     ' + @MaxPreKvkSrc + '      AS [Max_PreKvk_Points],
     ' + @MaxHonorSrc + '       AS [Max_HonorPoints],

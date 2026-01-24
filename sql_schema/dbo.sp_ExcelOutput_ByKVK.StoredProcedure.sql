@@ -178,6 +178,7 @@ BEGIN
 		ksd.[HealedTroops], 
 		ksd.[KillPoints],
 		ksd.[RangedPoints],
+		ksd.[AutarchTimes],
         pk.MaxPreKvkPoints    AS MaxPreKvkPoints,
         pk.PreKvk_Rank        AS PreKvkRank,
         hn.MaxHonorPoints     AS MaxHonorPoints,
@@ -219,7 +220,8 @@ BEGIN
 		, RSSGatheredDelta
 		, HealedTroops
 		, RangedPoints
-		, RangedPointsDelta  
+		, RangedPointsDelta
+		, AutarchTimes
 		, Civilization
 		, KvKPlayed
 		, MostKvKKill
@@ -267,24 +269,25 @@ BEGIN
 		, COALESCE(rg.RSSGatheredDelta, 0)          AS RSSGatheredDelta
 		, COALESCE(s.HealedTroops, 0)               AS HealedTroops
 		, COALESCE(s.RangedPoints, 0)               AS RangedPoints
-		, COALESCE(ran.RangedPointsDelta, 0)    AS RangedPointsDelta   -- ✅ new
+		, COALESCE(ran.RangedPointsDelta, 0)        AS RangedPointsDelta
+		, COALESCE(s.AutarchTimes, 0)               AS AutarchTimes
 		, s.Civilization
-		, COALESCE(s.KvKPlayed, 0)               AS KvKPlayed
-		, s.MostKvKKill
-		, s.MostKvKDead
-		, s.MostKvKHeal
-		, s.Acclaim
-		, s.HighestAcclaim
-		, s.AOOJoined
-		, s.AOOWon
-		, s.AOOAvgKill
-		, s.AOOAvgDead
-		, s.AOOAvgHeal
-		, COALESCE(kp.KillPointsDelta, 0)            AS KillPointsDelta   -- adjust source if needed
+		, COALESCE(s.KvKPlayed, 0)                  AS KvKPlayed
+		, COALESCE(s.MostKvKKill, 0)				AS MostKvKKill
+		, COALESCE(s.MostKvKDead, 0)				AS MostKvKDead
+		, COALESCE(s.MostKvKHeal, 0)				AS MostKvKHeal
+		, COALESCE(s.Acclaim, 0)					AS Acclaim
+		, COALESCE(s.HighestAcclaim, 0)				AS HighestAcclaim
+		, COALESCE(s.AOOJoined, 0)					AS AOOJoined
+		, COALESCE(s.AOOWon, 0)						AS AOOWon
+		, COALESCE(s.AOOAvgKill, 0)					AS AOOAvgKill
+		, COALESCE(s.AOOAvgDead, 0)					AS AOOAvgDead
+		, COALESCE(s.AOOAvgHeal, 0)					AS AOOAvgHeal
+		, COALESCE(kp.KillPointsDelta, 0)           AS KillPointsDelta
 		, COALESCE(s.KillPoints, 0)                 AS KillPoints
-		, COALESCE(he.HealedTroopsDelta, 0)			 AS HealedTroopsDelta
-		, COALESCE(s.Deads, 0)           AS [Starting_Deads]
-		, COALESCE(s.[T4&T5_KILLS], 0)     AS [Starting_T4&T5_KILLS]
+		, COALESCE(he.HealedTroopsDelta, 0)         AS HealedTroopsDelta
+		, COALESCE(s.Deads, 0)                      AS [Starting_Deads]
+		, COALESCE(s.[T4&T5_KILLS], 0)              AS [Starting_T4&T5_KILLS]
 		, COALESCE(s.MaxPreKvkPoints, 0)            AS MaxPreKvkPoints
 		, COALESCE(s.MaxHonorPoints, 0)             AS MaxHonorPoints
 		, COALESCE(s.PreKvkRank, 0)                 AS PreKvkRank
@@ -294,7 +297,7 @@ BEGIN
 	LEFT JOIN #KillsT4     kt4 ON kt4.GovernorID = s.GovernorID
 	LEFT JOIN #KillsT5     kt5 ON kt5.GovernorID = s.GovernorID
 	LEFT JOIN #Kills       k   ON k.GovernorID   = s.GovernorID
-	LEFT JOIN #KillPoints kp ON kp.GovernorID = s.GovernorID
+	LEFT JOIN #KillPoints  kp  ON kp.GovernorID = s.GovernorID
 	LEFT JOIN #Deads       d   ON d.GovernorID   = s.GovernorID
 	LEFT JOIN #Helps       h   ON h.GovernorID   = s.GovernorID
 	LEFT JOIN #RSSAssist   ra  ON ra.GovernorID  = s.GovernorID
@@ -435,6 +438,8 @@ BEGIN
 
         CAST(S.[RangedPoints] AS bigint)                             AS [RangedPoints],
         CAST(S.[RangedPointsDelta] AS bigint)                        AS [RangedPointsDelta],
+
+        CAST(S.[AutarchTimes] AS bigint)                             AS [AutarchTimes],
 
         CAST(S.[MaxPreKvkPoints] AS bigint)                          AS [Max_PreKvk_Points],
         CAST(S.[MaxHonorPoints] AS bigint)                           AS [Max_HonorPoints],

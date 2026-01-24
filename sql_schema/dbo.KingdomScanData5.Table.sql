@@ -42,6 +42,7 @@ CREATE TABLE [dbo].[KingdomScanData5](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[AutarchTimes] [int] NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[SCAN_UNO] ASC

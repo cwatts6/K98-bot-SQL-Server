@@ -29,8 +29,7 @@ BEGIN
     DECLARE @LatestDate DATETIME;
     DECLARE @FormattedDate VARCHAR(50);
     DECLARE @MoveCommand NVARCHAR(4000);
-
-	DECLARE @CsvPath NVARCHAR(4000) = N'C:\discord_file_downloader\downloads\stats.csv';
+    DECLARE @CsvPath NVARCHAR(4000) = N'C:\discord_file_downloader\downloads\stats.csv';
 
     -- Check file exists
     EXEC master.dbo.xp_fileexist @CsvPath, @FileExists OUTPUT;
@@ -47,7 +46,6 @@ BEGIN
             -- Step 2: BULK INSERT CSV -> IMPORT_STAGING_CSV
             -- Uses CSV-format options robust to quoted fields and UTF-8.
             ----------------------------------------------------------------
-			
             DECLARE @bulksql NVARCHAR(MAX) = N'
                 BULK INSERT dbo.IMPORT_STAGING_CSV
                 FROM ''' + REPLACE(@CsvPath, '''', '''''') + N'''
@@ -65,12 +63,13 @@ BEGIN
 
             ----------------------------------------------------------------
             -- Step 3: Determine next scan order (preserve original behaviour)
+            -- OPTIMIZATION: Use TOP 1 instead of MAX for better performance
             ----------------------------------------------------------------
-            SELECT @NextScanOrder = ISNULL(MAX(SCANORDER), 0) + 1 FROM dbo.KingdomScanData4;
-            IF @NextScanOrder IS NULL SET @NextScanOrder = 1;
+            SELECT @NextScanOrder = ISNULL((SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC), 0) + 1;
 
             ----------------------------------------------------------------
             -- Step 4: Truncate canonical staging and insert mapped values
+            -- OPTIMIZATION: Added AutarchTimes mapping
             ----------------------------------------------------------------
             TRUNCATE TABLE dbo.IMPORT_STAGING;
 
@@ -81,39 +80,38 @@ BEGIN
                 [Rss Assistance], [Alliance Helps], [ScanDate], [SCANORDER],
                 [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power],
                 [Updated_on],
-                -- new fields
+                -- existing new fields
                 [HealedTroops], [RangedPoints], [Civilization], [KvKPlayed],
                 [MostKvKKill], [MostKvKDead], [MostKvKHeal],
                 [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
-                [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal]
+                [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+                -- NEW FIELD
+                [AutarchTimes]
             )
             SELECT
                 RTRIM(ISNULL([Name], '')) AS [Name],
-
-                -- Governor id in CSV is "Governor ID"
                 [Governor ID] AS [Governor ID],
-
                 [Alliance],
-                -- numeric conversions are defensive: remove commas and TRY_CAST where useful
-                CASE WHEN TRY_CAST(REPLACE([Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Power], ',', '') AS BIGINT) ELSE NULL END AS [Power],
+                
+                -- OPTIMIZATION: Simplified TRY_CAST (removed redundant CASE/CAST)
+                TRY_CAST(REPLACE([Power], ',', '') AS BIGINT) AS [Power],
+                TRY_CAST(REPLACE([Total Kill Points], ',', '') AS BIGINT) AS [Total Kill Points],
+                TRY_CAST(REPLACE([Dead Troops], ',', '') AS BIGINT) AS [Dead Troops],
+                TRY_CAST(REPLACE([T1-Kills], ',', '') AS BIGINT) AS [T1-Kills],
+                TRY_CAST(REPLACE([T2-Kills], ',', '') AS BIGINT) AS [T2-Kills],
+                TRY_CAST(REPLACE([T3-Kills], ',', '') AS BIGINT) AS [T3-Kills],
+                TRY_CAST(REPLACE([T4-Kills], ',', '') AS BIGINT) AS [T4-Kills],
+                TRY_CAST(REPLACE([T5-Kills], ',', '') AS BIGINT) AS [T5-Kills],
 
-                CASE WHEN TRY_CAST(REPLACE([Total Kill Points], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Total Kill Points], ',', '') AS BIGINT) ELSE NULL END AS [Total Kill Points],
-                CASE WHEN TRY_CAST(REPLACE([Dead Troops], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Dead Troops], ',', '') AS BIGINT) ELSE NULL END AS [Dead Troops],
-                CASE WHEN TRY_CAST(REPLACE([T1-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T1-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T1-Kills],
-                CASE WHEN TRY_CAST(REPLACE([T2-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T2-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T2-Kills],
-                CASE WHEN TRY_CAST(REPLACE([T3-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T3-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T3-Kills],
-                CASE WHEN TRY_CAST(REPLACE([T4-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T4-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T4-Kills],
-                CASE WHEN TRY_CAST(REPLACE([T5-Kills], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([T5-Kills], ',', '') AS BIGINT) ELSE NULL END AS [T5-Kills],
+                -- derived fields - OPTIMIZATION: Use ISNULL to handle NULLs
+                (ISNULL([T4-Kills], 0) + ISNULL([T5-Kills], 0)) AS [Kills (T4+)],
+                (ISNULL([T1-Kills], 0) + ISNULL([T2-Kills], 0) + ISNULL([T3-Kills], 0) + ISNULL([T4-Kills], 0) + ISNULL([T5-Kills], 0)) AS [KILLS],
 
-                -- derived fields
-                ([T4-Kills] + [T5-Kills]) AS [Kills (T4+)],
-                ([T1-Kills] + [T2-Kills] + [T3-Kills] + [T4-Kills] + [T5-Kills]) AS [KILLS],
+                TRY_CAST(REPLACE([Rss Gathered], ',', '') AS BIGINT) AS [RssGathered],
+                TRY_CAST(REPLACE([Rss Assistance], ',', '') AS BIGINT) AS [RssAssistance],
+                TRY_CAST(REPLACE([Alliance Helps], ',', '') AS BIGINT) AS [AllianceHelps],
 
-                CASE WHEN TRY_CAST(REPLACE([Rss Gathered], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Rss Gathered], ',', '') AS BIGINT) ELSE NULL END AS [RssGathered],
-                CASE WHEN TRY_CAST(REPLACE([Rss Assistance], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Rss Assistance], ',', '') AS BIGINT) ELSE NULL END AS [RssAssistance],
-                CASE WHEN TRY_CAST(REPLACE([Alliance Helps], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Alliance Helps], ',', '') AS BIGINT) ELSE NULL END AS [AllianceHelps],
-
-                -- convert updated_on string like '19Jan26-15h57m' into DATETIME; best-effort parse
+                -- convert updated_on string like '19Jan26-15h57m' into DATETIME
                 TRY_CAST(
                     CONCAT(
                         '20', SUBSTRING([updated_on], 6, 2), '-',        
@@ -139,43 +137,48 @@ BEGIN
 
                 @NextScanOrder AS SCANORDER,
 
-                CASE WHEN TRY_CAST(REPLACE([Troops Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Troops Power], ',', '') AS BIGINT) ELSE NULL END AS [TroopsPower],
-                CASE WHEN TRY_CAST([City Hall] AS INT) IS NOT NULL THEN CAST([City Hall] AS INT) ELSE NULL END AS [CityHall],
-                CASE WHEN TRY_CAST(REPLACE([Tech Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Tech Power], ',', '') AS BIGINT) ELSE NULL END AS [TechPower],
-                CASE WHEN TRY_CAST(REPLACE([Building Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Building Power], ',', '') AS BIGINT) ELSE NULL END AS [BuildingPower],
-                CASE WHEN TRY_CAST(REPLACE([Commander Power], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Commander Power], ',', '') AS BIGINT) ELSE NULL END AS [CommanderPower],
+                TRY_CAST(REPLACE([Troops Power], ',', '') AS BIGINT) AS [TroopsPower],
+                TRY_CAST([City Hall] AS INT) AS [CityHall],
+                TRY_CAST(REPLACE([Tech Power], ',', '') AS BIGINT) AS [TechPower],
+                TRY_CAST(REPLACE([Building Power], ',', '') AS BIGINT) AS [BuildingPower],
+                TRY_CAST(REPLACE([Commander Power], ',', '') AS BIGINT) AS [CommanderPower],
 
                 [updated_on],
 
-                -- new fields mapping (CSV headers)
-                CASE WHEN TRY_CAST(REPLACE([Healed Troops], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Healed Troops], ',', '') AS BIGINT) ELSE NULL END AS [HealedTroops],
-                CASE WHEN TRY_CAST(REPLACE([Ranged Points], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Ranged Points], ',', '') AS BIGINT) ELSE NULL END AS [RangedPoints],
+                -- existing new fields mapping
+                TRY_CAST(REPLACE([Healed Troops], ',', '') AS BIGINT) AS [HealedTroops],
+                TRY_CAST(REPLACE([Ranged Points], ',', '') AS BIGINT) AS [RangedPoints],
                 [Civilization] AS [Civilization],
-                CASE WHEN TRY_CAST([KvK Played] AS INT) IS NOT NULL THEN CAST([KvK Played] AS INT) ELSE NULL END AS [KvKPlayed],
-                CASE WHEN TRY_CAST(REPLACE([Most KvK Kill], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Most KvK Kill], ',', '') AS BIGINT) ELSE NULL END AS [MostKvKKill],
-                CASE WHEN TRY_CAST(REPLACE([Most KvK Dead], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Most KvK Dead], ',', '') AS BIGINT) ELSE NULL END AS [MostKvKDead],
-                CASE WHEN TRY_CAST(REPLACE([Most KvK Heal], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Most KvK Heal], ',', '') AS BIGINT) ELSE NULL END AS [MostKvKHeal],
-                CASE WHEN TRY_CAST(REPLACE([Acclaim], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Acclaim], ',', '') AS BIGINT) ELSE NULL END AS [Acclaim],
-                CASE WHEN TRY_CAST(REPLACE([Highest Acclaim], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([Highest Acclaim], ',', '') AS BIGINT) ELSE NULL END AS [HighestAcclaim],
-                CASE WHEN TRY_CAST(REPLACE([AOO Joined], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Joined], ',', '') AS BIGINT) ELSE NULL END AS [AOOJoined],
-                CASE WHEN TRY_CAST([AOO Won] AS INT) IS NOT NULL THEN CAST([AOO Won] AS INT) ELSE NULL END AS [AOOWon],
-                CASE WHEN TRY_CAST(REPLACE([AOO Avg Kill], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Avg Kill], ',', '') AS BIGINT) ELSE NULL END AS [AOOAvgKill],
-                CASE WHEN TRY_CAST(REPLACE([AOO Avg Dead], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Avg Dead], ',', '') AS BIGINT) ELSE NULL END AS [AOOAvgDead],
-                CASE WHEN TRY_CAST(REPLACE([AOO Avg Heal], ',', '') AS BIGINT) IS NOT NULL THEN CAST(REPLACE([AOO Avg Heal], ',', '') AS BIGINT) ELSE NULL END AS [AOOAvgHeal]
+                TRY_CAST([KvK Played] AS INT) AS [KvKPlayed],
+                TRY_CAST(REPLACE([Most KvK Kill], ',', '') AS BIGINT) AS [MostKvKKill],
+                TRY_CAST(REPLACE([Most KvK Dead], ',', '') AS BIGINT) AS [MostKvKDead],
+                TRY_CAST(REPLACE([Most KvK Heal], ',', '') AS BIGINT) AS [MostKvKHeal],
+                TRY_CAST(REPLACE([Acclaim], ',', '') AS BIGINT) AS [Acclaim],
+                TRY_CAST(REPLACE([Highest Acclaim], ',', '') AS BIGINT) AS [HighestAcclaim],
+                TRY_CAST(REPLACE([AOO Joined], ',', '') AS BIGINT) AS [AOOJoined],
+                TRY_CAST([AOO Won] AS INT) AS [AOOWon],
+                TRY_CAST(REPLACE([AOO Avg Kill], ',', '') AS BIGINT) AS [AOOAvgKill],
+                TRY_CAST(REPLACE([AOO Avg Dead], ',', '') AS BIGINT) AS [AOOAvgDead],
+                TRY_CAST(REPLACE([AOO Avg Heal], ',', '') AS BIGINT) AS [AOOAvgHeal],
+                
+                -- NEW FIELD: Autarch Times
+                TRY_CAST([Autarch Times] AS INT) AS [AutarchTimes]
+                
             FROM dbo.IMPORT_STAGING_CSV;
 
             SET @InsertedRows = @@ROWCOUNT;
 
             ----------------------------------------------------------------
-            -- Step 5: Clean up known alliance typos (preserve original rules)
+            -- Step 5: Clean up known alliance typos
+            -- OPTIMIZATION: Batched into single UPDATE for better performance
             ----------------------------------------------------------------
-            UPDATE IMPORT_STAGING
-            SET ALLIANCE = '[k98A]SparTanS'
-            WHERE ALLIANCE = '[k98A]SparTanS$S';
-
-            UPDATE IMPORT_STAGING
-            SET ALLIANCE = '[K98B]TrojanS'
-            WHERE ALLIANCE = '[K98B]Trojan$S';
+            UPDATE dbo.IMPORT_STAGING
+            SET ALLIANCE = CASE 
+                WHEN ALLIANCE = '[k98A]SparTanS$S' THEN '[k98A]SparTanS'
+                WHEN ALLIANCE = '[K98B]Trojan$S' THEN '[K98B]TrojanS'
+                ELSE ALLIANCE
+            END
+            WHERE ALLIANCE IN ('[k98A]SparTanS$S', '[K98B]Trojan$S');
 
             ----------------------------------------------------------------
             -- Step 6: Delta update from latest scan (preserve original behaviour)
@@ -202,7 +205,7 @@ BEGIN
                 [RSS Assistance] = CASE WHEN I.[RSS Assistance] < K.RSSAssistance THEN K.RSSAssistance ELSE I.[RSS Assistance] END,
                 [Alliance Helps] = CASE WHEN I.[Alliance Helps] < K.Helps THEN K.Helps ELSE I.[Alliance Helps] END
             FROM dbo.IMPORT_STAGING AS I
-            JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
+            INNER JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
 
             ----------------------------------------------------------------
             -- Step 7: Archive the CSV (move to Import_Archive folder with formatted name)
@@ -218,8 +221,9 @@ BEGIN
             SET @FormattedDate = FORMAT(@LatestDate, 'yyyyMMdd_HHmm');
             SET @MoveCommand = 'CMD /C MOVE "' + @CsvPath + '" "C:\discord_file_downloader\downloads\Import_Archive\Stats_' + @FormattedDate + '.csv"';
 
-            CREATE TABLE #dummy_output (output NVARCHAR(4000));
-            INSERT INTO #dummy_output
+            -- OPTIMIZATION: Use table variable instead of temp table for small result set
+            DECLARE @dummy_output TABLE (output NVARCHAR(4000));
+            INSERT INTO @dummy_output
             EXEC xp_cmdshell @MoveCommand;
 
             ----------------------------------------------------------------
@@ -232,22 +236,28 @@ BEGIN
             PRINT 'File Move Output:';
 
             SELECT output 
-            FROM #dummy_output 
+            FROM @dummy_output 
             WHERE output IS NOT NULL AND LTRIM(RTRIM(output)) <> '';
-
-            DROP TABLE #dummy_output;
 
             RETURN 0; -- Success
         END TRY
         BEGIN CATCH
             DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
-            PRINT 'Error occurred: ' + COALESCE(@ErrMsg, N'(no message)');
+            DECLARE @ErrLine INT = ERROR_LINE();
+            DECLARE @ErrProc NVARCHAR(128) = ERROR_PROCEDURE();
+            
+            -- OPTIMIZATION: Enhanced error reporting
+            PRINT 'Error occurred in procedure: ' + ISNULL(@ErrProc, 'Ad-hoc');
+            PRINT 'Error line: ' + CAST(@ErrLine AS VARCHAR(10));
+            PRINT 'Error message: ' + COALESCE(@ErrMsg, N'(no message)');
+            
             RETURN 1; -- Failure
         END CATCH
     END
     ELSE
     BEGIN
-        PRINT '⚠️ File not found. Import skipped.';
+        PRINT '⚠️ File not found: ' + @CsvPath;
+        PRINT 'Import skipped.';
         RETURN 1;
     END
 END
