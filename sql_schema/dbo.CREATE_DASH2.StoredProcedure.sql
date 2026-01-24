@@ -34,58 +34,71 @@ BEGIN
     IF OBJECT_ID('tempdb..#Aggregated') IS NOT NULL DROP TABLE #Aggregated;
 
     SELECT
-        rg.RankGroup AS [RANK],
-        rg.RankGroup AS [KVK_RANK],
+        rg.RankGroup              AS [RANK],
+        rg.RankGroup              AS [KVK_RANK],
         CASE rg.RankGroup
             WHEN '50'  THEN '999999997'
             WHEN '100' THEN '999999998'
             WHEN '150' THEN '999999999'
-        END AS [Gov_ID],
+        END                      AS [Gov_ID],
         CASE rg.RankGroup
             WHEN '50'  THEN 'Top50'
             WHEN '100' THEN 'Top100'
             WHEN '150' THEN 'Kingdom Average'
-        END AS [Governor_Name],
+        END                      AS [Governor_Name],
 
         ROUND(AVG(CAST(ed.[Starting Power] AS FLOAT)), 0) AS [Starting Power],
 
-        -- IMPORTANT: keep the same column names used later in INSERT lists
-        ROUND(AVG(CAST(ed.[T4_KILLS] AS FLOAT)), 0) AS [T4_KILLS],
-        ROUND(AVG(CAST(ed.[T5_KILLS] AS FLOAT)), 0) AS [T5_KILLS],
-        ROUND(AVG(CAST(ed.[T4&T5_Kills] AS FLOAT)), 0) AS [T4&T5_Kills],
+        -- Kills
+        ROUND(AVG(CAST(ed.[T4_KILLS] AS FLOAT)), 0)       AS [T4_KILLS],
+        ROUND(AVG(CAST(ed.[T5_KILLS] AS FLOAT)), 0)       AS [T5_KILLS],
+        ROUND(AVG(CAST(ed.[T4&T5_Kills] AS FLOAT)), 0)    AS [T4&T5_Kills],
+        ROUND(AVG(CAST(ed.[Starting_T4&T5_KILLS] AS FLOAT)), 0) AS [Starting T4&T5_KILLS],
 
-        ROUND(AVG(CAST(ed.[Kill Target] AS FLOAT)), 0) AS [Kill Target],
-        ROUND(AVG(CAST(ed.[% of Kill Target] AS FLOAT)), 0) AS [% of Kill target],
+        -- KillTarget and % of Kill Target
+        ROUND(AVG(CAST(ed.[Kill Target] AS FLOAT)), 0)        AS [Kill Target],
+        ROUND(AVG(CAST(ed.[% of Kill Target] AS FLOAT)), 2)  AS [% of Kill target],
 
-        ROUND(AVG(CAST(ed.[Deads] AS FLOAT)), 0) AS [Deads],
-        ROUND(AVG(CAST(ed.[T4_Deads] AS FLOAT)), 0) AS [T4_Deads],
-        ROUND(AVG(CAST(ed.[T5_Deads] AS FLOAT)), 0) AS [T5_Deads],
-        ROUND(AVG(CAST(ed.[Dead_Target] AS FLOAT)), 0) AS [Dead_Target],
-        ROUND(AVG(CAST(ed.[% of Dead Target] AS FLOAT)), 0) AS [% of Dead_Target],
+        -- Deads: compute current Deads as Starting_Deads + Deads_Delta
+        ROUND(AVG(
+            CAST(
+                COALESCE(ed.[Starting_Deads], 0) + COALESCE(ed.[Deads_Delta], 0)
+            AS FLOAT)), 0)                                     AS [Deads],
+
+        ROUND(AVG(CAST(ed.[T4_Deads] AS FLOAT)), 0)          AS [T4_Deads],
+        ROUND(AVG(CAST(ed.[T5_Deads] AS FLOAT)), 0)          AS [T5_Deads],
+        ROUND(AVG(CAST(ed.[Dead_Target] AS FLOAT)), 0)       AS [Dead_Target],
+        ROUND(AVG(CAST(ed.[% of Dead Target] AS FLOAT)), 2)  AS [% of Dead_Target],
 
         ed.KVK_NO,
 
+        -- Pass kills
         ROUND(AVG(CAST(ed.[Pass 4 Kills] AS FLOAT)), 0) AS [Pass 4 Kills],
         ROUND(AVG(CAST(ed.[Pass 6 Kills] AS FLOAT)), 0) AS [Pass 6 Kills],
         ROUND(AVG(CAST(ed.[Pass 7 Kills] AS FLOAT)), 0) AS [Pass 7 Kills],
         ROUND(AVG(CAST(ed.[Pass 8 Kills] AS FLOAT)), 0) AS [Pass 8 Kills],
 
-        ROUND(AVG(CAST(ed.[Power_Delta] AS FLOAT)), 0) AS [POWER_DELTA],
+        -- power delta
+        ROUND(AVG(CAST(ed.[Power_Delta] AS FLOAT)), 0)  AS [POWER_DELTA],
 
-        ROUND(AVG(CAST(ed.[DKP_SCORE] AS FLOAT)), 0) AS [DKP_Score],
-        ROUND(AVG(CAST(ed.[DKP Target] AS FLOAT)), 0) AS [DKP Target],
-        ROUND(AVG(CAST(ed.[% of DKP Target] AS FLOAT)), 0) AS [% of DKP Target],
+        -- DKP
+        ROUND(AVG(CAST(ed.[DKP_SCORE] AS FLOAT)), 0)    AS [DKP_Score],
+        ROUND(AVG(CAST(ed.[DKP Target] AS FLOAT)), 0)  AS [DKP Target],
+        ROUND(AVG(CAST(ed.[% of DKP Target] AS FLOAT)), 2) AS [% of DKP Target],
 
-        -- assistance and RSS
-        ROUND(AVG(CAST(ed.[Helps] AS FLOAT)), 0)        AS [Helps],
-        ROUND(AVG(CAST(ed.[RSS_Assist] AS FLOAT)), 0)  AS [RSS_Assist],
-        ROUND(AVG(CAST(ed.[RSS_Gathered] AS FLOAT)), 0)AS [RSS_Gathered],
+        -- assistance and RSS (EXCEL stores deltas)
+        ROUND(AVG(CAST(ed.[HelpsDelta] AS FLOAT)), 0)           AS [Helps],
+        ROUND(AVG(CAST(ed.[RSS_Assist_Delta] AS FLOAT)), 0)     AS [RSS_Assist],
+        ROUND(AVG(CAST(ed.[RSS_Gathered_Delta] AS FLOAT)), 0)   AS [RSS_Gathered],
 
-        -- new numeric aggregates
-        ROUND(AVG(CAST(ed.[Starting HealedTroops] AS FLOAT)), 0) AS [HealedTroops],
-        ROUND(AVG(CAST(ed.[HealedTroopsDelta] AS FLOAT)), 0)  AS [HealedTroopsDelta],
-        ROUND(AVG(CAST(ed.[KillPointsDelta] AS FLOAT)), 0)    AS [KillPointsDelta],
-        ROUND(AVG(CAST(ed.[RangedPoints] AS FLOAT)), 0)       AS [RangedPoints],
+        -- healed troops and related
+        ROUND(AVG(CAST(ed.[Starting_HealedTroops] AS FLOAT)), 0) AS [HealedTroops],
+        ROUND(AVG(CAST(ed.[HealedTroopsDelta] AS FLOAT)), 0)     AS [HealedTroopsDelta],
+        ROUND(AVG(CAST(ed.[KillPointsDelta] AS FLOAT)), 0)       AS [KillPointsDelta],
+        ROUND(AVG(CAST(ed.[RangedPoints] AS FLOAT)), 0)          AS [RangedPoints],
+        ROUND(AVG(CAST(ed.[RangedPointsDelta] AS FLOAT)), 0)     AS [RangedPointsDelta],
+
+        -- gameplay summary
         ROUND(AVG(CAST(ed.[KvKPlayed] AS FLOAT)), 0)          AS [KvKPlayed],
         ROUND(AVG(CAST(ed.[MostKvKKill] AS FLOAT)), 0)        AS [MostKvKKill],
         ROUND(AVG(CAST(ed.[MostKvKDead] AS FLOAT)), 0)        AS [MostKvKDead],
@@ -105,9 +118,19 @@ BEGIN
         ROUND(AVG(CAST(ed.[Pass 8 Deads] AS FLOAT)), 0) AS [Pass 8 Deads],
 
         -- starting snapshot aggregates
-        ROUND(AVG(CAST(ed.[Starting KillPoints] AS FLOAT)), 0)    AS [Starting KillPoints],
-        ROUND(AVG(CAST(ed.[Starting Deads] AS FLOAT)), 0)         AS [Starting Deads],
-        ROUND(AVG(CAST(ed.[Starting T4&T5_KILLS] AS FLOAT)), 0)   AS [Starting T4&T5_KILLS],
+        ROUND(AVG(CAST(ed.[Starting_KillPoints] AS FLOAT)), 0) AS [Starting KillPoints],
+        ROUND(AVG(CAST(ed.[Starting_Deads] AS FLOAT)), 0)      AS [Starting Deads],
+
+        -- extra EXCEL fields aggregated and exported to DASH
+        ROUND(AVG(CAST(ed.[DEADS_OUTSIDE_KVK] AS FLOAT)), 0) AS [DEADS_OUTSIDE_KVK],
+        ROUND(AVG(CAST(ed.[KILLS_OUTSIDE_KVK] AS FLOAT)), 0) AS [KILLS_OUTSIDE_KVK],
+        MAX(CAST(COALESCE(ed.[Zeroed], 0) AS INT))           AS [Zeroed],
+
+        -- max / rank fields
+        ROUND(AVG(CAST(ed.[Max_PreKvk_Points] AS FLOAT)), 0) AS [Max_PreKvk_Points],
+        ROUND(AVG(CAST(ed.[Max_HonorPoints] AS FLOAT)), 0)   AS [Max_HonorPoints],
+        ROUND(AVG(CAST(ed.[PreKvk_Rank] AS FLOAT)), 0)       AS [PreKvk_Rank],
+        ROUND(AVG(CAST(ed.[Honor_Rank] AS FLOAT)), 0)        AS [Honor_Rank],
 
         -- placeholder; will compute mode in a subsequent UPDATE
         CAST(NULL AS NVARCHAR(100)) AS [Civilization]
@@ -141,7 +164,7 @@ BEGIN
     ) AS civ(Civilization);
 
     ----------------------------------------------------------------
-    -- Step 4: Insert into DASH (NOW includes Civilization)
+    -- Step 4: Insert into DASH (includes new aggregated columns)
     ----------------------------------------------------------------
     INSERT INTO dbo.DASH (
         [RANK], [KVK_RANK], [Gov_ID], [Governor_Name],
@@ -153,13 +176,17 @@ BEGIN
 
         [Helps], [RSS_Assist], [RSS_Gathered],
 
-        [HealedTroops], [HealedTroopsDelta], [KillPointsDelta], [RangedPoints], [Civilization], [KvKPlayed],
+        [HealedTroops], [HealedTroopsDelta], [KillPointsDelta], [RangedPoints], [RangedPointsDelta], [Civilization], [KvKPlayed],
         [MostKvKKill], [MostKvKDead], [MostKvKHeal], [Acclaim], [HighestAcclaim],
         [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
 
         [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
 
-        [Starting KillPoints], [Starting Deads], [Starting T4&T5_KILLS]
+        [Starting KillPoints], [Starting Deads], [Starting T4&T5_KILLS],
+
+        [DEADS_OUTSIDE_KVK], [KILLS_OUTSIDE_KVK], [Zeroed],
+
+        [Max_PreKvk_Points], [Max_HonorPoints], [PreKvk_Rank], [Honor_Rank]
     )
     SELECT
         [RANK], [KVK_RANK], [Gov_ID], [Governor_Name],
@@ -171,18 +198,22 @@ BEGIN
 
         [Helps], [RSS_Assist], [RSS_Gathered],
 
-        [HealedTroops], [HealedTroopsDelta], [KillPointsDelta], [RangedPoints], [Civilization], [KvKPlayed],
+        [HealedTroops], [HealedTroopsDelta], [KillPointsDelta], [RangedPoints], [RangedPointsDelta], [Civilization], [KvKPlayed],
         [MostKvKKill], [MostKvKDead], [MostKvKHeal], [Acclaim], [HighestAcclaim],
         [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
 
         [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
 
-        [Starting KillPoints], [Starting Deads], [Starting T4&T5_KILLS]
+        [Starting KillPoints], [Starting Deads], [Starting T4&T5_KILLS],
+
+        [DEADS_OUTSIDE_KVK], [KILLS_OUTSIDE_KVK], [Zeroed],
+
+        [Max_PreKvk_Points], [Max_HonorPoints], [PreKvk_Rank], [Honor_Rank]
     FROM #Aggregated;
 
     ----------------------------------------------------------------
     -- Step 5: Insert the aggregated rows back into EXCEL_FOR_DASHBOARD
-    -- (schema-tolerant + removes duplicates for synthetic Gov_IDs)
+    -- Use de-duplication on destination column names (case-insensitive) so we don't list the same column twice.
     ----------------------------------------------------------------
     ;WITH kvks AS (
         SELECT DISTINCT KVK_NO FROM dbo.DASH
@@ -195,9 +226,8 @@ BEGIN
     DECLARE @cols NVARCHAR(MAX) = N'';
     DECLARE @sels NVARCHAR(MAX) = N'';
 
-    ;WITH M AS (
-        SELECT *
-        FROM (VALUES
+    ;WITH M (dest_col, src_expr) AS (
+        SELECT * FROM (VALUES
             (N'Rank',                 N'[RANK]'),
             (N'KVK_RANK',             N'[KVK_RANK]'),
             (N'Gov_ID',               N'[Gov_ID]'),
@@ -208,13 +238,14 @@ BEGIN
             (N'T5_KILLS',             N'[T5_KILLS]'),
             (N'T4&T5_Kills',          N'[T4&T5_Kills]'),
             (N'Kill Target',          N'[Kill Target]'),
-            (N'% of Kill target',     N'[% of Kill target]'),
-            (N'Deads',                N'[Deads]'),
+            (N'% of Kill Target',     N'[% of Kill target]'),
+            (N'Starting_Deads',       N'[Starting Deads]'),
+            (N'Deads_Delta',          N'[Deads_Delta]'),
             (N'T4_Deads',             N'[T4_Deads]'),
             (N'T5_Deads',             N'[T5_Deads]'),
             (N'Dead_Target',          N'[Dead_Target]'),
-            (N'% of Dead_Target',     N'[% of Dead_Target]'),
-            (N'DKP_Score',            N'[DKP_Score]'),
+            (N'% of Dead Target',     N'[% of Dead_Target]'),
+            (N'DKP_SCORE',            N'[DKP_Score]'),
             (N'DKP Target',           N'[DKP Target]'),
             (N'% of DKP Target',      N'[% of DKP Target]'),
             (N'Pass 4 Kills',         N'[Pass 4 Kills]'),
@@ -227,14 +258,16 @@ BEGIN
             (N'Pass 8 Deads',         N'[Pass 8 Deads]'),
             (N'KVK_NO',               N'[KVK_NO]'),
 
-            (N'Helps',                N'[Helps]'),
-            (N'RSS_Assist',           N'[RSS_Assist]'),
-            (N'RSS_Gathered',         N'[RSS_Gathered]'),
+            -- deltas in EXCEL map from aggregated DASH columns
+            (N'HelpsDelta',           N'[Helps]'),
+            (N'RSS_Assist_Delta',     N'[RSS_Assist]'),
+            (N'RSS_Gathered_Delta',   N'[RSS_Gathered]'),
 
-            (N'Starting HealedTroops', N'[HealedTroops]'),
+            (N'Starting_HealedTroops', N'[Starting HealedTroops]'),
             (N'HealedTroopsDelta',    N'[HealedTroopsDelta]'),
             (N'KillPointsDelta',      N'[KillPointsDelta]'),
             (N'RangedPoints',         N'[RangedPoints]'),
+            (N'RangedPointsDelta',    N'[RangedPointsDelta]'),
             (N'Civilization',         N'[Civilization]'),
             (N'KvKPlayed',            N'[KvKPlayed]'),
             (N'MostKvKKill',          N'[MostKvKKill]'),
@@ -248,16 +281,38 @@ BEGIN
             (N'AOOAvgDead',           N'[AOOAvgDead]'),
             (N'AOOAvgHeal',           N'[AOOAvgHeal]'),
 
-            (N'Starting KillPoints',  N'[Starting KillPoints]'),
-            (N'Starting Deads',       N'[Starting Deads]'),
-            (N'Starting T4&T5_KILLS', N'[Starting T4&T5_KILLS]')
+            (N'Starting_KillPoints',  N'[Starting KillPoints]'),
+            (N'Starting_Deads',       N'[Starting Deads]'),
+            (N'Starting_T4&T5_KILLS', N'[Starting T4&T5_KILLS]'),
+
+            (N'DEADS_OUTSIDE_KVK',    N'[DEADS_OUTSIDE_KVK]'),
+            (N'KILLS_OUTSIDE_KVK',    N'[KILLS_OUTSIDE_KVK]'),
+            (N'Zeroed',               N'[Zeroed]'),
+
+            (N'Max_PreKvk_Points',    N'[Max_PreKvk_Points]'),
+            (N'Max_HonorPoints',      N'[Max_HonorPoints]'),
+            (N'PreKvk_Rank',          N'[PreKvk_Rank]'),
+            (N'Honor_Rank',           N'[Honor_Rank]'),
+
+            (N'% of Kill Target',     N'[% of Kill target]'),
+            (N'% of DKP Target',      N'[% of DKP Target]'),
+            (N'% of Dead Target',     N'[% of Dead_Target]')
         ) v(dest_col, src_expr)
-        WHERE COL_LENGTH('dbo.EXCEL_FOR_DASHBOARD', v.dest_col) IS NOT NULL
+    )
+    , Available AS (
+        -- Keep a single entry per destination column (case-insensitive).
+        SELECT
+            MIN(dest_col) AS dest_col,
+            MIN(src_expr)  AS src_expr,
+            LOWER(dest_col) AS ldest
+        FROM M
+        WHERE COL_LENGTH('dbo.EXCEL_FOR_DASHBOARD', dest_col) IS NOT NULL
+        GROUP BY LOWER(dest_col)
     )
     SELECT
-        @cols = STRING_AGG(QUOTENAME(dest_col), N', '),
-        @sels = STRING_AGG(src_expr, N', ')
-    FROM M;
+        @cols = STRING_AGG(QUOTENAME(dest_col), N', ') WITHIN GROUP (ORDER BY dest_col),
+        @sels = STRING_AGG(src_expr, N', ') WITHIN GROUP (ORDER BY dest_col)
+    FROM Available;
 
     IF @cols IS NOT NULL AND LEN(@cols) > 0
     BEGIN

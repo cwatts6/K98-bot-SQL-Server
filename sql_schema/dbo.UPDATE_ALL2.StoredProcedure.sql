@@ -163,25 +163,33 @@ INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
+
+    [Starting T4&T5_KILLS],
     [T4_KILLS],
     [T5_KILLS],
     [T4&T5_Kills],
     [KILLS_OUTSIDE_KVK],
     [Kill Target],
     [% of Kill Target],
-    [Deads],
+
+    [Starting Deads],
+    Deads_Delta,              -- will store Deads_Delta here
     [DEADS_OUTSIDE_KVK],
     [T4_Deads],
     [T5_Deads],
     [Dead Target],
     [% of Dead Target],
+    [% of Dead_Target],
+
     [Zeroed],
     [DKP_SCORE],
     [DKP Target],
     [% of DKP Target],
-    [Helps],
-    [RSS_Assist],
-    [RSS_Gathered],
+
+     HelpsDelta,
+    RSS_Assist_Delta,
+    RSS_Gathered_Delta,       -- will store RSS_Gathered_Delta here
+
     [Pass 4 Kills],
     [Pass 6 Kills],
     [Pass 7 Kills],
@@ -190,28 +198,35 @@ INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
     [Pass 6 Deads],
     [Pass 7 Deads],
     [Pass 8 Deads],
+
     [Starting HealedTroops],
-    [RangedPoints],
-    [Starting KillPoints],
-    [Starting Deads],
-    [Starting T4&T5_KILLS],
     [HealedTroopsDelta],
+    [Starting KillPoints],
     [KillPointsDelta],
-    [KVK_NO],
-    [% of Dead_Target]   -- keep this too, per your column list
+    [RangedPoints],
+    [RangedPointsDelta],
+
+    [Max_PreKvk_Points],
+    [Max_HonorPoints],
+    [PreKvk_Rank],
+    [Honor_Rank],
+    [KVK_NO]
 )
 SELECT
     ed.[Rank],
     ed.[KVK_RANK],
     ed.[Gov_ID],
     ISNULL(RTRIM(ed.[Governor_Name]), '') AS [Governor_Name],
+
     ISNULL(ed.[Starting Power], 0) AS [Starting Power],
     ISNULL(ed.[Power_Delta], 0) AS [Power_Delta],
     ISNULL(ed.[Civilization], N'') AS [Civilization],
     ISNULL(ed.[KvKPlayed], 0) AS [KvKPlayed],
+
     ISNULL(ed.[MostKvKKill], 0) AS [MostKvKKill],
     ISNULL(ed.[MostKvKDead], 0) AS [MostKvKDead],
     ISNULL(ed.[MostKvKHeal], 0) AS [MostKvKHeal],
+
     ISNULL(ed.[Acclaim], 0) AS [Acclaim],
     ISNULL(ed.[HighestAcclaim], 0) AS [HighestAcclaim],
     ISNULL(ed.[AOOJoined], 0) AS [AOOJoined],
@@ -219,25 +234,33 @@ SELECT
     ISNULL(ed.[AOOAvgKill], 0) AS [AOOAvgKill],
     ISNULL(ed.[AOOAvgDead], 0) AS [AOOAvgDead],
     ISNULL(ed.[AOOAvgHeal], 0) AS [AOOAvgHeal],
+
+    ISNULL(ed.[Starting_T4&T5_KILLS], 0) AS [Starting T4&T5_KILLS],
     ISNULL(ed.[T4_KILLS], 0) AS [T4_KILLS],
     ISNULL(ed.[T5_KILLS], 0) AS [T5_KILLS],
     ISNULL(ed.[T4&T5_Kills], 0) AS [T4&T5_Kills],
     ISNULL(ed.[KILLS_OUTSIDE_KVK], 0) AS [KILLS_OUTSIDE_KVK],
     ISNULL(ed.[Kill Target], 0) AS [Kill Target],
     ISNULL(ed.[% of Kill Target], 0) AS [% of Kill Target],
-    ISNULL(ed.[Deads], 0) AS [Deads],
+
+    ISNULL(ed.[Starting_Deads], 0) AS [Starting Deads],
+    ISNULL(ed.[Deads_Delta], 0) AS [Deads_Delta],
     ISNULL(ed.[DEADS_OUTSIDE_KVK], 0) AS [DEADS_OUTSIDE_KVK],
     ISNULL(ed.[T4_Deads], 0) AS [T4_Deads],
     ISNULL(ed.[T5_Deads], 0) AS [T5_Deads],
-    ISNULL(ed.[Dead_Target], 0) AS [Dead Target],
+    ISNULL(ed.[Dead_Target], 0) AS [Dead Target],           -- FIX underscore->space
     ISNULL(ed.[% of Dead Target], 0) AS [% of Dead Target],
+    ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)) AS [% of Dead_Target],
+
     ISNULL(ed.[Zeroed], 0) AS [Zeroed],
     ISNULL(ed.[DKP_SCORE], 0) AS [DKP_SCORE],
     ISNULL(ed.[DKP Target], 0) AS [DKP Target],
     ISNULL(ed.[% of DKP Target], 0) AS [% of DKP Target],
-    ISNULL(ed.[Helps], 0) AS [Helps],
-    ISNULL(ed.[RSS_Assist], 0) AS [RSS_Assist],
-    ISNULL(ed.[RSS_Gathered], 0) AS [RSS_Gathered],
+
+    ISNULL(ed.[HelpsDelta], 0) AS [HelpsDelta],
+    ISNULL(ed.[RSS_Assist_Delta], 0) AS [RSS_Assist_Delta],
+	ISNULL(ed.[RSS_Gathered_Delta], 0) AS [RSS_Gathered_Delta],
+
     ISNULL(ed.[Pass 4 Kills], 0) AS [Pass 4 Kills],
     ISNULL(ed.[Pass 6 Kills], 0) AS [Pass 6 Kills],
     ISNULL(ed.[Pass 7 Kills], 0) AS [Pass 7 Kills],
@@ -246,17 +269,22 @@ SELECT
     ISNULL(ed.[Pass 6 Deads], 0) AS [Pass 6 Deads],
     ISNULL(ed.[Pass 7 Deads], 0) AS [Pass 7 Deads],
     ISNULL(ed.[Pass 8 Deads], 0) AS [Pass 8 Deads],
-    ISNULL(ed.[Starting HealedTroops], 0) AS [Starting HealedTroops],
-    ISNULL(ed.[RangedPoints], 0) AS [RangedPoints],
-    ISNULL(ed.[Starting KillPoints], 0) AS [Starting KillPoints],
-    ISNULL(ed.[Starting Deads], 0) AS [Starting Deads],
-    ISNULL(ed.[Starting T4&T5_KILLS], 0) AS [Starting T4&T5_KILLS],
+
+    ISNULL(ed.[Starting_HealedTroops], 0) AS [Starting HealedTroops], -- FIX
     ISNULL(ed.[HealedTroopsDelta], 0) AS [HealedTroopsDelta],
+    ISNULL(ed.[Starting_KillPoints], 0) AS [Starting KillPoints],     -- FIX
     ISNULL(ed.[KillPointsDelta], 0) AS [KillPointsDelta],
-    ed.[KVK_NO],
-    ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)) AS [% of Dead_Target]
+    ISNULL(ed.[RangedPoints], 0) AS [RangedPoints],
+    ISNULL(ed.[RangedPointsDelta], 0) AS [RangedPointsDelta],
+
+    ISNULL(ed.[Max_PreKvk_Points], 0) AS [Max_PreKvk_Points],
+    ISNULL(ed.[Max_HonorPoints], 0) AS [Max_HonorPoints],
+    ISNULL(ed.[PreKvk_Rank], 0) AS [PreKvk_Rank],
+    ISNULL(ed.[Honor_Rank], 0) AS [Honor_Rank],
+    ISNULL(ed.[KVK_NO], 0) AS [KVK_NO]
 FROM dbo.EXCEL_FOR_DASHBOARD AS ed
 WHERE ed.Gov_ID <> 12025033;
+
 
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
  

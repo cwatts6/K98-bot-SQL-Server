@@ -14,7 +14,7 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[T4&T5_Kills] [float] NOT NULL,
 	[Kill Target] [float] NOT NULL,
 	[% of Kill target] [float] NOT NULL,
-	[Deads] [float] NOT NULL,
+	[Deads_Delta] [float] NOT NULL,
 	[T4_Deads] [float] NOT NULL,
 	[T5_Deads] [float] NOT NULL,
 	[Dead Target] [float] NOT NULL,
@@ -23,9 +23,9 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[DKP_SCORE] [float] NOT NULL,
 	[DKP Target] [float] NOT NULL,
 	[% of DKP Target] [float] NOT NULL,
-	[Helps] [float] NOT NULL,
-	[RSS_Assist] [float] NOT NULL,
-	[RSS_Gathered] [float] NOT NULL,
+	[HelpsDelta] [float] NOT NULL,
+	[RSS_Assist_Delta] [float] NOT NULL,
+	[RSS_Gathered_Delta] [float] NOT NULL,
 	[Pass 4 Kills] [float] NOT NULL,
 	[Pass 6 Kills] [float] NOT NULL,
 	[Pass 7 Kills] [float] NOT NULL,
@@ -59,7 +59,12 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[Starting T4&T5_KILLS] [bigint] NOT NULL,
 	[HealedTroopsDelta] [bigint] NOT NULL,
 	[KillPointsDelta] [bigint] NOT NULL,
-	[% of Dead_Target] [decimal](9, 4) NOT NULL
+	[% of Dead_Target] [decimal](9, 4) NOT NULL,
+	[RangedPointsDelta] [bigint] NULL,
+	[Max_PreKvk_Points] [bigint] NULL,
+	[Max_HonorPoints] [bigint] NULL,
+	[PreKvk_Rank] [int] NULL,
+	[Honor_Rank] [int] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_ASFD_KILLS_OUTSIDE_KVK]') AND type = 'D')

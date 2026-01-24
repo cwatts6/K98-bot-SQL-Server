@@ -56,6 +56,15 @@ CREATE TABLE [dbo].[DASH](
 	[Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
 	[KILLS_OUTSIDE_KVK] [float] NULL,
 	[DEADS_OUTSIDE_KVK] [float] NULL,
-	[Zeroed] [bit] NULL
+	[Zeroed] [bit] NULL,
+	[HelpsDelta] [bigint] NULL,
+	[RSS_Assist_Delta] [bigint] NULL,
+	[RSS_Gathered_Delta] [bigint] NULL,
+	[RangedPointsDelta] [bigint] NULL,
+	[Max_PreKvk_Points] [bigint] NULL,
+	[Max_HonorPoints] [bigint] NULL,
+	[PreKvk_Rank] [bigint] NULL,
+	[Honor_Rank] [bigint] NULL,
+	[Deads_Delta] [bigint] NULL
 ) ON [PRIMARY]
 END
