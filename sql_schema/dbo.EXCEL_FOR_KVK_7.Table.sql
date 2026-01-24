@@ -56,6 +56,7 @@ CREATE TABLE [dbo].[EXCEL_FOR_KVK_7](
 	[KillPointsDelta] [bigint] NULL,
 	[RangedPoints] [bigint] NULL,
 	[RangedPointsDelta] [bigint] NULL,
+	[AutarchTimes] [bigint] NULL,
 	[Max_PreKvk_Points] [bigint] NULL,
 	[Max_HonorPoints] [bigint] NULL,
 	[PreKvk_Rank] [bigint] NULL,

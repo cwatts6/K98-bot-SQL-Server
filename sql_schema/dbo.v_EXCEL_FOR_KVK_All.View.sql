@@ -66,6 +66,8 @@ SELECT
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
 
+    [AutarchTimes]   AS [AutarchTimes],
+
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
     [PreKvk_Rank]     AS [PreKvk_Rank],
@@ -137,6 +139,8 @@ SELECT
 
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
+
+    [AutarchTimes]   AS [AutarchTimes],
 
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
@@ -210,6 +214,8 @@ SELECT
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
 
+    [AutarchTimes]   AS [AutarchTimes],
+
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
     [PreKvk_Rank]     AS [PreKvk_Rank],
@@ -281,6 +287,8 @@ SELECT
 
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
+
+    [AutarchTimes]   AS [AutarchTimes],
 
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
@@ -354,6 +362,8 @@ SELECT
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
 
+    [AutarchTimes]   AS [AutarchTimes],
+
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
     [PreKvk_Rank]     AS [PreKvk_Rank],
@@ -425,6 +435,8 @@ SELECT
 
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
+
+    [AutarchTimes]   AS [AutarchTimes],
 
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
@@ -498,6 +510,8 @@ SELECT
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
 
+    [AutarchTimes]   AS [AutarchTimes],
+
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
     [PreKvk_Rank]     AS [PreKvk_Rank],
@@ -569,6 +583,8 @@ SELECT
 
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
+
+    [AutarchTimes]   AS [AutarchTimes],
 
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
@@ -642,6 +658,8 @@ SELECT
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
 
+    [AutarchTimes]   AS [AutarchTimes],
+
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
     [PreKvk_Rank]     AS [PreKvk_Rank],
@@ -713,6 +731,8 @@ SELECT
 
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
+
+    [AutarchTimes]   AS [AutarchTimes],
 
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
@@ -786,6 +806,8 @@ SELECT
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
 
+    [AutarchTimes]   AS [AutarchTimes],
+
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
     [PreKvk_Rank]     AS [PreKvk_Rank],
@@ -857,6 +879,8 @@ SELECT
 
     [RangedPoints]         AS [RangedPoints],
     [RangedPointsDelta]    AS [RangedPointsDelta],
+
+    [AutarchTimes]   AS [AutarchTimes],
 
     [Max_PreKvk_Points]      AS [Max_PreKvk_Points],
     [Max_HonorPoints]       AS [Max_HonorPoints],
