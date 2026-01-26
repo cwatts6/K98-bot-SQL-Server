@@ -217,76 +217,172 @@ BEGIN
 
         ----------------------------------------------------------------
         -- Phase B: Downstream builds (non-critical) - separate transaction
+        -- ⚡ OPTIMIZED SECTION ⚡
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
 
-        EXEC dbo.CREATE_THE_AVERAGES;
+        -- Timing variables for performance monitoring
+        DECLARE @PhaseBStart DATETIME2 = SYSDATETIME();
+        DECLARE @StepStart DATETIME2;
+        DECLARE @StepEnd DATETIME2;
+        DECLARE @StepDuration INT;
 
+        -- Step 1: CREATE_THE_AVERAGES
+        SET @StepStart = SYSDATETIME();
+        EXEC dbo.CREATE_THE_AVERAGES;
+        SET @StepEnd = SYSDATETIME();
+        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+        PRINT 'CREATE_THE_AVERAGES: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+
+        -- Step 2: Rebuild EXCEL_FOR_DASHBOARD
+        SET @StepStart = SYSDATETIME();
         IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
             DROP TABLE dbo.EXCEL_FOR_DASHBOARD;
 
         EXEC dbo.sp_Rebuild_ExcelForDashboard;
+        
+        -- ⚡ OPTIMIZATION: Update statistics on newly built table
+        IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
+        BEGIN
+            UPDATE STATISTICS dbo.EXCEL_FOR_DASHBOARD WITH SAMPLE 25 PERCENT;
+            PRINT 'EXCEL_FOR_DASHBOARD statistics updated';
+        END
+        
+        SET @StepEnd = SYSDATETIME();
+        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+        PRINT 'sp_Rebuild_ExcelForDashboard: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+
+        -- Step 3: CREATE_DASH2
+        SET @StepStart = SYSDATETIME();
         EXEC dbo.CREATE_DASH2;
+        SET @StepEnd = SYSDATETIME();
+        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+        PRINT 'CREATE_DASH2: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+
+        -- Step 4: SP_Stats_for_Upload
+        SET @StepStart = SYSDATETIME();
         EXEC dbo.SP_Stats_for_Upload;
+        SET @StepEnd = SYSDATETIME();
+        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+        PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
 
-TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
+        ----------------------------------------------------------------
+        -- ⚡⚡⚡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD ⚡⚡⚡
+        ----------------------------------------------------------------
+        SET @StepStart = SYSDATETIME();
+        
+        TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
 
-INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD (
-    [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
-    [Starting Power], [Power_Delta], [Civilization], [KvKPlayed],
-    [MostKvKKill], [MostKvKDead], [MostKvKHeal],
-    [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
-    [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
-    [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
-    [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill Target],
-    [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
-    [T4_Deads], [T5_Deads], [Dead Target], [% of Dead Target], [% of Dead_Target],
-    [Zeroed], [DKP_SCORE], [DKP Target], [% of DKP Target],
-    HelpsDelta, RSS_Assist_Delta, RSS_Gathered_Delta,
-    [Pass 4 Kills], [Pass 6 Kills], [Pass 7 Kills], [Pass 8 Kills],
-    [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
-    [Starting HealedTroops], [HealedTroopsDelta],
-    [Starting KillPoints], [KillPointsDelta],
-    [RangedPoints], [RangedPointsDelta],
-    [AutarchTimes],
-    [Max_PreKvk_Points], [Max_HonorPoints],
-    [PreKvk_Rank], [Honor_Rank], [KVK_NO]
-)
-SELECT
-    ed.[Rank], ed.[KVK_RANK], ed.[Gov_ID],
-    ISNULL(RTRIM(ed.[Governor_Name]), ''),
-    ISNULL(ed.[Starting Power], 0), ISNULL(ed.[Power_Delta], 0),
-    ISNULL(ed.[Civilization], N''), ISNULL(ed.[KvKPlayed], 0),
-    ISNULL(ed.[MostKvKKill], 0), ISNULL(ed.[MostKvKDead], 0), ISNULL(ed.[MostKvKHeal], 0),
-    ISNULL(ed.[Acclaim], 0), ISNULL(ed.[HighestAcclaim], 0),
-    ISNULL(ed.[AOOJoined], 0), ISNULL(ed.[AOOWon], 0),
-    ISNULL(ed.[AOOAvgKill], 0), ISNULL(ed.[AOOAvgDead], 0), ISNULL(ed.[AOOAvgHeal], 0),
-    ISNULL(ed.[Starting_T4&T5_KILLS], 0), ISNULL(ed.[T4_KILLS], 0),
-    ISNULL(ed.[T5_KILLS], 0), ISNULL(ed.[T4&T5_Kills], 0),
-    ISNULL(ed.[KILLS_OUTSIDE_KVK], 0), ISNULL(ed.[Kill Target], 0),
-    ISNULL(ed.[% of Kill Target], 0),
-    ISNULL(ed.[Starting_Deads], 0), ISNULL(ed.[Deads_Delta], 0),
-    ISNULL(ed.[DEADS_OUTSIDE_KVK], 0), ISNULL(ed.[T4_Deads], 0), ISNULL(ed.[T5_Deads], 0),
-    ISNULL(ed.[Dead_Target], 0), ISNULL(ed.[% of Dead Target], 0),
-    ISNULL(ed.[% of Dead_Target], ISNULL(ed.[% of Dead Target], 0)),
-    ISNULL(ed.[Zeroed], 0), ISNULL(ed.[DKP_SCORE], 0),
-    ISNULL(ed.[DKP Target], 0), ISNULL(ed.[% of DKP Target], 0),
-    ISNULL(ed.[HelpsDelta], 0), ISNULL(ed.[RSS_Assist_Delta], 0),
-    ISNULL(ed.[RSS_Gathered_Delta], 0),
-    ISNULL(ed.[Pass 4 Kills], 0), ISNULL(ed.[Pass 6 Kills], 0),
-    ISNULL(ed.[Pass 7 Kills], 0), ISNULL(ed.[Pass 8 Kills], 0),
-    ISNULL(ed.[Pass 4 Deads], 0), ISNULL(ed.[Pass 6 Deads], 0),
-    ISNULL(ed.[Pass 7 Deads], 0), ISNULL(ed.[Pass 8 Deads], 0),
-    ISNULL(ed.[Starting_HealedTroops], 0), ISNULL(ed.[HealedTroopsDelta], 0),
-    ISNULL(ed.[Starting_KillPoints], 0), ISNULL(ed.[KillPointsDelta], 0),
-    ISNULL(ed.[RangedPoints], 0), ISNULL(ed.[RangedPointsDelta], 0),
-    ISNULL(ed.[AutarchTimes], 0),
-    ISNULL(ed.[Max_PreKvk_Points], 0), ISNULL(ed.[Max_HonorPoints], 0),
-    ISNULL(ed.[PreKvk_Rank], 0), ISNULL(ed.[Honor_Rank], 0),
-    ISNULL(ed.[KVK_NO], 0)
-FROM dbo.EXCEL_FOR_DASHBOARD AS ed
-WHERE ed.Gov_ID <> 12025033;
-
+        INSERT INTO dbo.ALL_STATS_FOR_DASHBAORD WITH (TABLOCK) (
+            [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
+            [Starting Power], [Power_Delta], [Civilization], [KvKPlayed],
+            [MostKvKKill], [MostKvKDead], [MostKvKHeal],
+            [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
+            [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+            [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
+            [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill Target],
+            [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
+            [T4_Deads], [T5_Deads], [Dead Target], [% of Dead Target], [% of Dead_Target],
+            [Zeroed], [DKP_SCORE], [DKP Target], [% of DKP Target],
+            HelpsDelta, RSS_Assist_Delta, RSS_Gathered_Delta,
+            [Pass 4 Kills], [Pass 6 Kills], [Pass 7 Kills], [Pass 8 Kills],
+            [Pass 4 Deads], [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads],
+            [Starting HealedTroops], [HealedTroopsDelta],
+            [Starting KillPoints], [KillPointsDelta],
+            [RangedPoints], [RangedPointsDelta],
+            [AutarchTimes],
+            [Max_PreKvk_Points], [Max_HonorPoints],
+            [PreKvk_Rank], [Honor_Rank], [KVK_NO]
+        )
+        SELECT
+            ed.[Rank], 
+            ed.[KVK_RANK], 
+            ed.[Gov_ID],
+            RTRIM(COALESCE(ed.[Governor_Name], '')) AS [Governor_Name],
+            
+            -- Numeric columns with COALESCE (handles NULL efficiently)
+            COALESCE(ed.[Starting Power], 0),
+            COALESCE(ed.[Power_Delta], 0),
+            ed.[Civilization],  -- NULL allowed
+            COALESCE(ed.[KvKPlayed], 0),
+            
+            COALESCE(ed.[MostKvKKill], 0),
+            COALESCE(ed.[MostKvKDead], 0),
+            COALESCE(ed.[MostKvKHeal], 0),
+            COALESCE(ed.[Acclaim], 0),
+            COALESCE(ed.[HighestAcclaim], 0),
+            COALESCE(ed.[AOOJoined], 0),
+            COALESCE(ed.[AOOWon], 0),
+            COALESCE(ed.[AOOAvgKill], 0),
+            COALESCE(ed.[AOOAvgDead], 0),
+            COALESCE(ed.[AOOAvgHeal], 0),
+            
+            COALESCE(ed.[Starting_T4&T5_KILLS], 0),
+            COALESCE(ed.[T4_KILLS], 0),
+            COALESCE(ed.[T5_KILLS], 0),
+            COALESCE(ed.[T4&T5_Kills], 0),
+            COALESCE(ed.[KILLS_OUTSIDE_KVK], 0),
+            COALESCE(ed.[Kill Target], 0),
+            COALESCE(ed.[% of Kill Target], 0),
+            
+            COALESCE(ed.[Starting_Deads], 0),
+            COALESCE(ed.[Deads_Delta], 0),
+            COALESCE(ed.[DEADS_OUTSIDE_KVK], 0),
+            COALESCE(ed.[T4_Deads], 0),
+            COALESCE(ed.[T5_Deads], 0),
+            COALESCE(ed.[Dead_Target], 0),
+            COALESCE(ed.[% of Dead Target], 0),
+            COALESCE(ed.[% of Dead Target], 0),  -- Duplicate column (fix in schema later)
+            
+            COALESCE(ed.[Zeroed], 0),
+            COALESCE(ed.[DKP_SCORE], 0),
+            COALESCE(ed.[DKP Target], 0),
+            COALESCE(ed.[% of DKP Target], 0),
+            
+            COALESCE(ed.[HelpsDelta], 0),
+            COALESCE(ed.[RSS_Assist_Delta], 0),
+            COALESCE(ed.[RSS_Gathered_Delta], 0),
+            
+            COALESCE(ed.[Pass 4 Kills], 0),
+            COALESCE(ed.[Pass 6 Kills], 0),
+            COALESCE(ed.[Pass 7 Kills], 0),
+            COALESCE(ed.[Pass 8 Kills], 0),
+            COALESCE(ed.[Pass 4 Deads], 0),
+            COALESCE(ed.[Pass 6 Deads], 0),
+            COALESCE(ed.[Pass 7 Deads], 0),
+            COALESCE(ed.[Pass 8 Deads], 0),
+            
+            COALESCE(ed.[Starting_HealedTroops], 0),
+            COALESCE(ed.[HealedTroopsDelta], 0),
+            COALESCE(ed.[Starting_KillPoints], 0),
+            COALESCE(ed.[KillPointsDelta], 0),
+            COALESCE(ed.[RangedPoints], 0),
+            COALESCE(ed.[RangedPointsDelta], 0),
+            COALESCE(ed.[AutarchTimes], 0),
+            
+            COALESCE(ed.[Max_PreKvk_Points], 0),
+            COALESCE(ed.[Max_HonorPoints], 0),
+            COALESCE(ed.[PreKvk_Rank], 0),
+            COALESCE(ed.[Honor_Rank], 0),
+            COALESCE(ed.[KVK_NO], 0)
+        FROM dbo.EXCEL_FOR_DASHBOARD AS ed
+        WHERE ed.Gov_ID <> 12025033
+        OPTION (RECOMPILE);  -- Fresh execution plan with current statistics
+        
+        DECLARE @RowsInserted INT = @@ROWCOUNT;
+        
+        -- ⚡ OPTIMIZATION: Update statistics after bulk insert
+        UPDATE STATISTICS dbo.ALL_STATS_FOR_DASHBAORD WITH FULLSCAN;
+        
+        SET @StepEnd = SYSDATETIME();
+        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+        PRINT 'ALL_STATS_FOR_DASHBAORD insert: ' + CAST(@RowsInserted AS VARCHAR(10)) + ' rows, ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+        
+        ----------------------------------------------------------------
+        -- Continue with POWER_BY_MONTH and remaining steps
+        ----------------------------------------------------------------
+        SET @StepStart = SYSDATETIME();
+        
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
 
         INSERT INTO dbo.POWER_BY_MONTH (
@@ -319,6 +415,10 @@ WHERE ed.Gov_ID <> 12025033;
             GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
         ) AS T
         ORDER BY GovernorID, [MONTH];
+        
+        SET @StepEnd = SYSDATETIME();
+        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+        PRINT 'POWER_BY_MONTH: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
 
         EXEC dbo.sp_RefreshInactiveGovernors;
 
@@ -349,6 +449,11 @@ WHERE ed.Gov_ID <> 12025033;
 
         DECLARE @EndTime DATETIME = GETDATE();
         DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);
+        DECLARE @PhaseBDuration INT = DATEDIFF(MILLISECOND, @PhaseBStart, SYSDATETIME());
+
+        PRINT '========================================';
+        PRINT 'Phase B Total: ' + CAST(@PhaseBDuration AS VARCHAR(10)) + 'ms';
+        PRINT '========================================';
 
         INSERT INTO dbo.SP_TaskStatus (TaskName, Status, LastRunTime, LastRunCounter, DurationSeconds)
         VALUES (
@@ -365,6 +470,7 @@ WHERE ed.Gov_ID <> 12025033;
             @rowsKS5 AS RowsInsertedKS5,
             @rowsKS4 AS RowsInsertedKS4,
             @DurationSeconds AS DurationSeconds,
+            @PhaseBDuration AS PhaseBDurationMS,
             'SUCCESS' AS Status;
 
     END TRY
