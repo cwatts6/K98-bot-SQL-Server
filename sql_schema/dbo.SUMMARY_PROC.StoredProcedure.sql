@@ -10,7 +10,27 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
+	DECLARE @MetricName NVARCHAR(100) = N'SummaryExport';
+    DECLARE @LastProcessed FLOAT = 0;
+    DECLARE @MaxScan FLOAT = 0;
+
+    SELECT @LastProcessed = LastScanOrder
+    FROM dbo.SUMMARY_PROC_STATE
+    WHERE MetricName = @MetricName;
+
+    IF @LastProcessed IS NULL SET @LastProcessed = 0;
+
+    SELECT @MaxScan = ISNULL(MAX(ScanOrder), 0)
+    FROM dbo.KingdomScanData4;
+
+    IF @MaxScan <= @LastProcessed
+    BEGIN
+        RETURN;
+    END
+
     BEGIN TRY
+
+		BEGIN TRANSACTION;
         -- Step 1: Execute dependent procedures (add healing, ranged, and new killpoints summaries)
         EXEC DEADSSUMMARY_PROC;
         EXEC POWERSUMMARY_PROC;
@@ -93,12 +113,20 @@ BEGIN
         LEFT JOIN KILLPOINTSSUMMARY AS KP ON P.GOVERNORID = KP.GOVERNORID
         ORDER BY P.GOVERNORNAME;
 
-        -- Step 4: Return result (optional)
-        --SELECT * FROM SUMMARY_CHANGE_EXPORT;
+        MERGE dbo.SUMMARY_PROC_STATE AS T
+        USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S
+        ON T.MetricName = S.MetricName
+        WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
+        WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime) VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+
+        COMMIT TRANSACTION;
+
+
     END TRY
     BEGIN CATCH
         -- Error logging and rethrowing
-        DECLARE 
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        DECLARE
             @ErrorMessage NVARCHAR(4000),
             @ErrorSeverity INT,
             @ErrorState INT;
@@ -111,4 +139,3 @@ BEGIN
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
 END;
-

@@ -29,7 +29,7 @@ BEGIN
                 GovernorName,
                 Alliance,
                 ScanDate,
-                Power,
+                [Power],
                 KillPoints,
                 Deads,
                 T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS],
@@ -53,7 +53,8 @@ BEGIN
                 AOOAvgHeal,
 
                 ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn,
-                MIN(ScanDate) OVER (PARTITION BY GovernorID) AS FirstScan
+                MIN(ScanDate) OVER (PARTITION BY GovernorID) AS FirstScan,
+                MAX([Power]) OVER (PARTITION BY GovernorID) AS MaxPower
             FROM ROK_TRACKER.dbo.KingdomScanData4
             WHERE GovernorID <> 0
         ),
@@ -78,6 +79,7 @@ BEGIN
                 MAX(CASE WHEN rn = 1 THEN [T4&T5_KILLS] END) AS [T4&T5_KILLS],
                 MAX(CASE WHEN rn = 1 THEN TOTAL_KILLS END) AS TOTAL_KILLS,
                 MAX(FirstScan) AS FirstScan,
+				MAX(MaxPower) AS MaxPower,
 
                 -- new fields: take latest (rn = 1) values
                 MAX(CASE WHEN rn = 1 THEN HealedTroops END)        AS HealedTroops,
@@ -96,14 +98,6 @@ BEGIN
                 MAX(CASE WHEN rn = 1 THEN AOOAvgHeal END)         AS AOOAvgHeal
             FROM RankedScans
             WHERE rn <= 2
-            GROUP BY GovernorID
-        ),
-        MaxPower AS (
-            SELECT 
-                GovernorID,
-                MAX(Power) AS MaxPower
-            FROM ROK_TRACKER.dbo.KingdomScanData4
-            WHERE GovernorID <> 0
             GROUP BY GovernorID
         )
 
@@ -125,7 +119,7 @@ BEGIN
         SELECT 
             s.GovernorID,
             RTRIM(s.GovernorName),
-            p.MaxPower,
+            s.MaxPower,
             s.LatestPower,
             s.KillPoints,
             s.T1_Kills, s.T2_Kills, s.T3_Kills, s.T4_Kills, s.T5_Kills, s.[T4&T5_KILLS],
@@ -154,8 +148,7 @@ BEGIN
             s.LastScan,
             s.PreviousScan,
             s.FirstScan
-        FROM ScanData s
-        JOIN MaxPower p ON s.GovernorID = p.GovernorID;
+        FROM ScanData s;
 
         ----------------------------------------------------------------
         -- Step 4: Refresh Governor Names Table (unchanged)
@@ -185,6 +178,8 @@ BEGIN
             REPLACE(REPLACE(Alliance, CHAR(13), ''), CHAR(10), '') AS Alliance
         FROM ROK_TRACKER.dbo.KingdomScanData4
         WHERE GovernorID <> 0;
+
+
 
         COMMIT TRANSACTION;
         SET ANSI_WARNINGS ON;
