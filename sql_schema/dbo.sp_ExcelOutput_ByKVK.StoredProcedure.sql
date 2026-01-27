@@ -11,6 +11,7 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+	SET XACT_ABORT ON;
 
     DECLARE 
         @CURRENTKVK3      INT,
@@ -49,8 +50,11 @@ BEGIN
     END
     IF @Scan > @MaxAvailableScan SET @Scan = @MaxAvailableScan;
 
-    -- Fresh staging
-    TRUNCATE TABLE dbo.STAGING_STATS;
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        -- Fresh staging
+        TRUNCATE TABLE dbo.STAGING_STATS;
 
     -----------------------------------------------
     -- Build/refresh ranked PreKvk & Honor tables (so we can join ranks quickly)
@@ -58,104 +62,65 @@ BEGIN
     EXEC dbo.sp_Build_Prekvk_And_Honor_Rankings;
 
     -----------------------------------------------
-    -- 1. Consolidated Deads Delta
+     -- 1. Snapshot (materialize once for reuse)
     -----------------------------------------------
-    SELECT 
-        GovernorID,
-        SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN THEN DeadsDelta ELSE 0 END) AS DeadsDelta,
-        SUM(CASE WHEN DeltaOrder > @LASTKVKEND      AND DeltaOrder <= @PRE_PASS_4_SCAN THEN DeadsDelta ELSE 0 END) AS DeadsDeltaOutKVK,
-        SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @PASS4END THEN DeadsDelta ELSE 0 END) AS P4DeadsDelta,
-        SUM(CASE WHEN DeltaOrder > @PASS4END        AND DeltaOrder <= @PASS6END THEN DeadsDelta ELSE 0 END) AS P6DeadsDelta,
-        SUM(CASE WHEN DeltaOrder > @PASS6END        AND DeltaOrder <= @PASS7END THEN DeadsDelta ELSE 0 END) AS P7DeadsDelta,
-        SUM(CASE WHEN DeltaOrder > @PASS7END        AND DeltaOrder <= @KVK_END_SCAN THEN DeadsDelta ELSE 0 END) AS P8DeadsDelta
-    INTO #Deads
-    FROM dbo.DeadsDelta
-    WHERE DeltaOrder > @LASTKVKEND AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
+    CREATE TABLE #Snapshot (
+        GovernorID        bigint           NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorName      nvarchar(255)  NULL,
+        PowerRank         int           NULL,
+        [Power]           bigint        NULL,
+        [Civilization]    nvarchar(100)  NULL,
+        [KvKPlayed]       int           NULL,
+        [MostKvKKill]     bigint        NULL,
+        [MostKvKDead]     bigint        NULL,
+        [MostKvKHeal]     bigint        NULL,
+        [Acclaim]         bigint        NULL,
+        [HighestAcclaim]  bigint        NULL,
+        [AOOJoined]       bigint        NULL,
+        [AOOWon]          int           NULL,
+        [AOOAvgKill]      bigint        NULL,
+        [AOOAvgDead]      bigint        NULL,
+        [AOOAvgHeal]      bigint        NULL,
+        [Deads]           bigint        NULL,
+        [T4&T5_KILLS]     bigint        NULL,
+        [HealedTroops]    bigint        NULL,
+        [KillPoints]      bigint        NULL,
+        [RangedPoints]    bigint        NULL,
+        [AutarchTimes]    bigint        NULL,
+        MaxPreKvkPoints   bigint        NULL,
+        PreKvkRank        int           NULL,
+        MaxHonorPoints    bigint        NULL,
+        HonorRank         int           NULL
+    );
 
-    -----------------------------------------------
-    -- 2. Consolidated Kills Delta (T4&T5)
-    -----------------------------------------------
-    SELECT 
-        GovernorID,
-        SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS T4T5KillsDelta,
-        SUM(CASE WHEN DeltaOrder > @LASTKVKEND      AND DeltaOrder <= @PRE_PASS_4_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS KillsOutsideKVK,
-        SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @PASS4END THEN [T4&T5_KILLSDelta] ELSE 0 END) AS P4Kills,
-        SUM(CASE WHEN DeltaOrder > @PASS4END        AND DeltaOrder <= @PASS6END THEN [T4&T5_KILLSDelta] ELSE 0 END) AS P6Kills,
-        SUM(CASE WHEN DeltaOrder > @PASS6END        AND DeltaOrder <= @PASS7END THEN [T4&T5_KILLSDelta] ELSE 0 END) AS P7Kills,
-        SUM(CASE WHEN DeltaOrder > @PASS7END        AND DeltaOrder <= @KVK_END_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS P8Kills
-    INTO #Kills
-    FROM dbo.T4T5KillDelta
-    WHERE DeltaOrder > @LASTKVKEND AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-    -----------------------------------------------
-    -- 3. T4 / T5 splits
-    -----------------------------------------------
-    SELECT GovernorID, SUM(COALESCE(T4KILLSDelta, 0)) AS T4KillsDelta
-    INTO #KillsT4
-    FROM dbo.T4KillDelta
-    WHERE DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-    SELECT GovernorID, SUM(COALESCE(T5KILLSDelta, 0)) AS T5KillsDelta
-    INTO #KillsT5
-    FROM dbo.T5KillDelta
-    WHERE DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-	----------------------------------------------- 
-	--4. KillPointsDelta aggregation (use same window as other deltas) 
-	----------------------------------------------- 
-	
-	SELECT GovernorID, SUM(COALESCE(KillPointsDelta, 0)) AS KillPointsDelta 
-	INTO #KillPoints 
-	FROM dbo.KillPointsDelta 
-	WHERE DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN 
-	GROUP BY GovernorID;
-
-    -----------------------------------------------
-    -- 5. Other deltas (use @Scan as lower bound)
-    -----------------------------------------------
-    SELECT GovernorID, SUM(COALESCE(HelpsDelta, 0)) AS HelpsDelta
-    INTO #Helps
-    FROM dbo.HelpsDelta
-    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-    SELECT GovernorID, SUM(COALESCE(RSSASSISTDelta, 0)) AS RSSAssistDelta
-    INTO #RSSAssist
-    FROM dbo.RSSASSISTDelta
-    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-    SELECT GovernorID, SUM(COALESCE(RSSGatheredDelta, 0)) AS RSSGatheredDelta
-    INTO #RSSGathered
-    FROM dbo.RSSGatheredDelta
-    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-    SELECT GovernorID, SUM(COALESCE(Power_Delta, 0)) AS PowerDelta
-    INTO #Power
-    FROM dbo.PowerDelta
-    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-	SELECT GovernorID, SUM(COALESCE(HealedTroopsDelta, 0)) AS HealedTroopsDelta
-    INTO #Healed
-    FROM dbo.HealedTroopsDelta
-    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-	SELECT GovernorID, SUM(COALESCE(RangedPointsDelta, 0)) AS RangedPointsDelta
-    INTO #Ranged
-    FROM [dbo].[RangedPointsDelta]
-    WHERE DeltaOrder > @Scan AND DeltaOrder <= @KVK_END_SCAN
-    GROUP BY GovernorID;
-
-    -----------------------------------------------
-    -- 5. Latest snapshot at @Scan (include Max PreKvk points, PreKvk rank, Max HonorPoints, Honor rank)
-    -----------------------------------------------
+    INSERT INTO #Snapshot (
+          GovernorID
+        , GovernorName
+        , PowerRank
+        , [Power]
+        , [Civilization]
+        , [KvKPlayed]
+        , [MostKvKKill]
+        , [MostKvKDead]
+        , [MostKvKHeal]
+        , [Acclaim]
+        , [HighestAcclaim]
+        , [AOOJoined]
+        , [AOOWon]
+        , [AOOAvgKill]
+        , [AOOAvgDead]
+        , [AOOAvgHeal]
+        , [Deads]
+        , [T4&T5_KILLS]
+        , [HealedTroops]
+        , [KillPoints]
+        , [RangedPoints]
+        , [AutarchTimes]
+        , MaxPreKvkPoints
+        , PreKvkRank
+        , MaxHonorPoints
+        , HonorRank
+    )
     SELECT
         ksd.GovernorID,
         ksd.GovernorName,
@@ -183,7 +148,6 @@ BEGIN
         pk.PreKvk_Rank        AS PreKvkRank,
         hn.MaxHonorPoints     AS MaxHonorPoints,
         hn.Honor_Rank         AS HonorRank
-    INTO #Snapshot
     FROM dbo.KingdomScanData4 ksd
     LEFT JOIN dbo.PreKvk_Scores_Ranked pk
       ON pk.GovernorID = ksd.GovernorID AND pk.KVK_NO = @CURRENTKVK3
@@ -191,9 +155,188 @@ BEGIN
       ON hn.GovernorID = ksd.GovernorID AND hn.KVK_NO = @CURRENTKVK3
     WHERE ksd.ScanOrder = @Scan;
 
+	CREATE TABLE #GovernorList (
+        GovernorID int NOT NULL PRIMARY KEY CLUSTERED
+    );
 
-  -----------------------------------------------
-    -- 6. Stage
+    INSERT INTO #GovernorList (GovernorID)
+    SELECT s.GovernorID
+    FROM #Snapshot s
+    WHERE s.GovernorID IS NOT NULL;
+
+    -----------------------------------------------
+    -- 2. Consolidated Deads Delta (filtered to snapshot)
+    -----------------------------------------------
+    CREATE TABLE #Deads (
+        GovernorID        int     NOT NULL PRIMARY KEY CLUSTERED,
+        DeadsDelta        bigint  NOT NULL,
+        DeadsDeltaOutKVK  bigint  NOT NULL,
+        P4DeadsDelta      bigint  NOT NULL,
+        P6DeadsDelta      bigint  NOT NULL,
+        P7DeadsDelta      bigint  NOT NULL,
+        P8DeadsDelta      bigint  NOT NULL
+    );
+
+    INSERT INTO #Deads (GovernorID, DeadsDelta, DeadsDeltaOutKVK, P4DeadsDelta, P6DeadsDelta, P7DeadsDelta, P8DeadsDelta)
+    SELECT 
+        d.GovernorID,
+        SUM(CASE WHEN d.DeltaOrder > @PRE_PASS_4_SCAN AND d.DeltaOrder <= @KVK_END_SCAN THEN d.DeadsDelta ELSE 0 END) AS DeadsDelta,
+        SUM(CASE WHEN d.DeltaOrder > @LASTKVKEND      AND d.DeltaOrder <= @PRE_PASS_4_SCAN THEN d.DeadsDelta ELSE 0 END) AS DeadsDeltaOutKVK,
+        SUM(CASE WHEN d.DeltaOrder > @PRE_PASS_4_SCAN AND d.DeltaOrder <= @PASS4END THEN d.DeadsDelta ELSE 0 END) AS P4DeadsDelta,
+        SUM(CASE WHEN d.DeltaOrder > @PASS4END        AND d.DeltaOrder <= @PASS6END THEN d.DeadsDelta ELSE 0 END) AS P6DeadsDelta,
+        SUM(CASE WHEN d.DeltaOrder > @PASS6END        AND d.DeltaOrder <= @PASS7END THEN d.DeadsDelta ELSE 0 END) AS P7DeadsDelta,
+        SUM(CASE WHEN d.DeltaOrder > @PASS7END        AND d.DeltaOrder <= @KVK_END_SCAN THEN d.DeadsDelta ELSE 0 END) AS P8DeadsDelta
+    FROM dbo.DeadsDelta d
+    INNER JOIN #GovernorList gl ON gl.GovernorID = d.GovernorID
+    WHERE d.DeltaOrder > @LASTKVKEND AND d.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY d.GovernorID;
+
+    -----------------------------------------------
+    -- 3. Consolidated Kills Delta (T4&T5)
+    -----------------------------------------------
+    CREATE TABLE #Kills (
+        GovernorID      int     NOT NULL PRIMARY KEY CLUSTERED,
+        T4T5KillsDelta  bigint  NOT NULL,
+        KillsOutsideKVK bigint  NOT NULL,
+        P4Kills         bigint  NOT NULL,
+        P6Kills         bigint  NOT NULL,
+        P7Kills         bigint  NOT NULL,
+        P8Kills         bigint  NOT NULL
+    );
+
+    INSERT INTO #Kills (GovernorID, T4T5KillsDelta, KillsOutsideKVK, P4Kills, P6Kills, P7Kills, P8Kills)
+    SELECT 
+        k.GovernorID,
+        SUM(CASE WHEN k.DeltaOrder > @PRE_PASS_4_SCAN AND k.DeltaOrder <= @KVK_END_SCAN THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS T4T5KillsDelta,
+        SUM(CASE WHEN k.DeltaOrder > @LASTKVKEND      AND k.DeltaOrder <= @PRE_PASS_4_SCAN THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS KillsOutsideKVK,
+        SUM(CASE WHEN k.DeltaOrder > @PRE_PASS_4_SCAN AND k.DeltaOrder <= @PASS4END THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS P4Kills,
+        SUM(CASE WHEN k.DeltaOrder > @PASS4END        AND k.DeltaOrder <= @PASS6END THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS P6Kills,
+        SUM(CASE WHEN k.DeltaOrder > @PASS6END        AND k.DeltaOrder <= @PASS7END THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS P7Kills,
+        SUM(CASE WHEN k.DeltaOrder > @PASS7END        AND k.DeltaOrder <= @KVK_END_SCAN THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS P8Kills
+    FROM dbo.T4T5KillDelta k
+    INNER JOIN #GovernorList gl ON gl.GovernorID = k.GovernorID
+    WHERE k.DeltaOrder > @LASTKVKEND AND k.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY k.GovernorID;
+
+    -----------------------------------------------
+    -- 4. T4 / T5 splits
+    -----------------------------------------------
+    CREATE TABLE #KillsT4 (
+        GovernorID   int     NOT NULL PRIMARY KEY CLUSTERED,
+        T4KillsDelta bigint  NOT NULL
+    );
+
+    INSERT INTO #KillsT4 (GovernorID, T4KillsDelta)
+    SELECT t4.GovernorID, SUM(COALESCE(t4.T4KILLSDelta, 0)) AS T4KillsDelta
+    FROM dbo.T4KillDelta t4
+    INNER JOIN #GovernorList gl ON gl.GovernorID = t4.GovernorID
+    WHERE t4.DeltaOrder > @PRE_PASS_4_SCAN AND t4.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY t4.GovernorID;
+
+    CREATE TABLE #KillsT5 (
+        GovernorID   int     NOT NULL PRIMARY KEY CLUSTERED,
+        T5KillsDelta bigint  NOT NULL
+    );
+
+    INSERT INTO #KillsT5 (GovernorID, T5KillsDelta)
+    SELECT t5.GovernorID, SUM(COALESCE(t5.T5KILLSDelta, 0)) AS T5KillsDelta
+    FROM dbo.T5KillDelta t5
+    INNER JOIN #GovernorList gl ON gl.GovernorID = t5.GovernorID
+    WHERE t5.DeltaOrder > @PRE_PASS_4_SCAN AND t5.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY t5.GovernorID;
+
+	----------------------------------------------- 
+	-- 5. KillPointsDelta aggregation (use same window as other deltas) 
+	----------------------------------------------- 
+    CREATE TABLE #KillPoints (
+        GovernorID      int     NOT NULL PRIMARY KEY CLUSTERED,
+        KillPointsDelta bigint  NOT NULL
+    );
+
+	INSERT INTO #KillPoints (GovernorID, KillPointsDelta)
+	SELECT kp.GovernorID, SUM(COALESCE(kp.KillPointsDelta, 0)) AS KillPointsDelta
+	FROM dbo.KillPointsDelta kp
+    INNER JOIN #GovernorList gl ON gl.GovernorID = kp.GovernorID
+	WHERE kp.DeltaOrder > @PRE_PASS_4_SCAN AND kp.DeltaOrder <= @KVK_END_SCAN 
+	GROUP BY kp.GovernorID;
+
+    -----------------------------------------------
+    -- 6. Other deltas (use @Scan as lower bound)
+    -----------------------------------------------
+    CREATE TABLE #Helps (
+        GovernorID int    NOT NULL PRIMARY KEY CLUSTERED,
+        HelpsDelta bigint NOT NULL
+    );
+
+    INSERT INTO #Helps (GovernorID, HelpsDelta)
+    SELECT h.GovernorID, SUM(COALESCE(h.HelpsDelta, 0)) AS HelpsDelta
+    FROM dbo.HelpsDelta h
+    INNER JOIN #GovernorList gl ON gl.GovernorID = h.GovernorID
+    WHERE h.DeltaOrder > @Scan AND h.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY h.GovernorID;
+
+    CREATE TABLE #RSSAssist (
+        GovernorID     int    NOT NULL PRIMARY KEY CLUSTERED,
+        RSSAssistDelta bigint NOT NULL
+    );
+
+    INSERT INTO #RSSAssist (GovernorID, RSSAssistDelta)
+    SELECT ra.GovernorID, SUM(COALESCE(ra.RSSASSISTDelta, 0)) AS RSSAssistDelta
+    FROM dbo.RSSASSISTDelta ra
+    INNER JOIN #GovernorList gl ON gl.GovernorID = ra.GovernorID
+    WHERE ra.DeltaOrder > @Scan AND ra.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY ra.GovernorID;
+
+    CREATE TABLE #RSSGathered (
+        GovernorID       int    NOT NULL PRIMARY KEY CLUSTERED,
+        RSSGatheredDelta bigint NOT NULL
+    );
+
+    INSERT INTO #RSSGathered (GovernorID, RSSGatheredDelta)
+    SELECT rg.GovernorID, SUM(COALESCE(rg.RSSGatheredDelta, 0)) AS RSSGatheredDelta
+    FROM dbo.RSSGatheredDelta rg
+    INNER JOIN #GovernorList gl ON gl.GovernorID = rg.GovernorID
+    WHERE rg.DeltaOrder > @Scan AND rg.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY rg.GovernorID;
+
+    CREATE TABLE #Power (
+        GovernorID int    NOT NULL PRIMARY KEY CLUSTERED,
+        PowerDelta bigint NOT NULL
+    );
+
+    INSERT INTO #Power (GovernorID, PowerDelta)
+    SELECT p.GovernorID, SUM(COALESCE(p.Power_Delta, 0)) AS PowerDelta
+    FROM dbo.PowerDelta p
+    INNER JOIN #GovernorList gl ON gl.GovernorID = p.GovernorID
+    WHERE p.DeltaOrder > @Scan AND p.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY p.GovernorID;
+
+    CREATE TABLE #Healed (
+        GovernorID        int    NOT NULL PRIMARY KEY CLUSTERED,
+        HealedTroopsDelta bigint NOT NULL
+    );
+
+	INSERT INTO #Healed (GovernorID, HealedTroopsDelta)
+    SELECT ht.GovernorID, SUM(COALESCE(ht.HealedTroopsDelta, 0)) AS HealedTroopsDelta
+    FROM dbo.HealedTroopsDelta ht
+    INNER JOIN #GovernorList gl ON gl.GovernorID = ht.GovernorID
+    WHERE ht.DeltaOrder > @Scan AND ht.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY ht.GovernorID;
+
+    CREATE TABLE #Ranged (
+        GovernorID        int    NOT NULL PRIMARY KEY CLUSTERED,
+        RangedPointsDelta bigint NOT NULL
+    );
+
+	INSERT INTO #Ranged (GovernorID, RangedPointsDelta)
+    SELECT r.GovernorID, SUM(COALESCE(r.RangedPointsDelta, 0)) AS RangedPointsDelta
+    FROM dbo.RangedPointsDelta r
+    INNER JOIN #GovernorList gl ON gl.GovernorID = r.GovernorID
+    WHERE r.DeltaOrder > @Scan AND r.DeltaOrder <= @KVK_END_SCAN
+    GROUP BY r.GovernorID;
+
+    -----------------------------------------------
+    -- 7. Stage
     -----------------------------------------------
 	INSERT INTO dbo.STAGING_STATS (
 		  GovernorID
@@ -308,7 +451,7 @@ BEGIN
 
 
     -- Cleanup temps from stage step
-    DROP TABLE IF EXISTS #Deads, #Kills, #KillsT4, #KillsT5, #Helps, #RSSAssist, #RSSGathered, #Power, #Snapshot, #Healed, #Ranged, #KillPoints;
+    DROP TABLE IF EXISTS #Deads, #Kills, #KillsT4, #KillsT5, #Helps, #RSSAssist, #RSSGathered, #Power, #Snapshot, #Healed, #Ranged, #KillPoints, #GovernorList;
 
     -----------------------------------------------
     -- 8. DKP + HoH (normalize DKP column name)
@@ -472,6 +615,14 @@ BEGIN
     DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
+
+	        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 
     PRINT 'Completed KVK ' + CAST(@KVK AS varchar(10))
         + ' with ScanOrder=' + CAST(@Scan AS varchar(20))

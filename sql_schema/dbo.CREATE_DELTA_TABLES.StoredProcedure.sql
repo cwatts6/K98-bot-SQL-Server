@@ -9,18 +9,23 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;  -- ✅ Ensures transaction rolls back on any error
     
     DECLARE @StartTime DATETIME2 = SYSUTCDATETIME();
     DECLARE @RowsProcessed INT = 0;
+    DECLARE @NewMaxScan FLOAT = 0;
     
     -- For low-volume processing (500-2000/day), run maintenance weekly
-    DECLARE @MaintenanceRowThreshold INT = 5000; -- ~3-10 days worth
+    DECLARE @MaintenanceRowThreshold INT = 5000;
     DECLARE @MaintenanceHourThreshold INT = 168; -- 7 days
 
     ----------------------------------------------------------------
     -- Step 1: Determine what's already been processed
     ----------------------------------------------------------------
     DECLARE @LastProcessedScan FLOAT;
+    
+    PRINT '----------------------------------------';
+    PRINT 'Starting delta processing at ' + CONVERT(VARCHAR(30), @StartTime, 120);
     
     -- Find the highest scan order we've already processed across all delta tables
     SELECT @LastProcessedScan = ISNULL(MAX(MaxDelta), 0)
@@ -48,8 +53,77 @@ BEGIN
         SELECT MAX(DeltaOrder) FROM RangedPointsDelta
     ) AS AllDeltas;
 
-    -- Safety check: if no data exists, start from scan 0
+    -- ✅ Data integrity check: Verify all delta tables are in sync
+    DECLARE @MinMaxDelta FLOAT, @MaxMaxDelta FLOAT;
+    SELECT 
+        @MinMaxDelta = MIN(MaxDelta),
+        @MaxMaxDelta = MAX(MaxDelta)
+    FROM (
+        SELECT MAX(DeltaOrder) AS MaxDelta FROM T4T5KillDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM T4KillDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM T5KillDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM DeadsDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM HelpsDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM RSSASSISTDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM RSSGatheredDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM POWERDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM KillPointsDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM HealedTroopsDelta
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM RangedPointsDelta
+    ) AS AllDeltas;
+    
+    IF @MinMaxDelta <> @MaxMaxDelta
+    BEGIN
+        PRINT '❌ ERROR: Delta tables are out of sync!';
+        PRINT '   Minimum MaxDeltaOrder: ' + CAST(@MinMaxDelta AS VARCHAR(20));
+        PRINT '   Maximum MaxDeltaOrder: ' + CAST(@MaxMaxDelta AS VARCHAR(20));
+        PRINT '';
+        PRINT 'Detailed breakdown:';
+        
+        SELECT 
+            'T4T5KillDelta' AS TableName, 
+            MAX(DeltaOrder) AS MaxDeltaOrder, 
+            COUNT(*) AS TotalRows 
+        FROM T4T5KillDelta
+        UNION ALL
+        SELECT 'T4KillDelta', MAX(DeltaOrder), COUNT(*) FROM T4KillDelta
+        UNION ALL
+        SELECT 'T5KillDelta', MAX(DeltaOrder), COUNT(*) FROM T5KillDelta
+        UNION ALL
+        SELECT 'DeadsDelta', MAX(DeltaOrder), COUNT(*) FROM DeadsDelta
+        UNION ALL
+        SELECT 'HelpsDelta', MAX(DeltaOrder), COUNT(*) FROM HelpsDelta
+        UNION ALL
+        SELECT 'RSSASSISTDelta', MAX(DeltaOrder), COUNT(*) FROM RSSASSISTDelta
+        UNION ALL
+        SELECT 'RSSGatheredDelta', MAX(DeltaOrder), COUNT(*) FROM RSSGatheredDelta
+        UNION ALL
+        SELECT 'POWERDelta', MAX(DeltaOrder), COUNT(*) FROM POWERDelta
+        UNION ALL
+        SELECT 'KillPointsDelta', MAX(DeltaOrder), COUNT(*) FROM KillPointsDelta
+        UNION ALL
+        SELECT 'HealedTroopsDelta', MAX(DeltaOrder), COUNT(*) FROM HealedTroopsDelta
+        UNION ALL
+        SELECT 'RangedPointsDelta', MAX(DeltaOrder), COUNT(*) FROM RangedPointsDelta
+        ORDER BY MaxDeltaOrder DESC;
+        
+        RAISERROR('Delta tables are out of sync. Please fix manually before proceeding.', 16, 1);
+        RETURN;
+    END
+
     IF @LastProcessedScan IS NULL SET @LastProcessedScan = 0;
+    
+    PRINT 'Last processed scan order: ' + CAST(@LastProcessedScan AS VARCHAR(20));
 
     ----------------------------------------------------------------
     -- Step 2: Build base data for NEW scans only
@@ -70,32 +144,31 @@ BEGIN
         SUM([RangedPoints]) AS RangedPoints
     INTO #NewScans
     FROM dbo.kingdomscandata4
-    WHERE SCANORDER > @LastProcessedScan  -- ONLY new scans
+    WHERE SCANORDER > @LastProcessedScan
     GROUP BY GovernorID, SCANORDER;
 
-    -- Track rows for maintenance decision
     SELECT @RowsProcessed = COUNT(*) FROM #NewScans;
+    SELECT @NewMaxScan = ISNULL(MAX(SCANORDER), @LastProcessedScan) FROM #NewScans;
 
-    -- Exit early if no new data
     IF @RowsProcessed = 0
     BEGIN
         PRINT 'No new scans to process.';
+        PRINT '----------------------------------------';
         DROP TABLE #NewScans;
         RETURN;
     END
 
+    PRINT 'New scan orders found: ' + CAST(@LastProcessedScan AS VARCHAR(20)) + ' to ' + CAST(@NewMaxScan AS VARCHAR(20));
     PRINT 'Processing ' + CAST(@RowsProcessed AS VARCHAR(10)) + ' new scan records...';
 
-    -- Create index for performance
     CREATE CLUSTERED INDEX IX_NewScans ON #NewScans (GovernorID, SCANORDER);
 
     ----------------------------------------------------------------
-    -- Step 3: Get the LAST KNOWN VALUE for each governor (from existing deltas)
-    -- This avoids the OUTER APPLY anti-pattern
+    -- Step 3: Get the LAST KNOWN VALUE for each governor
     ----------------------------------------------------------------
     
-    -- Get cumulative values up to @LastProcessedScan
-    -- We reconstruct the last known cumulative value from the delta tables
+    PRINT 'Retrieving last known values from delta tables...';
+    
     SELECT 
         GovernorID,
         @LastProcessedScan AS SCANORDER,
@@ -138,16 +211,20 @@ BEGIN
 
     CREATE CLUSTERED INDEX IX_LastKnown ON #LastKnownValues (GovernorID);
 
+    DECLARE @UniqueGovernors INT;
+    SELECT @UniqueGovernors = COUNT(*) FROM #LastKnownValues;
+    PRINT 'Found baseline data for ' + CAST(@UniqueGovernors AS VARCHAR(10)) + ' governors.';
+
     ----------------------------------------------------------------
     -- Step 4: Calculate deltas using LAG() window function
-    -- This is O(n log n) instead of O(n²)
     ----------------------------------------------------------------
+    
+    PRINT 'Calculating deltas...';
     
     ;WITH CumulativeValues AS (
         SELECT
             ns.GovernorID,
             ns.SCANORDER,
-            -- Add last known cumulative to current value to get true cumulative
             ISNULL(lk.T4_Kills_Cumulative, 0) + 
                 SUM(ISNULL(ns.T4_Kills, 0)) OVER (
                     PARTITION BY ns.GovernorID 
@@ -244,60 +321,99 @@ BEGIN
             CAST(RangedPoints_Cum - LAG(RangedPoints_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS BIGINT) AS RangedPoints_Delta
         FROM CumulativeValues
     )
+    -- ✅ Materialize the CTE into a temp table for reuse
+    SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
     
     ----------------------------------------------------------------
-    -- Step 5: INSERT only new deltas (append mode)
+    -- Step 5: INSERT with TRANSACTION (all-or-nothing)
     ----------------------------------------------------------------
-    INSERT INTO T4KillDelta (GovernorID, DeltaOrder, T4KILLSDelta)
-    SELECT GovernorID, SCANORDER, T4_Delta FROM DeltaCalculations;
+    
+    PRINT 'Inserting deltas into tables (transactional)...';
+    
+    BEGIN TRANSACTION;
+    BEGIN TRY
+        DECLARE @InsertedRows INT;
+        
+        INSERT INTO T4KillDelta (GovernorID, DeltaOrder, T4KILLSDelta)
+        SELECT GovernorID, SCANORDER, T4_Delta FROM #DeltaCalculations;
+        SET @InsertedRows = @@ROWCOUNT;
+        PRINT '  T4KillDelta: ' + CAST(@InsertedRows AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO T5KillDelta (GovernorID, DeltaOrder, T5KILLSDelta)
-    SELECT GovernorID, SCANORDER, T5_Delta FROM DeltaCalculations;
+        INSERT INTO T5KillDelta (GovernorID, DeltaOrder, T5KILLSDelta)
+        SELECT GovernorID, SCANORDER, T5_Delta FROM #DeltaCalculations;
+        PRINT '  T5KillDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO T4T5KillDelta (GovernorID, DeltaOrder, [T4&T5_KILLSDelta])
-    SELECT GovernorID, SCANORDER, T4T5_Delta FROM DeltaCalculations;
+        INSERT INTO T4T5KillDelta (GovernorID, DeltaOrder, [T4&T5_KILLSDelta])
+        SELECT GovernorID, SCANORDER, T4T5_Delta FROM #DeltaCalculations;
+        PRINT '  T4T5KillDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO POWERDelta (GovernorID, DeltaOrder, [Power_Delta])
-    SELECT GovernorID, SCANORDER, Power_Delta FROM DeltaCalculations;
+        INSERT INTO POWERDelta (GovernorID, DeltaOrder, [Power_Delta])
+        SELECT GovernorID, SCANORDER, Power_Delta FROM #DeltaCalculations;
+        PRINT '  POWERDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO KillPointsDelta (GovernorID, DeltaOrder, KillPointsDelta)
-    SELECT GovernorID, SCANORDER, KillPoints_Delta FROM DeltaCalculations;
+        INSERT INTO KillPointsDelta (GovernorID, DeltaOrder, KillPointsDelta)
+        SELECT GovernorID, SCANORDER, KillPoints_Delta FROM #DeltaCalculations;
+        PRINT '  KillPointsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO DeadsDelta (GovernorID, DeltaOrder, DeadsDelta)
-    SELECT GovernorID, SCANORDER, Deads_Delta FROM DeltaCalculations;
+        INSERT INTO DeadsDelta (GovernorID, DeltaOrder, DeadsDelta)
+        SELECT GovernorID, SCANORDER, Deads_Delta FROM #DeltaCalculations;
+        PRINT '  DeadsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO HelpsDelta (GovernorID, DeltaOrder, HelpsDelta)
-    SELECT GovernorID, SCANORDER, Helps_Delta FROM DeltaCalculations;
+        INSERT INTO HelpsDelta (GovernorID, DeltaOrder, HelpsDelta)
+        SELECT GovernorID, SCANORDER, Helps_Delta FROM #DeltaCalculations;
+        PRINT '  HelpsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO RSSASSISTDelta (GovernorID, DeltaOrder, RSSAssistDelta)
-    SELECT GovernorID, SCANORDER, RSSAssist_Delta FROM DeltaCalculations;
+        INSERT INTO RSSASSISTDelta (GovernorID, DeltaOrder, RSSAssistDelta)
+        SELECT GovernorID, SCANORDER, RSSAssist_Delta FROM #DeltaCalculations;
+        PRINT '  RSSASSISTDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO RSSGatheredDelta (GovernorID, DeltaOrder, RSSGatheredDelta)
-    SELECT GovernorID, SCANORDER, RSSGathered_Delta FROM DeltaCalculations;
+        INSERT INTO RSSGatheredDelta (GovernorID, DeltaOrder, RSSGatheredDelta)
+        SELECT GovernorID, SCANORDER, RSSGathered_Delta FROM #DeltaCalculations;
+        PRINT '  RSSGatheredDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO HealedTroopsDelta (GovernorID, DeltaOrder, HealedTroopsDelta)
-    SELECT GovernorID, SCANORDER, HealedTroops_Delta FROM DeltaCalculations;
+        INSERT INTO HealedTroopsDelta (GovernorID, DeltaOrder, HealedTroopsDelta)
+        SELECT GovernorID, SCANORDER, HealedTroops_Delta FROM #DeltaCalculations;
+        PRINT '  HealedTroopsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
 
-    INSERT INTO RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
-    SELECT GovernorID, SCANORDER, RangedPoints_Delta FROM DeltaCalculations;
+        INSERT INTO RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
+        SELECT GovernorID, SCANORDER, RangedPoints_Delta FROM #DeltaCalculations;
+        PRINT '  RangedPointsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
+        
+        COMMIT TRANSACTION;
+        PRINT '✅ All delta inserts committed successfully.';
+        
+    END TRY
+    BEGIN CATCH
+        ROLLBACK TRANSACTION;
+        
+        PRINT '❌ ERROR: Transaction rolled back!';
+        PRINT 'Error Message: ' + ERROR_MESSAGE();
+        PRINT 'Error Number: ' + CAST(ERROR_NUMBER() AS VARCHAR(10));
+        PRINT 'Error Line: ' + CAST(ERROR_LINE() AS VARCHAR(10));
+        
+        -- Cleanup
+        DROP TABLE #NewScans;
+        DROP TABLE #LastKnownValues;
+        DROP TABLE #DeltaCalculations;
+        
+        RETURN;
+    END CATCH
 
     -- Cleanup temp tables
     DROP TABLE #NewScans;
     DROP TABLE #LastKnownValues;
+    DROP TABLE #DeltaCalculations;
 
     ----------------------------------------------------------------
-    -- Step 6: LIGHTWEIGHT MAINTENANCE (Time or Volume Based)
-    -- For low-volume environments: weekly maintenance OR after 5000 rows
+    -- Step 6: LIGHTWEIGHT MAINTENANCE
     ----------------------------------------------------------------
     
     DECLARE @ShouldRunMaintenance BIT = 0;
     DECLARE @LastMaintenanceTime DATETIME2;
     DECLARE @TotalRowsSinceLastMaintenance INT;
     
-    -- Check if maintenance log table exists
     IF OBJECT_ID('dbo.DeltaProcessingLog', 'U') IS NOT NULL
     BEGIN
-        -- Get last maintenance run time and rows processed since then
         SELECT TOP 1
             @LastMaintenanceTime = ExecutionTime,
             @TotalRowsSinceLastMaintenance = 
@@ -311,7 +427,6 @@ BEGIN
         WHERE MaintenanceRan = 1
         ORDER BY ExecutionTime DESC;
         
-        -- Determine if maintenance should run
         IF @LastMaintenanceTime IS NULL
             OR DATEDIFF(HOUR, @LastMaintenanceTime, SYSUTCDATETIME()) >= @MaintenanceHourThreshold
             OR @TotalRowsSinceLastMaintenance >= @MaintenanceRowThreshold
@@ -321,7 +436,6 @@ BEGIN
     END
     ELSE
     BEGIN
-        -- If no log table, use simple row threshold
         IF @RowsProcessed >= @MaintenanceRowThreshold
             SET @ShouldRunMaintenance = 1;
     END
@@ -332,8 +446,6 @@ BEGIN
         PRINT 'Days since last maintenance: ' + CAST(DATEDIFF(DAY, ISNULL(@LastMaintenanceTime, '1900-01-01'), SYSUTCDATETIME()) AS VARCHAR(10));
         PRINT 'Rows since last maintenance: ' + CAST(ISNULL(@TotalRowsSinceLastMaintenance, @RowsProcessed) AS VARCHAR(10));
         
-        -- Update statistics with SAMPLE (faster than FULLSCAN for low-volume changes)
-        -- For low-volume environments, sampling is sufficient and much faster
         UPDATE STATISTICS T4KillDelta WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS T5KillDelta WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS T4T5KillDelta WITH SAMPLE 25 PERCENT;
@@ -349,8 +461,7 @@ BEGIN
         
         PRINT 'Statistics updated (25% sample).';
         
-        -- Lightweight index maintenance (only reorganize, no rebuild unless critical)
-        -- For low-volume environments, reorganize is usually sufficient
+        -- Index maintenance code (same as before)
         DECLARE @TableName NVARCHAR(128);
         DECLARE @IndexName NVARCHAR(128);
         DECLARE @Fragmentation FLOAT;
@@ -358,7 +469,6 @@ BEGIN
         DECLARE @IndexesChecked INT = 0;
         DECLARE @IndexesMaintained INT = 0;
         
-        -- Create temp table to hold fragmentation info
         CREATE TABLE #IndexFragmentation (
             TableName NVARCHAR(128),
             IndexName NVARCHAR(128),
@@ -366,7 +476,6 @@ BEGIN
             PageCount BIGINT
         );
         
-        -- Get fragmentation info (LIMITED mode is fastest)
         INSERT INTO #IndexFragmentation
         SELECT 
             OBJECT_NAME(ips.object_id) AS TableName,
@@ -381,16 +490,15 @@ BEGIN
             'RSSGatheredDelta', 'HealedTroopsDelta', 'RangedPointsDelta',
             'kingdomscandata4'
         )
-        AND i.name IS NOT NULL  -- Exclude heaps
-        AND ips.page_count > 1000;  -- Only care about indexes with 1000+ pages (8MB+)
+        AND i.name IS NOT NULL
+        AND ips.page_count > 1000;
         
         SELECT @IndexesChecked = COUNT(*) FROM #IndexFragmentation;
         
-        -- Cursor to process each fragmented index
         DECLARE index_cursor CURSOR FOR
         SELECT TableName, IndexName, FragmentationPercent
         FROM #IndexFragmentation
-        WHERE FragmentationPercent > 15  -- Higher threshold for low-volume
+        WHERE FragmentationPercent > 15
         ORDER BY FragmentationPercent DESC;
         
         OPEN index_cursor;
@@ -398,7 +506,6 @@ BEGIN
         
         WHILE @@FETCH_STATUS = 0
         BEGIN
-            -- Only rebuild if SEVERELY fragmented (>50%), otherwise reorganize
             IF @Fragmentation > 50
             BEGIN
                 SET @SQL = N'ALTER INDEX [' + @IndexName + N'] ON [dbo].[' + @TableName + N'] REBUILD WITH (ONLINE = OFF, SORT_IN_TEMPDB = ON, MAXDOP = 2);';
@@ -410,7 +517,6 @@ BEGIN
                 PRINT 'Reorganizing: ' + @IndexName + ' on ' + @TableName + ' (' + CAST(CAST(@Fragmentation AS DECIMAL(5,2)) AS VARCHAR(10)) + '% fragmented)';
             END
             
-            -- Execute the maintenance
             BEGIN TRY
                 EXEC sp_executesql @SQL;
                 SET @IndexesMaintained = @IndexesMaintained + 1;
@@ -442,13 +548,12 @@ BEGIN
     ----------------------------------------------------------------
     DECLARE @ElapsedMS INT = DATEDIFF(MILLISECOND, @StartTime, SYSUTCDATETIME());
     
-    -- Log this execution
     IF OBJECT_ID('dbo.DeltaProcessingLog', 'U') IS NOT NULL
     BEGIN
         INSERT INTO dbo.DeltaProcessingLog (RowsProcessed, LastScanProcessed, ElapsedMS, MaintenanceRan, Notes)
         VALUES (
             @RowsProcessed, 
-            @LastProcessedScan, 
+            @NewMaxScan,
             @ElapsedMS,
             @ShouldRunMaintenance,
             CASE 
@@ -459,10 +564,11 @@ BEGIN
     END
     
     PRINT '----------------------------------------';
-    PRINT 'Processing completed in ' + CAST(@ElapsedMS AS VARCHAR(10)) + 'ms';
+    PRINT '✅ Processing completed in ' + CAST(@ElapsedMS AS VARCHAR(10)) + 'ms';
     PRINT 'Rows processed: ' + CAST(@RowsProcessed AS VARCHAR(10));
     IF @RowsProcessed > 0
         PRINT 'Performance: ' + CAST(CAST(@ElapsedMS * 1.0 / @RowsProcessed AS DECIMAL(10,2)) AS VARCHAR(10)) + ' ms/row';
+    PRINT 'New maximum scan order: ' + CAST(@NewMaxScan AS VARCHAR(20));
     PRINT '----------------------------------------';
 
     SET NOCOUNT OFF;
