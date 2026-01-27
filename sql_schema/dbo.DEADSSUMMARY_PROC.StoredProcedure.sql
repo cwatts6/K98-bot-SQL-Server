@@ -37,6 +37,8 @@ BEGIN
         WHERE ScanOrder > @LastProcessed
           AND GovernorID <> 0;
 
+		CREATE CLUSTERED INDEX IX_AffectedGovs_GovernorID ON #AffectedGovs (GovernorID);
+		
         IF NOT EXISTS (SELECT 1 FROM #AffectedGovs)
         BEGIN
             MERGE dbo.SUMMARY_PROC_STATE AS T
@@ -49,7 +51,14 @@ BEGIN
             RETURN;
         END
 
-        DELETE FROM dbo.DALL WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DECLARE @UtcNow DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @Cutoff12 DATETIME2(7) = DATEADD(MONTH, -12, @UtcNow);
+        DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
+        DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
+
+        DELETE d
+        FROM dbo.DALL d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedAll AS (
             SELECT k.GovernorID,
@@ -59,13 +68,15 @@ BEGIN
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAscALL,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDescALL
             FROM dbo.KingdomScanData4 k
-            WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
         INSERT INTO dbo.DALL (GovernorID, GovernorName, DEADS, ScanDate, RowAscALL, RowDescALL)
         SELECT GovernorID, GovernorName, DEADS, ScanDate, RowAscALL, RowDescALL
         FROM RankedAll;
 
-        DELETE FROM dbo.D12 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.D12 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD12 AS (
             SELECT k.GovernorID,
@@ -74,14 +85,16 @@ BEGIN
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc12,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc12
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -12, GETDATE())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff12
         )
         INSERT INTO dbo.D12 (GovernorID, DEADS, ScanDate, RowAsc12, RowDesc12)
         SELECT GovernorID, DEADS, ScanDate, RowAsc12, RowDesc12
         FROM RankedD12;
 
-        DELETE FROM dbo.D6 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.D6 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD6 AS (
             SELECT k.GovernorID,
@@ -90,14 +103,16 @@ BEGIN
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc6,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc6
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -6, GETDATE())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff6
         )
         INSERT INTO dbo.D6 (GovernorID, DEADS, ScanDate, RowAsc6, RowDesc6)
         SELECT GovernorID, DEADS, ScanDate, RowAsc6, RowDesc6
         FROM RankedD6;
 
-        DELETE FROM dbo.D3 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.D3 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD3 AS (
             SELECT k.GovernorID,
@@ -106,8 +121,8 @@ BEGIN
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc3,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc3
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -3, GETDATE())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff3
         )
         INSERT INTO dbo.D3 (GovernorID, DEADS, ScanDate, RowAsc3, RowDesc3)
         SELECT GovernorID, DEADS, ScanDate, RowAsc3, RowDesc3
@@ -116,8 +131,8 @@ BEGIN
         ;WITH LatestPerGov AS (
             SELECT GovernorID, GovernorName, PowerRank, DEADS,
                    ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
-            FROM dbo.KingdomScanData4
-            WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            FROM dbo.KingdomScanData4 k
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
         MERGE dbo.LATEST AS tgt
         USING (SELECT GovernorID, GovernorName, PowerRank, DEADS FROM LatestPerGov WHERE rn = 1) AS src
@@ -128,40 +143,46 @@ BEGIN
             INSERT (GovernorID, GovernorName, PowerRank, DEADS)
             VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.DEADS);
 
-        DELETE FROM dbo.D3D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.D3D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.D3D (GovernorID, DEADSDelta3Months)
         SELECT L.GovernorID,
                MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.DEADS END) - MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.DEADS END)
         FROM dbo.LATEST L
         LEFT JOIN dbo.D3 D3 ON L.GovernorID = D3.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE FROM dbo.D6D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.D6D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.D6D (GovernorID, DEADSDelta6Months)
         SELECT L.GovernorID,
                MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.DEADS END) - MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.DEADS END)
         FROM dbo.LATEST L
         LEFT JOIN dbo.D6 D6 ON L.GovernorID = D6.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE FROM dbo.D12D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.D12D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.D12D (GovernorID, DEADSDelta12Months)
         SELECT L.GovernorID,
                MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.DEADS END) - MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.DEADS END)
         FROM dbo.LATEST L
         LEFT JOIN dbo.D12 D12 ON L.GovernorID = D12.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
         ;WITH FirstLastAll AS (
             SELECT GovernorID,
                    MAX(CASE WHEN RowAscALL = 1 THEN DEADS END) AS StartingDEADS,
                    MAX(CASE WHEN RowDescALL = 1 THEN DEADS END) AS EndingDEADS
-            FROM dbo.DALL
-            WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
-            GROUP BY GovernorID
+            FROM dbo.DALL d
+            INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID
+            GROUP BY d.GovernorID
         ),
         Source AS (
             SELECT
@@ -179,7 +200,7 @@ BEGIN
             LEFT JOIN dbo.D12D D12D ON L.GovernorID = D12D.GovernorID
             LEFT JOIN dbo.D6D D6D ON L.GovernorID = D6D.GovernorID
             LEFT JOIN dbo.D3D D3D ON L.GovernorID = D3D.GovernorID
-            WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         )
         MERGE dbo.DEADSSUMMARY AS T
         USING Source AS S
