@@ -32,6 +32,8 @@ BEGIN
         FROM dbo.KingdomScanData4
         WHERE ScanOrder > @LastProcessed AND GovernorID <> 0;
 
+        CREATE CLUSTERED INDEX IX_AffectedGovs_GovernorID ON #AffectedGovs (GovernorID);
+
         IF NOT EXISTS (SELECT 1 FROM #AffectedGovs)
         BEGIN
             MERGE dbo.SUMMARY_PROC_STATE AS T
@@ -43,6 +45,11 @@ BEGIN
             COMMIT;
             RETURN;
         END
+
+        DECLARE @UtcNow DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @Cutoff12 DATETIME2(7) = DATEADD(MONTH, -12, @UtcNow);
+        DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
+        DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
         ------------------------------------------------------------
         -- 1) Insert new raw rows into RANGED_ALL (only new scans)
@@ -60,7 +67,7 @@ BEGIN
             SELECT GovernorID, GovernorName, PowerRank, RangedPoints,
                    ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
-            WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
         MERGE dbo.RANGED_LATEST AS tgt
         USING (SELECT GovernorID, GovernorName, PowerRank, RangedPoints FROM LatestPerGov WHERE rn = 1) AS src
@@ -72,43 +79,49 @@ BEGIN
         -- 3) Recompute windowed helper tables (D3/D6/D12) only for affected governors
         ------------------------------------------------------------
         -- D3
-        DELETE FROM dbo.RANGED_D3 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.RANGED_D3 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD3 AS (
             SELECT k.GovernorID, k.RangedPoints, k.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc3,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc3
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -3, SYSUTCDATETIME())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff3
         )
         INSERT INTO dbo.RANGED_D3 (GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3)
         SELECT GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3 FROM RankedD3;
 
         -- D6
-        DELETE FROM dbo.RANGED_D6 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.RANGED_D6 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD6 AS (
             SELECT k.GovernorID, k.RangedPoints, k.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc6,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc6
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -6, SYSUTCDATETIME())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff6
         )
         INSERT INTO dbo.RANGED_D6 (GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6)
         SELECT GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6 FROM RankedD6;
 
         -- D12
-        DELETE FROM dbo.RANGED_D12 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.RANGED_D12 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD12 AS (
             SELECT k.GovernorID, k.RangedPoints, k.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc12,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc12
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -12, SYSUTCDATETIME())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff12
         )
         INSERT INTO dbo.RANGED_D12 (GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12)
         SELECT GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12 FROM RankedD12;
@@ -116,34 +129,40 @@ BEGIN
         ------------------------------------------------------------
         -- 4) Compute delta metrics (3/6/12 months)
         ------------------------------------------------------------
-        DELETE FROM dbo.RANGED_D3D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.RANGED_D3D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.RANGED_D3D (GovernorID, RangedPointsDelta3Months)
         SELECT 
             L.GovernorID,
             MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.RangedPoints END) - MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.RangedPoints END)
         FROM dbo.RANGED_LATEST L
         LEFT JOIN dbo.RANGED_D3 D3 ON L.GovernorID = D3.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE FROM dbo.RANGED_D6D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.RANGED_D6D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.RANGED_D6D (GovernorID, RangedPointsDelta6Months)
         SELECT 
             L.GovernorID,
             MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.RangedPoints END) - MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.RangedPoints END)
         FROM dbo.RANGED_LATEST L
         LEFT JOIN dbo.RANGED_D6 D6 ON L.GovernorID = D6.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE FROM dbo.RANGED_D12D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.RANGED_D12D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.RANGED_D12D (GovernorID, RangedPointsDelta12Months)
         SELECT 
             L.GovernorID,
             MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.RangedPoints END) - MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.RangedPoints END)
         FROM dbo.RANGED_LATEST L
         LEFT JOIN dbo.RANGED_D12 D12 ON L.GovernorID = D12.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
         ------------------------------------------------------------
@@ -153,7 +172,7 @@ BEGIN
             SELECT GovernorID, GovernorName, PowerRank, RangedPoints,
                    ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
-            WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         ),
         FirstScan AS (
             SELECT GovernorID, RangedPoints AS FirstRanged
@@ -161,7 +180,7 @@ BEGIN
                 SELECT GovernorID, RangedPoints,
                        ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder ASC) AS rn
                 FROM dbo.KingdomScanData4 k
-                WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+                INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
             ) t WHERE rn = 1
         ),
         Source AS (
@@ -180,6 +199,7 @@ BEGIN
             LEFT JOIN (SELECT GovernorID, RangedPointsDelta12Months AS R12 FROM dbo.RANGED_D12D) R12 ON L.GovernorID = R12.GovernorID
             LEFT JOIN (SELECT GovernorID, RangedPointsDelta6Months AS R6 FROM dbo.RANGED_D6D) R6 ON L.GovernorID = R6.GovernorID
             LEFT JOIN (SELECT GovernorID, RangedPointsDelta3Months AS R3 FROM dbo.RANGED_D3D) R3 ON L.GovernorID = R3.GovernorID
+            INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         )
         MERGE dbo.RANGEDSUMMARY AS T
         USING Source AS S

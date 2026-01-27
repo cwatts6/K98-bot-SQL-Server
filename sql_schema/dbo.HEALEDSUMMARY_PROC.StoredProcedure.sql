@@ -32,6 +32,8 @@ BEGIN
         FROM dbo.KingdomScanData4
         WHERE ScanOrder > @LastProcessed AND GovernorID <> 0;
 
+        CREATE CLUSTERED INDEX IX_AffectedGovs_GovernorID ON #AffectedGovs (GovernorID);
+
         IF NOT EXISTS (SELECT 1 FROM #AffectedGovs)
         BEGIN
             -- update last processed and exit
@@ -44,6 +46,11 @@ BEGIN
             COMMIT;
             RETURN;
         END
+
+        DECLARE @UtcNow DATETIME2(7) = SYSUTCDATETIME();
+        DECLARE @Cutoff12 DATETIME2(7) = DATEADD(MONTH, -12, @UtcNow);
+        DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
+        DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
         ------------------------------------------------------------
         -- 1) Insert new raw rows into HEALED_ALL (only new scans)
@@ -61,7 +68,7 @@ BEGIN
             SELECT GovernorID, GovernorName, PowerRank, HealedTroops,
                    ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
-            WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
         MERGE dbo.HEALED_LATEST AS tgt
         USING (SELECT GovernorID, GovernorName, PowerRank, HealedTroops FROM LatestPerGov WHERE rn = 1) AS src
@@ -74,43 +81,49 @@ BEGIN
         --    We delete existing rows for affected governors and recompute from KingdomScanData4.
         ------------------------------------------------------------
         -- D3
-        DELETE FROM dbo.HEALED_D3 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.HEALED_D3 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD3 AS (
             SELECT k.GovernorID, k.HealedTroops, k.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc3,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc3
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -3, SYSUTCDATETIME())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff3
         )
         INSERT INTO dbo.HEALED_D3 (GovernorID, HealedTroops, ScanDate, RowAsc3, RowDesc3)
         SELECT GovernorID, HealedTroops, ScanDate, RowAsc3, RowDesc3 FROM RankedD3;
 
         -- D6
-        DELETE FROM dbo.HEALED_D6 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.HEALED_D6 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD6 AS (
             SELECT k.GovernorID, k.HealedTroops, k.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc6,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc6
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -6, SYSUTCDATETIME())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff6
         )
         INSERT INTO dbo.HEALED_D6 (GovernorID, HealedTroops, ScanDate, RowAsc6, RowDesc6)
         SELECT GovernorID, HealedTroops, ScanDate, RowAsc6, RowDesc6 FROM RankedD6;
 
         -- D12
-        DELETE FROM dbo.HEALED_D12 WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.HEALED_D12 d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD12 AS (
             SELECT k.GovernorID, k.HealedTroops, k.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc12,
                    ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc12
             FROM dbo.KingdomScanData4 k
-            WHERE k.ScanDate >= DATEADD(MONTH, -12, SYSUTCDATETIME())
-              AND k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            WHERE k.ScanDate >= @Cutoff12
         )
         INSERT INTO dbo.HEALED_D12 (GovernorID, HealedTroops, ScanDate, RowAsc12, RowDesc12)
         SELECT GovernorID, HealedTroops, ScanDate, RowAsc12, RowDesc12 FROM RankedD12;
@@ -119,34 +132,40 @@ BEGIN
         -- 4) Compute delta metrics (3/6/12 months) for affected governors
         --    Delete previous delta rows for affected governors and recompute.
         ------------------------------------------------------------
-        DELETE FROM dbo.HEALED_D3D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.HEALED_D3D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.HEALED_D3D (GovernorID, HealedTroopsDelta3Months)
         SELECT 
             L.GovernorID,
             MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.HealedTroops END) - MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.HealedTroops END)
         FROM dbo.HEALED_LATEST L
         LEFT JOIN dbo.HEALED_D3 D3 ON L.GovernorID = D3.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE FROM dbo.HEALED_D6D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.HEALED_D6D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.HEALED_D6D (GovernorID, HealedTroopsDelta6Months)
         SELECT 
             L.GovernorID,
             MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.HealedTroops END) - MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.HealedTroops END)
         FROM dbo.HEALED_LATEST L
         LEFT JOIN dbo.HEALED_D6 D6 ON L.GovernorID = D6.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE FROM dbo.HEALED_D12D WHERE GovernorID IN (SELECT GovernorID FROM #AffectedGovs);
+        DELETE d
+        FROM dbo.HEALED_D12D d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
         INSERT INTO dbo.HEALED_D12D (GovernorID, HealedTroopsDelta12Months)
         SELECT 
             L.GovernorID,
             MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.HealedTroops END) - MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.HealedTroops END)
         FROM dbo.HEALED_LATEST L
         LEFT JOIN dbo.HEALED_D12 D12 ON L.GovernorID = D12.GovernorID
-        WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+        INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
         ------------------------------------------------------------
@@ -156,7 +175,7 @@ BEGIN
             SELECT GovernorID, GovernorName, PowerRank, HealedTroops,
                    ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
-            WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         ),
         FirstScan AS (
             SELECT GovernorID, HealedTroops AS FirstHealed
@@ -164,20 +183,26 @@ BEGIN
                 SELECT GovernorID, HealedTroops,
                        ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder ASC) AS rn
                 FROM dbo.KingdomScanData4 k
-                WHERE k.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+                INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
             ) t WHERE rn = 1
         ),
         Delta3 AS (
-            SELECT L.GovernorID, ISNULL(H3D.HealedTroopsDelta3Months,0) AS D3 FROM dbo.HEALED_LATEST L LEFT JOIN dbo.HEALED_D3D H3D ON L.GovernorID = H3D.GovernorID
-            WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            SELECT L.GovernorID, ISNULL(H3D.HealedTroopsDelta3Months,0) AS D3
+            FROM dbo.HEALED_LATEST L
+            LEFT JOIN dbo.HEALED_D3D H3D ON L.GovernorID = H3D.GovernorID
+            INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         ),
         Delta6 AS (
-            SELECT L.GovernorID, ISNULL(H6D.HealedTroopsDelta6Months,0) AS D6 FROM dbo.HEALED_LATEST L LEFT JOIN dbo.HEALED_D6D H6D ON L.GovernorID = H6D.GovernorID
-            WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            SELECT L.GovernorID, ISNULL(H6D.HealedTroopsDelta6Months,0) AS D6
+            FROM dbo.HEALED_LATEST L
+            LEFT JOIN dbo.HEALED_D6D H6D ON L.GovernorID = H6D.GovernorID
+            INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         ),
         Delta12 AS (
-            SELECT L.GovernorID, ISNULL(H12D.HealedTroopsDelta12Months,0) AS D12 FROM dbo.HEALED_LATEST L LEFT JOIN dbo.HEALED_D12D H12D ON L.GovernorID = H12D.GovernorID
-            WHERE L.GovernorID IN (SELECT GovernorID FROM #AffectedGovs)
+            SELECT L.GovernorID, ISNULL(H12D.HealedTroopsDelta12Months,0) AS D12
+            FROM dbo.HEALED_LATEST L
+            LEFT JOIN dbo.HEALED_D12D H12D ON L.GovernorID = H12D.GovernorID
+            INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         ),
         Source AS (
             SELECT
@@ -195,6 +220,7 @@ BEGIN
             LEFT JOIN Delta12 D12 ON L.GovernorID = D12.GovernorID
             LEFT JOIN Delta6 D6 ON L.GovernorID = D6.GovernorID
             LEFT JOIN Delta3 D3 ON L.GovernorID = D3.GovernorID
+            INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         )
         MERGE dbo.HEALEDSUMMARY AS T
         USING Source AS S
@@ -258,7 +284,7 @@ BEGIN
         WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
         WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime) VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
 
-        COMMIT;
+		        COMMIT;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0 ROLLBACK;
