@@ -559,25 +559,7 @@ BEGIN
 
         -- Attempt to trigger log backup job (non-blocking, best effort)
         DECLARE @LogBackupTriggered BIT = 0;
-        BEGIN TRY
-            -- Try wrapper first
-            EXEC msdb.dbo.usp_start_rok_tracker_log_backup;
-            PRINT 'Log backup job triggered via wrapper.';
-            SET @LogBackupTriggered = 1;
-        END TRY
-        BEGIN CATCH
-            BEGIN TRY
-                -- Fallback to direct job start
-                EXEC msdb.dbo.sp_start_job @job_name = 'ROK_TRACKER - LOG Backup';
-                PRINT 'Log backup job triggered via sp_start_job.';
-                SET @LogBackupTriggered = 1;
-            END TRY
-            BEGIN CATCH
-                -- Log but don't fail the procedure
-                PRINT 'Could not trigger log backup job: ' + ERROR_MESSAGE();
-                PRINT 'Python bot will detect trigger from LogBackupTriggerQueue.';
-            END CATCH
-        END CATCH
+        PRINT 'Log backup trigger queued for Python processing.';
 
         DECLARE @EndTime DATETIME = GETDATE();
         DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);
