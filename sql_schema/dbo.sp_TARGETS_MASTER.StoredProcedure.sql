@@ -5,12 +5,19 @@ BEGIN
 EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_TARGETS_MASTER] AS' 
 END
 ALTER PROCEDURE [dbo].[sp_TARGETS_MASTER]
+	@KVK [int] = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
     PRINT N'DBG: sp_TARGETS_MASTER start';
     SET ANSI_WARNINGS OFF;
+
+    -- Log the mode (full vs incremental)
+    IF @KVK IS NULL
+        PRINT N'MODE: Full refresh (all KVKs)';
+    ELSE
+        PRINT CONCAT('MODE: Incremental refresh (KVK ', CAST(@KVK AS NVARCHAR(20)), ' only)');
 
     BEGIN TRY
         -- Defensive cursor cleanup (handles both local/global)
@@ -25,22 +32,26 @@ BEGIN
             DEALLOCATE kvk_cursor_master;
         END;
 
-        DECLARE @KVK INT
-              , @Now DATETIME = GETDATE()
+        DECLARE @Now DATETIME = GETDATE()
               , @ConfiguredScan FLOAT
               , @DraftScan FLOAT
               , @MaxAvailableScan FLOAT
               , @Scan FLOAT;
 
         -- Build the KVK list from ANY of the two keys so we don't miss ones with only DRAFTSCAN
+        -- Filter by @KVK parameter if provided
         DECLARE kvk_cursor_master CURSOR LOCAL FAST_FORWARD FOR
             SELECT DISTINCT KVKVersion
             FROM dbo.ProcConfig
-            WHERE ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
+            WHERE ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN')
+              AND (@KVK IS NULL OR KVKVersion = @KVK)  -- Filter by specific KVK if provided
+            ORDER BY KVKVersion;
 
         -- Create delta tables once
+		SET ANSI_WARNINGS ON;
         PRINT N'Calling CREATE_DELTA_TABLES';
         EXEC dbo.CREATE_DELTA_TABLES;
+		SET ANSI_WARNINGS OFF;
 
         OPEN kvk_cursor_master;
         FETCH NEXT FROM kvk_cursor_master INTO @KVK;
@@ -193,6 +204,7 @@ BEGIN
         END
 
         SET ANSI_WARNINGS ON;
+        PRINT N'DBG: sp_TARGETS_MASTER complete';
     END TRY
     BEGIN CATCH
         IF CURSOR_STATUS('global', 'kvk_cursor_master') >= -1
@@ -215,3 +227,4 @@ BEGIN
         THROW;
     END CATCH
 END
+
