@@ -56,9 +56,9 @@ SET NOCOUNT ON;
         DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
         DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
-        DELETE k
-        FROM dbo.K4ALL k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k4a
+        FROM dbo.K4ALL k4a
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k4a.GovernorID;
 
         ;WITH RankedAll AS (
             SELECT k.GovernorID,
@@ -74,9 +74,9 @@ SET NOCOUNT ON;
         SELECT GovernorID, GovernorName, [T4_KILLS], ScanDate, RowAscALL, RowDescALL
         FROM RankedAll;
 
-        DELETE k
-        FROM dbo.K412 k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k412
+        FROM dbo.K412 k412
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k412.GovernorID;
 
         ;WITH RankedK12 AS (
             SELECT k.GovernorID,
@@ -92,9 +92,9 @@ SET NOCOUNT ON;
         SELECT GovernorID, [T4_KILLS], ScanDate, RowAsc12, RowDesc12
         FROM RankedK12;
 
-        DELETE k
-        FROM dbo.K46 k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k46
+        FROM dbo.K46 k46
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k46.GovernorID;
 
         ;WITH RankedK6 AS (
             SELECT k.GovernorID,
@@ -110,9 +110,9 @@ SET NOCOUNT ON;
         SELECT GovernorID, [T4_KILLS], ScanDate, RowAsc6, RowDesc6
         FROM RankedK6;
 
-        DELETE k
-        FROM dbo.K43 k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k43
+        FROM dbo.K43 k43
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k43.GovernorID;
 
         ;WITH RankedK3 AS (
             SELECT k.GovernorID,
@@ -129,8 +129,8 @@ SET NOCOUNT ON;
         FROM RankedK3;
 
         ;WITH LatestPerGov AS (
-            SELECT GovernorID, GovernorName, PowerRank, [T4_KILLS],
-                   ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
+            SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.[T4_KILLS],
+                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
             INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
@@ -143,9 +143,9 @@ SET NOCOUNT ON;
             INSERT (GovernorID, GovernorName, POWERRank, [T4_KILLS])
             VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.[T4_KILLS]);
 
-        DELETE k
-        FROM dbo.K43D k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k43d
+        FROM dbo.K43D k43d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k43d.GovernorID;
         INSERT INTO dbo.K43D (GovernorID, [T4_KILLSDelta3Months])
         SELECT L.GovernorID,
                MAX(CASE WHEN K43.RowDesc3 = 1 THEN K43.[T4_KILLS] END) - MAX(CASE WHEN K43.RowAsc3 = 1 THEN K43.[T4_KILLS] END)
@@ -154,9 +154,9 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE k
-        FROM dbo.K46D k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k46d
+        FROM dbo.K46D k46d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k46d.GovernorID;
         INSERT INTO dbo.K46D (GovernorID, [T4_KILLSDelta6Months])
         SELECT L.GovernorID,
                MAX(CASE WHEN K46.RowDesc6 = 1 THEN K46.[T4_KILLS] END) - MAX(CASE WHEN K46.RowAsc6 = 1 THEN K46.[T4_KILLS] END)
@@ -165,9 +165,9 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE k
-        FROM dbo.K412D k
-        INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID;
+        DELETE k412d
+        FROM dbo.K412D k412d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = k412d.GovernorID;
         INSERT INTO dbo.K412D (GovernorID, [T4_KILLSDelta12Months])
         SELECT L.GovernorID,
                MAX(CASE WHEN K412.RowDesc12 = 1 THEN K412.[T4_KILLS] END) - MAX(CASE WHEN K412.RowAsc12 = 1 THEN K412.[T4_KILLS] END)
@@ -177,12 +177,12 @@ SET NOCOUNT ON;
         GROUP BY L.GovernorID;
 
         ;WITH FirstLastAll AS (
-            SELECT GovernorID,
-                   MAX(CASE WHEN RowAscALL = 1 THEN [T4_KILLS] END) AS StartingKills,
-                   MAX(CASE WHEN RowDescALL = 1 THEN [T4_KILLS] END) AS EndingKills
-            FROM dbo.K4ALL k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            GROUP BY GovernorID
+            SELECT k4a.GovernorID,
+                   MAX(CASE WHEN k4a.RowAscALL = 1 THEN k4a.[T4_KILLS] END) AS StartingKills,
+                   MAX(CASE WHEN k4a.RowDescALL = 1 THEN k4a.[T4_KILLS] END) AS EndingKills
+            FROM dbo.K4ALL k4a
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k4a.GovernorID
+            GROUP BY k4a.GovernorID
         ),
         Source AS (
             SELECT
@@ -221,35 +221,41 @@ SET NOCOUNT ON;
 
         DELETE FROM dbo.KILL4SUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILL4SUMMARY
+        INSERT INTO dbo.KILL4SUMMARY (GovernorID, GovernorName, POWERRank, [T4_KILLS], [StartingT4_KILLS], [OverallT4_KILLSDelta], [T4_KILLSDelta12Months], [T4_KILLSDelta6Months], [T4_KILLSDelta3Months])
         SELECT 999999997, 'Top50', 50,
-               ROUND(AVG([T4_KILLS]), 0),
-               ROUND(AVG([StartingT4_KILLS]), 0),
-               ROUND(AVG([OverallT4_KILLSDelta]), 0),
-               ROUND(AVG([T4_KILLSDelta12Months]), 0),
-               ROUND(AVG([T4_KILLSDelta6Months]), 0),
-               ROUND(AVG([T4_KILLSDelta3Months]), 0)
-        FROM dbo.KILL4SUMMARY WHERE POWERRank <= 50;
+               ROUND(AVG(K4.[T4_KILLS]), 0),
+               ROUND(AVG(K4.[StartingT4_KILLS]), 0),
+               ROUND(AVG(K4.[OverallT4_KILLSDelta]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta12Months]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta6Months]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta3Months]), 0)
+        FROM dbo.KILL4SUMMARY AS K4 
+        WHERE K4.POWERRank <= 50
+          AND K4.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILL4SUMMARY
+        INSERT INTO dbo.KILL4SUMMARY (GovernorID, GovernorName, POWERRank, [T4_KILLS], [StartingT4_KILLS], [OverallT4_KILLSDelta], [T4_KILLSDelta12Months], [T4_KILLSDelta6Months], [T4_KILLSDelta3Months])
         SELECT 999999998, 'Top100', 100,
-               ROUND(AVG([T4_KILLS]), 0),
-               ROUND(AVG([StartingT4_KILLS]), 0),
-               ROUND(AVG([OverallT4_KILLSDelta]), 0),
-               ROUND(AVG([T4_KILLSDelta12Months]), 0),
-               ROUND(AVG([T4_KILLSDelta6Months]), 0),
-               ROUND(AVG([T4_KILLSDelta3Months]), 0)
-        FROM dbo.KILL4SUMMARY WHERE POWERRank <= 100;
+               ROUND(AVG(K4.[T4_KILLS]), 0),
+               ROUND(AVG(K4.[StartingT4_KILLS]), 0),
+               ROUND(AVG(K4.[OverallT4_KILLSDelta]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta12Months]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta6Months]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta3Months]), 0)
+        FROM dbo.KILL4SUMMARY AS K4 
+        WHERE K4.POWERRank <= 100
+          AND K4.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILL4SUMMARY
+        INSERT INTO dbo.KILL4SUMMARY (GovernorID, GovernorName, POWERRank, [T4_KILLS], [StartingT4_KILLS], [OverallT4_KILLSDelta], [T4_KILLSDelta12Months], [T4_KILLSDelta6Months], [T4_KILLSDelta3Months])
         SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG([T4_KILLS]), 0),
-               ROUND(AVG([StartingT4_KILLS]), 0),
-               ROUND(AVG([OverallT4_KILLSDelta]), 0),
-               ROUND(AVG([T4_KILLSDelta12Months]), 0),
-               ROUND(AVG([T4_KILLSDelta6Months]), 0),
-               ROUND(AVG([T4_KILLSDelta3Months]), 0)
-        FROM dbo.KILL4SUMMARY WHERE POWERRank <= 150;
+               ROUND(AVG(K4.[T4_KILLS]), 0),
+               ROUND(AVG(K4.[StartingT4_KILLS]), 0),
+               ROUND(AVG(K4.[OverallT4_KILLSDelta]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta12Months]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta6Months]), 0),
+               ROUND(AVG(K4.[T4_KILLSDelta3Months]), 0)
+        FROM dbo.KILL4SUMMARY AS K4 
+        WHERE K4.POWERRank <= 150
+          AND K4.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S

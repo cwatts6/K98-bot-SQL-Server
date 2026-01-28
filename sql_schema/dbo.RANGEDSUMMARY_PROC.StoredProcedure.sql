@@ -52,20 +52,32 @@ BEGIN
         DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
         ------------------------------------------------------------
-        -- 1) Insert new raw rows into RANGED_ALL (only new scans)
+        -- 1) RANGED_ALL: Delete and rebuild for affected governors
         ------------------------------------------------------------
+        DELETE ra
+        FROM dbo.RANGED_ALL ra
+        INNER JOIN #AffectedGovs a ON a.GovernorID = ra.GovernorID;
+
+        ;WITH RankedAll AS (
+            SELECT k.GovernorID,
+                   k.GovernorName,
+                   k.RangedPoints,
+                   k.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAscALL,
+                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDescALL
+            FROM dbo.KingdomScanData4 k
+            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+        )
         INSERT INTO dbo.RANGED_ALL (GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL)
-        SELECT k.GovernorID, k.GovernorName, k.RangedPoints, k.ScanDate, NULL, NULL
-        FROM dbo.KingdomScanData4 k
-        INNER JOIN #AffectedGovs a ON k.GovernorID = a.GovernorID
-        WHERE k.ScanOrder > @LastProcessed;
+        SELECT GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL
+        FROM RankedAll;
 
         ------------------------------------------------------------
         -- 2) Update RANGED_LATEST for affected governors (upsert)
         ------------------------------------------------------------
         ;WITH LatestPerGov AS (
-            SELECT GovernorID, GovernorName, PowerRank, RangedPoints,
-                   ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
+            SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.RangedPoints,
+                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
             INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
@@ -168,37 +180,30 @@ BEGIN
         ------------------------------------------------------------
         -- 5) Upsert RANGEDSUMMARY rows for affected governors
         ------------------------------------------------------------
-        ;WITH Latest AS (
-            SELECT GovernorID, GovernorName, PowerRank, RangedPoints,
-                   ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-        ),
-        FirstScan AS (
-            SELECT GovernorID, RangedPoints AS FirstRanged
-            FROM (
-                SELECT GovernorID, RangedPoints,
-                       ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder ASC) AS rn
-                FROM dbo.KingdomScanData4 k
-                INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            ) t WHERE rn = 1
+        ;WITH FirstLastAll AS (
+            SELECT ra.GovernorID,
+                   MAX(CASE WHEN ra.RowAscALL = 1 THEN ra.RangedPoints END) AS StartingRanged,
+                   MAX(CASE WHEN ra.RowDescALL = 1 THEN ra.RangedPoints END) AS EndingRanged
+            FROM dbo.RANGED_ALL ra
+            INNER JOIN #AffectedGovs a ON a.GovernorID = ra.GovernorID
+            GROUP BY ra.GovernorID
         ),
         Source AS (
             SELECT
                 L.GovernorID,
                 L.GovernorName,
                 L.PowerRank,
-                L.RangedPoints AS LatestRanged,
-                F.FirstRanged,
-                (L.RangedPoints - F.FirstRanged) AS OverallRangedDelta,
-                ISNULL(R12.R12,0) AS RangedDelta12Months,
-                ISNULL(R6.R6,0)  AS RangedDelta6Months,
-                ISNULL(R3.R3,0)  AS RangedDelta3Months
-            FROM (SELECT GovernorID, GovernorName, PowerRank, RangedPoints FROM Latest WHERE rn=1) L
-            LEFT JOIN FirstScan F ON L.GovernorID = F.GovernorID
-            LEFT JOIN (SELECT GovernorID, RangedPointsDelta12Months AS R12 FROM dbo.RANGED_D12D) R12 ON L.GovernorID = R12.GovernorID
-            LEFT JOIN (SELECT GovernorID, RangedPointsDelta6Months AS R6 FROM dbo.RANGED_D6D) R6 ON L.GovernorID = R6.GovernorID
-            LEFT JOIN (SELECT GovernorID, RangedPointsDelta3Months AS R3 FROM dbo.RANGED_D3D) R3 ON L.GovernorID = R3.GovernorID
+                L.RangedPoints,
+                F.StartingRanged,
+                F.EndingRanged - F.StartingRanged AS OverallRangedDelta,
+                ISNULL(R12D.RangedPointsDelta12Months, 0) AS RangedDelta12Months,
+                ISNULL(R6D.RangedPointsDelta6Months, 0) AS RangedDelta6Months,
+                ISNULL(R3D.RangedPointsDelta3Months, 0) AS RangedDelta3Months
+            FROM dbo.RANGED_LATEST L
+            INNER JOIN FirstLastAll F ON L.GovernorID = F.GovernorID
+            LEFT JOIN dbo.RANGED_D12D R12D ON L.GovernorID = R12D.GovernorID
+            LEFT JOIN dbo.RANGED_D6D R6D ON L.GovernorID = R6D.GovernorID
+            LEFT JOIN dbo.RANGED_D3D R3D ON L.GovernorID = R3D.GovernorID
             INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         )
         MERGE dbo.RANGEDSUMMARY AS T
@@ -208,50 +213,56 @@ BEGIN
             UPDATE SET
                 GovernorName = S.GovernorName,
                 PowerRank = S.PowerRank,
-                RangedPoints = S.LatestRanged,
-                StartingRanged = S.FirstRanged,
+                RangedPoints = S.RangedPoints,
+                StartingRanged = S.StartingRanged,
                 OverallRangedDelta = S.OverallRangedDelta,
                 RangedDelta12Months = S.RangedDelta12Months,
                 RangedDelta6Months = S.RangedDelta6Months,
                 RangedDelta3Months = S.RangedDelta3Months
         WHEN NOT MATCHED THEN
             INSERT (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
-            VALUES (S.GovernorID, S.GovernorName, S.PowerRank, S.LatestRanged, S.FirstRanged, S.OverallRangedDelta, S.RangedDelta12Months, S.RangedDelta6Months, S.RangedDelta3Months);
+            VALUES (S.GovernorID, S.GovernorName, S.PowerRank, S.RangedPoints, S.StartingRanged, S.OverallRangedDelta, S.RangedDelta12Months, S.RangedDelta6Months, S.RangedDelta3Months);
 
         ------------------------------------------------------------
         -- 6) Refresh Top50/Top100/Kingdom-Average rows
         ------------------------------------------------------------
         DELETE FROM dbo.RANGEDSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.RANGEDSUMMARY
+        INSERT INTO dbo.RANGEDSUMMARY (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
         SELECT 999999997, 'Top50', 50,
-               ROUND(AVG(RangedPoints), 0),
-               ROUND(AVG(StartingRanged), 0),
-               ROUND(AVG(OverallRangedDelta), 0),
-               ROUND(AVG(RangedDelta12Months), 0),
-               ROUND(AVG(RangedDelta6Months), 0),
-               ROUND(AVG(RangedDelta3Months), 0)
-        FROM dbo.RANGEDSUMMARY WHERE PowerRank <= 50;
+               ROUND(AVG(R.RangedPoints), 0),
+               ROUND(AVG(R.StartingRanged), 0),
+               ROUND(AVG(R.OverallRangedDelta), 0),
+               ROUND(AVG(R.RangedDelta12Months), 0),
+               ROUND(AVG(R.RangedDelta6Months), 0),
+               ROUND(AVG(R.RangedDelta3Months), 0)
+        FROM dbo.RANGEDSUMMARY AS R 
+        WHERE R.PowerRank <= 50
+          AND R.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.RANGEDSUMMARY
+        INSERT INTO dbo.RANGEDSUMMARY (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
         SELECT 999999998, 'Top100', 100,
-               ROUND(AVG(RangedPoints), 0),
-               ROUND(AVG(StartingRanged), 0),
-               ROUND(AVG(OverallRangedDelta), 0),
-               ROUND(AVG(RangedDelta12Months), 0),
-               ROUND(AVG(RangedDelta6Months), 0),
-               ROUND(AVG(RangedDelta3Months), 0)
-        FROM dbo.RANGEDSUMMARY WHERE PowerRank <= 100;
+               ROUND(AVG(R.RangedPoints), 0),
+               ROUND(AVG(R.StartingRanged), 0),
+               ROUND(AVG(R.OverallRangedDelta), 0),
+               ROUND(AVG(R.RangedDelta12Months), 0),
+               ROUND(AVG(R.RangedDelta6Months), 0),
+               ROUND(AVG(R.RangedDelta3Months), 0)
+        FROM dbo.RANGEDSUMMARY AS R 
+        WHERE R.PowerRank <= 100
+          AND R.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.RANGEDSUMMARY
+        INSERT INTO dbo.RANGEDSUMMARY (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
         SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG(RangedPoints), 0),
-               ROUND(AVG(StartingRanged), 0),
-               ROUND(AVG(OverallRangedDelta), 0),
-               ROUND(AVG(RangedDelta12Months), 0),
-               ROUND(AVG(RangedDelta6Months), 0),
-               ROUND(AVG(RangedDelta3Months), 0)
-        FROM dbo.RANGEDSUMMARY WHERE PowerRank <= 150;
+               ROUND(AVG(R.RangedPoints), 0),
+               ROUND(AVG(R.StartingRanged), 0),
+               ROUND(AVG(R.OverallRangedDelta), 0),
+               ROUND(AVG(R.RangedDelta12Months), 0),
+               ROUND(AVG(R.RangedDelta6Months), 0),
+               ROUND(AVG(R.RangedDelta3Months), 0)
+        FROM dbo.RANGEDSUMMARY AS R 
+        WHERE R.PowerRank <= 150
+          AND R.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         ------------------------------------------------------------
         -- 7) Persist new LastScanOrder into control table

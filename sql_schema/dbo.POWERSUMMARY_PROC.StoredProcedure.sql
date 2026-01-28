@@ -55,9 +55,9 @@ SET NOCOUNT ON;
         DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
         DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
-        DELETE p
-        FROM dbo.PALL p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE pa
+        FROM dbo.PALL pa
+        INNER JOIN #AffectedGovs a ON a.GovernorID = pa.GovernorID;
 
         ;WITH RankedAll AS (
             SELECT k.GovernorID,
@@ -73,9 +73,9 @@ SET NOCOUNT ON;
         SELECT GovernorID, GovernorName, [POWER], ScanDate, RowAscALL, RowDescALL
         FROM RankedAll;
 
-        DELETE p
-        FROM dbo.P12 p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE p12
+        FROM dbo.P12 p12
+        INNER JOIN #AffectedGovs a ON a.GovernorID = p12.GovernorID;
 
         ;WITH RankedP12 AS (
             SELECT k.GovernorID,
@@ -91,9 +91,9 @@ SET NOCOUNT ON;
         SELECT GovernorID, [POWER], ScanDate, RowAsc12, RowDesc12
         FROM RankedP12;
 
-        DELETE p
-        FROM dbo.P6 p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE p6
+        FROM dbo.P6 p6
+        INNER JOIN #AffectedGovs a ON a.GovernorID = p6.GovernorID;
 
         ;WITH RankedP6 AS (
             SELECT k.GovernorID,
@@ -109,9 +109,9 @@ SET NOCOUNT ON;
         SELECT GovernorID, [POWER], ScanDate, RowAsc6, RowDesc6
         FROM RankedP6;
 
-        DELETE p
-        FROM dbo.P3 p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE p3
+        FROM dbo.P3 p3
+        INNER JOIN #AffectedGovs a ON a.GovernorID = p3.GovernorID;
 
         ;WITH RankedP3 AS (
             SELECT k.GovernorID,
@@ -128,8 +128,8 @@ SET NOCOUNT ON;
         FROM RankedP3;
 
         ;WITH LatestPerGov AS (
-            SELECT GovernorID, GovernorName, PowerRank, [POWER],
-                   ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
+            SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.[POWER],
+                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
             FROM dbo.KingdomScanData4 k
             INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
         )
@@ -142,9 +142,9 @@ SET NOCOUNT ON;
             INSERT (GovernorID, GovernorName, PowerRank, [POWER])
             VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.[POWER]);
 
-        DELETE p
-        FROM dbo.P3D p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE p3d
+        FROM dbo.P3D p3d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = p3d.GovernorID;
         INSERT INTO dbo.P3D (GovernorID, POWERDelta3Months)
         SELECT L.GovernorID,
                MAX(CASE WHEN P3.RowDesc3 = 1 THEN P3.[POWER] END) - MAX(CASE WHEN P3.RowAsc3 = 1 THEN P3.[POWER] END)
@@ -153,9 +153,9 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE p
-        FROM dbo.P6D p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE p6d
+        FROM dbo.P6D p6d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = p6d.GovernorID;
         INSERT INTO dbo.P6D (GovernorID, POWERDelta6Months)
         SELECT L.GovernorID,
                MAX(CASE WHEN P6.RowDesc6 = 1 THEN P6.[POWER] END) - MAX(CASE WHEN P6.RowAsc6 = 1 THEN P6.[POWER] END)
@@ -164,9 +164,9 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
-        DELETE p
-        FROM dbo.P12D p
-        INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID;
+        DELETE p12d
+        FROM dbo.P12D p12d
+        INNER JOIN #AffectedGovs a ON a.GovernorID = p12d.GovernorID;
         INSERT INTO dbo.P12D (GovernorID, POWERDelta12Months)
         SELECT L.GovernorID,
                MAX(CASE WHEN P12.RowDesc12 = 1 THEN P12.[POWER] END) - MAX(CASE WHEN P12.RowAsc12 = 1 THEN P12.[POWER] END)
@@ -176,12 +176,12 @@ SET NOCOUNT ON;
         GROUP BY L.GovernorID;
 
         ;WITH FirstLastAll AS (
-            SELECT GovernorID,
-                   MAX(CASE WHEN RowAscALL = 1 THEN [POWER] END) AS StartingPOWER,
-                   MAX(CASE WHEN RowDescALL = 1 THEN [POWER] END) AS EndingPOWER
-            FROM dbo.PALL p
-            INNER JOIN #AffectedGovs a ON a.GovernorID = p.GovernorID
-            GROUP BY GovernorID
+            SELECT pa.GovernorID,
+                   MAX(CASE WHEN pa.RowAscALL = 1 THEN pa.[POWER] END) AS StartingPOWER,
+                   MAX(CASE WHEN pa.RowDescALL = 1 THEN pa.[POWER] END) AS EndingPOWER
+            FROM dbo.PALL pa
+            INNER JOIN #AffectedGovs a ON a.GovernorID = pa.GovernorID
+            GROUP BY pa.GovernorID
         ),
         Source AS (
             SELECT
@@ -220,35 +220,41 @@ SET NOCOUNT ON;
 
         DELETE FROM dbo.POWERSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.POWERSUMMARY
+        INSERT INTO dbo.POWERSUMMARY (GovernorID, GovernorName, PowerRank, [POWER], StartingPOWER, OverallPOWERDelta, POWERDelta12Months, POWERDelta6Months, POWERDelta3Months)
         SELECT 999999997, 'Top50', 50,
-               ROUND(AVG([POWER]), 0),
-               ROUND(AVG(StartingPOWER), 0),
-               ROUND(AVG(OverallPOWERDelta), 0),
-               ROUND(AVG(POWERDelta12Months), 0),
-               ROUND(AVG(POWERDelta6Months), 0),
-               ROUND(AVG(POWERDelta3Months), 0)
-        FROM dbo.POWERSUMMARY WHERE PowerRank <= 50;
+               ROUND(AVG(P.[POWER]), 0),
+               ROUND(AVG(P.StartingPOWER), 0),
+               ROUND(AVG(P.OverallPOWERDelta), 0),
+               ROUND(AVG(P.POWERDelta12Months), 0),
+               ROUND(AVG(P.POWERDelta6Months), 0),
+               ROUND(AVG(P.POWERDelta3Months), 0)
+        FROM dbo.POWERSUMMARY AS P 
+        WHERE P.PowerRank <= 50
+          AND P.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.POWERSUMMARY
+        INSERT INTO dbo.POWERSUMMARY (GovernorID, GovernorName, PowerRank, [POWER], StartingPOWER, OverallPOWERDelta, POWERDelta12Months, POWERDelta6Months, POWERDelta3Months)
         SELECT 999999998, 'Top100', 100,
-               ROUND(AVG([POWER]), 0),
-               ROUND(AVG(StartingPOWER), 0),
-               ROUND(AVG(OverallPOWERDelta), 0),
-               ROUND(AVG(POWERDelta12Months), 0),
-               ROUND(AVG(POWERDelta6Months), 0),
-               ROUND(AVG(POWERDelta3Months), 0)
-        FROM dbo.POWERSUMMARY WHERE PowerRank <= 100;
+               ROUND(AVG(P.[POWER]), 0),
+               ROUND(AVG(P.StartingPOWER), 0),
+               ROUND(AVG(P.OverallPOWERDelta), 0),
+               ROUND(AVG(P.POWERDelta12Months), 0),
+               ROUND(AVG(P.POWERDelta6Months), 0),
+               ROUND(AVG(P.POWERDelta3Months), 0)
+        FROM dbo.POWERSUMMARY AS P 
+        WHERE P.PowerRank <= 100
+          AND P.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.POWERSUMMARY
+        INSERT INTO dbo.POWERSUMMARY (GovernorID, GovernorName, PowerRank, [POWER], StartingPOWER, OverallPOWERDelta, POWERDelta12Months, POWERDelta6Months, POWERDelta3Months)
         SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG([POWER]), 0),
-               ROUND(AVG(StartingPOWER), 0),
-               ROUND(AVG(OverallPOWERDelta), 0),
-               ROUND(AVG(POWERDelta12Months), 0),
-               ROUND(AVG(POWERDelta6Months), 0),
-               ROUND(AVG(POWERDelta3Months), 0)
-        FROM dbo.POWERSUMMARY WHERE PowerRank <= 150;
+               ROUND(AVG(P.[POWER]), 0),
+               ROUND(AVG(P.StartingPOWER), 0),
+               ROUND(AVG(P.OverallPOWERDelta), 0),
+               ROUND(AVG(P.POWERDelta12Months), 0),
+               ROUND(AVG(P.POWERDelta6Months), 0),
+               ROUND(AVG(P.POWERDelta3Months), 0)
+        FROM dbo.POWERSUMMARY AS P 
+        WHERE P.PowerRank <= 150
+          AND P.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S

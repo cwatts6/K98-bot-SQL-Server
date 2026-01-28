@@ -37,8 +37,8 @@ BEGIN
         WHERE ScanOrder > @LastProcessed
           AND GovernorID <> 0;
 
-        CREATE CLUSTERED INDEX IX_AffectedGovs_KP_GovernorID ON #AffectedGovs_KP (GovernorID);
-
+		CREATE CLUSTERED INDEX IX_AffectedGovs_KP_GovernorID ON #AffectedGovs_KP (GovernorID);
+		
         IF NOT EXISTS (SELECT 1 FROM #AffectedGovs_KP)
         BEGIN
             MERGE dbo.SUMMARY_PROC_STATE AS T
@@ -56,9 +56,9 @@ BEGIN
         DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
         DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
-        DELETE k
-        FROM dbo.KILLPOINTS_ALL k
-        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID;
+        DELETE kp
+        FROM dbo.KILLPOINTS_ALL kp
+        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = kp.GovernorID;
 
         ;WITH RankedAll AS (
             SELECT k.GovernorID,
@@ -74,9 +74,9 @@ BEGIN
         SELECT GovernorID, GovernorName, KillPoints, ScanDate, RowAscALL, RowDescALL
         FROM RankedAll;
 
-        DELETE k
-        FROM dbo.KILLPOINTS_D12 k
-        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID;
+        DELETE kp
+        FROM dbo.KILLPOINTS_D12 kp
+        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = kp.GovernorID;
 
         ;WITH RankedD12 AS (
             SELECT k.GovernorID,
@@ -92,9 +92,9 @@ BEGIN
         SELECT GovernorID, KillPoints, ScanDate, RowAsc12, RowDesc12
         FROM RankedD12;
 
-        DELETE k
-        FROM dbo.KILLPOINTS_D6 k
-        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID;
+        DELETE kp
+        FROM dbo.KILLPOINTS_D6 kp
+        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = kp.GovernorID;
 
         ;WITH RankedD6 AS (
             SELECT k.GovernorID,
@@ -110,9 +110,9 @@ BEGIN
         SELECT GovernorID, KillPoints, ScanDate, RowAsc6, RowDesc6
         FROM RankedD6;
 
-        DELETE k
-        FROM dbo.KILLPOINTS_D3 k
-        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID;
+        DELETE kp
+        FROM dbo.KILLPOINTS_D3 kp
+        INNER JOIN #AffectedGovs_KP a ON a.GovernorID = kp.GovernorID;
 
         ;WITH RankedD3 AS (
             SELECT k.GovernorID,
@@ -128,20 +128,20 @@ BEGIN
         SELECT GovernorID, KillPoints, ScanDate, RowAsc3, RowDesc3
         FROM RankedD3;
 
-        ;WITH LatestPerGov AS (
-            SELECT GovernorID, GovernorName, PowerRank, KillPoints,
-                   ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID
-        )
-        MERGE dbo.KILLPOINTS_LATEST AS tgt
-        USING (SELECT GovernorID, GovernorName, PowerRank, KillPoints FROM LatestPerGov WHERE rn = 1) AS src
-        ON tgt.GovernorID = src.GovernorID
-        WHEN MATCHED THEN
-            UPDATE SET GovernorName = src.GovernorName, PowerRank = src.PowerRank, KillPoints = src.KillPoints
-        WHEN NOT MATCHED THEN
-            INSERT (GovernorID, GovernorName, PowerRank, KillPoints)
-            VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.KillPoints);
+		;WITH LatestPerGov AS (
+			SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.KillPoints,
+				   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
+			FROM dbo.KingdomScanData4 k
+			INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID
+		)
+		MERGE dbo.KILLPOINTS_LATEST AS tgt
+		USING (SELECT GovernorID, GovernorName, PowerRank, KillPoints FROM LatestPerGov WHERE rn = 1) AS src
+		ON tgt.GovernorID = src.GovernorID
+		WHEN MATCHED THEN
+			UPDATE SET GovernorName = src.GovernorName, PowerRank = src.PowerRank, KillPoints = src.KillPoints
+		WHEN NOT MATCHED THEN
+			INSERT (GovernorID, GovernorName, PowerRank, KillPoints)
+			VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.KillPoints);
 
         DELETE d
         FROM dbo.KILLPOINTS_D3D d
@@ -177,12 +177,12 @@ BEGIN
         GROUP BY L.GovernorID;
 
         ;WITH FirstLastAll AS (
-            SELECT GovernorID,
-                   MAX(CASE WHEN RowAscALL = 1 THEN KillPoints END) AS StartingKillPoints,
-                   MAX(CASE WHEN RowDescALL = 1 THEN KillPoints END) AS EndingKillPoints
-            FROM dbo.KILLPOINTS_ALL k
-            INNER JOIN #AffectedGovs_KP a ON a.GovernorID = k.GovernorID
-            GROUP BY k.GovernorID
+            SELECT kp.GovernorID,
+                   MAX(CASE WHEN kp.RowAscALL = 1 THEN kp.KillPoints END) AS StartingKillPoints,
+                   MAX(CASE WHEN kp.RowDescALL = 1 THEN kp.KillPoints END) AS EndingKillPoints
+            FROM dbo.KILLPOINTS_ALL kp
+            INNER JOIN #AffectedGovs_KP a ON a.GovernorID = kp.GovernorID
+            GROUP BY kp.GovernorID
         ),
         Source AS (
             SELECT
@@ -219,37 +219,43 @@ BEGIN
             INSERT (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
             VALUES (S.GovernorID, S.GovernorName, S.PowerRank, S.KillPoints, S.StartingKillPoints, S.OverallKillPointsDelta, S.KillPointsDelta12Months, S.KillPointsDelta6Months, S.KillPointsDelta3Months);
 
-        DELETE FROM dbo.KILLPOINTSSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
+		DELETE FROM dbo.KILLPOINTSSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
-        SELECT 999999997, 'Top50', 50,
-               ROUND(AVG(KP.KillPoints), 0),
-               ROUND(AVG(KP.StartingKillPoints), 0),
-               ROUND(AVG(KP.OverallKillPointsDelta), 0),
-               ROUND(AVG(KP.KillPointsDelta12Months), 0),
-               ROUND(AVG(KP.KillPointsDelta6Months), 0),
-               ROUND(AVG(KP.KillPointsDelta3Months), 0)
-        FROM dbo.KILLPOINTSSUMMARY KP WHERE PowerRank <= 50;
+		INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
+		SELECT 999999997, 'Top50', 50,
+			   ROUND(AVG(KP.KillPoints), 0),
+			   ROUND(AVG(KP.StartingKillPoints), 0),
+			   ROUND(AVG(KP.OverallKillPointsDelta), 0),
+			   ROUND(AVG(KP.KillPointsDelta12Months), 0),
+			   ROUND(AVG(KP.KillPointsDelta6Months), 0),
+			   ROUND(AVG(KP.KillPointsDelta3Months), 0)
+		FROM dbo.KILLPOINTSSUMMARY AS KP
+		WHERE KP.PowerRank <= 50 
+		  AND KP.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
-        SELECT 999999998, 'Top100', 100,
-               ROUND(AVG(KP.KillPoints), 0),
-               ROUND(AVG(KP.StartingKillPoints), 0),
-               ROUND(AVG(KP.OverallKillPointsDelta), 0),
-               ROUND(AVG(KP.KillPointsDelta12Months), 0),
-               ROUND(AVG(KP.KillPointsDelta6Months), 0),
-               ROUND(AVG(KP.KillPointsDelta3Months), 0)
-        FROM dbo.KILLPOINTSSUMMARY KP WHERE PowerRank <= 100;
+		INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
+		SELECT 999999998, 'Top100', 100,
+			   ROUND(AVG(KP.KillPoints), 0),
+			   ROUND(AVG(KP.StartingKillPoints), 0),
+			   ROUND(AVG(KP.OverallKillPointsDelta), 0),
+			   ROUND(AVG(KP.KillPointsDelta12Months), 0),
+			   ROUND(AVG(KP.KillPointsDelta6Months), 0),
+			   ROUND(AVG(KP.KillPointsDelta3Months), 0)
+		FROM dbo.KILLPOINTSSUMMARY AS KP
+		WHERE KP.PowerRank <= 100
+		  AND KP.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
-        SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG(KP.KillPoints), 0),
-               ROUND(AVG(KP.StartingKillPoints), 0),
-               ROUND(AVG(KP.OverallKillPointsDelta), 0),
-               ROUND(AVG(KP.KillPointsDelta12Months), 0),
-               ROUND(AVG(KP.KillPointsDelta6Months), 0),
-               ROUND(AVG(KP.KillPointsDelta3Months), 0)
-        FROM dbo.KILLPOINTSSUMMARY KP WHERE PowerRank <= 150;
+		INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
+		SELECT 999999999, 'Kingdom Average', 150,
+			   ROUND(AVG(KP.KillPoints), 0),
+			   ROUND(AVG(KP.StartingKillPoints), 0),
+			   ROUND(AVG(KP.OverallKillPointsDelta), 0),
+			   ROUND(AVG(KP.KillPointsDelta12Months), 0),
+			   ROUND(AVG(KP.KillPointsDelta6Months), 0),
+			   ROUND(AVG(KP.KillPointsDelta3Months), 0)
+		FROM dbo.KILLPOINTSSUMMARY AS KP
+		WHERE KP.PowerRank <= 150
+		  AND KP.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S
@@ -266,3 +272,4 @@ BEGIN
         RETURN;
     END CATCH
 END;
+
