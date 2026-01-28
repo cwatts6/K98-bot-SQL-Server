@@ -227,6 +227,63 @@ BEGIN
         DECLARE @StepEnd DATETIME2;
         DECLARE @StepDuration INT;
 
+        -- *** NEW: Check log space at Phase B start ***
+        DECLARE @CurrentLogUsedPct DECIMAL(5,2) = NULL;
+        DECLARE @LogReuse NVARCHAR(60) = NULL;
+
+        BEGIN TRY
+            SELECT @CurrentLogUsedPct = CAST(used_log_space_in_percent AS DECIMAL(5,2))
+            FROM sys.dm_db_log_space_usage;
+        END TRY
+        BEGIN CATCH
+            -- Fallback to DBCC if DMV not available
+            BEGIN TRY
+                CREATE TABLE #LogSpace (
+                    DatabaseName NVARCHAR(128),
+                    LogSize DECIMAL(18,2),
+                    LogSpaceUsedPercent DECIMAL(5,2),
+                    Status INT
+                );
+                INSERT INTO #LogSpace EXEC('DBCC SQLPERF(LOGSPACE)');
+                SELECT @CurrentLogUsedPct = LogSpaceUsedPercent 
+                FROM #LogSpace 
+                WHERE DatabaseName = DB_NAME();
+                DROP TABLE #LogSpace;
+            END TRY
+            BEGIN CATCH
+                SET @CurrentLogUsedPct = NULL;
+            END CATCH
+        END CATCH
+
+        BEGIN TRY
+            SELECT @LogReuse = log_reuse_wait_desc
+            FROM sys.databases
+            WHERE name = DB_NAME();
+        END TRY
+        BEGIN CATCH
+            SET @LogReuse = NULL;
+        END CATCH
+
+        PRINT 'Phase B Start - Log Usage: ' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), 'unknown') + 
+              '%, Reuse Wait: ' + ISNULL(@LogReuse, 'unknown');
+
+        -- If log usage is high (>70%), force checkpoint before continuing
+        IF @CurrentLogUsedPct IS NOT NULL AND @CurrentLogUsedPct > 70.0
+        BEGIN
+            PRINT 'Log usage elevated (' + CAST(@CurrentLogUsedPct AS VARCHAR(10)) + 
+                  '%); executing CHECKPOINT before Phase B operations...';
+            CHECKPOINT;
+            
+            -- Log this event for monitoring
+            INSERT INTO dbo.ErrorAudit (ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo)
+            VALUES (
+                GETDATE(), 'UPDATE_ALL2', 0, 
+                'Elevated log usage detected at Phase B start', 0,
+                'Log usage: ' + CAST(@CurrentLogUsedPct AS VARCHAR(10)) + 
+                '%, Reuse wait: ' + ISNULL(@LogReuse, 'unknown')
+            );
+        END
+
         -- Step 1: CREATE_THE_AVERAGES
         SET @StepStart = SYSDATETIME();
         EXEC dbo.CREATE_THE_AVERAGES;
@@ -447,12 +504,90 @@ BEGIN
         FROM dbo.KingdomScanData4
         GROUP BY SCANORDER, ScanDate;
 
+        ----------------------------------------------------------------
+        -- *** NEW: Phase B Completion - Log Management ***
+        ----------------------------------------------------------------
+        
+        -- Force checkpoint to write dirty pages and minimize recovery time
+        PRINT 'Executing CHECKPOINT to flush dirty pages...';
+        CHECKPOINT;
+        PRINT 'CHECKPOINT complete.';
+
+        -- Get final log usage
+        DECLARE @FinalLogUsedPct DECIMAL(5,2) = NULL;
+        BEGIN TRY
+            SELECT @FinalLogUsedPct = CAST(used_log_space_in_percent AS DECIMAL(5,2))
+            FROM sys.dm_db_log_space_usage;
+        END TRY
+        BEGIN CATCH
+            -- Fallback to DBCC
+            BEGIN TRY
+                CREATE TABLE #LogSpaceFinal (
+                    DatabaseName NVARCHAR(128),
+                    LogSize DECIMAL(18,2),
+                    LogSpaceUsedPercent DECIMAL(5,2),
+                    Status INT
+                );
+                INSERT INTO #LogSpaceFinal EXEC('DBCC SQLPERF(LOGSPACE)');
+                SELECT @FinalLogUsedPct = LogSpaceUsedPercent 
+                FROM #LogSpaceFinal 
+                WHERE DatabaseName = DB_NAME();
+                DROP TABLE #LogSpaceFinal;
+            END TRY
+            BEGIN CATCH
+                SET @FinalLogUsedPct = NULL;
+            END CATCH
+        END CATCH
+
+        -- Insert signal record for Python bot to detect
+        IF OBJECT_ID('dbo.LogBackupTriggerQueue', 'U') IS NOT NULL
+        BEGIN
+            INSERT INTO dbo.LogBackupTriggerQueue (
+                TriggerTime, 
+                ProcedureName, 
+                Reason, 
+                LogUsedPctBefore
+            )
+            VALUES (
+                SYSDATETIME(), 
+                'UPDATE_ALL2', 
+                'post_heavy_operation',
+                @FinalLogUsedPct
+            );
+            PRINT 'Log backup trigger queued (log usage: ' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), 'unknown') + '%).';
+        END
+
+        -- Attempt to trigger log backup job (non-blocking, best effort)
+        DECLARE @LogBackupTriggered BIT = 0;
+        BEGIN TRY
+            -- Try wrapper first
+            EXEC msdb.dbo.usp_start_rok_tracker_log_backup;
+            PRINT 'Log backup job triggered via wrapper.';
+            SET @LogBackupTriggered = 1;
+        END TRY
+        BEGIN CATCH
+            BEGIN TRY
+                -- Fallback to direct job start
+                EXEC msdb.dbo.sp_start_job @job_name = 'ROK_TRACKER - LOG Backup';
+                PRINT 'Log backup job triggered via sp_start_job.';
+                SET @LogBackupTriggered = 1;
+            END TRY
+            BEGIN CATCH
+                -- Log but don't fail the procedure
+                PRINT 'Could not trigger log backup job: ' + ERROR_MESSAGE();
+                PRINT 'Python bot will detect trigger from LogBackupTriggerQueue.';
+            END CATCH
+        END CATCH
+
         DECLARE @EndTime DATETIME = GETDATE();
         DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);
         DECLARE @PhaseBDuration INT = DATEDIFF(MILLISECOND, @PhaseBStart, SYSDATETIME());
 
         PRINT '========================================';
         PRINT 'Phase B Total: ' + CAST(@PhaseBDuration AS VARCHAR(10)) + 'ms';
+        PRINT 'Log Usage: Initial=' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), 'unknown') + 
+              '%, Final=' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), 'unknown') + '%';
+        PRINT 'Log Backup Triggered: ' + CASE WHEN @LogBackupTriggered = 1 THEN 'Yes' ELSE 'No (queued for Python)' END;
         PRINT '========================================';
 
         INSERT INTO dbo.SP_TaskStatus (TaskName, Status, LastRunTime, LastRunCounter, DurationSeconds)
@@ -471,6 +606,9 @@ BEGIN
             @rowsKS4 AS RowsInsertedKS4,
             @DurationSeconds AS DurationSeconds,
             @PhaseBDuration AS PhaseBDurationMS,
+            @CurrentLogUsedPct AS LogUsedPctBefore,
+            @FinalLogUsedPct AS LogUsedPctAfter,
+            @LogBackupTriggered AS LogBackupTriggered,
             'SUCCESS' AS Status;
 
     END TRY
