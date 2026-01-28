@@ -128,20 +128,20 @@ BEGIN
         SELECT GovernorID, DEADS, ScanDate, RowAsc3, RowDesc3
         FROM RankedD3;
 
-        ;WITH LatestPerGov AS (
-            SELECT GovernorID, GovernorName, PowerRank, DEADS,
-                   ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-        )
-        MERGE dbo.LATEST AS tgt
-        USING (SELECT GovernorID, GovernorName, PowerRank, DEADS FROM LatestPerGov WHERE rn = 1) AS src
-        ON tgt.GovernorID = src.GovernorID
-        WHEN MATCHED THEN
-            UPDATE SET GovernorName = src.GovernorName, PowerRank = src.PowerRank, DEADS = src.DEADS
-        WHEN NOT MATCHED THEN
-            INSERT (GovernorID, GovernorName, PowerRank, DEADS)
-            VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.DEADS);
+		;WITH LatestPerGov AS (
+			SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.DEADS,
+				   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
+			FROM dbo.KingdomScanData4 k
+			INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+		)
+		MERGE dbo.LATEST AS tgt
+		USING (SELECT GovernorID, GovernorName, PowerRank, DEADS FROM LatestPerGov WHERE rn = 1) AS src
+		ON tgt.GovernorID = src.GovernorID
+		WHEN MATCHED THEN
+			UPDATE SET GovernorName = src.GovernorName, PowerRank = src.PowerRank, DEADS = src.DEADS
+		WHEN NOT MATCHED THEN
+			INSERT (GovernorID, GovernorName, PowerRank, DEADS)
+			VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.DEADS);
 
         DELETE d
         FROM dbo.D3D d
@@ -177,9 +177,9 @@ BEGIN
         GROUP BY L.GovernorID;
 
         ;WITH FirstLastAll AS (
-            SELECT GovernorID,
-                   MAX(CASE WHEN RowAscALL = 1 THEN DEADS END) AS StartingDEADS,
-                   MAX(CASE WHEN RowDescALL = 1 THEN DEADS END) AS EndingDEADS
+            SELECT d.GovernorID,
+                   MAX(CASE WHEN d.RowAscALL = 1 THEN d.DEADS END) AS StartingDEADS,
+                   MAX(CASE WHEN d.RowDescALL = 1 THEN d.DEADS END) AS EndingDEADS
             FROM dbo.DALL d
             INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID
             GROUP BY d.GovernorID
