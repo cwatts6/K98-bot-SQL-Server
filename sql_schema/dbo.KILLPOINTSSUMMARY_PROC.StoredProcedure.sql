@@ -221,35 +221,35 @@ BEGIN
 
         DELETE FROM dbo.KILLPOINTSSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILLPOINTSSUMMARY
+        INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
         SELECT 999999997, 'Top50', 50,
-               ROUND(AVG(KillPoints), 0),
-               ROUND(AVG(StartingKillPoints), 0),
-               ROUND(AVG(OverallKillPointsDelta), 0),
-               ROUND(AVG(KillPointsDelta12Months), 0),
-               ROUND(AVG(KillPointsDelta6Months), 0),
-               ROUND(AVG(KillPointsDelta3Months), 0)
-        FROM dbo.KILLPOINTSSUMMARY WHERE PowerRank <= 50;
+               ROUND(AVG(KP.KillPoints), 0),
+               ROUND(AVG(KP.StartingKillPoints), 0),
+               ROUND(AVG(KP.OverallKillPointsDelta), 0),
+               ROUND(AVG(KP.KillPointsDelta12Months), 0),
+               ROUND(AVG(KP.KillPointsDelta6Months), 0),
+               ROUND(AVG(KP.KillPointsDelta3Months), 0)
+        FROM dbo.KILLPOINTSSUMMARY KP WHERE PowerRank <= 50;
 
-        INSERT INTO dbo.KILLPOINTSSUMMARY
+        INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
         SELECT 999999998, 'Top100', 100,
-               ROUND(AVG(KillPoints), 0),
-               ROUND(AVG(StartingKillPoints), 0),
-               ROUND(AVG(OverallKillPointsDelta), 0),
-               ROUND(AVG(KillPointsDelta12Months), 0),
-               ROUND(AVG(KillPointsDelta6Months), 0),
-               ROUND(AVG(KillPointsDelta3Months), 0)
-        FROM dbo.KILLPOINTSSUMMARY WHERE PowerRank <= 100;
+               ROUND(AVG(KP.KillPoints), 0),
+               ROUND(AVG(KP.StartingKillPoints), 0),
+               ROUND(AVG(KP.OverallKillPointsDelta), 0),
+               ROUND(AVG(KP.KillPointsDelta12Months), 0),
+               ROUND(AVG(KP.KillPointsDelta6Months), 0),
+               ROUND(AVG(KP.KillPointsDelta3Months), 0)
+        FROM dbo.KILLPOINTSSUMMARY KP WHERE PowerRank <= 100;
 
-        INSERT INTO dbo.KILLPOINTSSUMMARY
+        INSERT INTO dbo.KILLPOINTSSUMMARY (GovernorID, GovernorName, PowerRank, KillPoints, StartingKillPoints, OverallKillPointsDelta, KillPointsDelta12Months, KillPointsDelta6Months, KillPointsDelta3Months)
         SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG(KillPoints), 0),
-               ROUND(AVG(StartingKillPoints), 0),
-               ROUND(AVG(OverallKillPointsDelta), 0),
-               ROUND(AVG(KillPointsDelta12Months), 0),
-               ROUND(AVG(KillPointsDelta6Months), 0),
-               ROUND(AVG(KillPointsDelta3Months), 0)
-        FROM dbo.KILLPOINTSSUMMARY WHERE PowerRank <= 150;
+               ROUND(AVG(KP.KillPoints), 0),
+               ROUND(AVG(KP.StartingKillPoints), 0),
+               ROUND(AVG(KP.OverallKillPointsDelta), 0),
+               ROUND(AVG(KP.KillPointsDelta12Months), 0),
+               ROUND(AVG(KP.KillPointsDelta6Months), 0),
+               ROUND(AVG(KP.KillPointsDelta3Months), 0)
+        FROM dbo.KILLPOINTSSUMMARY KP WHERE PowerRank <= 150;
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S

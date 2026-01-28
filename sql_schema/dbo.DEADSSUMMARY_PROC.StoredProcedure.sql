@@ -219,37 +219,43 @@ BEGIN
             INSERT (GovernorID, GovernorName, PowerRank, DEADS, StartingDEADS, OverallDEADSDelta, DEADSDelta12Months, DEADSDelta6Months, DEADSDelta3Months)
             VALUES (S.GovernorID, S.GovernorName, S.PowerRank, S.DEADS, S.StartingDEADS, S.OverallDEADSDelta, S.DEADSDelta12Months, S.DEADSDelta6Months, S.DEADSDelta3Months);
 
-        DELETE FROM dbo.DEADSSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
+		DELETE FROM dbo.DEADSSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.DEADSSUMMARY
-        SELECT 999999997, 'Top50', 50,
-               ROUND(AVG(DEADS), 0),
-               ROUND(AVG(StartingDEADS), 0),
-               ROUND(AVG(OverallDEADSDelta), 0),
-               ROUND(AVG(DEADSDelta12Months), 0),
-               ROUND(AVG(DEADSDelta6Months), 0),
-               ROUND(AVG(DEADSDelta3Months), 0)
-        FROM dbo.DEADSSUMMARY WHERE PowerRank <= 50;
+		INSERT INTO dbo.DEADSSUMMARY (GovernorID, GovernorName, PowerRank, DEADS, StartingDEADS, OverallDEADSDelta, DEADSDelta12Months, DEADSDelta6Months, DEADSDelta3Months)
+		SELECT 999999997, 'Top50', 50,
+			   ROUND(AVG(D.DEADS), 0),
+			   ROUND(AVG(D.StartingDEADS), 0),
+			   ROUND(AVG(D.OverallDEADSDelta), 0),
+			   ROUND(AVG(D.DEADSDelta12Months), 0),
+			   ROUND(AVG(D.DEADSDelta6Months), 0),
+			   ROUND(AVG(D.DEADSDelta3Months), 0)
+		FROM dbo.DEADSSUMMARY AS D
+		WHERE D.PowerRank <= 50 
+		  AND D.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.DEADSSUMMARY
-        SELECT 999999998, 'Top100', 100,
-               ROUND(AVG(DEADS), 0),
-               ROUND(AVG(StartingDEADS), 0),
-               ROUND(AVG(OverallDEADSDelta), 0),
-               ROUND(AVG(DEADSDelta12Months), 0),
-               ROUND(AVG(DEADSDelta6Months), 0),
-               ROUND(AVG(DEADSDelta3Months), 0)
-        FROM dbo.DEADSSUMMARY WHERE PowerRank <= 100;
+		INSERT INTO dbo.DEADSSUMMARY (GovernorID, GovernorName, PowerRank, DEADS, StartingDEADS, OverallDEADSDelta, DEADSDelta12Months, DEADSDelta6Months, DEADSDelta3Months)
+		SELECT 999999998, 'Top100', 100,
+			   ROUND(AVG(D.DEADS), 0),
+			   ROUND(AVG(D.StartingDEADS), 0),
+			   ROUND(AVG(D.OverallDEADSDelta), 0),
+			   ROUND(AVG(D.DEADSDelta12Months), 0),
+			   ROUND(AVG(D.DEADSDelta6Months), 0),
+			   ROUND(AVG(D.DEADSDelta3Months), 0)
+		FROM dbo.DEADSSUMMARY AS D
+		WHERE D.PowerRank <= 100
+		  AND D.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.DEADSSUMMARY
-        SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG(DEADS), 0),
-               ROUND(AVG(StartingDEADS), 0),
-               ROUND(AVG(OverallDEADSDelta), 0),
-               ROUND(AVG(DEADSDelta12Months), 0),
-               ROUND(AVG(DEADSDelta6Months), 0),
-               ROUND(AVG(DEADSDelta3Months), 0)
-        FROM dbo.DEADSSUMMARY WHERE PowerRank <= 150;
+		INSERT INTO dbo.DEADSSUMMARY (GovernorID, GovernorName, PowerRank, DEADS, StartingDEADS, OverallDEADSDelta, DEADSDelta12Months, DEADSDelta6Months, DEADSDelta3Months)
+		SELECT 999999999, 'Kingdom Average', 150,
+			   ROUND(AVG(D.DEADS), 0),
+			   ROUND(AVG(D.StartingDEADS), 0),
+			   ROUND(AVG(D.OverallDEADSDelta), 0),
+			   ROUND(AVG(D.DEADSDelta12Months), 0),
+			   ROUND(AVG(D.DEADSDelta6Months), 0),
+			   ROUND(AVG(D.DEADSDelta3Months), 0)
+		FROM dbo.DEADSSUMMARY AS D
+		WHERE D.PowerRank <= 150
+		  AND D.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S

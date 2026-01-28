@@ -243,37 +243,43 @@ BEGIN
         -- 6) Refresh Top50/Top100/Kingdom-Average summary rows
         --    Remove existing aggregated sentinel rows and re-insert
         ------------------------------------------------------------
-        DELETE FROM dbo.HEALEDSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
+			DELETE FROM dbo.HEALEDSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.HEALEDSUMMARY
-        SELECT 999999997, 'Top50', 50,
-               ROUND(AVG(HealedTroops), 0),
-               ROUND(AVG(StartingHealed), 0),
-               ROUND(AVG(OverallHealedDelta), 0),
-               ROUND(AVG(HealedDelta12Months), 0),
-               ROUND(AVG(HealedDelta6Months), 0),
-               ROUND(AVG(HealedDelta3Months), 0)
-        FROM dbo.HEALEDSUMMARY WHERE PowerRank <= 50;
+			INSERT INTO dbo.HEALEDSUMMARY (GovernorID, GovernorName, PowerRank, HealedTroops, StartingHealed, OverallHealedDelta, HealedDelta12Months, HealedDelta6Months, HealedDelta3Months)
+			SELECT 999999997, 'Top50', 50,
+				   ROUND(AVG(H.HealedTroops), 0),
+				   ROUND(AVG(H.StartingHealed), 0),
+				   ROUND(AVG(H.OverallHealedDelta), 0),
+				   ROUND(AVG(H.HealedDelta12Months), 0),
+				   ROUND(AVG(H.HealedDelta6Months), 0),
+				   ROUND(AVG(H.HealedDelta3Months), 0)
+			FROM dbo.HEALEDSUMMARY AS H
+			WHERE H.PowerRank <= 50
+			  AND H.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.HEALEDSUMMARY
-        SELECT 999999998, 'Top100', 100,
-               ROUND(AVG(HealedTroops), 0),
-               ROUND(AVG(StartingHealed), 0),
-               ROUND(AVG(OverallHealedDelta), 0),
-               ROUND(AVG(HealedDelta12Months), 0),
-               ROUND(AVG(HealedDelta6Months), 0),
-               ROUND(AVG(HealedDelta3Months), 0)
-        FROM dbo.HEALEDSUMMARY WHERE PowerRank <= 100;
+			INSERT INTO dbo.HEALEDSUMMARY (GovernorID, GovernorName, PowerRank, HealedTroops, StartingHealed, OverallHealedDelta, HealedDelta12Months, HealedDelta6Months, HealedDelta3Months)
+			SELECT 999999998, 'Top100', 100,
+				   ROUND(AVG(H.HealedTroops), 0),
+				   ROUND(AVG(H.StartingHealed), 0),
+				   ROUND(AVG(H.OverallHealedDelta), 0),
+				   ROUND(AVG(H.HealedDelta12Months), 0),
+				   ROUND(AVG(H.HealedDelta6Months), 0),
+				   ROUND(AVG(H.HealedDelta3Months), 0)
+			FROM dbo.HEALEDSUMMARY AS H
+			WHERE H.PowerRank <= 100
+			  AND H.GovernorID NOT IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.HEALEDSUMMARY
-        SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG(HealedTroops), 0),
-               ROUND(AVG(StartingHealed), 0),
-               ROUND(AVG(OverallHealedDelta), 0),
-               ROUND(AVG(HealedDelta12Months), 0),
-               ROUND(AVG(HealedDelta6Months), 0),
-               ROUND(AVG(HealedDelta3Months), 0)
-        FROM dbo.HEALEDSUMMARY WHERE PowerRank <= 150;
+			INSERT INTO dbo.HEALEDSUMMARY (GovernorID, GovernorName, PowerRank, HealedTroops, StartingHealed, OverallHealedDelta, HealedDelta12Months, HealedDelta6Months, HealedDelta3Months)
+			SELECT 999999999, 'Kingdom Average', 150,
+				   ROUND(AVG(H.HealedTroops), 0),
+				   ROUND(AVG(H.StartingHealed), 0),
+				   ROUND(AVG(H.OverallHealedDelta), 0),
+				   ROUND(AVG(H.HealedDelta12Months), 0),
+				   ROUND(AVG(H.HealedDelta6Months), 0),
+				   ROUND(AVG(H.HealedDelta3Months), 0)
+			FROM dbo.HEALEDSUMMARY AS H
+			WHERE H.PowerRank <= 150
+			  AND H.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         ------------------------------------------------------------
         -- 7) Persist new LastScanOrder into control table

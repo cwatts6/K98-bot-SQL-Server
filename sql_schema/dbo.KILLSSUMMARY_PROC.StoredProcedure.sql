@@ -220,35 +220,35 @@ BEGIN
 
         DELETE FROM dbo.KILLSUMMARY WHERE GovernorID IN (999999997, 999999998, 999999999);
 
-        INSERT INTO dbo.KILLSUMMARY
+        INSERT INTO dbo.KILLSUMMARY (GovernorID, GovernorName, PowerRank, [T4&T5_KILLS], [StartingT4&T5_KILLS], [OverallT4&T5_KILLSDelta], [T4&T5_KILLSDelta12Months], [T4&T5_KILLSDelta6Months], [T4&T5_KILLSDelta3Months])
         SELECT 999999997, 'Top50', 50,
-               ROUND(AVG([T4&T5_KILLS]), 0),
-               ROUND(AVG([StartingT4&T5_KILLS]), 0),
-               ROUND(AVG([OverallT4&T5_KILLSDelta]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta12Months]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta6Months]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta3Months]), 0)
-        FROM dbo.KILLSUMMARY WHERE POWERRank <= 50;
+               ROUND(AVG(K.[T4&T5_KILLS]), 0),
+               ROUND(AVG(K.[StartingT4&T5_KILLS]), 0),
+               ROUND(AVG(K.[OverallT4&T5_KILLSDelta]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta12Months]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta6Months]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta3Months]), 0)
+        FROM dbo.KILLSUMMARY K WHERE POWERRank <= 50;
 
-        INSERT INTO dbo.KILLSUMMARY
+        INSERT INTO dbo.KILLSUMMARY (GovernorID, GovernorName, PowerRank, [T4&T5_KILLS], [StartingT4&T5_KILLS], [OverallT4&T5_KILLSDelta], [T4&T5_KILLSDelta12Months], [T4&T5_KILLSDelta6Months], [T4&T5_KILLSDelta3Months])
         SELECT 999999998, 'Top100', 100,
-               ROUND(AVG([T4&T5_KILLS]), 0),
-               ROUND(AVG([StartingT4&T5_KILLS]), 0),
-               ROUND(AVG([OverallT4&T5_KILLSDelta]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta12Months]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta6Months]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta3Months]), 0)
-        FROM dbo.KILLSUMMARY WHERE POWERRank <= 100;
+               ROUND(AVG(K.[T4&T5_KILLS]), 0),
+               ROUND(AVG(K.[StartingT4&T5_KILLS]), 0),
+               ROUND(AVG(K.[OverallT4&T5_KILLSDelta]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta12Months]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta6Months]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta3Months]), 0)
+        FROM dbo.KILLSUMMARY K WHERE POWERRank <= 100;
 
-        INSERT INTO dbo.KILLSUMMARY
+        INSERT INTO dbo.KILLSUMMARY (GovernorID, GovernorName, PowerRank, [T4&T5_KILLS], [StartingT4&T5_KILLS], [OverallT4&T5_KILLSDelta], [T4&T5_KILLSDelta12Months], [T4&T5_KILLSDelta6Months], [T4&T5_KILLSDelta3Months])
         SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG([T4&T5_KILLS]), 0),
-               ROUND(AVG([StartingT4&T5_KILLS]), 0),
-               ROUND(AVG([OverallT4&T5_KILLSDelta]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta12Months]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta6Months]), 0),
-               ROUND(AVG([T4&T5_KILLSDelta3Months]), 0)
-        FROM dbo.KILLSUMMARY WHERE POWERRank <= 150;
+               ROUND(AVG(K.[T4&T5_KILLS]), 0),
+               ROUND(AVG(K.[StartingT4&T5_KILLS]), 0),
+               ROUND(AVG(K.[OverallT4&T5_KILLSDelta]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta12Months]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta6Months]), 0),
+               ROUND(AVG(K.[T4&T5_KILLSDelta3Months]), 0)
+        FROM dbo.KILLSUMMARY K WHERE POWERRank <= 150;
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S

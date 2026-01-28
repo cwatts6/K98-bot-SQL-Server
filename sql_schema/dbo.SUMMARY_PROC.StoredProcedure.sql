@@ -49,24 +49,24 @@ BEGIN
         SELECT 
             P.GOVERNORID,
             P.GOVERNORNAME,
-            [T4&T5_KILLS],
-            [StartingT4&T5_KILLS],
-            [OverallT4&T5_KILLSDelta],
-            [T4&T5_KILLSDelta12Months],
-            [T4&T5_KILLSDelta6Months],
-            [T4&T5_KILLSDelta3Months],
-            [T4_KILLS],
-            [StartingT4_KILLS],
-            [OverallT4_KILLSDelta],
-            [T4_KILLSDelta12Months],
-            [T4_KILLSDelta6Months],
-            [T4_KILLSDelta3Months],
-            [T5_Kills],
-            [StartingT5_Kills],
-            [OverallT5_KillsDelta],
-            [T5_KillsDelta12Months],
-            [T5_KillsDelta6Months],
-            [T5_KillsDelta3Months],
+			K.[T4&T5_KILLS],                      -- ✅ Fixed: Added K. alias
+			K.[StartingT4&T5_KILLS],              -- ✅ Fixed
+			K.[OverallT4&T5_KILLSDelta],          -- ✅ Fixed
+			K.[T4&T5_KILLSDelta12Months],         -- ✅ Fixed
+			K.[T4&T5_KILLSDelta6Months],          -- ✅ Fixed
+			K.[T4&T5_KILLSDelta3Months],          -- ✅ Fixed
+			K4.[T4_KILLS],                        -- ✅ Fixed: Added K4. alias
+			K4.[StartingT4_KILLS],                -- ✅ Fixed
+			K4.[OverallT4_KILLSDelta],            -- ✅ Fixed
+			K4.[T4_KILLSDelta12Months],           -- ✅ Fixed
+			K4.[T4_KILLSDelta6Months],            -- ✅ Fixed
+			K4.[T4_KILLSDelta3Months],            -- ✅ Fixed
+			K5.[T5_Kills],                        -- ✅ Fixed: Added K5. alias
+			K5.[StartingT5_Kills],                -- ✅ Fixed
+			K5.[OverallT5_KillsDelta],            -- ✅ Fixed
+			K5.[T5_KillsDelta12Months],           -- ✅ Fixed
+			K5.[T5_KillsDelta6Months],            -- ✅ Fixed
+			K5.[T5_KillsDelta3Months],            -- ✅ Fixed
             P.[POWER],
             P.[StartingPower],
             P.[OverallPowerDelta],
