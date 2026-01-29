@@ -163,166 +163,121 @@ BEGIN
 
     CREATE CLUSTERED INDEX IX_NewScans ON #NewScans (GovernorID, SCANORDER);
 
-    ----------------------------------------------------------------
-    -- Step 3: Get the LAST KNOWN VALUE for each governor
-    ----------------------------------------------------------------
-    
-    PRINT 'Retrieving last known values from delta tables...';
-    
+----------------------------------------------------------------
+-- Step 3: Get ABSOLUTE VALUES at the last processed scan
+----------------------------------------------------------------
+
+PRINT 'Calculating absolute values at last processed scan...';
+
+;WITH LastAbsoluteValues AS (
     SELECT 
         GovernorID,
-        @LastProcessedScan AS SCANORDER,
-        SUM(CASE WHEN DeltaType = 'T4' THEN DeltaValue ELSE 0 END) AS T4_Kills_Cumulative,
-        SUM(CASE WHEN DeltaType = 'T5' THEN DeltaValue ELSE 0 END) AS T5_Kills_Cumulative,
-        SUM(CASE WHEN DeltaType = 'T4T5' THEN DeltaValue ELSE 0 END) AS T4T5_Kills_Cumulative,
-        SUM(CASE WHEN DeltaType = 'Power' THEN DeltaValue ELSE 0 END) AS Power_Cumulative,
-        SUM(CASE WHEN DeltaType = 'KillPoints' THEN DeltaValue ELSE 0 END) AS KillPoints_Cumulative,
-        SUM(CASE WHEN DeltaType = 'Deads' THEN DeltaValue ELSE 0 END) AS Deads_Cumulative,
-        SUM(CASE WHEN DeltaType = 'Helps' THEN DeltaValue ELSE 0 END) AS Helps_Cumulative,
-        SUM(CASE WHEN DeltaType = 'RSSAssist' THEN DeltaValue ELSE 0 END) AS RSSAssist_Cumulative,
-        SUM(CASE WHEN DeltaType = 'RSSGathered' THEN DeltaValue ELSE 0 END) AS RSSGathered_Cumulative,
-        SUM(CASE WHEN DeltaType = 'HealedTroops' THEN DeltaValue ELSE 0 END) AS HealedTroops_Cumulative,
-        SUM(CASE WHEN DeltaType = 'RangedPoints' THEN DeltaValue ELSE 0 END) AS RangedPoints_Cumulative
-    INTO #LastKnownValues
+        SUM(T4KILLSDelta) AS T4_Kills_Absolute,
+        SUM(T5KILLSDelta) AS T5_Kills_Absolute,
+        SUM([T4&T5_KILLSDelta]) AS T4T5_Kills_Absolute,
+        SUM([Power_Delta]) AS Power_Absolute,
+        SUM(KillPointsDelta) AS KillPoints_Absolute,
+        SUM(DeadsDelta) AS Deads_Absolute,
+        SUM(HelpsDelta) AS Helps_Absolute,
+        SUM(RSSAssistDelta) AS RSSAssist_Absolute,
+        SUM(RSSGatheredDelta) AS RSSGathered_Absolute,
+        SUM(HealedTroopsDelta) AS HealedTroops_Absolute,
+        SUM(RangedPointsDelta) AS RangedPoints_Absolute
     FROM (
-        SELECT GovernorID, 'T4' AS DeltaType, CAST(T4KILLSDelta AS FLOAT) AS DeltaValue FROM T4KillDelta
-        UNION ALL
-        SELECT GovernorID, 'T5', CAST(T5KILLSDelta AS FLOAT) FROM T5KillDelta
-        UNION ALL
-        SELECT GovernorID, 'T4T5', CAST([T4&T5_KILLSDelta] AS FLOAT) FROM T4T5KillDelta
-        UNION ALL
-        SELECT GovernorID, 'Power', CAST([Power_Delta] AS FLOAT) FROM POWERDelta
-        UNION ALL
-        SELECT GovernorID, 'KillPoints', CAST(KillPointsDelta AS FLOAT) FROM KillPointsDelta
-        UNION ALL
-        SELECT GovernorID, 'Deads', CAST(DeadsDelta AS FLOAT) FROM DeadsDelta
-        UNION ALL
-        SELECT GovernorID, 'Helps', CAST(HelpsDelta AS FLOAT) FROM HelpsDelta
-        UNION ALL
-        SELECT GovernorID, 'RSSAssist', CAST(RSSAssistDelta AS FLOAT) FROM RSSASSISTDelta
-        UNION ALL
-        SELECT GovernorID, 'RSSGathered', CAST(RSSGatheredDelta AS FLOAT) FROM RSSGatheredDelta
-        UNION ALL
-        SELECT GovernorID, 'HealedTroops', CAST(HealedTroopsDelta AS FLOAT) FROM HealedTroopsDelta
-        UNION ALL
-        SELECT GovernorID, 'RangedPoints', CAST(RangedPointsDelta AS FLOAT) FROM RangedPointsDelta
-    ) AS AllDeltas
-    GROUP BY GovernorID;
+        SELECT t4.GovernorID, t4.DeltaOrder, 
+               t4.T4KILLSDelta, t5.T5KILLSDelta, t4t5.[T4&T5_KILLSDelta],
+               pwr.[Power_Delta], kp.KillPointsDelta, dd.DeadsDelta, 
+               hlp.HelpsDelta, rssa.RSSAssistDelta, rssg.RSSGatheredDelta,
+               ht.HealedTroopsDelta, rp.RangedPointsDelta
+        FROM T4KillDelta t4
+        INNER JOIN T5KillDelta t5 ON t4.GovernorID = t5.GovernorID AND t4.DeltaOrder = t5.DeltaOrder
+        INNER JOIN T4T5KillDelta t4t5 ON t4.GovernorID = t4t5.GovernorID AND t4.DeltaOrder = t4t5.DeltaOrder
+        INNER JOIN POWERDelta pwr ON t4.GovernorID = pwr.GovernorID AND t4.DeltaOrder = pwr.DeltaOrder
+        INNER JOIN KillPointsDelta kp ON t4.GovernorID = kp.GovernorID AND t4.DeltaOrder = kp.DeltaOrder
+        INNER JOIN DeadsDelta dd ON t4.GovernorID = dd.GovernorID AND t4.DeltaOrder = dd.DeltaOrder
+        INNER JOIN HelpsDelta hlp ON t4.GovernorID = hlp.GovernorID AND t4.DeltaOrder = hlp.DeltaOrder
+        INNER JOIN RSSASSISTDelta rssa ON t4.GovernorID = rssa.GovernorID AND t4.DeltaOrder = rssa.DeltaOrder
+        INNER JOIN RSSGatheredDelta rssg ON t4.GovernorID = rssg.GovernorID AND t4.DeltaOrder = rssg.DeltaOrder
+        INNER JOIN HealedTroopsDelta ht ON t4.GovernorID = ht.GovernorID AND t4.DeltaOrder = ht.DeltaOrder
+        INNER JOIN RangedPointsDelta rp ON t4.GovernorID = rp.GovernorID AND t4.DeltaOrder = rp.DeltaOrder
+        WHERE t4.DeltaOrder <= @LastProcessedScan
+    ) AllHistoricalDeltas
+    GROUP BY GovernorID
+)
+SELECT * INTO #LastAbsoluteValues FROM LastAbsoluteValues;
 
-    CREATE CLUSTERED INDEX IX_LastKnown ON #LastKnownValues (GovernorID);
+CREATE CLUSTERED INDEX IX_LastAbsolute ON #LastAbsoluteValues (GovernorID);
 
-    DECLARE @UniqueGovernors INT;
-    SELECT @UniqueGovernors = COUNT(*) FROM #LastKnownValues;
-    PRINT 'Found baseline data for ' + CAST(@UniqueGovernors AS VARCHAR(10)) + ' governors.';
+----------------------------------------------------------------
+-- Step 4: Calculate deltas = CurrentValue - PreviousValue
+----------------------------------------------------------------
 
-    ----------------------------------------------------------------
-    -- Step 4: Calculate deltas using LAG() window function
-    ----------------------------------------------------------------
-    
-    PRINT 'Calculating deltas...';
-    
-    ;WITH CumulativeValues AS (
-        SELECT
-            ns.GovernorID,
-            ns.SCANORDER,
-            ISNULL(lk.T4_Kills_Cumulative, 0) + 
-                SUM(ISNULL(ns.T4_Kills, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS T4_Kills_Cum,
-            
-            ISNULL(lk.T5_Kills_Cumulative, 0) + 
-                SUM(ISNULL(ns.T5_Kills, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS T5_Kills_Cum,
-            
-            ISNULL(lk.T4T5_Kills_Cumulative, 0) + 
-                SUM(ISNULL(ns.T4T5_Kills, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS T4T5_Kills_Cum,
-            
-            ISNULL(lk.Power_Cumulative, 0) + 
-                SUM(ISNULL(ns.Power, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS Power_Cum,
-            
-            ISNULL(lk.KillPoints_Cumulative, 0) + 
-                SUM(ISNULL(ns.KillPoints, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS KillPoints_Cum,
-            
-            ISNULL(lk.Deads_Cumulative, 0) + 
-                SUM(ISNULL(ns.Deads, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS Deads_Cum,
-            
-            ISNULL(lk.Helps_Cumulative, 0) + 
-                SUM(ISNULL(ns.Helps, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS Helps_Cum,
-            
-            ISNULL(lk.RSSAssist_Cumulative, 0) + 
-                SUM(ISNULL(ns.RSSAssist, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS RSSAssist_Cum,
-            
-            ISNULL(lk.RSSGathered_Cumulative, 0) + 
-                SUM(ISNULL(ns.RSSGathered, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS RSSGathered_Cum,
-            
-            ISNULL(lk.HealedTroops_Cumulative, 0) + 
-                SUM(ISNULL(ns.HealedTroops, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS HealedTroops_Cum,
-            
-            ISNULL(lk.RangedPoints_Cumulative, 0) + 
-                SUM(ISNULL(ns.RangedPoints, 0)) OVER (
-                    PARTITION BY ns.GovernorID 
-                    ORDER BY ns.SCANORDER 
-                    ROWS UNBOUNDED PRECEDING
-                ) AS RangedPoints_Cum
-        FROM #NewScans ns
-        LEFT JOIN #LastKnownValues lk ON ns.GovernorID = lk.GovernorID
-    ),
-    DeltaCalculations AS (
-        SELECT
-            GovernorID,
-            SCANORDER,
-            CAST(T4_Kills_Cum - LAG(T4_Kills_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS T4_Delta,
-            CAST(T5_Kills_Cum - LAG(T5_Kills_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS T5_Delta,
-            CAST(T4T5_Kills_Cum - LAG(T4T5_Kills_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS T4T5_Delta,
-            CAST(Power_Cum - LAG(Power_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS Power_Delta,
-            CAST(KillPoints_Cum - LAG(KillPoints_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS BIGINT) AS KillPoints_Delta,
-            CAST(Deads_Cum - LAG(Deads_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS Deads_Delta,
-            CAST(Helps_Cum - LAG(Helps_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS Helps_Delta,
-            CAST(RSSAssist_Cum - LAG(RSSAssist_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS RSSAssist_Delta,
-            CAST(RSSGathered_Cum - LAG(RSSGathered_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS FLOAT) AS RSSGathered_Delta,
-            CAST(HealedTroops_Cum - LAG(HealedTroops_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS BIGINT) AS HealedTroops_Delta,
-            CAST(RangedPoints_Cum - LAG(RangedPoints_Cum, 1, 0) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS BIGINT) AS RangedPoints_Delta
-        FROM CumulativeValues
-    )
-    -- ✅ Materialize the CTE into a temp table for reuse
-    SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
+PRINT 'Calculating deltas...';
+
+;WITH AbsoluteValues AS (
+    SELECT
+        ns.GovernorID,
+        ns.SCANORDER,
+        ns.T4_Kills AS T4_Current,
+        ns.T5_Kills AS T5_Current,
+        ns.T4T5_Kills AS T4T5_Current,
+        ns.Power AS Power_Current,
+        ns.KillPoints AS KillPoints_Current,
+        ns.Deads AS Deads_Current,
+        ns.Helps AS Helps_Current,
+        ns.RSSAssist AS RSSAssist_Current,
+        ns.RSSGathered AS RSSGathered_Current,
+        ns.HealedTroops AS HealedTroops_Current,
+        ns.RangedPoints AS RangedPoints_Current
+    FROM #NewScans ns
+),
+AbsoluteWithLag AS (
+    SELECT
+        GovernorID,
+        SCANORDER,
+        T4_Current,
+        LAG(T4_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS T4_Previous,
+        T5_Current,
+        LAG(T5_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS T5_Previous,
+        T4T5_Current,
+        LAG(T4T5_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS T4T5_Previous,
+        Power_Current,
+        LAG(Power_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS Power_Previous,
+        KillPoints_Current,
+        LAG(KillPoints_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS KillPoints_Previous,
+        Deads_Current,
+        LAG(Deads_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS Deads_Previous,
+        Helps_Current,
+        LAG(Helps_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS Helps_Previous,
+        RSSAssist_Current,
+        LAG(RSSAssist_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS RSSAssist_Previous,
+        RSSGathered_Current,
+        LAG(RSSGathered_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS RSSGathered_Previous,
+        HealedTroops_Current,
+        LAG(HealedTroops_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS HealedTroops_Previous,
+        RangedPoints_Current,
+        LAG(RangedPoints_Current, 1) OVER (PARTITION BY GovernorID ORDER BY SCANORDER) AS RangedPoints_Previous
+    FROM AbsoluteValues
+),
+DeltaCalculations AS (
+    SELECT
+        awl.GovernorID,
+        awl.SCANORDER,
+        CAST(awl.T4_Current - ISNULL(awl.T4_Previous, lav.T4_Kills_Absolute) AS FLOAT) AS T4_Delta,
+        CAST(awl.T5_Current - ISNULL(awl.T5_Previous, lav.T5_Kills_Absolute) AS FLOAT) AS T5_Delta,
+        CAST(awl.T4T5_Current - ISNULL(awl.T4T5_Previous, lav.T4T5_Kills_Absolute) AS FLOAT) AS T4T5_Delta,
+        CAST(awl.Power_Current - ISNULL(awl.Power_Previous, lav.Power_Absolute) AS FLOAT) AS Power_Delta,
+        CAST(awl.KillPoints_Current - ISNULL(awl.KillPoints_Previous, lav.KillPoints_Absolute) AS BIGINT) AS KillPoints_Delta,
+        CAST(awl.Deads_Current - ISNULL(awl.Deads_Previous, lav.Deads_Absolute) AS FLOAT) AS Deads_Delta,
+        CAST(awl.Helps_Current - ISNULL(awl.Helps_Previous, lav.Helps_Absolute) AS FLOAT) AS Helps_Delta,
+        CAST(awl.RSSAssist_Current - ISNULL(awl.RSSAssist_Previous, lav.RSSAssist_Absolute) AS FLOAT) AS RSSAssist_Delta,
+        CAST(awl.RSSGathered_Current - ISNULL(awl.RSSGathered_Previous, lav.RSSGathered_Absolute) AS FLOAT) AS RSSGathered_Delta,
+        CAST(awl.HealedTroops_Current - ISNULL(awl.HealedTroops_Previous, lav.HealedTroops_Absolute) AS BIGINT) AS HealedTroops_Delta,
+        CAST(awl.RangedPoints_Current - ISNULL(awl.RangedPoints_Previous, lav.RangedPoints_Absolute) AS BIGINT) AS RangedPoints_Delta
+    FROM AbsoluteWithLag awl
+    LEFT JOIN #LastAbsoluteValues lav ON awl.GovernorID = lav.GovernorID
+)
+SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
     
     ----------------------------------------------------------------
     -- Step 5: INSERT with TRANSACTION (all-or-nothing)
@@ -393,7 +348,7 @@ BEGIN
         
         -- Cleanup
         DROP TABLE #NewScans;
-        DROP TABLE #LastKnownValues;
+        DROP TABLE #LastAbsoluteValues;
         DROP TABLE #DeltaCalculations;
         
         RETURN;
@@ -401,7 +356,7 @@ BEGIN
 
     -- Cleanup temp tables
     DROP TABLE #NewScans;
-    DROP TABLE #LastKnownValues;
+    DROP TABLE #LastAbsoluteValues;
     DROP TABLE #DeltaCalculations;
 
     ----------------------------------------------------------------

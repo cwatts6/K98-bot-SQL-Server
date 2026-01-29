@@ -86,16 +86,21 @@ BEGIN
     -- 3) Windowed deltas (Start→End, End defaults to MaxScanID)
     --    Window delta = End cumulative - Start cumulative
     ----------------------------------------------------------------
-    ;WITH W AS (
-        SELECT
-            w.WindowName,
-            w.StartScanID,
-            COALESCE(w.EndScanID, @MaxScanID) AS EndScanID
-        FROM KVK.KVK_Windows w WITH (READCOMMITTEDLOCK)
-        WHERE w.KVK_NO = @KVK_NO
-          AND w.StartScanID IS NOT NULL
-          AND w.WindowName <> N'Baseline'
-    ),
+	;WITH W AS (
+		SELECT
+			w.WindowName,
+			w.StartScanID,
+			-- Auto-cap EndScanID to max available scan (prevents future scan references)
+			CASE 
+				WHEN w.EndScanID IS NULL THEN @MaxScanID
+				WHEN w.EndScanID > @MaxScanID THEN @MaxScanID  -- ← NEW: Safety cap
+				ELSE w.EndScanID
+			END AS EndScanID
+		FROM KVK.KVK_Windows w WITH (READCOMMITTEDLOCK)
+		WHERE w.KVK_NO = @KVK_NO
+		  AND w.StartScanID IS NOT NULL
+		  AND w.WindowName <> N'Baseline'
+	),
     S AS (
         SELECT
             W.WindowName, W.StartScanID, W.EndScanID,
