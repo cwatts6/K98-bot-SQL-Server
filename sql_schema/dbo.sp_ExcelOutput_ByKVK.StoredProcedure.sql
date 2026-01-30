@@ -21,7 +21,8 @@ BEGIN
         @PASS6END         INT,
         @PASS7END         INT,
         @PRE_PASS_4_SCAN  INT,
-        @MaxAvailableScan INT;
+        @MaxAvailableScan INT,
+        @LatestScanToUse  INT;
 
     -- Load KVK config
     SELECT
@@ -50,6 +51,13 @@ BEGIN
     END
     IF @Scan > @MaxAvailableScan SET @Scan = @MaxAvailableScan;
 
+    -- Determine which scan to use for latest data
+    -- For completed KVKs use KVK_END_SCAN, for current KVK use MaxAvailableScan
+    SET @LatestScanToUse = CASE 
+        WHEN @MaxAvailableScan > @KVK_END_SCAN THEN @KVK_END_SCAN
+        ELSE @MaxAvailableScan
+    END;
+
     BEGIN TRY
         BEGIN TRANSACTION;
 
@@ -62,7 +70,7 @@ BEGIN
     EXEC dbo.sp_Build_Prekvk_And_Honor_Rankings;
 
     -----------------------------------------------
-     -- 1. Snapshot (materialize once for reuse)
+     -- 1. Snapshot (materialize once for reuse) - REDUCED COLUMNS
     -----------------------------------------------
     CREATE TABLE #Snapshot (
         GovernorID        bigint           NOT NULL PRIMARY KEY CLUSTERED,
@@ -71,26 +79,16 @@ BEGIN
         [Power]           bigint        NULL,
         [Civilization]    nvarchar(100)  NULL,
         [KvKPlayed]       int           NULL,
-        [MostKvKKill]     bigint        NULL,
-        [MostKvKDead]     bigint        NULL,
-        [MostKvKHeal]     bigint        NULL,
-        [Acclaim]         bigint        NULL,
-        [HighestAcclaim]  bigint        NULL,
-        [AOOJoined]       bigint        NULL,
-        [AOOWon]          int           NULL,
-        [AOOAvgKill]      bigint        NULL,
-        [AOOAvgDead]      bigint        NULL,
-        [AOOAvgHeal]      bigint        NULL,
         [Deads]           bigint        NULL,
         [T4&T5_KILLS]     bigint        NULL,
         [HealedTroops]    bigint        NULL,
         [KillPoints]      bigint        NULL,
-        [RangedPoints]    bigint        NULL,
         [AutarchTimes]    bigint        NULL,
         MaxPreKvkPoints   bigint        NULL,
         PreKvkRank        int           NULL,
         MaxHonorPoints    bigint        NULL,
-        HonorRank         int           NULL
+        HonorRank         int           NULL,
+		RangedPoints     bigint  NULL
     );
 
     INSERT INTO #Snapshot (
@@ -100,26 +98,16 @@ BEGIN
         , [Power]
         , [Civilization]
         , [KvKPlayed]
-        , [MostKvKKill]
-        , [MostKvKDead]
-        , [MostKvKHeal]
-        , [Acclaim]
-        , [HighestAcclaim]
-        , [AOOJoined]
-        , [AOOWon]
-        , [AOOAvgKill]
-        , [AOOAvgDead]
-        , [AOOAvgHeal]
         , [Deads]
         , [T4&T5_KILLS]
         , [HealedTroops]
         , [KillPoints]
-        , [RangedPoints]
         , [AutarchTimes]
         , MaxPreKvkPoints
         , PreKvkRank
         , MaxHonorPoints
         , HonorRank
+		, RangedPoints
     )
     SELECT
         ksd.GovernorID,
@@ -128,32 +116,67 @@ BEGIN
         ksd.[Power],
         ksd.[Civilization],
         ksd.[KvKPlayed],
-        ksd.[MostKvKKill],
-        ksd.[MostKvKDead],
-        ksd.[MostKvKHeal],
-        ksd.[Acclaim],
-        ksd.[HighestAcclaim],
-        ksd.[AOOJoined],
-        ksd.[AOOWon],
-        ksd.[AOOAvgKill],
-        ksd.[AOOAvgDead],
-        ksd.[AOOAvgHeal],
 		ksd.[Deads],
 		ksd.[T4&T5_KILLS], 
 		ksd.[HealedTroops], 
 		ksd.[KillPoints],
-		ksd.[RangedPoints],
 		ksd.[AutarchTimes],
         pk.MaxPreKvkPoints    AS MaxPreKvkPoints,
         pk.PreKvk_Rank        AS PreKvkRank,
         hn.MaxHonorPoints     AS MaxHonorPoints,
-        hn.Honor_Rank         AS HonorRank
+        hn.Honor_Rank         AS HonorRank,
+		ksd.[RangedPoints]
     FROM dbo.KingdomScanData4 ksd
     LEFT JOIN dbo.PreKvk_Scores_Ranked pk
       ON pk.GovernorID = ksd.GovernorID AND pk.KVK_NO = @CURRENTKVK3
     LEFT JOIN dbo.KVK_Honor_Ranked hn
       ON hn.GovernorID = ksd.GovernorID AND hn.KVK_NO = @CURRENTKVK3
     WHERE ksd.ScanOrder = @Scan;
+
+    -----------------------------------------------
+    -- 1b. LATEST data (for completed/current KVK stats)
+    -----------------------------------------------
+    CREATE TABLE #LATEST (
+        GovernorID       bigint  NOT NULL PRIMARY KEY CLUSTERED,
+        MostKvKKill      bigint  NULL,
+        MostKvKDead      bigint  NULL,
+        MostKvKHeal      bigint  NULL,
+        Acclaim          bigint  NULL,
+        HighestAcclaim   bigint  NULL,
+        AOOJoined        bigint  NULL,
+        AOOWon           int     NULL,
+        AOOAvgKill       bigint  NULL,
+        AOOAvgDead       bigint  NULL,
+        AOOAvgHeal       bigint  NULL
+    );
+
+    INSERT INTO #LATEST (
+          GovernorID
+        , MostKvKKill
+        , MostKvKDead
+        , MostKvKHeal
+        , Acclaim
+        , HighestAcclaim
+        , AOOJoined
+        , AOOWon
+        , AOOAvgKill
+        , AOOAvgDead
+        , AOOAvgHeal
+    )
+    SELECT
+        ksd.GovernorID,
+        ksd.MostKvKKill,
+        ksd.MostKvKDead,
+        ksd.MostKvKHeal,
+        ksd.Acclaim,
+        ksd.HighestAcclaim,
+        ksd.AOOJoined,
+        ksd.AOOWon,
+        ksd.AOOAvgKill,
+        ksd.AOOAvgDead,
+        ksd.AOOAvgHeal
+    FROM dbo.KingdomScanData4 ksd
+    WHERE ksd.ScanOrder = @LatestScanToUse;
 
 	CREATE TABLE #GovernorList (
         GovernorID int NOT NULL PRIMARY KEY CLUSTERED
@@ -336,7 +359,7 @@ BEGIN
     GROUP BY r.GovernorID;
 
     -----------------------------------------------
-    -- 7. Stage
+    -- 7. Stage - NOW USING #LATEST FOR MOVED COLUMNS
     -----------------------------------------------
 	INSERT INTO dbo.STAGING_STATS (
 		  GovernorID
@@ -411,21 +434,21 @@ BEGIN
 		, COALESCE(ra.RSSAssistDelta, 0)            AS RSSASSISTDelta
 		, COALESCE(rg.RSSGatheredDelta, 0)          AS RSSGatheredDelta
 		, COALESCE(s.HealedTroops, 0)               AS HealedTroops
-		, COALESCE(s.RangedPoints, 0)               AS RangedPoints
+		, COALESCE(s.RangedPoints, 0)             AS RangedPoints        
 		, COALESCE(ran.RangedPointsDelta, 0)        AS RangedPointsDelta
 		, COALESCE(s.AutarchTimes, 0)               AS AutarchTimes
 		, s.Civilization
 		, COALESCE(s.KvKPlayed, 0)                  AS KvKPlayed
-		, COALESCE(s.MostKvKKill, 0)				AS MostKvKKill
-		, COALESCE(s.MostKvKDead, 0)				AS MostKvKDead
-		, COALESCE(s.MostKvKHeal, 0)				AS MostKvKHeal
-		, COALESCE(s.Acclaim, 0)					AS Acclaim
-		, COALESCE(s.HighestAcclaim, 0)				AS HighestAcclaim
-		, COALESCE(s.AOOJoined, 0)					AS AOOJoined
-		, COALESCE(s.AOOWon, 0)						AS AOOWon
-		, COALESCE(s.AOOAvgKill, 0)					AS AOOAvgKill
-		, COALESCE(s.AOOAvgDead, 0)					AS AOOAvgDead
-		, COALESCE(s.AOOAvgHeal, 0)					AS AOOAvgHeal
+		, COALESCE(lst.MostKvKKill, 0)              AS MostKvKKill        -- FROM #LATEST
+		, COALESCE(lst.MostKvKDead, 0)              AS MostKvKDead        -- FROM #LATEST
+		, COALESCE(lst.MostKvKHeal, 0)              AS MostKvKHeal        -- FROM #LATEST
+		, COALESCE(lst.Acclaim, 0)                  AS Acclaim            -- FROM #LATEST
+		, COALESCE(lst.HighestAcclaim, 0)           AS HighestAcclaim     -- FROM #LATEST
+		, COALESCE(lst.AOOJoined, 0)                AS AOOJoined          -- FROM #LATEST
+		, COALESCE(lst.AOOWon, 0)                   AS AOOWon             -- FROM #LATEST
+		, COALESCE(lst.AOOAvgKill, 0)               AS AOOAvgKill         -- FROM #LATEST
+		, COALESCE(lst.AOOAvgDead, 0)               AS AOOAvgDead         -- FROM #LATEST
+		, COALESCE(lst.AOOAvgHeal, 0)               AS AOOAvgHeal         -- FROM #LATEST
 		, COALESCE(kp.KillPointsDelta, 0)           AS KillPointsDelta
 		, COALESCE(s.KillPoints, 0)                 AS KillPoints
 		, COALESCE(he.HealedTroopsDelta, 0)         AS HealedTroopsDelta
@@ -436,11 +459,12 @@ BEGIN
 		, COALESCE(s.PreKvkRank, 0)                 AS PreKvkRank
 		, COALESCE(s.HonorRank, 0)                  AS HonorRank
 	FROM #Snapshot s
+	LEFT JOIN #LATEST      lst ON lst.GovernorID = s.GovernorID  -- NEW JOIN
 	LEFT JOIN #Power       p   ON p.GovernorID   = s.GovernorID
 	LEFT JOIN #KillsT4     kt4 ON kt4.GovernorID = s.GovernorID
 	LEFT JOIN #KillsT5     kt5 ON kt5.GovernorID = s.GovernorID
 	LEFT JOIN #Kills       k   ON k.GovernorID   = s.GovernorID
-	LEFT JOIN #KillPoints  kp  ON kp.GovernorID = s.GovernorID
+	LEFT JOIN #KillPoints  kp  ON kp.GovernorID  = s.GovernorID
 	LEFT JOIN #Deads       d   ON d.GovernorID   = s.GovernorID
 	LEFT JOIN #Helps       h   ON h.GovernorID   = s.GovernorID
 	LEFT JOIN #RSSAssist   ra  ON ra.GovernorID  = s.GovernorID
@@ -451,7 +475,7 @@ BEGIN
 
 
     -- Cleanup temps from stage step
-    DROP TABLE IF EXISTS #Deads, #Kills, #KillsT4, #KillsT5, #Helps, #RSSAssist, #RSSGathered, #Power, #Snapshot, #Healed, #Ranged, #KillPoints, #GovernorList;
+    DROP TABLE IF EXISTS #Deads, #Kills, #KillsT4, #KillsT5, #Helps, #RSSAssist, #RSSGathered, #Power, #Snapshot, #LATEST, #Healed, #Ranged, #KillPoints, #GovernorList;
 
     -----------------------------------------------
     -- 8. DKP + HoH (normalize DKP column name)
@@ -612,6 +636,11 @@ BEGIN
 	-- Call index creation procedure with BOTH parameters
 	EXEC dbo.sp_Create_Excel_For_Kvk_Indexes @FullTableName = @ExcelTblFull, @TableBase = @ExcelTbl;
 
+	-- ✅ NEW: Update statistics for optimal query performance
+    DECLARE @UpdateStatsSQL NVARCHAR(MAX) = N'UPDATE STATISTICS ' + @ExcelTblFull + N' WITH FULLSCAN;';
+    EXEC sp_executesql @UpdateStatsSQL;
+    PRINT 'Updated statistics on ' + @ExcelTblFull + ' with FULLSCAN';
+
     DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
@@ -626,6 +655,7 @@ BEGIN
 
     PRINT 'Completed KVK ' + CAST(@KVK AS varchar(10))
         + ' with ScanOrder=' + CAST(@Scan AS varchar(20))
+        + ', LatestScanUsed=' + CAST(@LatestScanToUse AS varchar(20))
         + ' at ' + CONVERT(varchar, GETDATE(), 120);
 END
 

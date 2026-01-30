@@ -9,11 +9,13 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
 
     DECLARE 
         @LatestKVK       INT,
         @MaxScan         INT,
         @TableName       NVARCHAR(128),
+        @TableNameFull   NVARCHAR(260),
         @sql             NVARCHAR(MAX),
 
         @MatchmakingScan INT,
@@ -78,12 +80,52 @@ BEGIN
     ------------------------------------------------------------
     -- Step 5: Refresh the EXCEL_FOR_KVK table first
     ------------------------------------------------------------
+    PRINT 'SP_Stats_for_Upload: Refreshing EXCEL_FOR_KVK_' + CAST(@LatestKVK AS VARCHAR(10)) 
+        + ' with ScanOrder=' + CAST(@ScanToUse AS VARCHAR(20)) + '...';
+    
     EXEC dbo.sp_ExcelOutput_ByKVK @KVK = @LatestKVK, @Scan = @ScanToUse;
+
+    ------------------------------------------------------------
+    -- FIX: Ensure transaction commits are fully visible
+    ------------------------------------------------------------
+    PRINT 'SP_Stats_for_Upload: Forcing commit flush via CHECKPOINT...';
+    CHECKPOINT;
+    
+    -- Small safety delay to ensure data visibility
+    WAITFOR DELAY '00:00:00.100';  -- 100ms delay
+    
+    ------------------------------------------------------------
+    -- Step 5b: Verify statistics on source table
+    ------------------------------------------------------------
+    SET @TableName = 'EXCEL_FOR_KVK_' + CAST(@LatestKVK AS NVARCHAR(10));
+    SET @TableNameFull = QUOTENAME('dbo') + N'.' + QUOTENAME(@TableName);
+
+    -- Check if statistics exist; if not, create them
+    IF NOT EXISTS (
+        SELECT 1 
+        FROM sys.stats s
+        INNER JOIN sys.tables t ON s.object_id = t.object_id
+        WHERE t.name = @TableName
+          AND s.name LIKE '_WA_Sys%' -- Auto-created stats
+           OR s.name LIKE 'IX_%'      -- Index stats
+    )
+    BEGIN
+        PRINT 'SP_Stats_for_Upload: No statistics found on ' + @TableName + ', creating...';
+        SET @sql = N'UPDATE STATISTICS ' + @TableNameFull + N' WITH FULLSCAN;';
+        EXEC sp_executesql @sql;
+    END
+    ELSE
+    BEGIN
+        PRINT 'SP_Stats_for_Upload: Statistics already exist on ' + @TableName;
+    END
+
+    PRINT 'SP_Stats_for_Upload: Beginning STATS_FOR_UPLOAD population...';
 
     ------------------------------------------------------------
     -- Step 6: Build table name dynamically
     ------------------------------------------------------------
-    SET @TableName = QUOTENAME('dbo') + N'.' + QUOTENAME('EXCEL_FOR_KVK_' + CAST(@LatestKVK AS NVARCHAR(10)));
+    -- Already set above in @TableNameFull
+
 
     ------------------------------------------------------------
     -- Step 7: Truncate + insert from refreshed table
@@ -127,78 +169,61 @@ BEGIN
         [KVK_RANK],
         CAST([Gov_ID] AS bigint) AS [Gov_ID],
         RTRIM([Governor_Name]) AS [Governor_Name],
-
-        [Starting Power],
+		[Starting Power],
         ISNULL([Power_Delta],0),
-
-        [Civilization],
+		[Civilization],
         ISNULL([KvKPlayed],0),
         ISNULL([MostKvKKill],0),
         ISNULL([MostKvKDead],0),
         ISNULL([MostKvKHeal],0),
-
-        ISNULL([Acclaim],0),
+		ISNULL([Acclaim],0),
         ISNULL([HighestAcclaim],0),
         ISNULL([AOOJoined],0),
         ISNULL([AOOWon],0),
         ISNULL([AOOAvgKill],0),
         ISNULL([AOOAvgDead],0),
         ISNULL([AOOAvgHeal],0),
-
-        ISNULL([Starting_T4&T5_KILLS],0),
+		ISNULL([Starting_T4&T5_KILLS],0),
         ISNULL([T4_KILLS],0),
         ISNULL([T5_KILLS],0),
         ISNULL([T4&T5_Kills],0),
         ISNULL([KILLS_OUTSIDE_KVK],0),
         ISNULL([Kill Target],0),
         ISNULL([% of Kill Target],0),
-
-        ISNULL([Starting_Deads],0),
+		ISNULL([Starting_Deads],0),
         ISNULL([Deads_Delta],0),
         ISNULL([DEADS_OUTSIDE_KVK],0),
         ISNULL([T4_Deads],0),
         ISNULL([T5_Deads],0),
         ISNULL([Dead_Target],0),
         ISNULL([% of Dead Target],0),
-
-        ISNULL([Zeroed],0),
-
-        ISNULL([DKP_SCORE],0),
+		ISNULL([Zeroed],0),
+		ISNULL([DKP_SCORE],0),
         ISNULL([DKP Target],0),
         ISNULL([% of DKP Target],0),
-
-        ISNULL([HelpsDelta],0),
+		ISNULL([HelpsDelta],0),
         ISNULL([RSS_Assist_Delta],0),
         ISNULL([RSS_Gathered_Delta],0),
-
         ISNULL([Pass 4 Kills],0),
         ISNULL([Pass 6 Kills],0),
         ISNULL([Pass 7 Kills],0),
         ISNULL([Pass 8 Kills],0),
-
         ISNULL([Pass 4 Deads],0),
         ISNULL([Pass 6 Deads],0),
         ISNULL([Pass 7 Deads],0),
         ISNULL([Pass 8 Deads],0),
-
         ISNULL([Starting_HealedTroops],0),
         ISNULL([HealedTroopsDelta],0),
-
         ISNULL([Starting_KillPoints],0),
         ISNULL([KillPointsDelta],0),
-
         ISNULL([RangedPoints],0),
         ISNULL([RangedPointsDelta],0),
-
         ISNULL([AutarchTimes],0),
-
         ISNULL([Max_PreKvk_Points],0),
         ISNULL([Max_HonorPoints],0),
         ISNULL([PreKvk_Rank],0),
         ISNULL([Honor_Rank],0),
-
         [KVK_NO],
-
         CAST(@MAXDATE AS date) AS [LAST_REFRESH],
         CASE 
             WHEN CAST([Gov_ID] AS bigint) IN (
@@ -208,7 +233,7 @@ BEGIN
             ) THEN ''EXEMPT''
             ELSE ''INCLUDED''
         END AS [STATUS]
-    FROM ' + @TableName + N';';
+    FROM ' + @TableNameFull + N';';
 
     EXEC sp_executesql @sql;
 
@@ -227,7 +252,8 @@ BEGIN
         PRINT 'SP_Stats_for_Upload: Rebuilt index IX_STATS_FOR_UPLOAD_KVK_NO';
     END
 
-    UPDATE STATISTICS dbo.STATS_FOR_UPLOAD;
+    UPDATE STATISTICS dbo.STATS_FOR_UPLOAD WITH FULLSCAN;
+    PRINT 'SP_Stats_for_Upload: Updated statistics on STATS_FOR_UPLOAD';
 
     PRINT 'SP_Stats_for_Upload: Completed successfully for KVK ' + CAST(@LatestKVK AS VARCHAR(10)) 
         + ' using scan ' + CAST(@ScanToUse AS VARCHAR(10)) 

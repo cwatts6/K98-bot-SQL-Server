@@ -88,7 +88,7 @@ BEGIN
     ----------------------------------------------------------------
 	;WITH W AS (
 		SELECT
-			w.WindowName,
+			RTRIM(w.WindowName) AS WindowName,
 			w.StartScanID,
 			-- Auto-cap EndScanID to max available scan (prevents future scan references)
 			CASE 
@@ -172,7 +172,7 @@ BEGIN
     )
     SELECT
         @KVK_NO,
-        U.WindowName,
+        RTRIM(U.WindowName),
         U.governor_id,
         U.name,
         U.kingdom,
