@@ -263,17 +263,17 @@ DeltaCalculations AS (
     SELECT
         awl.GovernorID,
         awl.SCANORDER,
-        CAST(awl.T4_Current - ISNULL(awl.T4_Previous, lav.T4_Kills_Absolute) AS FLOAT) AS T4_Delta,
-        CAST(awl.T5_Current - ISNULL(awl.T5_Previous, lav.T5_Kills_Absolute) AS FLOAT) AS T5_Delta,
-        CAST(awl.T4T5_Current - ISNULL(awl.T4T5_Previous, lav.T4T5_Kills_Absolute) AS FLOAT) AS T4T5_Delta,
-        CAST(awl.Power_Current - ISNULL(awl.Power_Previous, lav.Power_Absolute) AS FLOAT) AS Power_Delta,
-        CAST(awl.KillPoints_Current - ISNULL(awl.KillPoints_Previous, lav.KillPoints_Absolute) AS BIGINT) AS KillPoints_Delta,
-        CAST(awl.Deads_Current - ISNULL(awl.Deads_Previous, lav.Deads_Absolute) AS FLOAT) AS Deads_Delta,
-        CAST(awl.Helps_Current - ISNULL(awl.Helps_Previous, lav.Helps_Absolute) AS FLOAT) AS Helps_Delta,
-        CAST(awl.RSSAssist_Current - ISNULL(awl.RSSAssist_Previous, lav.RSSAssist_Absolute) AS FLOAT) AS RSSAssist_Delta,
-        CAST(awl.RSSGathered_Current - ISNULL(awl.RSSGathered_Previous, lav.RSSGathered_Absolute) AS FLOAT) AS RSSGathered_Delta,
-        CAST(awl.HealedTroops_Current - ISNULL(awl.HealedTroops_Previous, lav.HealedTroops_Absolute) AS BIGINT) AS HealedTroops_Delta,
-        CAST(awl.RangedPoints_Current - ISNULL(awl.RangedPoints_Previous, lav.RangedPoints_Absolute) AS BIGINT) AS RangedPoints_Delta
+        CAST(ISNULL(awl.T4_Current - ISNULL(awl.T4_Previous, ISNULL(lav.T4_Kills_Absolute, 0)), awl.T4_Current) AS FLOAT) AS T4_Delta,
+        CAST(ISNULL(awl.T5_Current - ISNULL(awl.T5_Previous, ISNULL(lav.T5_Kills_Absolute, 0)), awl.T5_Current) AS FLOAT) AS T5_Delta,
+        CAST(ISNULL(awl.T4T5_Current - ISNULL(awl.T4T5_Previous, ISNULL(lav.T4T5_Kills_Absolute, 0)), awl.T4T5_Current) AS FLOAT) AS T4T5_Delta,
+        CAST(ISNULL(awl.Power_Current - ISNULL(awl.Power_Previous, ISNULL(lav.Power_Absolute, 0)), awl.Power_Current) AS FLOAT) AS Power_Delta,
+        CAST(ISNULL(awl.KillPoints_Current - ISNULL(awl.KillPoints_Previous, ISNULL(lav.KillPoints_Absolute, 0)), awl.KillPoints_Current) AS BIGINT) AS KillPoints_Delta,
+        CAST(ISNULL(awl.Deads_Current - ISNULL(awl.Deads_Previous, ISNULL(lav.Deads_Absolute, 0)), awl.Deads_Current) AS FLOAT) AS Deads_Delta,
+        CAST(ISNULL(awl.Helps_Current - ISNULL(awl.Helps_Previous, ISNULL(lav.Helps_Absolute, 0)), awl.Helps_Current) AS FLOAT) AS Helps_Delta,
+        CAST(ISNULL(awl.RSSAssist_Current - ISNULL(awl.RSSAssist_Previous, ISNULL(lav.RSSAssist_Absolute, 0)), awl.RSSAssist_Current) AS FLOAT) AS RSSAssist_Delta,
+        CAST(ISNULL(awl.RSSGathered_Current - ISNULL(awl.RSSGathered_Previous, ISNULL(lav.RSSGathered_Absolute, 0)), awl.RSSGathered_Current) AS FLOAT) AS RSSGathered_Delta,
+        CAST(ISNULL(awl.HealedTroops_Current - ISNULL(awl.HealedTroops_Previous, ISNULL(lav.HealedTroops_Absolute, 0)), awl.HealedTroops_Current) AS BIGINT) AS HealedTroops_Delta,
+        CAST(ISNULL(awl.RangedPoints_Current - ISNULL(awl.RangedPoints_Previous, ISNULL(lav.RangedPoints_Absolute, 0)), awl.RangedPoints_Current) AS BIGINT) AS RangedPoints_Delta
     FROM AbsoluteWithLag awl
     LEFT JOIN #LastAbsoluteValues lav ON awl.GovernorID = lav.GovernorID
 )

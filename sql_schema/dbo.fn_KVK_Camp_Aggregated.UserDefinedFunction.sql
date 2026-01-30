@@ -30,7 +30,7 @@ RETURN
         ) d
         GROUP BY d.campid
     )
-    SELECT a.campid, a.camp_name, a.t4, a.t5, a.deads, ISNULL(d.denom,0) AS denom
+    SELECT a.campid, a.camp_name, a.t4, a.t5, a.deads, a.KP, a.healed_troops, ISNULL(d.denom,0) AS denom
     FROM Agg a
     LEFT JOIN Den d ON d.campid = a.campid
 );

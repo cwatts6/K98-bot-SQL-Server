@@ -29,7 +29,7 @@ RETURN
         ) d
         GROUP BY d.kingdom
     )
-    SELECT a.kingdom, a.t4, a.t5, a.deads, ISNULL(d.denom,0) AS denom
+    SELECT a.kingdom, a.t4, a.t5, a.deads, a.KP, a.healed_troops, ISNULL(d.denom,0) AS denom
     FROM Agg a
     LEFT JOIN Den d ON d.kingdom = a.kingdom
 );
