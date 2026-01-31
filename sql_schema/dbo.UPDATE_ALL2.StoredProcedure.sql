@@ -316,12 +316,82 @@ BEGIN
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
         PRINT 'CREATE_DASH2: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
 
-        -- Step 4: SP_Stats_for_Upload
+        ----------------------------------------------------------------
+        -- Step 4a: Refresh EXCEL_FOR_KVK table FIRST (lifted from SP_Stats_for_Upload)
+        ----------------------------------------------------------------
         SET @StepStart = SYSDATETIME();
-        EXEC dbo.SP_Stats_for_Upload;
+        
+        -- Determine which KVK and Scan to use (same logic as SP_Stats_for_Upload)
+        DECLARE @LatestKVK_Upload INT;
+        DECLARE @MaxScan_Upload INT = (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData4);
+        DECLARE @MatchmakingScan_Upload INT;
+        DECLARE @DraftScan_Upload INT;
+        DECLARE @ScanToUse_Upload INT;
+
+        SELECT TOP 1 @LatestKVK_Upload = KVKVersion
+        FROM dbo.ProcConfig
+        WHERE ConfigKey = 'MATCHMAKING_SCAN'
+          AND TRY_CAST(ConfigValue AS INT) <= @MaxScan_Upload
+        ORDER BY KVKVersion DESC;
+
+        IF @LatestKVK_Upload IS NOT NULL
+        BEGIN
+            SELECT
+                @MatchmakingScan_Upload = MAX(CASE WHEN ConfigKey = 'MATCHMAKING_SCAN' THEN TRY_CAST(ConfigValue AS INT) END),
+                @DraftScan_Upload       = MAX(CASE WHEN ConfigKey = 'DRAFTSCAN'        THEN TRY_CAST(ConfigValue AS INT) END)
+            FROM dbo.ProcConfig
+            WHERE KVKVersion = @LatestKVK_Upload
+              AND ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
+
+            -- Decide which scan to use
+            SET @ScanToUse_Upload = NULL;
+            IF @MatchmakingScan_Upload IS NOT NULL AND @MaxScan_Upload >= @MatchmakingScan_Upload
+                SET @ScanToUse_Upload = @MatchmakingScan_Upload;
+            ELSE IF @DraftScan_Upload IS NOT NULL AND @MaxScan_Upload >= @DraftScan_Upload
+                SET @ScanToUse_Upload = @DraftScan_Upload;
+
+            IF @ScanToUse_Upload IS NOT NULL
+            BEGIN
+                PRINT 'Step 4a: Refreshing EXCEL_FOR_KVK_' + CAST(@LatestKVK_Upload AS VARCHAR(10)) 
+                    + ' with ScanOrder=' + CAST(@ScanToUse_Upload AS VARCHAR(10)) + '...';
+                
+                -- ✅ LIFT: Call sp_ExcelOutput_ByKVK directly here
+                EXEC dbo.sp_ExcelOutput_ByKVK @KVK = @LatestKVK_Upload, @Scan = @ScanToUse_Upload;
+                
+                SET @StepEnd = SYSDATETIME();
+                SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+                PRINT 'sp_ExcelOutput_ByKVK: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+                
+                -- ✅ CRITICAL: Force commit visibility before next step
+                PRINT 'Forcing commit flush via CHECKPOINT...';
+                CHECKPOINT;
+                WAITFOR DELAY '00:00:00.100';  -- 100ms safety buffer
+                
+                ----------------------------------------------------------------
+                -- Step 4b: Now populate STATS_FOR_UPLOAD (simplified SP)
+                ----------------------------------------------------------------
+                SET @StepStart = SYSDATETIME();
+                EXEC dbo.SP_Stats_for_Upload;  -- Now just does INSERT, no refresh
+                SET @StepEnd = SYSDATETIME();
+                SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
+                PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+            END
+            ELSE
+            BEGIN
+                PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no valid scan available)';
+            END
+        END
+        ELSE
+        BEGIN
+            PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no eligible KVK found)';
+        END
+
+        CHECKPOINT;
+        WAITFOR DELAY '00:00:00.100';  -- 100ms delay for commit propagation
+        
         SET @StepEnd = SYSDATETIME();
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
-        PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+        PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms (includes checkpoint)';
 
         ----------------------------------------------------------------
         -- ⚡⚡⚡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD ⚡⚡⚡

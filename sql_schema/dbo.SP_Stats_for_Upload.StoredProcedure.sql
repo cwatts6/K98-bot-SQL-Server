@@ -16,11 +16,9 @@ BEGIN
         @MaxScan         INT,
         @TableName       NVARCHAR(128),
         @TableNameFull   NVARCHAR(260),
-        @sql             NVARCHAR(MAX),
+        @sql             NVARCHAR(MAX);
 
-        @MatchmakingScan INT,
-        @DraftScan       INT,
-        @ScanToUse       INT;
+
 
     ------------------------------------------------------------
     -- Step 1: Get max scan available
@@ -50,42 +48,6 @@ BEGIN
     END
 
     ------------------------------------------------------------
-    -- Step 3: Load MATCHMAKING_SCAN and DRAFTSCAN for this KVK
-    ------------------------------------------------------------
-    SELECT
-        @MatchmakingScan = MAX(CASE WHEN ConfigKey = 'MATCHMAKING_SCAN' THEN TRY_CAST(ConfigValue AS INT) END),
-        @DraftScan       = MAX(CASE WHEN ConfigKey = 'DRAFTSCAN'        THEN TRY_CAST(ConfigValue AS INT) END)
-    FROM dbo.ProcConfig
-    WHERE KVKVersion = @LatestKVK
-      AND ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
-
-    ------------------------------------------------------------
-    -- Step 4: Decide which scan to use for refresh
-    ------------------------------------------------------------
-    SET @ScanToUse = NULL;
-
-    IF @MatchmakingScan IS NOT NULL AND @MaxScan >= @MatchmakingScan
-        SET @ScanToUse = @MatchmakingScan;
-    ELSE IF @DraftScan IS NOT NULL AND @MaxScan >= @DraftScan
-        SET @ScanToUse = @DraftScan;
-
-    IF @ScanToUse IS NULL
-    BEGIN
-        PRINT 'SP_Stats_for_Upload: Skipping refresh + upload. MaxScan=' + CAST(@MaxScan AS varchar(20))
-            + ', MatchmakingScan=' + COALESCE(CAST(@MatchmakingScan AS varchar(20)), 'NULL')
-            + ', DraftScan=' + COALESCE(CAST(@DraftScan AS varchar(20)), 'NULL');
-        RETURN;
-    END
-
-    ------------------------------------------------------------
-    -- Step 5: Refresh the EXCEL_FOR_KVK table first
-    ------------------------------------------------------------
-    PRINT 'SP_Stats_for_Upload: Refreshing EXCEL_FOR_KVK_' + CAST(@LatestKVK AS VARCHAR(10)) 
-        + ' with ScanOrder=' + CAST(@ScanToUse AS VARCHAR(20)) + '...';
-    
-    EXEC dbo.sp_ExcelOutput_ByKVK @KVK = @LatestKVK, @Scan = @ScanToUse;
-
-    ------------------------------------------------------------
     -- FIX: Ensure transaction commits are fully visible
     ------------------------------------------------------------
     PRINT 'SP_Stats_for_Upload: Forcing commit flush via CHECKPOINT...';
@@ -93,6 +55,8 @@ BEGIN
     
     -- Small safety delay to ensure data visibility
     WAITFOR DELAY '00:00:00.100';  -- 100ms delay
+
+	PRINT 'SP_Stats_for_Upload: Populating STATS_FOR_UPLOAD from EXCEL_FOR_KVK_' + CAST(@LatestKVK AS VARCHAR(10));
     
     ------------------------------------------------------------
     -- Step 5b: Verify statistics on source table
@@ -256,7 +220,7 @@ BEGIN
     PRINT 'SP_Stats_for_Upload: Updated statistics on STATS_FOR_UPLOAD';
 
     PRINT 'SP_Stats_for_Upload: Completed successfully for KVK ' + CAST(@LatestKVK AS VARCHAR(10)) 
-        + ' using scan ' + CAST(@ScanToUse AS VARCHAR(10)) 
+        + ' using scan ' + CAST(@MaxScan AS VARCHAR(10)) 
         + ' at ' + CONVERT(VARCHAR, GETDATE(), 120);
 END
 
