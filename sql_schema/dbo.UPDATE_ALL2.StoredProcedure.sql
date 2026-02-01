@@ -361,12 +361,18 @@ BEGIN
                 SET @StepEnd = SYSDATETIME();
                 SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
                 PRINT 'sp_ExcelOutput_ByKVK: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
-                
-                -- ✅ CRITICAL: Force commit visibility before next step
+               	
+				IF @@TRANCOUNT > 0
+                BEGIN
+                    COMMIT;
+                    PRINT 'Committed EXCEL_FOR_KVK refresh before STATS_FOR_UPLOAD.';
+                END
+
+				-- ✅ CRITICAL: Force commit visibility before next step
                 PRINT 'Forcing commit flush via CHECKPOINT...';
                 CHECKPOINT;
                 WAITFOR DELAY '00:00:00.100';  -- 100ms safety buffer
-                
+
                 ----------------------------------------------------------------
                 -- Step 4b: Now populate STATS_FOR_UPLOAD (simplified SP)
                 ----------------------------------------------------------------
@@ -375,6 +381,9 @@ BEGIN
                 SET @StepEnd = SYSDATETIME();
                 SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
                 PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+
+				-- Resume Phase B work in a new transaction
+                BEGIN TRANSACTION;
             END
             ELSE
             BEGIN
