@@ -51,6 +51,18 @@ BEGIN
         DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
         DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
+		SELECT ks4.GovernorID,
+               ks4.GovernorName,
+               ks4.PowerRank,
+               ks4.ScanOrder,
+               ks4.ScanDate,
+               ks4.RangedPoints
+        INTO #GovScan
+        FROM dbo.KingdomScanData4 ks4
+        INNER JOIN #AffectedGovs a ON a.GovernorID = ks4.GovernorID;
+
+        CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
+
         ------------------------------------------------------------
         -- 1) RANGED_ALL: Delete and rebuild for affected governors
         ------------------------------------------------------------
@@ -59,14 +71,14 @@ BEGIN
         INNER JOIN #AffectedGovs a ON a.GovernorID = ra.GovernorID;
 
         ;WITH RankedAll AS (
-            SELECT k.GovernorID,
-                   k.GovernorName,
-                   k.RangedPoints,
-                   k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAscALL,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDescALL
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            SELECT g.GovernorID,
+                   g.GovernorName,
+                   g.RangedPoints,
+                   g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAscALL,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
         )
         INSERT INTO dbo.RANGED_ALL (GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL)
         SELECT GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL
@@ -76,10 +88,10 @@ BEGIN
         -- 2) Update RANGED_LATEST for affected governors (upsert)
         ------------------------------------------------------------
         ;WITH LatestPerGov AS (
-            SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.RangedPoints,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            SELECT g.GovernorID, g.GovernorName, g.PowerRank, g.RangedPoints,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS rn
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
         )
         MERGE dbo.RANGED_LATEST AS tgt
         USING (SELECT GovernorID, GovernorName, PowerRank, RangedPoints FROM LatestPerGov WHERE rn = 1) AS src
@@ -96,12 +108,12 @@ BEGIN
         INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD3 AS (
-            SELECT k.GovernorID, k.RangedPoints, k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc3,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc3
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            WHERE k.ScanDate >= @Cutoff3
+            SELECT g.GovernorID, g.RangedPoints, g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc3,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc3
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+            WHERE g.ScanDate >= @Cutoff3
         )
         INSERT INTO dbo.RANGED_D3 (GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3)
         SELECT GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3 FROM RankedD3;
@@ -112,12 +124,12 @@ BEGIN
         INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD6 AS (
-            SELECT k.GovernorID, k.RangedPoints, k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc6,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc6
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            WHERE k.ScanDate >= @Cutoff6
+            SELECT g.GovernorID, g.RangedPoints, g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc6,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc6
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+            WHERE g.ScanDate >= @Cutoff6
         )
         INSERT INTO dbo.RANGED_D6 (GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6)
         SELECT GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6 FROM RankedD6;
@@ -128,12 +140,12 @@ BEGIN
         INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
 
         ;WITH RankedD12 AS (
-            SELECT k.GovernorID, k.RangedPoints, k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc12,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc12
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            WHERE k.ScanDate >= @Cutoff12
+            SELECT g.GovernorID, g.RangedPoints, g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc12,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc12
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+            WHERE g.ScanDate >= @Cutoff12
         )
         INSERT INTO dbo.RANGED_D12 (GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12)
         SELECT GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12 FROM RankedD12;

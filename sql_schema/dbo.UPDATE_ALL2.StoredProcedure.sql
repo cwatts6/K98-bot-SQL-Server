@@ -198,6 +198,9 @@ BEGIN
             UPDATE STATISTICS dbo.KingdomScanData4 WITH SAMPLE 25 PERCENT;
             PRINT 'KingdomScanData4 statistics refreshed.';
 
+			EXEC [dbo].[Refresh_PlayerScanMeta] @MinScanOrder = @MaxScanOrder5
+			UPDATE STATISTICS dbo.PlayerScanMeta WITH SAMPLE 25 PERCENT;
+
             -- Log index maintenance actions
             SELECT * FROM @IndexMaintLog;
         END

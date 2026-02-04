@@ -26,11 +26,22 @@ BEGIN
     
     PRINT '----------------------------------------';
     PRINT 'Starting delta processing at ' + CONVERT(VARCHAR(30), @StartTime, 120);
+
+	DECLARE @DeltaMetricsExists BIT = CASE WHEN OBJECT_ID(N'dbo.DeltaMetrics', N'U') IS NOT NULL THEN 1 ELSE 0 END;
+
+    IF @DeltaMetricsExists = 0
+    BEGIN
+        RAISERROR('DeltaMetrics table missing. Run dbo.DeltaMetrics.Build.sql to create/backfill before executing CREATE_DELTA_TABLES.', 16, 1);
+        RETURN;
+    END
+
     
     -- Find the highest scan order we've already processed across all delta tables
     SELECT @LastProcessedScan = ISNULL(MAX(MaxDelta), 0)
     FROM (
-        SELECT MAX(DeltaOrder) AS MaxDelta FROM T4T5KillDelta
+        SELECT MAX(DeltaOrder) AS MaxDelta FROM dbo.DeltaMetrics
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM T4T5KillDelta
         UNION ALL
         SELECT MAX(DeltaOrder) FROM T4KillDelta
         UNION ALL
@@ -59,7 +70,9 @@ BEGIN
         @MinMaxDelta = MIN(MaxDelta),
         @MaxMaxDelta = MAX(MaxDelta)
     FROM (
-        SELECT MAX(DeltaOrder) AS MaxDelta FROM T4T5KillDelta
+        SELECT MAX(DeltaOrder) AS MaxDelta FROM dbo.DeltaMetrics
+        UNION ALL
+        SELECT MAX(DeltaOrder) FROM T4T5KillDelta
         UNION ALL
         SELECT MAX(DeltaOrder) FROM T4KillDelta
         UNION ALL
@@ -90,6 +103,12 @@ BEGIN
         PRINT '';
         PRINT 'Detailed breakdown:';
         
+		SELECT 
+            'DeltaMetrics' AS TableName, 
+            MAX(DeltaOrder) AS MaxDeltaOrder, 
+            COUNT(*) AS TotalRows 
+        FROM dbo.DeltaMetrics
+        UNION ALL
         SELECT 
             'T4T5KillDelta' AS TableName, 
             MAX(DeltaOrder) AS MaxDeltaOrder, 
@@ -172,10 +191,10 @@ PRINT 'Calculating absolute values at last processed scan...';
 ;WITH LastAbsoluteValues AS (
     SELECT 
         GovernorID,
-        SUM(T4KILLSDelta) AS T4_Kills_Absolute,
-        SUM(T5KILLSDelta) AS T5_Kills_Absolute,
-        SUM([T4&T5_KILLSDelta]) AS T4T5_Kills_Absolute,
-        SUM([Power_Delta]) AS Power_Absolute,
+        SUM(T4KillsDelta) AS T4_Kills_Absolute,
+        SUM(T5KillsDelta) AS T5_Kills_Absolute,
+        SUM(T4T5KillsDelta) AS T4T5_Kills_Absolute,
+        SUM(Power_Delta) AS Power_Absolute,
         SUM(KillPointsDelta) AS KillPoints_Absolute,
         SUM(DeadsDelta) AS Deads_Absolute,
         SUM(HelpsDelta) AS Helps_Absolute,
@@ -183,25 +202,8 @@ PRINT 'Calculating absolute values at last processed scan...';
         SUM(RSSGatheredDelta) AS RSSGathered_Absolute,
         SUM(HealedTroopsDelta) AS HealedTroops_Absolute,
         SUM(RangedPointsDelta) AS RangedPoints_Absolute
-    FROM (
-        SELECT t4.GovernorID, t4.DeltaOrder, 
-               t4.T4KILLSDelta, t5.T5KILLSDelta, t4t5.[T4&T5_KILLSDelta],
-               pwr.[Power_Delta], kp.KillPointsDelta, dd.DeadsDelta, 
-               hlp.HelpsDelta, rssa.RSSAssistDelta, rssg.RSSGatheredDelta,
-               ht.HealedTroopsDelta, rp.RangedPointsDelta
-        FROM T4KillDelta t4
-        INNER JOIN T5KillDelta t5 ON t4.GovernorID = t5.GovernorID AND t4.DeltaOrder = t5.DeltaOrder
-        INNER JOIN T4T5KillDelta t4t5 ON t4.GovernorID = t4t5.GovernorID AND t4.DeltaOrder = t4t5.DeltaOrder
-        INNER JOIN POWERDelta pwr ON t4.GovernorID = pwr.GovernorID AND t4.DeltaOrder = pwr.DeltaOrder
-        INNER JOIN KillPointsDelta kp ON t4.GovernorID = kp.GovernorID AND t4.DeltaOrder = kp.DeltaOrder
-        INNER JOIN DeadsDelta dd ON t4.GovernorID = dd.GovernorID AND t4.DeltaOrder = dd.DeltaOrder
-        INNER JOIN HelpsDelta hlp ON t4.GovernorID = hlp.GovernorID AND t4.DeltaOrder = hlp.DeltaOrder
-        INNER JOIN RSSASSISTDelta rssa ON t4.GovernorID = rssa.GovernorID AND t4.DeltaOrder = rssa.DeltaOrder
-        INNER JOIN RSSGatheredDelta rssg ON t4.GovernorID = rssg.GovernorID AND t4.DeltaOrder = rssg.DeltaOrder
-        INNER JOIN HealedTroopsDelta ht ON t4.GovernorID = ht.GovernorID AND t4.DeltaOrder = ht.DeltaOrder
-        INNER JOIN RangedPointsDelta rp ON t4.GovernorID = rp.GovernorID AND t4.DeltaOrder = rp.DeltaOrder
-        WHERE t4.DeltaOrder <= @LastProcessedScan
-    ) AllHistoricalDeltas
+    FROM dbo.DeltaMetrics dm
+    WHERE dm.DeltaOrder <= @LastProcessedScan
     GROUP BY GovernorID
 )
 SELECT * INTO #LastAbsoluteValues FROM LastAbsoluteValues;
@@ -333,6 +335,44 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         INSERT INTO RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
         SELECT GovernorID, SCANORDER, RangedPoints_Delta FROM #DeltaCalculations;
         PRINT '  RangedPointsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
+				
+        INSERT INTO dbo.DeltaMetrics (
+            DeltaOrder,
+            GovernorID,
+            T4KillsDelta,
+            T5KillsDelta,
+            T4T5KillsDelta,
+            Power_Delta,
+            KillPointsDelta,
+            DeadsDelta,
+            HelpsDelta,
+            RSSAssistDelta,
+            RSSGatheredDelta,
+            HealedTroopsDelta,
+            RangedPointsDelta
+        )
+        SELECT
+            SCANORDER,
+            GovernorID,
+            T4_Delta,
+            T5_Delta,
+            T4T5_Delta,
+            Power_Delta,
+            KillPoints_Delta,
+            Deads_Delta,
+            Helps_Delta,
+            RSSAssist_Delta,
+            RSSGathered_Delta,
+            HealedTroops_Delta,
+            RangedPoints_Delta
+        FROM #DeltaCalculations DC
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM dbo.DeltaMetrics dm
+            WHERE dm.DeltaOrder = DC.SCANORDER
+              AND dm.GovernorID = DC.GovernorID
+        );
+        PRINT '  DeltaMetrics: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
         
         COMMIT TRANSACTION;
         PRINT '✅ All delta inserts committed successfully.';
@@ -412,6 +452,7 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         UPDATE STATISTICS RSSGatheredDelta WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS HealedTroopsDelta WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS RangedPointsDelta WITH SAMPLE 25 PERCENT;
+		UPDATE STATISTICS DeltaMetrics WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS dbo.kingdomscandata4 WITH SAMPLE 25 PERCENT;
         
         PRINT 'Statistics updated (25% sample).';
@@ -443,7 +484,7 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
             'T4KillDelta', 'T5KillDelta', 'T4T5KillDelta', 'POWERDelta', 
             'KillPointsDelta', 'DeadsDelta', 'HelpsDelta', 'RSSASSISTDelta', 
             'RSSGatheredDelta', 'HealedTroopsDelta', 'RangedPointsDelta',
-            'kingdomscandata4'
+			'DeltaMetrics', 'kingdomscandata4'
         )
         AND i.name IS NOT NULL
         AND ips.page_count > 1000;

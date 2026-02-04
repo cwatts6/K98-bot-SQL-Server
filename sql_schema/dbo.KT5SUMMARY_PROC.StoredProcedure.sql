@@ -56,19 +56,31 @@ SET NOCOUNT ON;
         DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
         DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
+		SELECT ks4.GovernorID,
+               ks4.GovernorName,
+               ks4.PowerRank,
+               ks4.ScanOrder,
+               ks4.ScanDate,
+               ks4.[T5_KILLS]
+        INTO #GovScan
+        FROM dbo.KingdomScanData4 ks4
+        INNER JOIN #AffectedGovs a ON a.GovernorID = ks4.GovernorID;
+
+        CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
+
         DELETE k5a
         FROM dbo.K5ALL k5a
         INNER JOIN #AffectedGovs a ON a.GovernorID = k5a.GovernorID;
 
         ;WITH RankedAll AS (
-            SELECT k.GovernorID,
-                   k.GovernorName,
-                   k.[T5_KILLS],
-                   k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAscALL,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDescALL
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            SELECT g.GovernorID,
+                   g.GovernorName,
+                   g.[T5_KILLS],
+                   g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAscALL,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
         )
         INSERT INTO dbo.K5ALL (GovernorID, GovernorName, [T5_KILLS], ScanDate, RowAscALL, RowDescALL)
         SELECT GovernorID, GovernorName, [T5_KILLS], ScanDate, RowAscALL, RowDescALL
@@ -79,14 +91,14 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = k512.GovernorID;
 
         ;WITH RankedK12 AS (
-            SELECT k.GovernorID,
-                   k.[T5_KILLS],
-                   k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc12,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc12
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            WHERE k.ScanDate >= @Cutoff12
+            SELECT g.GovernorID,
+                   g.[T5_KILLS],
+                   g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc12,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc12
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+            WHERE g.ScanDate >= @Cutoff12
         )
         INSERT INTO dbo.K512 (GovernorID, [T5_KILLS], ScanDate, RowAsc12, RowDesc12)
         SELECT GovernorID, [T5_KILLS], ScanDate, RowAsc12, RowDesc12
@@ -97,14 +109,14 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = k56.GovernorID;
 
         ;WITH RankedK6 AS (
-            SELECT k.GovernorID,
-                   k.[T5_KILLS],
-                   k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc6,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc6
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            WHERE k.ScanDate >= @Cutoff6
+            SELECT g.GovernorID,
+                   g.[T5_KILLS],
+                   g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc6,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc6
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+            WHERE g.ScanDate >= @Cutoff6
         )
         INSERT INTO dbo.K56 (GovernorID, [T5_KILLS], ScanDate, RowAsc6, RowDesc6)
         SELECT GovernorID, [T5_KILLS], ScanDate, RowAsc6, RowDesc6
@@ -115,24 +127,24 @@ SET NOCOUNT ON;
         INNER JOIN #AffectedGovs a ON a.GovernorID = k53.GovernorID;
 
         ;WITH RankedK3 AS (
-            SELECT k.GovernorID,
-                   k.[T5_KILLS],
-                   k.ScanDate,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder ASC) AS RowAsc3,
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS RowDesc3
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
-            WHERE k.ScanDate >= @Cutoff3
+            SELECT g.GovernorID,
+                   g.[T5_KILLS],
+                   g.ScanDate,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc3,
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc3
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+            WHERE g.ScanDate >= @Cutoff3
         )
         INSERT INTO dbo.K53 (GovernorID, [T5_KILLS], ScanDate, RowAsc3, RowDesc3)
         SELECT GovernorID, [T5_KILLS], ScanDate, RowAsc3, RowDesc3
         FROM RankedK3;
 
         ;WITH LatestPerGov AS (
-            SELECT k.GovernorID, k.GovernorName, k.PowerRank, k.[T5_KILLS],
-                   ROW_NUMBER() OVER (PARTITION BY k.GovernorID ORDER BY k.ScanOrder DESC) AS rn
-            FROM dbo.KingdomScanData4 k
-            INNER JOIN #AffectedGovs a ON a.GovernorID = k.GovernorID
+            SELECT g.GovernorID, g.GovernorName, g.PowerRank, g.[T5_KILLS],
+                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS rn
+            FROM #GovScan g
+            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
         )
         MERGE dbo.LATEST_T5_KILLS AS tgt
         USING (SELECT GovernorID, GovernorName, PowerRank, [T5_KILLS] FROM LatestPerGov WHERE rn = 1) AS src

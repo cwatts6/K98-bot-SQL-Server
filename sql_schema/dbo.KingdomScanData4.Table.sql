@@ -52,6 +52,13 @@ CREATE CLUSTERED INDEX [CIX_KS4_ScanOrder_Governor] ON [dbo].[KingdomScanData4]
 	[SCANORDER] ASC,
 	[GovernorID] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[KingdomScanData4]') AND name = N'IX_KingdomScanData4_GovernorID_ScanOrder_Covering')
+CREATE NONCLUSTERED INDEX [IX_KingdomScanData4_GovernorID_ScanOrder_Covering] ON [dbo].[KingdomScanData4]
+(
+	[GovernorID] ASC,
+	[SCANORDER] ASC
+)
+INCLUDE([ScanDate],[GovernorName],[PowerRank],[Power],[T5_Kills],[T4_Kills],[T4&T5_KILLS],[HealedTroops],[Deads],[RangedPoints],[KillPoints]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[KingdomScanData4]') AND name = N'IX_kingdomscandata4_GovID_ScanOrder')
 CREATE NONCLUSTERED INDEX [IX_kingdomscandata4_GovID_ScanOrder] ON [dbo].[KingdomScanData4]
 (
