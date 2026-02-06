@@ -72,7 +72,7 @@ BEGIN
       (N'last_week',@LastMonday,@EndLastWeek),
       (N'mtd',@FirstOfThisMonth,@Latest),
       (N'last_month',CAST(@FirstOfLastMonth AS datetime2),@EndOfLastMonth),
-      (N'last_3m',CAST(@FirstOf3MoAgo AS datetime2),@Latest),
+      (N'last_3m',CAST(@FirstOf3MoAgo AS datetime2),@Latest), 
       (N'last_6m',CAST(@FirstOf6MoAgo AS datetime2),@Latest)
     ) AS k(WindowKey,WindowStartUtc,WindowEndUtc)
     WHERE EXISTS (SELECT 1 FROM SS WHERE SS.SliceKey=k.WindowKey);
@@ -98,7 +98,6 @@ BEGIN
   FROM LATEST_ROW WHERE rn=1;
 
 /* Per-account rows (set-based) */
-/* Create #Per explicitly so GovernorID can be NULL for ALL rows */
 IF OBJECT_ID('tempdb..#Per') IS NOT NULL DROP TABLE #Per;
 CREATE TABLE #Per
 (
@@ -106,11 +105,11 @@ CREATE TABLE #Per
   WindowKey            nvarchar(32)  NOT NULL,
   WindowStartUtc       datetime2     NOT NULL,
   WindowEndUtc         datetime2     NOT NULL,
-  GovernorID           int           NULL,        -- NULL for ALL roll-up
+  GovernorID           int           NULL,
   GovernorName         nvarchar(200) NULL,
   Alliance             nvarchar(100) NULL,
 
-  -- snapshot ends
+  -- Core snapshots (USED BY /my_stats)
   PowerEnd             bigint        NULL,
   TroopPowerEnd        bigint        NULL,
   KillPointsEnd        bigint        NULL,
@@ -119,7 +118,7 @@ CREATE TABLE #Per
   RSSAssistEnd         bigint        NULL,
   HelpsEnd             bigint        NULL,
 
-  -- window sums
+  -- Core deltas (USED BY /my_stats)
   PowerDelta           bigint        NULL,
   TroopPowerDelta      bigint        NULL,
   KillPointsDelta      bigint        NULL,
@@ -131,10 +130,41 @@ CREATE TABLE #Per
   BuildingMinutesDelta bigint        NULL,
   TechDonationsDelta   bigint        NULL,
 
-  -- forts (daily counts summed)
+  -- Forts (USED BY /my_stats) - ADDED FortsEnd
+  FortsEnd             bigint        NULL,
   FortsTotal           bigint        NULL,
   FortsLaunched        bigint        NULL,
-  FortsJoined          bigint        NULL
+  FortsJoined          bigint        NULL,
+
+  -- AOO snapshots (USED BY /my_stats for display)
+  AOOJoinedEnd         int           NULL,
+  AOOWonEnd            int           NULL,
+  AOOAvgKillEnd        bigint        NULL,
+  AOOAvgDeadEnd        bigint        NULL,
+  AOOAvgHealEnd        bigint        NULL,
+
+  -- AOO deltas (EXPORT-ONLY, not used by /my_stats)
+  AOOJoinedDelta       int           NULL,
+  AOOWonDelta          int           NULL,
+  AOOAvgKillDelta      bigint        NULL,
+  AOOAvgDeadDelta      bigint        NULL,
+  AOOAvgHealDelta      bigint        NULL,
+
+  -- Detailed metrics snapshots (EXPORT-ONLY)
+  T4_KillsEnd          bigint        NULL,
+  T5_KillsEnd          bigint        NULL,
+  T4T5_KillsEnd        bigint        NULL,
+  HealedTroopsEnd      bigint        NULL,
+  RangedPointsEnd      bigint        NULL,
+  HighestAcclaimEnd    int           NULL,
+  AutarchTimesEnd      int           NULL,
+
+  -- Detailed metrics deltas (EXPORT-ONLY)
+  T4_KillsDelta        bigint        NULL,
+  T5_KillsDelta        bigint        NULL,
+  T4T5_KillsDelta      bigint        NULL,
+  HealedTroopsDelta    bigint        NULL,
+  RangedPointsDelta    bigint        NULL
 );
 
 -- Insert PER rows
@@ -145,7 +175,11 @@ INSERT INTO #Per
   PowerEnd, TroopPowerEnd, KillPointsEnd, DeadsEnd, RSSGatheredEnd, RSSAssistEnd, HelpsEnd,
   PowerDelta, TroopPowerDelta, KillPointsDelta, DeadsDelta, RSSGatheredDelta, RSSAssistDelta, HelpsDelta,
   BuildingMinutesDelta, TechDonationsDelta,
-  FortsTotal, FortsLaunched, FortsJoined
+  FortsEnd, FortsTotal, FortsLaunched, FortsJoined,
+  AOOJoinedEnd, AOOWonEnd, AOOAvgKillEnd, AOOAvgDeadEnd, AOOAvgHealEnd,
+  AOOJoinedDelta, AOOWonDelta, AOOAvgKillDelta, AOOAvgDeadDelta, AOOAvgHealDelta,
+  T4_KillsEnd, T5_KillsEnd, T4T5_KillsEnd, HealedTroopsEnd, RangedPointsEnd, HighestAcclaimEnd, AutarchTimesEnd,
+  T4_KillsDelta, T5_KillsDelta, T4T5_KillsDelta, HealedTroopsDelta, RangedPointsDelta
 )
 SELECT
   'PER',
@@ -156,7 +190,11 @@ SELECT
   t.PowerDelta, t.TroopPowerDelta, t.KillPointsDelta, t.DeadsDelta,
   t.RSSGatheredDelta, t.RSSAssistDelta, t.HelpsDelta,
   t.BuildingMinutesDelta, t.TechDonationsDelta,
-  t.FortsTotal, t.FortsLaunched, t.FortsJoined
+  t.FortsEnd, t.FortsTotal, t.FortsLaunched, t.FortsJoined,
+  t.AOOJoinedEnd, t.AOOWonEnd, t.AOOAvgKillEnd, t.AOOAvgDeadEnd, t.AOOAvgHealEnd,
+  t.AOOJoinedDelta, t.AOOWonDelta, t.AOOAvgKillDelta, t.AOOAvgDeadDelta, t.AOOAvgHealDelta,
+  t.T4_KillsEnd, t.T5_KillsEnd, t.T4T5_KillsEnd, t.HealedTroopsEnd, t.RangedPointsEnd, t.HighestAcclaimEnd, t.AutarchTimesEnd,
+  t.T4_KillsDelta, t.T5_KillsDelta, t.T4T5_KillsDelta, t.HealedTroopsDelta, t.RangedPointsDelta
 FROM @Slices s
 CROSS APPLY dbo.fn_StatsWindowDeltas_GovCsv(s.WindowStartUtc, s.WindowEndUtc, @GovCsv) t
 LEFT JOIN #GovMeta m ON m.GovernorID = t.GovernorID
@@ -175,7 +213,11 @@ BEGIN
     PowerDelta, TroopPowerDelta, KillPointsDelta, DeadsDelta,
     RSSGatheredDelta, RSSAssistDelta, HelpsDelta,
     BuildingMinutesDelta, TechDonationsDelta,
-    FortsTotal, FortsLaunched, FortsJoined
+    FortsEnd, FortsTotal, FortsLaunched, FortsJoined,
+    AOOJoinedEnd, AOOWonEnd, AOOAvgKillEnd, AOOAvgDeadEnd, AOOAvgHealEnd,
+    AOOJoinedDelta, AOOWonDelta, AOOAvgKillDelta, AOOAvgDeadDelta, AOOAvgHealDelta,
+    T4_KillsEnd, T5_KillsEnd, T4T5_KillsEnd, HealedTroopsEnd, RangedPointsEnd, HighestAcclaimEnd, AutarchTimesEnd,
+    T4_KillsDelta, T5_KillsDelta, T4T5_KillsDelta, HealedTroopsDelta, RangedPointsDelta
   )
   SELECT
     'ALL', s.WindowKey, s.WindowStartUtc, s.WindowEndUtc,
@@ -185,7 +227,11 @@ BEGIN
     SUM(t.PowerDelta), SUM(t.TroopPowerDelta), SUM(t.KillPointsDelta), SUM(t.DeadsDelta),
     SUM(t.RSSGatheredDelta), SUM(t.RSSAssistDelta), SUM(t.HelpsDelta),
     SUM(t.BuildingMinutesDelta), SUM(t.TechDonationsDelta),
-    SUM(t.FortsTotal), SUM(t.FortsLaunched), SUM(t.FortsJoined)
+    SUM(t.FortsEnd), SUM(t.FortsTotal), SUM(t.FortsLaunched), SUM(t.FortsJoined),
+    SUM(t.AOOJoinedEnd), SUM(t.AOOWonEnd), SUM(t.AOOAvgKillEnd), SUM(t.AOOAvgDeadEnd), SUM(t.AOOAvgHealEnd),
+    SUM(t.AOOJoinedDelta), SUM(t.AOOWonDelta), SUM(t.AOOAvgKillDelta), SUM(t.AOOAvgDeadDelta), SUM(t.AOOAvgHealDelta),
+    SUM(t.T4_KillsEnd), SUM(t.T5_KillsEnd), SUM(t.T4T5_KillsEnd), SUM(t.HealedTroopsEnd), SUM(t.RangedPointsEnd), SUM(t.HighestAcclaimEnd), SUM(t.AutarchTimesEnd),
+    SUM(t.T4_KillsDelta), SUM(t.T5_KillsDelta), SUM(t.T4T5_KillsDelta), SUM(t.HealedTroopsDelta), SUM(t.RangedPointsDelta)
   FROM @Slices s
   CROSS APPLY dbo.fn_StatsWindowDeltas_GovCsv(s.WindowStartUtc, s.WindowEndUtc, @GovCsv) t
   WHERE t.GovernorID IN (SELECT ID FROM @GovernorIDs)
