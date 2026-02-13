@@ -67,6 +67,7 @@ BEGIN
         INNER JOIN #AffectedGovs_KP a ON a.GovernorID = ks4.GovernorID;
 
         CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
+		CREATE NONCLUSTERED INDEX IX_GovScan_ScanDate_GovernorID ON #GovScan (ScanDate, GovernorID) INCLUDE (ScanOrder);
 
         DELETE kp
         FROM dbo.KILLPOINTS_ALL kp
@@ -78,7 +79,7 @@ BEGIN
                    g.KillPoints,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAscALL,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDescALL
             FROM #GovScan g
             INNER JOIN #AffectedGovs_KP a ON a.GovernorID = g.GovernorID
         )
@@ -95,7 +96,7 @@ BEGIN
                    g.KillPoints,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc12,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc12
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDesc12
             FROM #GovScan g
             INNER JOIN #AffectedGovs_KP a ON a.GovernorID = g.GovernorID
             WHERE g.ScanDate >= @Cutoff12
@@ -113,7 +114,7 @@ BEGIN
                    g.KillPoints,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc6,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc6
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDesc6
             FROM #GovScan g
             INNER JOIN #AffectedGovs_KP a ON a.GovernorID = g.GovernorID
             WHERE g.ScanDate >= @Cutoff6
@@ -131,7 +132,7 @@ BEGIN
                    g.KillPoints,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc3,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc3
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDesc3
             FROM #GovScan g
             INNER JOIN #AffectedGovs_KP a ON a.GovernorID = g.GovernorID
             WHERE g.ScanDate >= @Cutoff3
@@ -140,14 +141,17 @@ BEGIN
         SELECT GovernorID, KillPoints, ScanDate, RowAsc3, RowDesc3
         FROM RankedD3;
 
-		;WITH LatestPerGov AS (
-			SELECT g.GovernorID, g.GovernorName, g.PowerRank, g.KillPoints,
-				   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS rn
+		;WITH LatestScanOrder AS (
+			SELECT g.GovernorID, MAX(g.ScanOrder) AS LatestScanOrder
 			FROM #GovScan g
-			INNER JOIN #AffectedGovs_KP a ON a.GovernorID = g.GovernorID
+			GROUP BY g.GovernorID
 		)
 		MERGE dbo.KILLPOINTS_LATEST AS tgt
-		USING (SELECT GovernorID, GovernorName, PowerRank, KillPoints FROM LatestPerGov WHERE rn = 1) AS src
+		USING (
+			SELECT g.GovernorID, g.GovernorName, g.PowerRank, g.KillPoints
+			FROM #GovScan g
+			INNER JOIN LatestScanOrder l ON l.GovernorID = g.GovernorID AND l.LatestScanOrder = g.ScanOrder
+		) AS src
 		ON tgt.GovernorID = src.GovernorID
 		WHEN MATCHED THEN
 			UPDATE SET GovernorName = src.GovernorName, PowerRank = src.PowerRank, KillPoints = src.KillPoints

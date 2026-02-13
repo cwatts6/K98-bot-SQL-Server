@@ -63,6 +63,7 @@ BEGIN
         INNER JOIN #AffectedGovs a ON a.GovernorID = ks4.GovernorID;
 
         CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
+		CREATE NONCLUSTERED INDEX IX_GovScan_ScanDate_GovernorID ON #GovScan (ScanDate, GovernorID) INCLUDE (ScanOrder);
 
         ------------------------------------------------------------
         -- 1) HEALED_ALL: Delete and rebuild for affected governors
@@ -77,7 +78,7 @@ BEGIN
                    g.HealedTroops,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAscALL,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDescALL
             FROM #GovScan g
             INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
         )
@@ -97,7 +98,7 @@ BEGIN
                    g.HealedTroops,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc12,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc12
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDesc12
             FROM #GovScan g
             INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
             WHERE g.ScanDate >= @Cutoff12
@@ -118,7 +119,7 @@ BEGIN
                    g.HealedTroops,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc6,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc6
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDesc6
             FROM #GovScan g
             INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
             WHERE g.ScanDate >= @Cutoff6
@@ -139,7 +140,7 @@ BEGIN
                    g.HealedTroops,
                    g.ScanDate,
                    ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) AS RowAsc3,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDesc3
+                   COUNT_BIG(*) OVER (PARTITION BY g.GovernorID) - ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder ASC) + 1 AS RowDesc3
             FROM #GovScan g
             INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
             WHERE g.ScanDate >= @Cutoff3
@@ -151,14 +152,17 @@ BEGIN
         ------------------------------------------------------------
         -- 5) HEALED_LATEST: Upsert latest record for affected governors
         ------------------------------------------------------------
-        ;WITH LatestPerGov AS (
-            SELECT g.GovernorID, g.GovernorName, g.PowerRank, g.HealedTroops,
-                   ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS rn
+        ;WITH LatestScanOrder AS (
+            SELECT g.GovernorID, MAX(g.ScanOrder) AS LatestScanOrder
             FROM #GovScan g
-            INNER JOIN #AffectedGovs a ON a.GovernorID = g.GovernorID
+			GROUP BY g.GovernorID
         )
         MERGE dbo.HEALED_LATEST AS tgt
-        USING (SELECT GovernorID, GovernorName, PowerRank, HealedTroops FROM LatestPerGov WHERE rn = 1) AS src
+        USING (
+            SELECT g.GovernorID, g.GovernorName, g.PowerRank, g.HealedTroops
+            FROM #GovScan g
+            INNER JOIN LatestScanOrder l ON l.GovernorID = g.GovernorID AND l.LatestScanOrder = g.ScanOrder
+        ) AS src
         ON tgt.GovernorID = src.GovernorID
         WHEN MATCHED THEN
             UPDATE SET GovernorName = src.GovernorName, PowerRank = src.PowerRank, HealedTroops = src.HealedTroops

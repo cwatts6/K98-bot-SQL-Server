@@ -39,10 +39,26 @@ BEGIN
 
     ----------------------------------------------------------------
     -- 1) Clear existing outputs for this KVK (full overwrite)
+	--    Keep Camp/Kingdom single-shot (small), batch Player (largest) for predictability.
     ----------------------------------------------------------------
     DELETE FROM KVK.KVK_Camp_Windowed    WHERE KVK_NO = @KVK_NO;
     DELETE FROM KVK.KVK_Kingdom_Windowed WHERE KVK_NO = @KVK_NO;
-    DELETE FROM KVK.KVK_Player_Windowed  WHERE KVK_NO = @KVK_NO;
+ 
+    DECLARE @DeleteBatchSize INT = 20000;
+
+    DECLARE @RowsDeleted INT;
+
+    WHILE 1 = 1
+    BEGIN
+        DELETE TOP (@DeleteBatchSize) p
+        FROM KVK.KVK_Player_Windowed p WITH (INDEX(PK_KVK_Player_Windowed), UPDLOCK, ROWLOCK)
+        WHERE p.KVK_NO = @KVK_NO;
+
+        SET @RowsDeleted = @@ROWCOUNT;
+
+        IF @RowsDeleted = 0 BREAK;
+        IF @RowsDeleted < @DeleteBatchSize BREAK; -- typically avoids one extra terminal no-op pass
+    END;
 
     ----------------------------------------------------------------
     -- 2) Baseline rows (validation view): zeros + fixed starting_power
