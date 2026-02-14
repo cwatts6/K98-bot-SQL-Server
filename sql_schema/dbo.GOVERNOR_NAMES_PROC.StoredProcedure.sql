@@ -8,9 +8,18 @@ ALTER PROCEDURE [dbo].[GOVERNOR_NAMES_PROC]
 WITH EXECUTE AS CALLER
 AS
 BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-    SET ANSI_WARNINGS OFF;
+	SET NOCOUNT ON;
+	SET XACT_ABORT ON;
+
+	-- REQUIRED SET options for DML against indexed views / computed columns / filtered indexes
+	SET ANSI_NULLS ON;
+	SET ANSI_PADDING ON;
+	SET ANSI_WARNINGS ON;
+	SET ARITHABORT ON;
+	SET CONCAT_NULL_YIELDS_NULL ON;
+	SET QUOTED_IDENTIFIER ON;
+	SET NUMERIC_ROUNDABORT OFF;
+
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -18,7 +27,7 @@ BEGIN
         ----------------------------------------------------------------
         -- Step 1: Truncate main target table
         ----------------------------------------------------------------
-        TRUNCATE TABLE ALL_GOVS;
+        TRUNCATE TABLE dbo.ALL_GOVS;
 
         ----------------------------------------------------------------
         -- Step 2: CTEs to prepare scan data (include new fields)
@@ -27,7 +36,7 @@ BEGIN
             SELECT 
                 GovernorID,
                 GovernorName,
-                Alliance,
+                NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), N'') AS Alliance,
                 ScanDate,
                 [Power],
                 KillPoints,
@@ -153,7 +162,7 @@ BEGIN
         ----------------------------------------------------------------
         -- Step 4: Refresh Governor Names Table (unchanged)
         ----------------------------------------------------------------
-        TRUNCATE TABLE ALL_GOVS_NAMES;
+        TRUNCATE TABLE dbo.ALL_GOVS_NAMES;
 
         INSERT INTO ALL_GOVS_NAMES (GovernorID, GovernorName)
         SELECT 
@@ -168,38 +177,115 @@ BEGIN
         ) AS UniqueNames;
 
         ----------------------------------------------------------------
-        -- Step 5: Refresh Alliance Table (unchanged)
+        -- Step 5: Incremental refresh of Alliance history table
+        -- Semantics retained: one row per unique (GovernorID, Alliance ever seen)
         ----------------------------------------------------------------
-        TRUNCATE TABLE ALL_GOVS_ALLIANCES;
 
-        INSERT INTO ALL_GOVS_ALLIANCES (GovernorID, Alliance)
-        SELECT DISTINCT
-            GovernorID,
-            REPLACE(REPLACE(Alliance, CHAR(13), ''), CHAR(10), '') AS Alliance
-        FROM ROK_TRACKER.dbo.KingdomScanData4
-        WHERE GovernorID <> 0;
+        IF NOT EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES_SYNC_STATE WHERE StateID = 1)
+        BEGIN
+            INSERT INTO dbo.ALL_GOVS_ALLIANCES_SYNC_STATE (StateID, LastProcessedScanOrder, LastProcessedScanDate, LastRunAt)
+            SELECT
+                1,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN ISNULL((SELECT MAX(kd4.SCANORDER) FROM ROK_TRACKER.dbo.KingdomScanData4 kd4 WHERE kd4.GovernorID <> 0), 0)
+                    ELSE 0
+                END,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN (SELECT MAX(kd4.ScanDate) FROM ROK_TRACKER.dbo.KingdomScanData4 kd4 WHERE kd4.GovernorID <> 0)
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN GETDATE()
+                    ELSE NULL
+                END;
+        END;
 
+		DECLARE
+            @LastProcessedScanOrder BIGINT,
+            @CurrentMaxScanOrder BIGINT,
+            @CurrentMaxScanDate DATETIME,
+            @LastAllianceSyncRunAt DATETIME;
+
+SELECT
+            @LastProcessedScanOrder = LastProcessedScanOrder,
+            @LastAllianceSyncRunAt = LastRunAt
+        FROM dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+        WHERE StateID = 1;
+
+        SELECT
+            @CurrentMaxScanOrder = MAX(kd4.SCANORDER),
+            @CurrentMaxScanDate = MAX(kd4.ScanDate)
+        FROM ROK_TRACKER.dbo.KingdomScanData4 kd4
+        WHERE kd4.GovernorID <> 0;
+
+        -- Migration safety: if state was seeded as 0 but alliance history already exists,
+        -- fast-forward watermark once to avoid reprocessing full history.
+        IF ISNULL(@LastProcessedScanOrder, 0) = 0
+           AND @LastAllianceSyncRunAt IS NULL
+           AND EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+           AND @CurrentMaxScanOrder IS NOT NULL
+        BEGIN
+            UPDATE dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+            SET LastProcessedScanOrder = @CurrentMaxScanOrder,
+                LastProcessedScanDate = @CurrentMaxScanDate,
+                LastRunAt = GETDATE()
+            WHERE StateID = 1;
+
+            SET @LastProcessedScanOrder = @CurrentMaxScanOrder;
+        END;
+
+        IF @CurrentMaxScanOrder IS NOT NULL
+           AND @CurrentMaxScanOrder > ISNULL(@LastProcessedScanOrder, 0)
+        BEGIN
+            ;WITH CandidatePairs AS (
+                SELECT
+                    kd4.GovernorID,
+                    NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), kd4.Alliance))), N'') AS Alliance
+                FROM ROK_TRACKER.dbo.KingdomScanData4 kd4
+                WHERE kd4.GovernorID <> 0
+                  AND kd4.SCANORDER > ISNULL(@LastProcessedScanOrder, 0)
+                  AND kd4.SCANORDER <= @CurrentMaxScanOrder
+            ),
+            DistinctPairs AS (
+                SELECT
+                    cp.GovernorID,
+                    cp.Alliance
+                FROM CandidatePairs cp
+                WHERE cp.Alliance IS NOT NULL
+                GROUP BY cp.GovernorID, cp.Alliance
+            )
+            INSERT INTO dbo.ALL_GOVS_ALLIANCES (GovernorID, Alliance)
+            SELECT
+                dp.GovernorID,
+                dp.Alliance
+            FROM DistinctPairs dp
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.ALL_GOVS_ALLIANCES aga
+                WHERE aga.GovernorID = dp.GovernorID
+                  AND aga.Alliance = dp.Alliance
+            );
+
+            UPDATE dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+            SET LastProcessedScanOrder = @CurrentMaxScanOrder,
+                LastProcessedScanDate = @CurrentMaxScanDate,
+                LastRunAt = GETDATE()
+            WHERE StateID = 1;
+        END;
 
 
         COMMIT TRANSACTION;
-        SET ANSI_WARNINGS ON;
+
     END TRY
 
-    BEGIN CATCH
-        IF @@TRANCOUNT > 0
-            ROLLBACK TRANSACTION;
+	BEGIN CATCH
+		IF XACT_STATE() <> 0
+			ROLLBACK TRANSACTION;
 
-        DECLARE 
-            @ErrorMessage NVARCHAR(4000),
-            @ErrorSeverity INT,
-            @ErrorState INT;
-
-        SELECT 
-            @ErrorMessage = ERROR_MESSAGE(),
-            @ErrorSeverity = ERROR_SEVERITY(),
-            @ErrorState = ERROR_STATE();
-
-        RAISERROR (@ErrorMessage, @ErrorSeverity, @ErrorState);
-    END CATCH
+		THROW;
+	END CATCH
 END;
 

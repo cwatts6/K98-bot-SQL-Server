@@ -51,7 +51,7 @@ BEGIN
     WHILE 1 = 1
     BEGIN
         DELETE TOP (@DeleteBatchSize) p
-        FROM KVK.KVK_Player_Windowed p WITH (INDEX(PK_KVK_Player_Windowed), UPDLOCK, ROWLOCK)
+        FROM KVK.KVK_Player_Windowed p WITH (INDEX(PK_KVK_Player_Windowed), PAGLOCK)
         WHERE p.KVK_NO = @KVK_NO;
 
         SET @RowsDeleted = @@ROWCOUNT;

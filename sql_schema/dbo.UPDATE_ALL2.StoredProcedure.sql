@@ -65,7 +65,12 @@ BEGIN
               ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC) AS PowerRank
             , RTRIM([Name])
             , [Governor ID]
-            , [Alliance]
+            , NULLIF(
+				  LTRIM(RTRIM(
+					REPLACE(REPLACE(CONVERT(nvarchar(255), [Alliance]), CHAR(13), ''), CHAR(10), '')
+				  )),
+				  N''
+			  ) AS Alliance
             , [Power]
             , [Total Kill Points]
             , [Dead Troops]
@@ -108,14 +113,16 @@ BEGIN
                 , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
             )
             SELECT
-                  PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
+                  PowerRank, GovernorName, GovernorID,
+                  NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), ''),
+                  [Power], KillPoints, Deads
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
                 , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
                 , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
                 , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
             FROM dbo.KingdomScanData5
-            WHERE SCANORDER = @MaxScanOrder5;
+            WHERE SCANORDER = @MaxScanOrder5
 
             SET @rowsKS4 = @@ROWCOUNT;
 
@@ -419,7 +426,7 @@ BEGIN
             [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
             [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
             [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
-            [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill Target],
+            [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill target],
             [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
             [T4_Deads], [T5_Deads], [Dead Target], [% of Dead Target], [% of Dead_Target],
             [Zeroed], [DKP_SCORE], [DKP Target], [% of DKP Target],
@@ -676,23 +683,36 @@ BEGIN
             'SUCCESS' AS Status;
 
     END TRY
-    BEGIN CATCH
-        DECLARE @ErrNum INT = ERROR_NUMBER();
-        DECLARE @ErrMsg NVARCHAR(MAX) = ERROR_MESSAGE();
-        DECLARE @ErrLine INT = ERROR_LINE();
-        DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
+	BEGIN CATCH
+		DECLARE @ErrNum  INT = ERROR_NUMBER();
+		DECLARE @ErrMsg  NVARCHAR(MAX) = ERROR_MESSAGE();
+		DECLARE @ErrLine INT = ERROR_LINE();
+		DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
 
-        INSERT INTO dbo.ErrorAudit (
-            ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo
-        )
-        VALUES (
-            GETDATE(), ISNULL(@ErrProc, 'UPDATE_ALL2'), @ErrNum, @ErrMsg, @ErrLine, 
-            N'Phase info: KS5_Rows=' + ISNULL(CAST(@rowsKS5 AS NVARCHAR(20)), N'NULL') + 
-            N', KS4_Rows=' + ISNULL(CAST(@rowsKS4 AS NVARCHAR(20)), N'NULL')
-        );
+		-- ✅ capture transaction state before doing anything
+		DECLARE @XState INT = XACT_STATE();
 
-        IF XACT_STATE() <> 0 ROLLBACK;
-        THROW;
-    END CATCH
+		-- ✅ if a transaction exists, you MUST rollback first (especially if @XState = -1)
+		IF @XState <> 0
+			ROLLBACK;
+
+		-- ✅ now you're in autocommit, logging is allowed
+		BEGIN TRY
+			INSERT INTO dbo.ErrorAudit (
+				ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo
+			)
+			VALUES (
+				GETDATE(), ISNULL(@ErrProc, 'UPDATE_ALL2'), @ErrNum, @ErrMsg, @ErrLine,
+				N'XACT_STATE=' + CAST(@XState AS NVARCHAR(10)) +
+				N'; Phase info: KS5_Rows=' + ISNULL(CAST(@rowsKS5 AS NVARCHAR(20)), N'NULL') +
+				N', KS4_Rows=' + ISNULL(CAST(@rowsKS4 AS NVARCHAR(20)), N'NULL')
+			);
+		END TRY
+		BEGIN CATCH
+			-- If even logging fails, don't mask the original error
+		END CATCH;
+
+		THROW;
+	END CATCH
 END
 
