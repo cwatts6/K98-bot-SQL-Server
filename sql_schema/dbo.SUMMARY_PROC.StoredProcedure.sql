@@ -11,27 +11,96 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE @MetricName NVARCHAR(100) = N'SummaryExport';
-    DECLARE @LastProcessed FLOAT = 0;
+    DECLARE @MinLastProcessed FLOAT = 0;
     DECLARE @MaxScan FLOAT = 0;
 
-    SELECT @LastProcessed = LastScanOrder
+    SELECT @MinLastProcessed = MIN(ISNULL(LastScanOrder, 0))
     FROM dbo.SUMMARY_PROC_STATE
-    WHERE MetricName = @MetricName;
+    WHERE MetricName IN (
+        N'Deads',
+        N'Power',
+        N'T4T5Kills',
+        N'T4Kills',
+        N'T5Kills',
+        N'KillPoints',
+        N'HealedTroops',
+        N'RangedPoints'
+    );
 
-    IF @LastProcessed IS NULL SET @LastProcessed = 0;
+    IF @MinLastProcessed IS NULL SET @MinLastProcessed = 0;
 
     SELECT @MaxScan = ISNULL(MAX(ScanOrder), 0)
     FROM dbo.KingdomScanData4;
 
-    IF @MaxScan <= @LastProcessed
+    IF @MaxScan <= @MinLastProcessed
     BEGIN
         RETURN;
     END
 
     BEGIN TRY
-
         BEGIN TRANSACTION;
-        -- Step 1: Execute dependent procedures
+
+        IF OBJECT_ID('tempdb..#SummaryRunState') IS NOT NULL DROP TABLE #SummaryRunState;
+        CREATE TABLE #SummaryRunState
+        (
+            MaxScan FLOAT NOT NULL,
+            MinLastProcessed FLOAT NOT NULL
+        );
+
+        INSERT INTO #SummaryRunState (MaxScan, MinLastProcessed)
+        VALUES (@MaxScan, @MinLastProcessed);
+
+        IF OBJECT_ID('tempdb..#AffectedGovs') IS NOT NULL DROP TABLE #AffectedGovs;
+        CREATE TABLE #AffectedGovs
+        (
+            GovernorID BIGINT NOT NULL PRIMARY KEY CLUSTERED
+        );
+
+        INSERT INTO #AffectedGovs (GovernorID)
+        SELECT DISTINCT conv.GovernorID
+        FROM dbo.KingdomScanData4 ks4
+        CROSS APPLY (SELECT TRY_CONVERT(BIGINT, ks4.GovernorID) AS GovernorID) conv
+        WHERE ks4.ScanOrder > @MinLastProcessed
+          AND conv.GovernorID IS NOT NULL
+          AND conv.GovernorID <> 0;
+
+        IF NOT EXISTS (SELECT 1 FROM #AffectedGovs)
+        BEGIN
+            MERGE dbo.SUMMARY_PROC_STATE AS T
+            USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S
+            ON T.MetricName = S.MetricName
+            WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
+            WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
+            VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+
+            COMMIT TRANSACTION;
+            RETURN;
+        END
+
+        IF OBJECT_ID('tempdb..#GovScan') IS NOT NULL DROP TABLE #GovScan;
+        SELECT
+            conv.GovernorID AS GovernorID,
+            ks4.GovernorName,
+            ks4.PowerRank,
+            ks4.ScanOrder,
+            ks4.ScanDate,
+            ks4.HealedTroops,
+            ks4.Deads,
+            ks4.KillPoints,
+            ks4.[T4&T5_KILLS],
+            ks4.[T4_KILLS],
+            ks4.[T5_KILLS],
+            ks4.[POWER],
+            ks4.RangedPoints
+        INTO #GovScan
+        FROM dbo.KingdomScanData4 ks4
+        CROSS APPLY (SELECT TRY_CONVERT(BIGINT, ks4.GovernorID) AS GovernorID) conv
+        INNER JOIN #AffectedGovs a ON a.GovernorID = conv.GovernorID;
+
+        CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
+        CREATE NONCLUSTERED INDEX IX_GovScan_ScanDate_GovernorID ON #GovScan (ScanDate, GovernorID) INCLUDE (ScanOrder);
+
+        -- Execute dependent procedures (shared temp tables visible)
         EXEC dbo.DEADSSUMMARY_PROC;
         EXEC dbo.POWERSUMMARY_PROC;
         EXEC dbo.KILLSSUMMARY_PROC;
@@ -41,10 +110,10 @@ BEGIN
         EXEC dbo.HEALEDSUMMARY_PROC;
         EXEC dbo.RANGEDSUMMARY_PROC;
 
-        -- Step 2: Clear export table
+        -- Clear export table
         TRUNCATE TABLE dbo.SUMMARY_CHANGE_EXPORT;
 
-        -- Step 3: Insert combined summary data with all metrics
+        -- Insert combined summary data
         INSERT INTO dbo.SUMMARY_CHANGE_EXPORT
         (
             GOVERNORID,
@@ -157,19 +226,18 @@ BEGIN
         INNER JOIN dbo.HEALEDSUMMARY AS H ON P.GOVERNORID = H.GOVERNORID
         INNER JOIN dbo.RANGEDSUMMARY AS R ON P.GOVERNORID = R.GOVERNORID
         INNER JOIN dbo.KILLPOINTSSUMMARY AS KP ON P.GOVERNORID = KP.GOVERNORID
-		ORDER BY P.GOVERNORNAME;
+        ORDER BY P.GOVERNORNAME;
 
         MERGE dbo.SUMMARY_PROC_STATE AS T
         USING (SELECT @MetricName AS MetricName, @MaxScan AS LastScanOrder, SYSUTCDATETIME() AS LastRunTime) AS S
         ON T.MetricName = S.MetricName
         WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
-        WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime) VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+        WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
+        VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
 
         COMMIT TRANSACTION;
-
     END TRY
     BEGIN CATCH
-        -- Error logging and rethrowing
         IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
         DECLARE
             @ErrorMessage NVARCHAR(4000),
@@ -183,5 +251,5 @@ BEGIN
 
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
-END;
+END
 
