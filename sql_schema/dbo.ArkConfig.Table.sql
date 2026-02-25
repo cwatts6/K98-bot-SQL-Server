@@ -17,6 +17,7 @@ CREATE TABLE [dbo].[ArkConfig](
 	[ReminderDailyNudgeEnabled] [bit] NOT NULL,
 	[CreatedAtUtc] [datetime2](0) NOT NULL,
 	[UpdatedAtUtc] [datetime2](0) NOT NULL,
+	[NotesTemplatesJson] [nvarchar](max) COLLATE Latin1_General_CI_AS NULL,
  CONSTRAINT [PK_ArkConfig] PRIMARY KEY CLUSTERED 
 (
 	[ConfigId] ASC
@@ -50,6 +51,10 @@ IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N
 ALTER TABLE [dbo].[ArkConfig]  WITH CHECK ADD  CONSTRAINT [CK_ArkConfig_FrequencyWeekends] CHECK  (([FrequencyWeekends]>(0)))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkConfig_FrequencyWeekends]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkConfig]'))
 ALTER TABLE [dbo].[ArkConfig] CHECK CONSTRAINT [CK_ArkConfig_FrequencyWeekends]
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkConfig_NotesTemplatesJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkConfig]'))
+ALTER TABLE [dbo].[ArkConfig]  WITH CHECK ADD  CONSTRAINT [CK_ArkConfig_NotesTemplatesJson] CHECK  (([NotesTemplatesJson] IS NULL OR isjson([NotesTemplatesJson])=(1)))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkConfig_NotesTemplatesJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkConfig]'))
+ALTER TABLE [dbo].[ArkConfig] CHECK CONSTRAINT [CK_ArkConfig_NotesTemplatesJson]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkConfig_ReminderIntervalsJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkConfig]'))
 ALTER TABLE [dbo].[ArkConfig]  WITH CHECK ADD  CONSTRAINT [CK_ArkConfig_ReminderIntervalsJson] CHECK  ((isjson([ReminderIntervalsHoursJson])=(1)))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkConfig_ReminderIntervalsJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkConfig]'))
