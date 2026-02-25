@@ -5,7 +5,8 @@ EXECUTE dbo.sp_executesql N'
 CREATE VIEW [dbo].[vw_All_Governors_Clean]  AS 
 SELECT 
     [GovernorID],
-    LTRIM(RTRIM([GovernorName])) AS GovernorName
+    LTRIM(RTRIM([GovernorName])) AS GovernorName,
+    [CityHallLevel]
 FROM 
     [dbo].[ALL_GOVS]
 WHERE 

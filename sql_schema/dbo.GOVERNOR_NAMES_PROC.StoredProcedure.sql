@@ -30,7 +30,7 @@ BEGIN
         TRUNCATE TABLE dbo.ALL_GOVS;
 
         ----------------------------------------------------------------
-        -- Step 2: CTEs to prepare scan data (include new fields)
+        -- Step 2: CTEs to prepare scan data (include CityHallLevel)
         ----------------------------------------------------------------
         WITH RankedScans AS (
             SELECT 
@@ -61,6 +61,9 @@ BEGIN
                 AOOAvgDead,
                 AOOAvgHeal,
 
+                -- ✅ City Hall level (confirm column name)
+                [City Hall] AS CityHallLevel,
+
                 ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn,
                 MIN(ScanDate) OVER (PARTITION BY GovernorID) AS FirstScan,
                 MAX([Power]) OVER (PARTITION BY GovernorID) AS MaxPower
@@ -88,7 +91,7 @@ BEGIN
                 MAX(CASE WHEN rn = 1 THEN [T4&T5_KILLS] END) AS [T4&T5_KILLS],
                 MAX(CASE WHEN rn = 1 THEN TOTAL_KILLS END) AS TOTAL_KILLS,
                 MAX(FirstScan) AS FirstScan,
-				MAX(MaxPower) AS MaxPower,
+                MAX(MaxPower) AS MaxPower,
 
                 -- new fields: take latest (rn = 1) values
                 MAX(CASE WHEN rn = 1 THEN HealedTroops END)        AS HealedTroops,
@@ -104,14 +107,17 @@ BEGIN
                 MAX(CASE WHEN rn = 1 THEN AOOWon END)             AS AOOWon,
                 MAX(CASE WHEN rn = 1 THEN AOOAvgKill END)         AS AOOAvgKill,
                 MAX(CASE WHEN rn = 1 THEN AOOAvgDead END)         AS AOOAvgDead,
-                MAX(CASE WHEN rn = 1 THEN AOOAvgHeal END)         AS AOOAvgHeal
+                MAX(CASE WHEN rn = 1 THEN AOOAvgHeal END)         AS AOOAvgHeal,
+
+                -- ✅ City Hall level
+                MAX(CASE WHEN rn = 1 THEN CityHallLevel END)      AS CityHallLevel
             FROM RankedScans
             WHERE rn <= 2
             GROUP BY GovernorID
         )
 
         ----------------------------------------------------------------
-        -- Step 3: Insert into ALL_GOVS including new fields
+        -- Step 3: Insert into ALL_GOVS including CityHallLevel
         ----------------------------------------------------------------
         INSERT INTO ALL_GOVS (
             GovernorID, GovernorName, [Max Power], [Latest Power],
@@ -122,6 +128,9 @@ BEGIN
             HealedTroops, RangedPoints, Civilization, KvKPlayed,
             MostKvKKill, MostKvKDead, MostKvKHeal, Acclaim, HighestAcclaim,
             AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal,
+
+            -- ✅ City Hall
+            CityHallLevel,
 
             [Last Scan], [Previous Scan], [First Scan]
         )
@@ -153,6 +162,9 @@ BEGIN
             s.AOOAvgKill,
             s.AOOAvgDead,
             s.AOOAvgHeal,
+
+            -- ✅ City Hall
+            s.CityHallLevel,
 
             s.LastScan,
             s.PreviousScan,
