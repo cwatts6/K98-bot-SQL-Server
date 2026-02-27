@@ -18,6 +18,7 @@ CREATE TABLE [dbo].[ArkConfig](
 	[CreatedAtUtc] [datetime2](0) NOT NULL,
 	[UpdatedAtUtc] [datetime2](0) NOT NULL,
 	[NotesTemplatesJson] [nvarchar](max) COLLATE Latin1_General_CI_AS NULL,
+	[AdminOverrideSubRule] [bit] NOT NULL,
  CONSTRAINT [PK_ArkConfig] PRIMARY KEY CLUSTERED 
 (
 	[ConfigId] ASC
@@ -37,6 +38,11 @@ END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_ArkConfig_UpdatedAtUtc]') AND type = 'D')
 BEGIN
 ALTER TABLE [dbo].[ArkConfig] ADD  CONSTRAINT [DF_ArkConfig_UpdatedAtUtc]  DEFAULT (sysutcdatetime()) FOR [UpdatedAtUtc]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_ArkConfig_AdminOverrideSubRule]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[ArkConfig] ADD  CONSTRAINT [DF_ArkConfig_AdminOverrideSubRule]  DEFAULT ((0)) FOR [AdminOverrideSubRule]
 END
 
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkConfig_AllowedDaysJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkConfig]'))
