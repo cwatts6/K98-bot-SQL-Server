@@ -13,6 +13,8 @@ CREATE TABLE [dbo].[ArkMatches](
 	[Notes] [nvarchar](2000) COLLATE Latin1_General_CI_AS NULL,
 	[CreatedAtUtc] [datetime2](0) NOT NULL,
 	[UpdatedAtUtc] [datetime2](0) NOT NULL,
+	[ConfirmationChannelId] [bigint] NULL,
+	[ConfirmationMessageId] [bigint] NULL,
  CONSTRAINT [PK_ArkMatches] PRIMARY KEY CLUSTERED 
 (
 	[MatchId] ASC

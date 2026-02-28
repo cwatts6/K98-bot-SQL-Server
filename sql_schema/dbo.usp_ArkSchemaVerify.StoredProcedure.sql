@@ -48,6 +48,20 @@ BEGIN
         INSERT INTO @Errors VALUES (N'Missing column: dbo.ArkAlliances.ConfirmationChannelId');
 
     IF NOT EXISTS (
+        SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'[dbo].[ArkMatches]')
+          AND name = N'ConfirmationChannelId'
+    )
+        INSERT INTO @Errors VALUES (N'Missing column: dbo.ArkMatches.ConfirmationChannelId');
+
+    IF NOT EXISTS (
+        SELECT 1 FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'[dbo].[ArkMatches]')
+          AND name = N'ConfirmationMessageId'
+    )
+        INSERT INTO @Errors VALUES (N'Missing column: dbo.ArkMatches.ConfirmationMessageId');
+
+    IF NOT EXISTS (
         SELECT 1 FROM sys.foreign_keys
         WHERE name = N'FK_ArkMatches_Alliance'
           AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]')
