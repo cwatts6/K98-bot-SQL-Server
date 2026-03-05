@@ -15,6 +15,11 @@ CREATE TABLE [dbo].[ArkMatches](
 	[UpdatedAtUtc] [datetime2](0) NOT NULL,
 	[ConfirmationChannelId] [bigint] NULL,
 	[ConfirmationMessageId] [bigint] NULL,
+	[Result] [varchar](8) COLLATE Latin1_General_CI_AS NULL,
+	[ResultNotes] [nvarchar](2000) COLLATE Latin1_General_CI_AS NULL,
+	[CompletedAtUtc] [datetime2](0) NULL,
+	[CompletedByDiscordId] [bigint] NULL,
+	[CompletionEmbedPostedAtUtc] [datetime2](0) NULL,
  CONSTRAINT [PK_ArkMatches] PRIMARY KEY CLUSTERED 
 (
 	[MatchId] ASC
@@ -62,6 +67,10 @@ IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N
 ALTER TABLE [dbo].[ArkMatches]  WITH CHECK ADD  CONSTRAINT [CK_ArkMatches_MatchDay] CHECK  (([MatchDay]='Sun' OR [MatchDay]='Sat'))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkMatches_MatchDay]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]'))
 ALTER TABLE [dbo].[ArkMatches] CHECK CONSTRAINT [CK_ArkMatches_MatchDay]
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkMatches_Result]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]'))
+ALTER TABLE [dbo].[ArkMatches]  WITH CHECK ADD  CONSTRAINT [CK_ArkMatches_Result] CHECK  (([Result] IS NULL OR ([Result]='Loss' OR [Result]='Win')))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkMatches_Result]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]'))
+ALTER TABLE [dbo].[ArkMatches] CHECK CONSTRAINT [CK_ArkMatches_Result]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkMatches_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]'))
 ALTER TABLE [dbo].[ArkMatches]  WITH CHECK ADD  CONSTRAINT [CK_ArkMatches_Status] CHECK  (([Status]='Completed' OR [Status]='Cancelled' OR [Status]='Locked' OR [Status]='Scheduled'))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkMatches_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]'))

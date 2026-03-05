@@ -57,10 +57,18 @@ BEGIN
 ALTER TABLE [dbo].[ArkBans] ADD  CONSTRAINT [DF_ArkBans_CreatedAtUtc]  DEFAULT (sysutcdatetime()) FOR [CreatedAtUtc]
 END
 
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_BannedArkWeekends_Positive]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
+ALTER TABLE [dbo].[ArkBans]  WITH CHECK ADD  CONSTRAINT [CK_ArkBans_BannedArkWeekends_Positive] CHECK  (([BannedArkWeekends]>=(1)))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_BannedArkWeekends_Positive]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
+ALTER TABLE [dbo].[ArkBans] CHECK CONSTRAINT [CK_ArkBans_BannedArkWeekends_Positive]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_Target]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
 ALTER TABLE [dbo].[ArkBans]  WITH CHECK ADD  CONSTRAINT [CK_ArkBans_Target] CHECK  (([DiscordUserId] IS NOT NULL OR [GovernorId] IS NOT NULL))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_Target]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
 ALTER TABLE [dbo].[ArkBans] CHECK CONSTRAINT [CK_ArkBans_Target]
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_TargetPresent]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
+ALTER TABLE [dbo].[ArkBans]  WITH CHECK ADD  CONSTRAINT [CK_ArkBans_TargetPresent] CHECK  (([DiscordUserId] IS NOT NULL OR [GovernorId] IS NOT NULL))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_TargetPresent]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
+ALTER TABLE [dbo].[ArkBans] CHECK CONSTRAINT [CK_ArkBans_TargetPresent]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_Weekends]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))
 ALTER TABLE [dbo].[ArkBans]  WITH CHECK ADD  CONSTRAINT [CK_ArkBans_Weekends] CHECK  (([BannedArkWeekends]>(0)))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkBans_Weekends]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkBans]'))

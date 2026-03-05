@@ -15,6 +15,9 @@ CREATE TABLE [dbo].[ArkSignups](
 	[Source] [varchar](8) COLLATE Latin1_General_CI_AS NOT NULL,
 	[CreatedAtUtc] [datetime2](0) NOT NULL,
 	[UpdatedAtUtc] [datetime2](0) NOT NULL,
+	[NoShow] [bit] NOT NULL,
+	[NoShowAtUtc] [datetime2](0) NULL,
+	[NoShowByDiscordId] [bigint] NULL,
  CONSTRAINT [PK_ArkSignups] PRIMARY KEY CLUSTERED 
 (
 	[SignupId] ASC
@@ -74,6 +77,11 @@ BEGIN
 ALTER TABLE [dbo].[ArkSignups] ADD  CONSTRAINT [DF_ArkSignups_UpdatedAtUtc]  DEFAULT (sysutcdatetime()) FOR [UpdatedAtUtc]
 END
 
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_ArkSignups_NoShow]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[ArkSignups] ADD  CONSTRAINT [DF_ArkSignups_NoShow]  DEFAULT ((0)) FOR [NoShow]
+END
+
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ArkSignups_MatchId]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkSignups]'))
 ALTER TABLE [dbo].[ArkSignups]  WITH CHECK ADD  CONSTRAINT [FK_ArkSignups_MatchId] FOREIGN KEY([MatchId])
 REFERENCES [dbo].[ArkMatches] ([MatchId])
@@ -83,6 +91,10 @@ IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N
 ALTER TABLE [dbo].[ArkSignups]  WITH CHECK ADD  CONSTRAINT [CK_ArkSignups_CheckedIn] CHECK  (([CheckedIn]=(0) OR [CheckedInAtUtc] IS NOT NULL))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkSignups_CheckedIn]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkSignups]'))
 ALTER TABLE [dbo].[ArkSignups] CHECK CONSTRAINT [CK_ArkSignups_CheckedIn]
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkSignups_NoShow]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkSignups]'))
+ALTER TABLE [dbo].[ArkSignups]  WITH CHECK ADD  CONSTRAINT [CK_ArkSignups_NoShow] CHECK  (([NoShow]=(0) OR [NoShowAtUtc] IS NOT NULL))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkSignups_NoShow]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkSignups]'))
+ALTER TABLE [dbo].[ArkSignups] CHECK CONSTRAINT [CK_ArkSignups_NoShow]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkSignups_SlotType]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkSignups]'))
 ALTER TABLE [dbo].[ArkSignups]  WITH CHECK ADD  CONSTRAINT [CK_ArkSignups_SlotType] CHECK  (([SlotType]='Sub' OR [SlotType]='Player'))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ArkSignups_SlotType]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkSignups]'))
