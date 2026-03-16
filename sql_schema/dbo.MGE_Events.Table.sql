@@ -25,6 +25,8 @@ CREATE TABLE [dbo].[MGE_Events](
 	[ReopenedByDiscordId] [bigint] NULL,
 	[CreatedUtc] [datetime2](7) NOT NULL,
 	[UpdatedUtc] [datetime2](7) NOT NULL,
+	[AwardEmbedMessageId] [bigint] NULL,
+	[AwardEmbedChannelId] [bigint] NULL,
  CONSTRAINT [PK_MGE_Events] PRIMARY KEY CLUSTERED 
 (
 	[EventId] ASC
