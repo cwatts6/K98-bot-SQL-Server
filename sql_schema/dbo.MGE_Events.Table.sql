@@ -27,12 +27,27 @@ CREATE TABLE [dbo].[MGE_Events](
 	[UpdatedUtc] [datetime2](7) NOT NULL,
 	[AwardEmbedMessageId] [bigint] NULL,
 	[AwardEmbedChannelId] [bigint] NULL,
+	[CalendarSourceKind] [nvarchar](16) COLLATE Latin1_General_CI_AS NULL,
+	[CalendarSourceID] [nvarchar](128) COLLATE Latin1_General_CI_AS NULL,
  CONSTRAINT [PK_MGE_Events] PRIMARY KEY CLUSTERED 
 (
 	[EventId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY] TEXTIMAGE_ON [PRIMARY]
 END
+SET ANSI_PADDING ON
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[MGE_Events]') AND name = N'IX_MGE_Events_CalendarStableLookup')
+CREATE NONCLUSTERED INDEX [IX_MGE_Events_CalendarStableLookup] ON [dbo].[MGE_Events]
+(
+	[CalendarSourceID] ASC,
+	[StartUtc] ASC,
+	[EndUtc] ASC,
+	[VariantId] ASC
+)
+INCLUDE([EventId],[CalendarEventSourceId],[UpdatedUtc]) 
+WHERE ([CalendarSourceID] IS NOT NULL)
+WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[MGE_Events]') AND name = N'IX_MGE_Events_StartUtc')
 CREATE NONCLUSTERED INDEX [IX_MGE_Events_StartUtc] ON [dbo].[MGE_Events]
 (
@@ -48,6 +63,13 @@ CREATE NONCLUSTERED INDEX [IX_MGE_Events_Status] ON [dbo].[MGE_Events]
 	[StartUtc] ASC
 )
 INCLUDE([VariantId],[EventMode],[SignupCloseUtc]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[MGE_Events]') AND name = N'UX_MGE_Events_CalendarEventSourceId_NotNull')
+CREATE UNIQUE NONCLUSTERED INDEX [UX_MGE_Events_CalendarEventSourceId_NotNull] ON [dbo].[MGE_Events]
+(
+	[CalendarEventSourceId] ASC
+)
+WHERE ([CalendarEventSourceId] IS NOT NULL)
+WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[MGE_Events]') AND name = N'UX_MGE_Events_CalendarSource')
 CREATE UNIQUE NONCLUSTERED INDEX [UX_MGE_Events_CalendarSource] ON [dbo].[MGE_Events]
 (
