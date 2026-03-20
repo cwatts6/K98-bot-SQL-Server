@@ -19,6 +19,7 @@ CREATE TABLE [dbo].[MGE_Awards](
 	[AssignedByDiscordId] [bigint] NULL,
 	[CreatedUtc] [datetime2](7) NOT NULL,
 	[UpdatedUtc] [datetime2](7) NOT NULL,
+	[ManualOrderOverride] [bit] NOT NULL,
  CONSTRAINT [PK_MGE_Awards] PRIMARY KEY CLUSTERED 
 (
 	[AwardId] ASC
@@ -61,6 +62,11 @@ END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_MGE_Awards_UpdatedUtc]') AND type = 'D')
 BEGIN
 ALTER TABLE [dbo].[MGE_Awards] ADD  CONSTRAINT [DF_MGE_Awards_UpdatedUtc]  DEFAULT (sysutcdatetime()) FOR [UpdatedUtc]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_MGE_Awards_ManualOrderOverride]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[MGE_Awards] ADD  CONSTRAINT [DF_MGE_Awards_ManualOrderOverride]  DEFAULT ((0)) FOR [ManualOrderOverride]
 END
 
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_MGE_Awards_CommanderId]') AND parent_object_id = OBJECT_ID(N'[dbo].[MGE_Awards]'))
