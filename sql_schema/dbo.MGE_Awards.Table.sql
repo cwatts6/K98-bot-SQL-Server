@@ -20,6 +20,10 @@ CREATE TABLE [dbo].[MGE_Awards](
 	[CreatedUtc] [datetime2](7) NOT NULL,
 	[UpdatedUtc] [datetime2](7) NOT NULL,
 	[ManualOrderOverride] [bit] NOT NULL,
+	[TargetsGeneratedAtUtc] [datetime2](7) NULL,
+	[TargetsGeneratedByDiscordId] [bigint] NULL,
+	[TargetsOverrideLastAtUtc] [datetime2](7) NULL,
+	[TargetsOverrideLastByDiscordId] [bigint] NULL,
  CONSTRAINT [PK_MGE_Awards] PRIMARY KEY CLUSTERED 
 (
 	[AwardId] ASC

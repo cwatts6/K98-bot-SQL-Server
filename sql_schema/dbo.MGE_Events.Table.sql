@@ -29,6 +29,8 @@ CREATE TABLE [dbo].[MGE_Events](
 	[AwardEmbedChannelId] [bigint] NULL,
 	[CalendarSourceKind] [nvarchar](16) COLLATE Latin1_General_CI_AS NULL,
 	[CalendarSourceID] [nvarchar](128) COLLATE Latin1_General_CI_AS NULL,
+	[LeadershipEmbedMessageId] [bigint] NULL,
+	[LeadershipEmbedChannelId] [bigint] NULL,
  CONSTRAINT [PK_MGE_Events] PRIMARY KEY CLUSTERED 
 (
 	[EventId] ASC
