@@ -27,6 +27,7 @@ CREATE TABLE [dbo].[ArkMatches](
 	[LastRegistrationRefreshAtUtc] [datetime2](7) NULL,
 	[CalendarInstanceId] [bigint] NULL,
 	[CreatedSource] [nvarchar](32) COLLATE Latin1_General_CI_AS NULL,
+	[RegistrationStartsAtUtc] [datetime2](7) NULL,
  CONSTRAINT [PK_ArkMatches] PRIMARY KEY CLUSTERED 
 (
 	[MatchId] ASC
@@ -49,6 +50,16 @@ CREATE NONCLUSTERED INDEX [IX_ArkMatches_Open] ON [dbo].[ArkMatches]
 	[ArkWeekendDate] ASC
 )
 INCLUDE([Alliance],[MatchDay],[MatchTimeUtc],[SignupCloseUtc]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+SET ANSI_PADDING ON
+
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ArkMatches]') AND name = N'IX_ArkMatches_RegistrationOpen')
+CREATE NONCLUSTERED INDEX [IX_ArkMatches_RegistrationOpen] ON [dbo].[ArkMatches]
+(
+	[Status] ASC,
+	[RegistrationStartsAtUtc] ASC,
+	[SignupCloseUtc] ASC
+)
+INCLUDE([Alliance],[RegistrationChannelId],[RegistrationMessageId],[AnnouncementSent]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 SET ANSI_PADDING ON
 
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ArkMatches]') AND name = N'UX_ArkMatches_Alliance_Weekend')
