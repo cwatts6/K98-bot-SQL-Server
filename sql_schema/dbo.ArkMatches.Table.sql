@@ -20,12 +20,26 @@ CREATE TABLE [dbo].[ArkMatches](
 	[CompletedAtUtc] [datetime2](0) NULL,
 	[CompletedByDiscordId] [bigint] NULL,
 	[CompletionEmbedPostedAtUtc] [datetime2](0) NULL,
+	[RegistrationChannelId] [bigint] NULL,
+	[RegistrationMessageId] [bigint] NULL,
+	[AnnouncementSent] [bit] NOT NULL,
+	[AnnouncementSentAtUtc] [datetime2](7) NULL,
+	[LastRegistrationRefreshAtUtc] [datetime2](7) NULL,
+	[CalendarInstanceId] [bigint] NULL,
+	[CreatedSource] [nvarchar](32) COLLATE Latin1_General_CI_AS NULL,
  CONSTRAINT [PK_ArkMatches] PRIMARY KEY CLUSTERED 
 (
 	[MatchId] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 END
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ArkMatches]') AND name = N'IX_ArkMatches_CalendarInstanceId')
+CREATE NONCLUSTERED INDEX [IX_ArkMatches_CalendarInstanceId] ON [dbo].[ArkMatches]
+(
+	[CalendarInstanceId] ASC
+)
+WHERE ([CalendarInstanceId] IS NOT NULL)
+WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 SET ANSI_PADDING ON
 
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ArkMatches]') AND name = N'IX_ArkMatches_Open')
@@ -56,6 +70,11 @@ END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_ArkMatches_UpdatedAtUtc]') AND type = 'D')
 BEGIN
 ALTER TABLE [dbo].[ArkMatches] ADD  CONSTRAINT [DF_ArkMatches_UpdatedAtUtc]  DEFAULT (sysutcdatetime()) FOR [UpdatedAtUtc]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_ArkMatches_AnnouncementSent]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[ArkMatches] ADD  CONSTRAINT [DF_ArkMatches_AnnouncementSent]  DEFAULT ((0)) FOR [AnnouncementSent]
 END
 
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ArkMatches_Alliance]') AND parent_object_id = OBJECT_ID(N'[dbo].[ArkMatches]'))
