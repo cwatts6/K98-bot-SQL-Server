@@ -28,6 +28,7 @@ CREATE TABLE [dbo].[ArkMatches](
 	[CalendarInstanceId] [bigint] NULL,
 	[CreatedSource] [nvarchar](32) COLLATE Latin1_General_CI_AS NULL,
 	[RegistrationStartsAtUtc] [datetime2](7) NULL,
+	[TeamsFirstPublishedAtUtc] [datetime2](7) NULL,
  CONSTRAINT [PK_ArkMatches] PRIMARY KEY CLUSTERED 
 (
 	[MatchId] ASC
