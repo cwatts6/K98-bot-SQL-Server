@@ -31,6 +31,9 @@ CREATE TABLE [dbo].[MGE_Events](
 	[CalendarSourceID] [nvarchar](128) COLLATE Latin1_General_CI_AS NULL,
 	[LeadershipEmbedMessageId] [bigint] NULL,
 	[LeadershipEmbedChannelId] [bigint] NULL,
+	[AwardRemindersText] [nvarchar](4000) COLLATE Latin1_General_CI_AS NULL,
+	[AwardRemindersSentUtc] [datetime2](7) NULL,
+	[AwardRemindersSentByDiscordId] [bigint] NULL,
  CONSTRAINT [PK_MGE_Events] PRIMARY KEY CLUSTERED 
 (
 	[EventId] ASC
