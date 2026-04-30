@@ -22,8 +22,8 @@ SET ANSI_PADDING ON
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[DiscordServerActivityEvents]') AND name = N'IX_DiscordServerActivityEvents_Window')
 CREATE NONCLUSTERED INDEX [IX_DiscordServerActivityEvents_Window] ON [dbo].[DiscordServerActivityEvents]
 (
-	[OccurredAtUtc] ASC,
 	[GuildId] ASC,
+	[OccurredAtUtc] ASC,
 	[UserId] ASC,
 	[EventType] ASC
 )
