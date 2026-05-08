@@ -73,7 +73,7 @@ CREATE UNIQUE NONCLUSTERED INDEX [UX_InventoryImportBatch_ActiveGovernor] ON [db
 (
 	[GovernorID] ASC
 )
-WHERE ([Status] IN (N'awaiting_upload', N'analysed'))
+WHERE ([Status] IN (N'awaiting_upload', N'analysed', N'awaiting_more_material'))
 WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 SET ARITHABORT ON
 SET CONCAT_NULL_YIELDS_NULL ON
@@ -129,6 +129,6 @@ ALTER TABLE [dbo].[InventoryImportBatch]  WITH CHECK ADD  CONSTRAINT [CK_Invento
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_InventoryImportBatch_RetryCount]') AND parent_object_id = OBJECT_ID(N'[dbo].[InventoryImportBatch]'))
 ALTER TABLE [dbo].[InventoryImportBatch] CHECK CONSTRAINT [CK_InventoryImportBatch_RetryCount]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_InventoryImportBatch_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[InventoryImportBatch]'))
-ALTER TABLE [dbo].[InventoryImportBatch]  WITH CHECK ADD  CONSTRAINT [CK_InventoryImportBatch_Status] CHECK  (([Status]=N'failed' OR [Status]=N'cancelled' OR [Status]=N'rejected' OR [Status]=N'approved' OR [Status]=N'analysed' OR [Status]=N'awaiting_upload'))
+ALTER TABLE [dbo].[InventoryImportBatch]  WITH CHECK ADD  CONSTRAINT [CK_InventoryImportBatch_Status] CHECK  (([Status]=N'failed' OR [Status]=N'cancelled' OR [Status]=N'rejected' OR [Status]=N'approved' OR [Status]=N'awaiting_more_material' OR [Status]=N'analysed' OR [Status]=N'awaiting_upload'))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_InventoryImportBatch_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[InventoryImportBatch]'))
 ALTER TABLE [dbo].[InventoryImportBatch] CHECK CONSTRAINT [CK_InventoryImportBatch_Status]
