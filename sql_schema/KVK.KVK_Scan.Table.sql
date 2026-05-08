@@ -11,6 +11,11 @@ CREATE TABLE [KVK].[KVK_Scan](
 	[Row_Count] [int] NOT NULL,
 	[ImportedAtUTC] [datetime2](0) NOT NULL,
 	[UploaderDiscordID] [bigint] NULL,
+	[schema_version] [nvarchar](64) COLLATE Latin1_General_CI_AS NULL,
+	[source_sheet_name] [nvarchar](128) COLLATE Latin1_General_CI_AS NULL,
+	[source_column_hash] [char](64) COLLATE Latin1_General_CI_AS NULL,
+	[source_column_count] [int] NULL,
+	[source_row_count] [int] NULL,
  CONSTRAINT [PK_KVK_Scan] PRIMARY KEY CLUSTERED 
 (
 	[KVK_NO] ASC,
