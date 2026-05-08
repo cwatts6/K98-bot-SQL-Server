@@ -8,14 +8,14 @@ CREATE TABLE [dbo].[PreKvk_Scores_Ranked](
 	[GovernorName] [nvarchar](64) COLLATE Latin1_General_CI_AS NULL,
 	[MaxPreKvkPoints] [bigint] NULL,
 	[PreKvk_Rank] [bigint] NULL,
-	[ScanID] [int] NULL,
-	[ScanTimestampUTC] [datetime2](0) NULL,
 	[Stage1Points] [bigint] NULL,
 	[Stage1Rank] [bigint] NULL,
 	[Stage2Points] [bigint] NULL,
 	[Stage2Rank] [bigint] NULL,
 	[Stage3Points] [bigint] NULL,
-	[Stage3Rank] [bigint] NULL
+	[Stage3Rank] [bigint] NULL,
+	[ScanID] [int] NULL,
+	[ScanTimestampUTC] [datetime2](0) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[PreKvk_Scores_Ranked]') AND name = N'IX_PreKvkScoresRanked_KvK_Gov')
@@ -24,4 +24,4 @@ CREATE NONCLUSTERED INDEX [IX_PreKvkScoresRanked_KvK_Gov] ON [dbo].[PreKvk_Score
 	[KVK_NO] ASC,
 	[GovernorID] ASC
 )
-INCLUDE([MaxPreKvkPoints],[PreKvk_Rank],[ScanID]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+INCLUDE([MaxPreKvkPoints],[PreKvk_Rank],[Stage1Points],[Stage1Rank],[Stage2Points],[Stage2Rank],[Stage3Points],[Stage3Rank],[ScanID]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
