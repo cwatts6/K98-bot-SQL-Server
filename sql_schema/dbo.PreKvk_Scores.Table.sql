@@ -8,6 +8,12 @@ CREATE TABLE [dbo].[PreKvk_Scores](
 	[GovernorID] [bigint] NOT NULL,
 	[GovernorName] [nvarchar](64) COLLATE Latin1_General_CI_AS NOT NULL,
 	[Points] [int] NOT NULL,
+	[KingdomID] [int] NULL,
+	[SourceRank] [int] NULL,
+	[Stage1Points] [int] NULL,
+	[Stage2Points] [int] NULL,
+	[Stage3Points] [int] NULL,
+	[TotalPoints] [int] NULL,
  CONSTRAINT [PK_PreKvk_Scores] PRIMARY KEY CLUSTERED 
 (
 	[KVK_NO] ASC,
@@ -16,6 +22,13 @@ CREATE TABLE [dbo].[PreKvk_Scores](
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
 END
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[PreKvk_Scores]') AND name = N'IX_PreKvk_Scores_KVK_Gov')
+CREATE NONCLUSTERED INDEX [IX_PreKvk_Scores_KVK_Gov] ON [dbo].[PreKvk_Scores]
+(
+	[KVK_NO] ASC,
+	[GovernorID] ASC
+)
+INCLUDE([ScanID],[GovernorName],[Points],[TotalPoints],[Stage1Points],[Stage2Points],[Stage3Points]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[PreKvk_Scores]') AND name = N'IX_PreKvk_Scores_KVK_Scan_Gov')
 CREATE NONCLUSTERED INDEX [IX_PreKvk_Scores_KVK_Scan_Gov] ON [dbo].[PreKvk_Scores]
 (
@@ -24,6 +37,15 @@ CREATE NONCLUSTERED INDEX [IX_PreKvk_Scores_KVK_Scan_Gov] ON [dbo].[PreKvk_Score
 	[GovernorID] ASC
 )
 INCLUDE([Points],[GovernorName]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[PreKvk_Scores]') AND name = N'IX_PreKvk_Scores_KVK_Scan_Total')
+CREATE NONCLUSTERED INDEX [IX_PreKvk_Scores_KVK_Scan_Total] ON [dbo].[PreKvk_Scores]
+(
+	[KVK_NO] ASC,
+	[ScanID] ASC,
+	[TotalPoints] DESC,
+	[GovernorID] ASC
+)
+INCLUDE([GovernorName],[Points],[Stage1Points],[Stage2Points],[Stage3Points]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_PreKvk_Scores_Scan]') AND parent_object_id = OBJECT_ID(N'[dbo].[PreKvk_Scores]'))
 ALTER TABLE [dbo].[PreKvk_Scores]  WITH CHECK ADD  CONSTRAINT [FK_PreKvk_Scores_Scan] FOREIGN KEY([KVK_NO], [ScanID])
 REFERENCES [dbo].[PreKvk_Scan] ([KVK_NO], [ScanID])

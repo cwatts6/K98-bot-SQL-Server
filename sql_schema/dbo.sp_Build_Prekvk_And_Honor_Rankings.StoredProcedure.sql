@@ -13,7 +13,8 @@ BEGIN
     -------------------------------------------------------
     -- 1) Build PreKvk_Scores_Ranked: per KVK, per Governor:
     --    MaxPreKvkPoints (bigint), PreKvk_Rank (bigint),
-    --    KVK_NO, GovernorID, GovernorName, ScanID, ScanTimestampUTC
+    --    direct stage points/ranks, KVK_NO, GovernorID,
+    --    GovernorName, ScanID, ScanTimestampUTC
     -------------------------------------------------------
     DROP TABLE IF EXISTS dbo.PreKvk_Scores_Ranked;
 
@@ -24,7 +25,14 @@ BEGIN
     ),
     BestScans AS (
         -- all rows where Points = MaxPoints (may be multiple scan entries)
-        SELECT p.KVK_NO, p.GovernorID, p.GovernorName, p.Points, p.ScanID
+        SELECT p.KVK_NO,
+               p.GovernorID,
+               p.GovernorName,
+               p.Points,
+               p.Stage1Points,
+               p.Stage2Points,
+               p.Stage3Points,
+               p.ScanID
         FROM dbo.PreKvk_Scores p
         JOIN MaxPerGov m
           ON p.KVK_NO = m.KVK_NO
@@ -33,11 +41,14 @@ BEGIN
     ),
     Picked AS (
         -- pick a single ScanID when duplicates; capture GovName and ScanID
-        SELECT 
+        SELECT
             b.KVK_NO,
             b.GovernorID,
             MAX(b.GovernorName) AS GovernorName,
             CAST(MAX(b.Points) AS bigint) AS MaxPreKvkPoints,
+            CAST(MAX(b.Stage1Points) AS bigint) AS Stage1Points,
+            CAST(MAX(b.Stage2Points) AS bigint) AS Stage2Points,
+            CAST(MAX(b.Stage3Points) AS bigint) AS Stage3Points,
             MIN(b.ScanID) AS ScanID
         FROM BestScans b
         GROUP BY b.KVK_NO, b.GovernorID
@@ -45,30 +56,41 @@ BEGIN
     WithTS AS (
         -- attach ScanTimestampUTC from PreKvk_Scan
         SELECT p.KVK_NO, p.GovernorID, p.GovernorName, p.MaxPreKvkPoints,
+               p.Stage1Points, p.Stage2Points, p.Stage3Points,
                p.ScanID, s.ScanTimestampUTC
         FROM Picked p
         LEFT JOIN dbo.PreKvk_Scan s
           ON s.KVK_NO = p.KVK_NO AND s.ScanID = p.ScanID
+    ),
+    Ranked AS (
+        SELECT w.*,
+               RANK() OVER (PARTITION BY w.KVK_NO ORDER BY w.MaxPreKvkPoints DESC, w.GovernorID ASC) AS PreRank,
+               RANK() OVER (PARTITION BY w.KVK_NO ORDER BY w.Stage1Points DESC, w.GovernorID ASC) AS Stage1RankRaw,
+               RANK() OVER (PARTITION BY w.KVK_NO ORDER BY w.Stage2Points DESC, w.GovernorID ASC) AS Stage2RankRaw,
+               RANK() OVER (PARTITION BY w.KVK_NO ORDER BY w.Stage3Points DESC, w.GovernorID ASC) AS Stage3RankRaw
+        FROM WithTS w
     )
-    SELECT 
+    SELECT
         KVK_NO,
         GovernorID,
         GovernorName,
         MaxPreKvkPoints,
         CAST(PreRank AS bigint) AS PreKvk_Rank,
+        Stage1Points,
+        CASE WHEN Stage1Points IS NULL THEN NULL ELSE CAST(Stage1RankRaw AS bigint) END AS Stage1Rank,
+        Stage2Points,
+        CASE WHEN Stage2Points IS NULL THEN NULL ELSE CAST(Stage2RankRaw AS bigint) END AS Stage2Rank,
+        Stage3Points,
+        CASE WHEN Stage3Points IS NULL THEN NULL ELSE CAST(Stage3RankRaw AS bigint) END AS Stage3Rank,
         ScanID,
         ScanTimestampUTC
     INTO dbo.PreKvk_Scores_Ranked
-    FROM (
-        SELECT w.*,
-               RANK() OVER (PARTITION BY w.KVK_NO ORDER BY w.MaxPreKvkPoints DESC, w.GovernorID ASC) AS PreRank
-        FROM WithTS w
-    ) x;
+    FROM Ranked;
 
     -- optional index for faster joins (GovernorID lookup & KVK lookup)
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PreKvk_Scores_Ranked') AND name = N'IX_PreKvkScoresRanked_KvK_Gov')
     BEGIN
-        CREATE NONCLUSTERED INDEX IX_PreKvkScoresRanked_KvK_Gov ON dbo.PreKvk_Scores_Ranked (KVK_NO, GovernorID) INCLUDE (MaxPreKvkPoints, PreKvk_Rank, ScanID);
+        CREATE NONCLUSTERED INDEX IX_PreKvkScoresRanked_KvK_Gov ON dbo.PreKvk_Scores_Ranked (KVK_NO, GovernorID) INCLUDE (MaxPreKvkPoints, PreKvk_Rank, Stage1Points, Stage1Rank, Stage2Points, Stage2Rank, Stage3Points, Stage3Rank, ScanID);
     END
 
     -------------------------------------------------------
@@ -92,7 +114,7 @@ BEGIN
          AND h.HonorPoints = m.MaxHonor
     ),
     PickedHonor AS (
-        SELECT 
+        SELECT
             b.KVK_NO,
             b.GovernorID,
             MAX(b.GovernorName) AS GovernorName,
@@ -108,7 +130,7 @@ BEGIN
         LEFT JOIN dbo.KVK_Honor_Scan s
           ON s.KVK_NO = p.KVK_NO AND s.ScanID = p.ScanID
     )
-    SELECT 
+    SELECT
         KVK_NO,
         GovernorID,
         GovernorName,
@@ -130,3 +152,4 @@ BEGIN
 
     RETURN 0;
 END
+

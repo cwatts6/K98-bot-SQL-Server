@@ -9,7 +9,13 @@ CREATE TABLE [dbo].[PreKvk_Scores_Ranked](
 	[MaxPreKvkPoints] [bigint] NULL,
 	[PreKvk_Rank] [bigint] NULL,
 	[ScanID] [int] NULL,
-	[ScanTimestampUTC] [datetime2](0) NULL
+	[ScanTimestampUTC] [datetime2](0) NULL,
+	[Stage1Points] [bigint] NULL,
+	[Stage1Rank] [bigint] NULL,
+	[Stage2Points] [bigint] NULL,
+	[Stage2Rank] [bigint] NULL,
+	[Stage3Points] [bigint] NULL,
+	[Stage3Rank] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[PreKvk_Scores_Ranked]') AND name = N'IX_PreKvkScoresRanked_KvK_Gov')
