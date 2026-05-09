@@ -19,7 +19,7 @@ BEGIN
         ScanID,
         ScanTimestampUTC,
         SourceFileName,
-        Row_Count,               -- note: your column rename
+        Row_Count,
         ImportedAtUTC,
         UploaderDiscordID
     FROM KVK.KVK_Scan
@@ -27,9 +27,9 @@ BEGIN
     ORDER BY ScanID;
 
     ----------------------------------------------------------------
-    -- 2) KVK_Windows (effective end also shown)
+    -- 2) KVK_Windows
     ----------------------------------------------------------------
-    DECLARE @MaxScanID INT = (SELECT MAX(ScanID) FROM KVK.KVK_Scan WHERE KVK_NO=@KVK_NO);
+    DECLARE @MaxScanID INT = (SELECT MAX(ScanID) FROM KVK.KVK_Scan WHERE KVK_NO = @KVK_NO);
 
     SELECT
         KVK_NO,
@@ -45,7 +45,7 @@ BEGIN
     ORDER BY ISNULL(WindowSeq, 255), WindowName;
 
     ----------------------------------------------------------------
-    -- 3) KVK_DKP_Weights (latest first)
+    -- 3) KVK_DKP_Weights
     ----------------------------------------------------------------
     SELECT
         KVK_NO,
@@ -58,12 +58,13 @@ BEGIN
     ORDER BY EffectiveFromUTC DESC;
 
     ----------------------------------------------------------------
-    -- 4) Player Windowed (all windows including Baseline/Full)
+    -- 4) Player Windowed
     ----------------------------------------------------------------
     SELECT
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, starting_power, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        starting_power, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Player_Windowed
     WHERE KVK_NO = @KVK_NO
@@ -72,14 +73,14 @@ BEGIN
     ----------------------------------------------------------------
     -- 5) Kingdom Windowed
     ----------------------------------------------------------------
-	SELECT
-		KVK_NO, WindowName, kingdom, campid, camp_name,
-		kp_gain, kills_gain, t4_kills, t5_kills,
-		kp_loss, healed_troops, deads, dkp,
-		last_scan_id, computed_at_utc
-	FROM KVK.KVK_Kingdom_Windowed
-	WHERE KVK_NO = @KVK_NO
-	ORDER BY WindowName, dkp DESC;
+    SELECT
+        KVK_NO, WindowName, kingdom, campid, camp_name,
+        kp_gain, kills_gain, t4_kills, t5_kills,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
+        last_scan_id, computed_at_utc
+    FROM KVK.KVK_Kingdom_Windowed
+    WHERE KVK_NO = @KVK_NO
+    ORDER BY WindowName, dkp DESC;
 
     ----------------------------------------------------------------
     -- 6) Camp Windowed
@@ -87,7 +88,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Camp_Windowed
     WHERE KVK_NO = @KVK_NO
@@ -99,7 +100,8 @@ BEGIN
     SELECT
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, starting_power, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        starting_power, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Player_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
@@ -111,7 +113,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, kingdom, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Kingdom_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
@@ -123,14 +125,14 @@ BEGIN
     SELECT
         KVK_NO, WindowName, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Camp_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
     ORDER BY dkp DESC;
 
     ----------------------------------------------------------------
-    -- 10) Negative Corrections (all for this KVK)
+    -- 10) Negative Corrections
     ----------------------------------------------------------------
     SELECT
         KVK_NO, ScanID, governor_id, name, kingdom, campid,
@@ -139,7 +141,4 @@ BEGIN
     WHERE KVK_NO = @KVK_NO
     ORDER BY ScanID, governor_id, field_name;
 END
-
-
-
 
