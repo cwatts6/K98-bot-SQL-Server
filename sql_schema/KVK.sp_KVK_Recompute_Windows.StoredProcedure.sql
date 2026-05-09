@@ -43,7 +43,7 @@ BEGIN
     ----------------------------------------------------------------
     DELETE FROM KVK.KVK_Camp_Windowed    WHERE KVK_NO = @KVK_NO;
     DELETE FROM KVK.KVK_Kingdom_Windowed WHERE KVK_NO = @KVK_NO;
- 
+
     DECLARE @DeleteBatchSize INT = 20000;
 
     DECLARE @RowsDeleted INT;
@@ -86,13 +86,14 @@ BEGIN
     (
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, starting_power, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        starting_power, dkp,
         last_scan_id, computed_at_utc
     )
     SELECT  @KVK_NO, N'Baseline', b.governor_id, b.name, b.kingdom,
             ISNULL(cm.CampID, 0),
             0, 0, 0, 0, 0,
-            0, 0, 0, b.starting_power, 0.0,
+            0, 0, 0, 0, 0, b.starting_power, 0.0,
             b.baseline_scan_id, SYSUTCDATETIME()
     FROM base b
     LEFT JOIN cm
@@ -107,7 +108,7 @@ BEGIN
 			RTRIM(w.WindowName) AS WindowName,
 			w.StartScanID,
 			-- Auto-cap EndScanID to max available scan (prevents future scan references)
-			CASE 
+			CASE
 				WHEN w.EndScanID IS NULL THEN @MaxScanID
 				WHEN w.EndScanID > @MaxScanID THEN @MaxScanID  -- ← NEW: Safety cap
 				ELSE w.EndScanID
@@ -121,11 +122,13 @@ BEGIN
         SELECT
             W.WindowName, W.StartScanID, W.EndScanID,
             r.governor_id, r.name, r.kingdom,
-            ISNULL(r.points_difference,0)     AS kp_s,
-            ISNULL(r.kills_iv_diff,0)         AS t4_s,
-            ISNULL(r.kills_v_diff,0)          AS t5_s,
-            ISNULL(r.dead_diff,0)             AS deads_s,
-            ISNULL(r.max_units_healed_diff,0) AS heals_s
+            COALESCE(r.kill_points_diff, r.points_difference, r.max_kill_points - r.min_kill_points, 0) AS kp_s,
+            COALESCE(r.kills_iv_diff, r.max_kills_iv - r.min_kills_iv, 0) AS t4_s,
+            COALESCE(r.kills_v_diff, r.max_kills_v - r.min_kills_v, 0) AS t5_s,
+            COALESCE(r.dead_diff, r.max_dead - r.min_dead, 0) AS deads_s,
+            COALESCE(r.healed_troops, r.max_units_healed_diff, r.max_units_healed - r.min_units_healed, 0) AS heals_s,
+            COALESCE(r.max_contribute_diff, r.max_max_contribute - r.min_max_contribute, 0) AS max_contrib_s,
+            COALESCE(r.cur_contribute_diff, r.max_cur_contribute - r.min_cur_contribute, 0) AS cur_contrib_s
         FROM W
         JOIN KVK.KVK_AllPlayers_Raw r
           ON r.KVK_NO = @KVK_NO
@@ -135,11 +138,13 @@ BEGIN
         SELECT
             W.WindowName, W.StartScanID, W.EndScanID,
             r.governor_id, r.name, r.kingdom,
-            ISNULL(r.points_difference,0)     AS kp_e,
-            ISNULL(r.kills_iv_diff,0)         AS t4_e,
-            ISNULL(r.kills_v_diff,0)          AS t5_e,
-            ISNULL(r.dead_diff,0)             AS deads_e,
-            ISNULL(r.max_units_healed_diff,0) AS heals_e
+            COALESCE(r.kill_points_diff, r.points_difference, r.max_kill_points - r.min_kill_points, 0) AS kp_e,
+            COALESCE(r.kills_iv_diff, r.max_kills_iv - r.min_kills_iv, 0) AS t4_e,
+            COALESCE(r.kills_v_diff, r.max_kills_v - r.min_kills_v, 0) AS t5_e,
+            COALESCE(r.dead_diff, r.max_dead - r.min_dead, 0) AS deads_e,
+            COALESCE(r.healed_troops, r.max_units_healed_diff, r.max_units_healed - r.min_units_healed, 0) AS heals_e,
+            COALESCE(r.max_contribute_diff, r.max_max_contribute - r.min_max_contribute, 0) AS max_contrib_e,
+            COALESCE(r.cur_contribute_diff, r.max_cur_contribute - r.min_cur_contribute, 0) AS cur_contrib_e
         FROM W
         JOIN KVK.KVK_AllPlayers_Raw r
           ON r.KVK_NO = @KVK_NO
@@ -161,7 +166,9 @@ BEGIN
             ISNULL(E.t4_e,0)   - ISNULL(S.t4_s,0)     AS t4_kills,
             ISNULL(E.t5_e,0)   - ISNULL(S.t5_s,0)     AS t5_kills,
             ISNULL(E.heals_e,0)- ISNULL(S.heals_s,0)  AS healed_troops,
-            ISNULL(E.deads_e,0)- ISNULL(S.deads_s,0)  AS deads
+            ISNULL(E.deads_e,0)- ISNULL(S.deads_s,0)  AS deads,
+            ISNULL(E.max_contrib_e,0)- ISNULL(S.max_contrib_s,0) AS max_contribute_gain,
+            ISNULL(E.cur_contrib_e,0)- ISNULL(S.cur_contrib_s,0) AS cur_contribute_gain
         FROM S
         FULL OUTER JOIN E
           ON E.WindowName = S.WindowName
@@ -183,7 +190,8 @@ BEGIN
     (
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, starting_power, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        starting_power, dkp,
         last_scan_id, computed_at_utc
     )
     SELECT
@@ -204,6 +212,8 @@ BEGIN
         (U.healed_troops * 20) AS kp_loss,
         U.healed_troops,
         U.deads,
+        U.max_contribute_gain,
+        U.cur_contribute_gain,
         ISNULL(B.starting_power, 0) AS starting_power,
         CASE WHEN ISNULL(B.starting_power,0) > 0
              THEN ((U.t4_kills * @X) + (U.t5_kills * @Y) + (U.deads * @Z))
@@ -219,11 +229,13 @@ BEGIN
     ----------------------------------------------------------------
     ;WITH E AS (
         SELECT r.governor_id, r.name, r.kingdom,
-               ISNULL(r.points_difference,0)     AS kp,
-               ISNULL(r.kills_iv_diff,0)         AS t4,
-               ISNULL(r.kills_v_diff,0)          AS t5,
-               ISNULL(r.dead_diff,0)             AS deads,
-               ISNULL(r.max_units_healed_diff,0) AS heals
+               COALESCE(r.kill_points_diff, r.points_difference, r.max_kill_points - r.min_kill_points, 0) AS kp,
+               COALESCE(r.kills_iv_diff, r.max_kills_iv - r.min_kills_iv, 0) AS t4,
+               COALESCE(r.kills_v_diff, r.max_kills_v - r.min_kills_v, 0) AS t5,
+               COALESCE(r.dead_diff, r.max_dead - r.min_dead, 0) AS deads,
+               COALESCE(r.healed_troops, r.max_units_healed_diff, r.max_units_healed - r.min_units_healed, 0) AS heals,
+               COALESCE(r.max_contribute_diff, r.max_max_contribute - r.min_max_contribute, 0) AS max_contribute_gain,
+               COALESCE(r.cur_contribute_diff, r.max_cur_contribute - r.min_cur_contribute, 0) AS cur_contribute_gain
         FROM KVK.KVK_AllPlayers_Raw r WITH (READCOMMITTEDLOCK)
         WHERE r.KVK_NO = @KVK_NO
           AND r.ScanID = @MaxScanID
@@ -242,7 +254,8 @@ BEGIN
     (
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, starting_power, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        starting_power, dkp,
         last_scan_id, computed_at_utc
     )
     SELECT
@@ -260,6 +273,8 @@ BEGIN
         (E.heals * 20)            AS kp_loss,
         E.heals,
         E.deads,
+        E.max_contribute_gain,
+        E.cur_contribute_gain,
         ISNULL(B.starting_power, 0) AS starting_power,
         CASE WHEN ISNULL(B.starting_power,0) > 0
              THEN ((E.t4 * @X) + (E.t5 * @Y) + (E.deads * @Z))
@@ -299,6 +314,8 @@ BEGIN
 			SUM(p.kp_loss)              AS kp_loss,
 			SUM(p.healed_troops)        AS healed_troops,
 			SUM(p.deads)                AS deads,
+			SUM(p.max_contribute_gain)  AS max_contribute_gain,
+			SUM(p.cur_contribute_gain)  AS cur_contribute_gain,
 			SUM(p.starting_power)       AS starting_power_sum,
 			MAX(p.last_scan_id)         AS last_scan_id
 		FROM P p
@@ -311,13 +328,13 @@ BEGIN
 	(
 		KVK_NO, WindowName, kingdom, campid, camp_name,
 		kp_gain, kills_gain, t4_kills, t5_kills,
-		kp_loss, healed_troops, deads, dkp,
+		kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
 		last_scan_id, computed_at_utc
 	)
 	SELECT
 		K.KVK_NO, K.WindowName, K.kingdom, K.campid, K.camp_name,
 		K.kp_gain, K.kills_gain, K.t4_kills, K.t5_kills,
-		K.kp_loss, K.healed_troops, K.deads,
+		K.kp_loss, K.healed_troops, K.deads, K.max_contribute_gain, K.cur_contribute_gain,
 		CASE WHEN K.starting_power_sum > 0
 			 THEN ((K.t4_kills * @X) + (K.t5_kills * @Y) + (K.deads * @Z))
 			 ELSE 0.0 END AS dkp,
@@ -349,6 +366,8 @@ BEGIN
             SUM(p.kp_loss)         AS kp_loss,
             SUM(p.healed_troops)   AS healed_troops,
             SUM(p.deads)           AS deads,
+            SUM(p.max_contribute_gain) AS max_contribute_gain,
+            SUM(p.cur_contribute_gain) AS cur_contribute_gain,
             SUM(p.starting_power)  AS starting_power_sum,
             MAX(p.last_scan_id)    AS last_scan_id
         FROM P p
@@ -360,13 +379,13 @@ BEGIN
     (
         KVK_NO, WindowName, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, dkp,
+        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
         last_scan_id, computed_at_utc
     )
     SELECT
         C.KVK_NO, C.WindowName, C.campid, C.camp_name,
         C.kp_gain, C.kills_gain, C.t4_kills, C.t5_kills,
-        C.kp_loss, C.healed_troops, C.deads,
+        C.kp_loss, C.healed_troops, C.deads, C.max_contribute_gain, C.cur_contribute_gain,
         CASE WHEN C.starting_power_sum > 0
              THEN ((C.t4_kills * @X) + (C.t5_kills * @Y) + (C.deads * @Z))
              ELSE 0.0 END AS dkp,
@@ -376,4 +395,7 @@ BEGIN
 
     RETURN 0;
 END
+
+
+
 

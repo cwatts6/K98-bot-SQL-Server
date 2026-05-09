@@ -21,6 +21,8 @@ CREATE TABLE [KVK].[KVK_Player_Windowed](
 	[dkp] [float] NOT NULL,
 	[last_scan_id] [int] NOT NULL,
 	[computed_at_utc] [datetime2](0) NOT NULL,
+	[max_contribute_gain] [bigint] NOT NULL,
+	[cur_contribute_gain] [bigint] NOT NULL,
  CONSTRAINT [PK_KVK_Player_Windowed] PRIMARY KEY CLUSTERED 
 (
 	[KVK_NO] ASC,
@@ -78,5 +80,15 @@ CREATE NONCLUSTERED INDEX [IX_PlayerWin_Kingdom] ON [KVK].[KVK_Player_Windowed]
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_PlayerWin_At]') AND type = 'D')
 BEGIN
 ALTER TABLE [KVK].[KVK_Player_Windowed] ADD  CONSTRAINT [DF_PlayerWin_At]  DEFAULT (sysutcdatetime()) FOR [computed_at_utc]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_PlayerWin_MaxContrib]') AND type = 'D')
+BEGIN
+ALTER TABLE [KVK].[KVK_Player_Windowed] ADD  CONSTRAINT [DF_PlayerWin_MaxContrib]  DEFAULT ((0)) FOR [max_contribute_gain]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_PlayerWin_CurContrib]') AND type = 'D')
+BEGIN
+ALTER TABLE [KVK].[KVK_Player_Windowed] ADD  CONSTRAINT [DF_PlayerWin_CurContrib]  DEFAULT ((0)) FOR [cur_contribute_gain]
 END
 

@@ -97,7 +97,10 @@ BEGIN
     -- 7) Player Full
     ----------------------------------------------------------------
     SELECT
-        *
+        KVK_NO, WindowName, governor_id, name, kingdom, campid,
+        kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
+        kp_loss, healed_troops, deads, starting_power, dkp,
+        last_scan_id, computed_at_utc
     FROM KVK.KVK_Player_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
     ORDER BY dkp DESC;
@@ -106,7 +109,10 @@ BEGIN
     -- 8) Kingdom Full
     ----------------------------------------------------------------
     SELECT
-        *
+        KVK_NO, WindowName, kingdom, campid, camp_name,
+        kp_gain, kills_gain, t4_kills, t5_kills,
+        kp_loss, healed_troops, deads, dkp,
+        last_scan_id, computed_at_utc
     FROM KVK.KVK_Kingdom_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
     ORDER BY dkp DESC;
@@ -115,7 +121,10 @@ BEGIN
     -- 9) Camp Full
     ----------------------------------------------------------------
     SELECT
-        *
+        KVK_NO, WindowName, campid, camp_name,
+        kp_gain, kills_gain, t4_kills, t5_kills,
+        kp_loss, healed_troops, deads, dkp,
+        last_scan_id, computed_at_utc
     FROM KVK.KVK_Camp_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
     ORDER BY dkp DESC;
@@ -130,4 +139,7 @@ BEGIN
     WHERE KVK_NO = @KVK_NO
     ORDER BY ScanID, governor_id, field_name;
 END
+
+
+
 

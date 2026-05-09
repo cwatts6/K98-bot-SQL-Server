@@ -18,6 +18,8 @@ CREATE TABLE [KVK].[KVK_Kingdom_Windowed](
 	[computed_at_utc] [datetime2](0) NOT NULL,
 	[campid] [int] NOT NULL,
 	[camp_name] [nvarchar](100) COLLATE Latin1_General_CI_AS NOT NULL,
+	[max_contribute_gain] [bigint] NOT NULL,
+	[cur_contribute_gain] [bigint] NOT NULL,
  CONSTRAINT [PK_KVK_Kingdom_Windowed] PRIMARY KEY CLUSTERED 
 (
 	[KVK_NO] ASC,
@@ -56,5 +58,15 @@ END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_KingdomWin_campname]') AND type = 'D')
 BEGIN
 ALTER TABLE [KVK].[KVK_Kingdom_Windowed] ADD  CONSTRAINT [DF_KingdomWin_campname]  DEFAULT (N'') FOR [camp_name]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_KingdomWin_MaxContrib]') AND type = 'D')
+BEGIN
+ALTER TABLE [KVK].[KVK_Kingdom_Windowed] ADD  CONSTRAINT [DF_KingdomWin_MaxContrib]  DEFAULT ((0)) FOR [max_contribute_gain]
+END
+
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_KingdomWin_CurContrib]') AND type = 'D')
+BEGIN
+ALTER TABLE [KVK].[KVK_Kingdom_Windowed] ADD  CONSTRAINT [DF_KingdomWin_CurContrib]  DEFAULT ((0)) FOR [cur_contribute_gain]
 END
 
