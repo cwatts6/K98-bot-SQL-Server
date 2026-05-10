@@ -52,11 +52,23 @@ CREATE TABLE [KVK].[KVK_AllPlayers_Stage](
 	[source_sheet_name] [nvarchar](128) COLLATE Latin1_General_CI_AS NULL,
 	[source_column_hash] [char](64) COLLATE Latin1_General_CI_AS NULL,
 	[source_column_count] [int] NULL,
-	[source_row_count] [int] NULL
+	[source_row_count] [int] NULL,
+	[staged_at_utc] [datetime2](0) NOT NULL
 ) ON [PRIMARY]
 END
+IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[KVK].[KVK_AllPlayers_Stage]') AND name = N'IX_KVK_AllPlayers_Stage_StagedAt')
+CREATE NONCLUSTERED INDEX [IX_KVK_AllPlayers_Stage_StagedAt] ON [KVK].[KVK_AllPlayers_Stage]
+(
+	[staged_at_utc] ASC
+)
+INCLUDE([IngestToken]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[KVK].[KVK_AllPlayers_Stage]') AND name = N'IX_KVK_AllPlayers_Stage_Token')
 CREATE NONCLUSTERED INDEX [IX_KVK_AllPlayers_Stage_Token] ON [KVK].[KVK_AllPlayers_Stage]
 (
 	[IngestToken] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[KVK].[DF_KVK_AllPlayers_Stage_StagedAtUTC]') AND type = 'D')
+BEGIN
+ALTER TABLE [KVK].[KVK_AllPlayers_Stage] ADD  CONSTRAINT [DF_KVK_AllPlayers_Stage_StagedAtUTC]  DEFAULT (sysutcdatetime()) FOR [staged_at_utc]
+END
+
