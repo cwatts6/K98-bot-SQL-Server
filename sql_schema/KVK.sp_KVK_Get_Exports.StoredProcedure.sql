@@ -37,7 +37,10 @@ BEGIN
         WindowSeq,
         StartScanID,
         EndScanID,
-        COALESCE(EndScanID, @MaxScanID) AS EffectiveEndScanID,
+        CASE
+            WHEN EndScanID IS NULL OR EndScanID > @MaxScanID THEN @MaxScanID
+            ELSE EndScanID
+        END AS EffectiveEndScanID,
         Notes,
         UpdatedAtUTC
     FROM KVK.KVK_Windows
@@ -63,7 +66,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        kp_loss, healed_troops, deads, cur_contribute_gain AS acclaim_gain,
         starting_power, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Player_Windowed
@@ -76,7 +79,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, kingdom, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
+        kp_loss, healed_troops, deads, cur_contribute_gain AS acclaim_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Kingdom_Windowed
     WHERE KVK_NO = @KVK_NO
@@ -88,7 +91,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
+        kp_loss, healed_troops, deads, cur_contribute_gain AS acclaim_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Camp_Windowed
     WHERE KVK_NO = @KVK_NO
@@ -100,7 +103,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, governor_id, name, kingdom, campid,
         kp_gain, kp_gain_recalc, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain,
+        kp_loss, healed_troops, deads, cur_contribute_gain AS acclaim_gain,
         starting_power, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Player_Windowed
@@ -113,7 +116,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, kingdom, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
+        kp_loss, healed_troops, deads, cur_contribute_gain AS acclaim_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Kingdom_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
@@ -125,7 +128,7 @@ BEGIN
     SELECT
         KVK_NO, WindowName, campid, camp_name,
         kp_gain, kills_gain, t4_kills, t5_kills,
-        kp_loss, healed_troops, deads, max_contribute_gain, cur_contribute_gain, dkp,
+        kp_loss, healed_troops, deads, cur_contribute_gain AS acclaim_gain, dkp,
         last_scan_id, computed_at_utc
     FROM KVK.KVK_Camp_Windowed
     WHERE KVK_NO = @KVK_NO AND WindowName = N'Full'
