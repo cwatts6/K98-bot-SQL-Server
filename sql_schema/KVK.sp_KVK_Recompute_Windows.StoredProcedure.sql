@@ -113,22 +113,30 @@ BEGIN
 				WHEN w.EndScanID > @MaxScanID THEN @MaxScanID  -- ← NEW: Safety cap
 				ELSE w.EndScanID
 			END AS EndScanID
-		FROM KVK.KVK_Windows w WITH (READCOMMITTEDLOCK)
-		WHERE w.KVK_NO = @KVK_NO
-		  AND w.StartScanID IS NOT NULL
-		  AND w.WindowName <> N'Baseline'
-	),
+ 		FROM KVK.KVK_Windows w WITH (READCOMMITTEDLOCK)
+ 		WHERE w.KVK_NO = @KVK_NO
+ 		  AND w.StartScanID IS NOT NULL
+		  AND w.StartScanID <= @MaxScanID
+ 		  AND w.WindowName <> N'Baseline'
+ 	),
     S AS (
         SELECT
             W.WindowName, W.StartScanID, W.EndScanID,
             r.governor_id, r.name, r.kingdom,
-            COALESCE(r.kill_points_diff, r.points_difference, r.max_kill_points - r.min_kill_points, 0) AS kp_s,
-            COALESCE(r.kills_iv_diff, r.max_kills_iv - r.min_kills_iv, 0) AS t4_s,
-            COALESCE(r.kills_v_diff, r.max_kills_v - r.min_kills_v, 0) AS t5_s,
-            COALESCE(r.dead_diff, r.max_dead - r.min_dead, 0) AS deads_s,
-            COALESCE(r.healed_troops, r.max_units_healed_diff, r.max_units_healed - r.min_units_healed, 0) AS heals_s,
-            COALESCE(r.max_contribute_diff, r.max_max_contribute - r.min_max_contribute, 0) AS max_contrib_s,
-            COALESCE(r.cur_contribute_diff, r.max_cur_contribute - r.min_cur_contribute, 0) AS cur_contrib_s
+            r.max_kill_points AS kp_endpoint_s,
+            r.max_kills_iv AS t4_endpoint_s,
+            r.max_kills_v AS t5_endpoint_s,
+            r.max_dead AS deads_endpoint_s,
+            r.max_units_healed AS heals_endpoint_s,
+            r.max_max_contribute AS max_contrib_endpoint_s,
+            r.max_cur_contribute AS cur_contrib_endpoint_s,
+            COALESCE(r.kill_points_diff, r.points_difference, 0) AS kp_legacy_s,
+            COALESCE(r.kills_iv_diff, 0) AS t4_legacy_s,
+            COALESCE(r.kills_v_diff, 0) AS t5_legacy_s,
+            COALESCE(r.dead_diff, 0) AS deads_legacy_s,
+            COALESCE(r.healed_troops, r.max_units_healed_diff, 0) AS heals_legacy_s,
+            COALESCE(r.max_contribute_diff, 0) AS max_contrib_legacy_s,
+            COALESCE(r.cur_contribute_diff, 0) AS cur_contrib_legacy_s
         FROM W
         JOIN KVK.KVK_AllPlayers_Raw r
           ON r.KVK_NO = @KVK_NO
@@ -138,13 +146,20 @@ BEGIN
         SELECT
             W.WindowName, W.StartScanID, W.EndScanID,
             r.governor_id, r.name, r.kingdom,
-            COALESCE(r.kill_points_diff, r.points_difference, r.max_kill_points - r.min_kill_points, 0) AS kp_e,
-            COALESCE(r.kills_iv_diff, r.max_kills_iv - r.min_kills_iv, 0) AS t4_e,
-            COALESCE(r.kills_v_diff, r.max_kills_v - r.min_kills_v, 0) AS t5_e,
-            COALESCE(r.dead_diff, r.max_dead - r.min_dead, 0) AS deads_e,
-            COALESCE(r.healed_troops, r.max_units_healed_diff, r.max_units_healed - r.min_units_healed, 0) AS heals_e,
-            COALESCE(r.max_contribute_diff, r.max_max_contribute - r.min_max_contribute, 0) AS max_contrib_e,
-            COALESCE(r.cur_contribute_diff, r.max_cur_contribute - r.min_cur_contribute, 0) AS cur_contrib_e
+            r.max_kill_points AS kp_endpoint_e,
+            r.max_kills_iv AS t4_endpoint_e,
+            r.max_kills_v AS t5_endpoint_e,
+            r.max_dead AS deads_endpoint_e,
+            r.max_units_healed AS heals_endpoint_e,
+            r.max_max_contribute AS max_contrib_endpoint_e,
+            r.max_cur_contribute AS cur_contrib_endpoint_e,
+            COALESCE(r.kill_points_diff, r.points_difference, 0) AS kp_legacy_e,
+            COALESCE(r.kills_iv_diff, 0) AS t4_legacy_e,
+            COALESCE(r.kills_v_diff, 0) AS t5_legacy_e,
+            COALESCE(r.dead_diff, 0) AS deads_legacy_e,
+            COALESCE(r.healed_troops, r.max_units_healed_diff, 0) AS heals_legacy_e,
+            COALESCE(r.max_contribute_diff, 0) AS max_contrib_legacy_e,
+            COALESCE(r.cur_contribute_diff, 0) AS cur_contrib_legacy_e
         FROM W
         JOIN KVK.KVK_AllPlayers_Raw r
           ON r.KVK_NO = @KVK_NO
@@ -160,15 +175,33 @@ BEGIN
             COALESCE(E.name, S.name)               AS name,
             COALESCE(E.kingdom, S.kingdom)         AS kingdom,
             -- Deltas
-            ISNULL(E.kp_e,0)    - ISNULL(S.kp_s,0)    AS kp_gain,
-            (ISNULL(E.t4_e,0)+ISNULL(E.t5_e,0))
-          - (ISNULL(S.t4_s,0)+ISNULL(S.t5_s,0))       AS kills_gain,
-            ISNULL(E.t4_e,0)   - ISNULL(S.t4_s,0)     AS t4_kills,
-            ISNULL(E.t5_e,0)   - ISNULL(S.t5_s,0)     AS t5_kills,
-            ISNULL(E.heals_e,0)- ISNULL(S.heals_s,0)  AS healed_troops,
-            ISNULL(E.deads_e,0)- ISNULL(S.deads_s,0)  AS deads,
-            ISNULL(E.max_contrib_e,0)- ISNULL(S.max_contrib_s,0) AS max_contribute_gain,
-            ISNULL(E.cur_contrib_e,0)- ISNULL(S.cur_contrib_s,0) AS cur_contribute_gain
+            CASE WHEN E.kp_endpoint_e IS NOT NULL AND S.kp_endpoint_s IS NOT NULL
+                 THEN E.kp_endpoint_e - S.kp_endpoint_s
+                 ELSE ISNULL(E.kp_legacy_e,0) - ISNULL(S.kp_legacy_s,0) END AS kp_gain,
+            CASE WHEN E.t4_endpoint_e IS NOT NULL AND S.t4_endpoint_s IS NOT NULL
+                 THEN E.t4_endpoint_e - S.t4_endpoint_s
+                 ELSE ISNULL(E.t4_legacy_e,0) - ISNULL(S.t4_legacy_s,0) END
+          + CASE WHEN E.t5_endpoint_e IS NOT NULL AND S.t5_endpoint_s IS NOT NULL
+                 THEN E.t5_endpoint_e - S.t5_endpoint_s
+                 ELSE ISNULL(E.t5_legacy_e,0) - ISNULL(S.t5_legacy_s,0) END AS kills_gain,
+            CASE WHEN E.t4_endpoint_e IS NOT NULL AND S.t4_endpoint_s IS NOT NULL
+                 THEN E.t4_endpoint_e - S.t4_endpoint_s
+                 ELSE ISNULL(E.t4_legacy_e,0) - ISNULL(S.t4_legacy_s,0) END AS t4_kills,
+            CASE WHEN E.t5_endpoint_e IS NOT NULL AND S.t5_endpoint_s IS NOT NULL
+                 THEN E.t5_endpoint_e - S.t5_endpoint_s
+                 ELSE ISNULL(E.t5_legacy_e,0) - ISNULL(S.t5_legacy_s,0) END AS t5_kills,
+            CASE WHEN E.heals_endpoint_e IS NOT NULL AND S.heals_endpoint_s IS NOT NULL
+                 THEN E.heals_endpoint_e - S.heals_endpoint_s
+                 ELSE ISNULL(E.heals_legacy_e,0) - ISNULL(S.heals_legacy_s,0) END AS healed_troops,
+            CASE WHEN E.deads_endpoint_e IS NOT NULL AND S.deads_endpoint_s IS NOT NULL
+                 THEN E.deads_endpoint_e - S.deads_endpoint_s
+                 ELSE ISNULL(E.deads_legacy_e,0) - ISNULL(S.deads_legacy_s,0) END AS deads,
+            CASE WHEN E.max_contrib_endpoint_e IS NOT NULL AND S.max_contrib_endpoint_s IS NOT NULL
+                 THEN E.max_contrib_endpoint_e - S.max_contrib_endpoint_s
+                 ELSE ISNULL(E.max_contrib_legacy_e,0) - ISNULL(S.max_contrib_legacy_s,0) END AS max_contribute_gain,
+            CASE WHEN E.cur_contrib_endpoint_e IS NOT NULL AND S.cur_contrib_endpoint_s IS NOT NULL
+                 THEN E.cur_contrib_endpoint_e - S.cur_contrib_endpoint_s
+                 ELSE ISNULL(E.cur_contrib_legacy_e,0) - ISNULL(S.cur_contrib_legacy_s,0) END AS cur_contribute_gain
         FROM S
         FULL OUTER JOIN E
           ON E.WindowName = S.WindowName
@@ -225,25 +258,74 @@ BEGIN
     LEFT JOIN CM ON CM.KVK_NO = @KVK_NO AND CM.Kingdom = U.kingdom;
 
     ----------------------------------------------------------------
-    -- 4) Full KVK (Baseline→MaxScanID): use latest cumulative snapshot
+    -- 4) Full KVK (Baseline→MaxScanID): endpoint-aware for Full Data v2
     ----------------------------------------------------------------
     ;WITH E AS (
         SELECT r.governor_id, r.name, r.kingdom,
-               COALESCE(r.kill_points_diff, r.points_difference, r.max_kill_points - r.min_kill_points, 0) AS kp,
-               COALESCE(r.kills_iv_diff, r.max_kills_iv - r.min_kills_iv, 0) AS t4,
-               COALESCE(r.kills_v_diff, r.max_kills_v - r.min_kills_v, 0) AS t5,
-               COALESCE(r.dead_diff, r.max_dead - r.min_dead, 0) AS deads,
-               COALESCE(r.healed_troops, r.max_units_healed_diff, r.max_units_healed - r.min_units_healed, 0) AS heals,
-               COALESCE(r.max_contribute_diff, r.max_max_contribute - r.min_max_contribute, 0) AS max_contribute_gain,
-               COALESCE(r.cur_contribute_diff, r.max_cur_contribute - r.min_cur_contribute, 0) AS cur_contribute_gain
+               r.max_kill_points,
+               r.max_kills_iv,
+               r.max_kills_v,
+               r.max_dead,
+               r.max_units_healed,
+               r.max_max_contribute,
+               r.max_cur_contribute,
+               COALESCE(r.kill_points_diff, r.points_difference, 0) AS legacy_kp,
+               COALESCE(r.kills_iv_diff, 0) AS legacy_t4,
+               COALESCE(r.kills_v_diff, 0) AS legacy_t5,
+               COALESCE(r.dead_diff, 0) AS legacy_deads,
+               COALESCE(r.healed_troops, r.max_units_healed_diff, 0) AS legacy_heals,
+               COALESCE(r.max_contribute_diff, 0) AS legacy_max_contribute_gain,
+               COALESCE(r.cur_contribute_diff, 0) AS legacy_cur_contribute_gain
         FROM KVK.KVK_AllPlayers_Raw r WITH (READCOMMITTEDLOCK)
         WHERE r.KVK_NO = @KVK_NO
           AND r.ScanID = @MaxScanID
     ),
     B AS (
-        SELECT governor_id, starting_power
+        SELECT governor_id, baseline_scan_id, starting_power
         FROM KVK.KVK_Player_Baseline WITH (READCOMMITTEDLOCK)
         WHERE KVK_NO = @KVK_NO
+    ),
+    S AS (
+        SELECT r.governor_id,
+               r.max_kill_points,
+               r.max_kills_iv,
+               r.max_kills_v,
+               r.max_dead,
+               r.max_units_healed,
+               r.max_max_contribute,
+               r.max_cur_contribute
+        FROM KVK.KVK_AllPlayers_Raw r WITH (READCOMMITTEDLOCK)
+        JOIN B
+          ON B.governor_id = r.governor_id
+         AND r.KVK_NO = @KVK_NO
+         AND r.ScanID = B.baseline_scan_id
+    ),
+    U AS (
+        SELECT E.governor_id, E.name, E.kingdom,
+               CASE WHEN E.max_kill_points IS NOT NULL AND S.max_kill_points IS NOT NULL
+                    THEN E.max_kill_points - S.max_kill_points
+                    ELSE E.legacy_kp END AS kp,
+               CASE WHEN E.max_kills_iv IS NOT NULL AND S.max_kills_iv IS NOT NULL
+                    THEN E.max_kills_iv - S.max_kills_iv
+                    ELSE E.legacy_t4 END AS t4,
+               CASE WHEN E.max_kills_v IS NOT NULL AND S.max_kills_v IS NOT NULL
+                    THEN E.max_kills_v - S.max_kills_v
+                    ELSE E.legacy_t5 END AS t5,
+               CASE WHEN E.max_dead IS NOT NULL AND S.max_dead IS NOT NULL
+                    THEN E.max_dead - S.max_dead
+                    ELSE E.legacy_deads END AS deads,
+               CASE WHEN E.max_units_healed IS NOT NULL AND S.max_units_healed IS NOT NULL
+                    THEN E.max_units_healed - S.max_units_healed
+                    ELSE E.legacy_heals END AS heals,
+               CASE WHEN E.max_max_contribute IS NOT NULL AND S.max_max_contribute IS NOT NULL
+                    THEN E.max_max_contribute - S.max_max_contribute
+                    ELSE E.legacy_max_contribute_gain END AS max_contribute_gain,
+               CASE WHEN E.max_cur_contribute IS NOT NULL AND S.max_cur_contribute IS NOT NULL
+                    THEN E.max_cur_contribute - S.max_cur_contribute
+                    ELSE E.legacy_cur_contribute_gain END AS cur_contribute_gain
+        FROM E
+        LEFT JOIN S
+          ON S.governor_id = E.governor_id
     ),
     CM AS (
         SELECT KVK_NO, Kingdom, CampID, CampName
@@ -265,7 +347,7 @@ BEGIN
         E.name,
         E.kingdom,
         ISNULL(CM.CampID, 0),
-        -- Full uses cumulative since baseline (End-only)
+        -- Full uses baseline-to-latest endpoint deltas when Full Data v2 endpoints exist.
         E.kp,
         (E.t4 * 10) + (E.t5 * 20) AS kp_gain_recalc,
         (E.t4 + E.t5)             AS kills_gain,
@@ -281,7 +363,7 @@ BEGIN
              ELSE 0.0 END AS dkp,
         @MaxScanID,
         SYSUTCDATETIME()
-    FROM E
+    FROM U AS E
     LEFT JOIN B  ON B.governor_id = E.governor_id
     LEFT JOIN CM ON CM.KVK_NO = @KVK_NO AND CM.Kingdom = E.kingdom;
 
@@ -395,6 +477,8 @@ BEGIN
 
     RETURN 0;
 END
+
+
 
 
 
