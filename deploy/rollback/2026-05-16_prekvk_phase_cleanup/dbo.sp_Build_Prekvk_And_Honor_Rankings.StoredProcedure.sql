@@ -1,10 +1,10 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 GO
 SET QUOTED_IDENTIFIER ON
 GO
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_Build_Prekvk_And_Honor_Rankings]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_Build_Prekvk_And_Honor_Rankings] AS' 
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_Build_Prekvk_And_Honor_Rankings] AS'
 END
 GO
 ALTER PROCEDURE [dbo].[sp_Build_Prekvk_And_Honor_Rankings]
@@ -13,12 +13,6 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -------------------------------------------------------
-    -- 1) Build PreKvk_Scores_Ranked: per KVK, per Governor:
-    --    MaxPreKvkPoints (bigint), PreKvk_Rank (bigint),
-    --    direct stage points/ranks, KVK_NO, GovernorID,
-    --    GovernorName, ScanID, ScanTimestampUTC
-    -------------------------------------------------------
     DROP TABLE IF EXISTS dbo.PreKvk_Scores_Ranked;
 
     ;WITH MaxPerGov AS (
@@ -27,7 +21,6 @@ BEGIN
         GROUP BY KVK_NO, GovernorID
     ),
     BestScans AS (
-        -- all rows where Points = MaxPoints (may be multiple scan entries)
         SELECT p.KVK_NO,
                p.GovernorID,
                p.GovernorName,
@@ -42,37 +35,20 @@ BEGIN
          AND p.GovernorID = m.GovernorID
          AND p.Points = m.MaxPoints
     ),
-    RankedBestScans AS (
-        -- pick one best-score row deterministically so all projected values come from the same source row
-        SELECT b.KVK_NO,
-               b.GovernorID,
-               b.GovernorName,
-               b.Points,
-               b.Stage1Points,
-               b.Stage2Points,
-               b.Stage3Points,
-               b.ScanID,
-               ROW_NUMBER() OVER (
-                   PARTITION BY b.KVK_NO, b.GovernorID
-                   ORDER BY b.ScanID ASC
-               ) AS rn
-        FROM BestScans b
-    ),
     Picked AS (
         SELECT
             b.KVK_NO,
             b.GovernorID,
-            b.GovernorName,
-            CAST(b.Points AS bigint) AS MaxPreKvkPoints,
-            CAST(b.Stage1Points AS bigint) AS Stage1Points,
-            CAST(b.Stage2Points AS bigint) AS Stage2Points,
-            CAST(b.Stage3Points AS bigint) AS Stage3Points,
-            b.ScanID
-        FROM RankedBestScans b
-        WHERE b.rn = 1
+            MAX(b.GovernorName) AS GovernorName,
+            CAST(MAX(b.Points) AS bigint) AS MaxPreKvkPoints,
+            CAST(MAX(b.Stage1Points) AS bigint) AS Stage1Points,
+            CAST(MAX(b.Stage2Points) AS bigint) AS Stage2Points,
+            CAST(MAX(b.Stage3Points) AS bigint) AS Stage3Points,
+            MIN(b.ScanID) AS ScanID
+        FROM BestScans b
+        GROUP BY b.KVK_NO, b.GovernorID
     ),
     WithTS AS (
-        -- attach ScanTimestampUTC from PreKvk_Scan
         SELECT p.KVK_NO, p.GovernorID, p.GovernorName, p.MaxPreKvkPoints,
                p.Stage1Points, p.Stage2Points, p.Stage3Points,
                p.ScanID, s.ScanTimestampUTC
@@ -105,17 +81,11 @@ BEGIN
     INTO dbo.PreKvk_Scores_Ranked
     FROM Ranked;
 
-    -- optional index for faster joins (GovernorID lookup & KVK lookup)
     IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.PreKvk_Scores_Ranked') AND name = N'IX_PreKvkScoresRanked_KvK_Gov')
     BEGIN
         CREATE NONCLUSTERED INDEX IX_PreKvkScoresRanked_KvK_Gov ON dbo.PreKvk_Scores_Ranked (KVK_NO, GovernorID) INCLUDE (MaxPreKvkPoints, PreKvk_Rank, Stage1Points, Stage1Rank, Stage2Points, Stage2Rank, Stage3Points, Stage3Rank, ScanID);
     END
 
-    -------------------------------------------------------
-    -- 2) Build KVK_Honor_Ranked: per KVK, per Governor:
-    --    MaxHonorPoints (bigint), Honor_Rank (bigint),
-    --    KVK_NO, GovernorID, GovernorName, ScanID, ScanTimestampUTC
-    -------------------------------------------------------
     DROP TABLE IF EXISTS dbo.KVK_Honor_Ranked;
 
     ;WITH MaxHonorPerGov AS (
@@ -170,4 +140,3 @@ BEGIN
 
     RETURN 0;
 END
-
