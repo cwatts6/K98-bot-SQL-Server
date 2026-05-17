@@ -5,34 +5,30 @@ BEGIN
 execute dbo.sp_executesql @statement = N'CREATE FUNCTION [dbo].[fn_PreKvkPhaseDelta](@KVK_NO [int], @Phase [tinyint])
 RETURNS TABLE AS 
 RETURN
-WITH W AS (
-    SELECT StartUTC, EndUTC
-    FROM dbo.PreKvk_Phases
-    WHERE KVK_NO=@KVK_NO AND Phase=@Phase
+WITH L AS (
+    SELECT TOP (1) ScanID
+    FROM dbo.PreKvk_Scan
+    WHERE KVK_NO = @KVK_NO
+    ORDER BY ScanID DESC
 ),
-A AS ( -- all snapshots with timestamps
-    SELECT sc.GovernorID, sc.Points, s.ScanTimestampUTC
+StageValues AS (
+    SELECT
+        sc.GovernorID,
+        CASE @Phase
+            WHEN 1 THEN sc.Stage1Points
+            WHEN 2 THEN sc.Stage2Points
+            WHEN 3 THEN sc.Stage3Points
+        END AS StagePoints
     FROM dbo.PreKvk_Scores sc
-    JOIN dbo.PreKvk_Scan   s
-      ON s.KVK_NO=sc.KVK_NO AND s.ScanID=sc.ScanID
-    WHERE sc.KVK_NO=@KVK_NO
-),
-B AS ( -- baseline before phase start
-    SELECT a.GovernorID, MAX(a.Points) AS Baseline
-    FROM A a CROSS JOIN W
-    WHERE a.ScanTimestampUTC < W.StartUTC
-    GROUP BY a.GovernorID
-),
-P AS ( -- max within phase window
-    SELECT a.GovernorID, MAX(a.Points) AS InWindow
-    FROM A a CROSS JOIN W
-    WHERE a.ScanTimestampUTC BETWEEN W.StartUTC AND W.EndUTC
-    GROUP BY a.GovernorID
+    JOIN L
+      ON L.ScanID = sc.ScanID
+    WHERE sc.KVK_NO = @KVK_NO
+      AND @Phase IN (1, 2, 3)
 )
-SELECT COALESCE(p.GovernorID, b.GovernorID) AS GovernorID,
-       CONVERT(int, COALESCE(p.InWindow, COALESCE(b.Baseline,0)) - COALESCE(b.Baseline,0)) AS DeltaPoints
-FROM B b
-FULL OUTER JOIN P p ON p.GovernorID=b.GovernorID;
+SELECT GovernorID,
+       CONVERT(int, StagePoints) AS DeltaPoints
+FROM StageValues
+WHERE StagePoints IS NOT NULL;
 ' 
 END
 

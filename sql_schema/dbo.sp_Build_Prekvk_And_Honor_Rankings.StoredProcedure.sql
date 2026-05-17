@@ -39,19 +39,34 @@ BEGIN
          AND p.GovernorID = m.GovernorID
          AND p.Points = m.MaxPoints
     ),
+    RankedBestScans AS (
+        -- pick one best-score row deterministically so all projected values come from the same source row
+        SELECT b.KVK_NO,
+               b.GovernorID,
+               b.GovernorName,
+               b.Points,
+               b.Stage1Points,
+               b.Stage2Points,
+               b.Stage3Points,
+               b.ScanID,
+               ROW_NUMBER() OVER (
+                   PARTITION BY b.KVK_NO, b.GovernorID
+                   ORDER BY b.ScanID ASC
+               ) AS rn
+        FROM BestScans b
+    ),
     Picked AS (
-        -- pick a single ScanID when duplicates; capture GovName and ScanID
         SELECT
             b.KVK_NO,
             b.GovernorID,
-            MAX(b.GovernorName) AS GovernorName,
-            CAST(MAX(b.Points) AS bigint) AS MaxPreKvkPoints,
-            CAST(MAX(b.Stage1Points) AS bigint) AS Stage1Points,
-            CAST(MAX(b.Stage2Points) AS bigint) AS Stage2Points,
-            CAST(MAX(b.Stage3Points) AS bigint) AS Stage3Points,
-            MIN(b.ScanID) AS ScanID
-        FROM BestScans b
-        GROUP BY b.KVK_NO, b.GovernorID
+            b.GovernorName,
+            CAST(b.Points AS bigint) AS MaxPreKvkPoints,
+            CAST(b.Stage1Points AS bigint) AS Stage1Points,
+            CAST(b.Stage2Points AS bigint) AS Stage2Points,
+            CAST(b.Stage3Points AS bigint) AS Stage3Points,
+            b.ScanID
+        FROM RankedBestScans b
+        WHERE b.rn = 1
     ),
     WithTS AS (
         -- attach ScanTimestampUTC from PreKvk_Scan
@@ -152,4 +167,5 @@ BEGIN
 
     RETURN 0;
 END
+
 
