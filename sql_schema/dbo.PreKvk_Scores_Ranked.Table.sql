@@ -5,7 +5,7 @@ BEGIN
 CREATE TABLE [dbo].[PreKvk_Scores_Ranked](
 	[KVK_NO] [int] NOT NULL,
 	[GovernorID] [bigint] NOT NULL,
-	[GovernorName] [nvarchar](64) COLLATE Latin1_General_CI_AS NULL,
+	[GovernorName] [nvarchar](64) COLLATE Latin1_General_CI_AS NOT NULL,
 	[MaxPreKvkPoints] [bigint] NULL,
 	[PreKvk_Rank] [bigint] NULL,
 	[Stage1Points] [bigint] NULL,
@@ -14,7 +14,7 @@ CREATE TABLE [dbo].[PreKvk_Scores_Ranked](
 	[Stage2Rank] [bigint] NULL,
 	[Stage3Points] [bigint] NULL,
 	[Stage3Rank] [bigint] NULL,
-	[ScanID] [int] NULL,
+	[ScanID] [int] NOT NULL,
 	[ScanTimestampUTC] [datetime2](0) NULL
 ) ON [PRIMARY]
 END
