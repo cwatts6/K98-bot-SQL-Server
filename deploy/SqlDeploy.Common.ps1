@@ -234,7 +234,7 @@ function Invoke-K98SqlQuery {
 
     if (Get-Module -ListAvailable -Name SqlServer) {
         Import-Module SqlServer -ErrorAction Stop
-        return Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -TrustServerCertificate -Query $Query -QueryTimeout $QueryTimeout -ErrorAction Stop
+        return Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -TrustServerCertificate -AbortOnError -Query $Query -QueryTimeout $QueryTimeout -ErrorAction Stop
     }
 
     return Invoke-K98SqlQueryWithSqlClient -ServerName $ServerName -DatabaseName $DatabaseName -Query $Query -QueryTimeout $QueryTimeout
@@ -250,7 +250,7 @@ function Invoke-K98SqlFile {
 
     if (Get-Module -ListAvailable -Name SqlServer) {
         Import-Module SqlServer -ErrorAction Stop
-        return Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -TrustServerCertificate -InputFile $InputFile -QueryTimeout $QueryTimeout -ErrorAction Stop
+        return Invoke-Sqlcmd -ServerInstance $ServerName -Database $DatabaseName -TrustServerCertificate -AbortOnError -InputFile $InputFile -QueryTimeout $QueryTimeout -ErrorAction Stop
     }
 
     return Invoke-K98SqlFileWithSqlClient -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $InputFile -QueryTimeout $QueryTimeout

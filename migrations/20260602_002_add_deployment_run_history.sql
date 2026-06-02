@@ -48,6 +48,7 @@ IF NOT EXISTS (
     SELECT 1
     FROM sys.check_constraints
     WHERE name = N'CK_DeploymentRunHistory_Status'
+      AND parent_object_id = OBJECT_ID(N'[dbo].[DeploymentRunHistory]')
 )
 BEGIN
     ALTER TABLE [dbo].[DeploymentRunHistory]

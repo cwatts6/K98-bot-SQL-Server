@@ -24,9 +24,28 @@ function Add-ValidationWarning {
     $warnings.Add($Message)
 }
 
+function Get-K98SqlBatchSummary {
+    param([Parameter(Mandatory=$true)][string]$Batch)
+
+    $firstMeaningfulLine = ($Batch -split "\r?\n" |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -notmatch "^\s*--" } |
+        Select-Object -First 1)
+
+    if ([string]::IsNullOrWhiteSpace($firstMeaningfulLine)) {
+        return "<empty batch>"
+    }
+
+    $summary = $firstMeaningfulLine.Trim()
+    if ($summary.Length -gt 120) {
+        return $summary.Substring(0, 120) + "..."
+    }
+
+    return $summary
+}
+
 try {
     $repoRoot = (Resolve-Path $RepoPath).ProviderPath
-    $requiredDirs = @("sql_schema", "migrations", "deploy", "docs", "logs", "reports")
+    $requiredDirs = @("sql_schema", "migrations", "deploy", "docs", "logs", "reports", "exports")
     foreach ($dir in $requiredDirs) {
         if (-not (Test-Path (Join-Path $repoRoot $dir))) {
             Add-ValidationError "Missing required folder: $dir"
@@ -87,11 +106,14 @@ try {
         if ($content -match "(?im)^\s*TRUNCATE\s+TABLE\s+") {
             Add-ValidationWarning "$($file.Name) contains TRUNCATE TABLE; confirm data safety"
         }
-        if ($content -match "(?im)^\s*UPDATE\s+\S+\s+SET\s+" -and $content -notmatch "(?im)\bWHERE\b") {
-            Add-ValidationWarning "$($file.Name) may contain UPDATE without WHERE"
-        }
-        if ($content -match "(?im)^\s*DELETE\s+FROM\s+" -and $content -notmatch "(?im)\bWHERE\b") {
-            Add-ValidationWarning "$($file.Name) may contain DELETE without WHERE"
+        foreach ($batch in (Split-K98SqlBatches -SqlText $content)) {
+            $batchSummary = Get-K98SqlBatchSummary -Batch $batch
+            if ($batch -match "(?im)^\s*UPDATE\s+\S+\s+SET\s+" -and $batch -notmatch "(?im)\bWHERE\b") {
+                Add-ValidationWarning "$($file.Name) may contain UPDATE without WHERE in batch: $batchSummary"
+            }
+            if ($batch -match "(?im)^\s*DELETE\s+FROM\s+" -and $batch -notmatch "(?im)\bWHERE\b") {
+                Add-ValidationWarning "$($file.Name) may contain DELETE without WHERE in batch: $batchSummary"
+            }
         }
         if ($content -match "(?i)(Password\s*=|Pwd\s*=|User\s+ID\s*=|AccessToken|DiscordWebhook|ConnectionString)") {
             Add-ValidationError "$($file.Name) may contain a secret or connection string"
