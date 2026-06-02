@@ -20,6 +20,15 @@ additional environments can be added later without replacing the process.
 
 ## Tooling Prerequisites
 
+- Start bot-machine sessions with the same dev bootstrap used for bot operations:
+
+```powershell
+cd C:\discord_file_downloader
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+.\dev.ps1
+```
+
 - Backup checks and migration deployment use Windows Auth. They can run through the PowerShell
   `SqlServer` module when installed, or through the built-in `.NET SqlClient` fallback.
 - Production schema export requires SMO, normally provided by the PowerShell `SqlServer` module.
@@ -42,6 +51,11 @@ additional environments can be added later without replacing the process.
 ### 1. Sync The SQL Repo
 
 ```powershell
+cd C:\discord_file_downloader
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+.\dev.ps1
+
 cd C:\K98-bot-SQL-Server
 git switch main
 git pull origin main
@@ -88,26 +102,48 @@ Open a PR into SQL repo `main`. The PR should include:
 On the bot machine:
 
 ```powershell
+cd C:\discord_file_downloader
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+.\dev.ps1
+
 cd C:\K98-bot-SQL-Server
 git switch main
 git pull origin main
 git status
-.\deploy\Validate-SqlRepo.ps1
-.\deploy\Test-SqlBackupReadiness.ps1
-.\deploy\Deploy-SqlMigration.ps1
+.\deploy\Validate-SqlRepo.ps1 -RepoPath C:\K98-bot-SQL-Server
+.\deploy\Test-SqlBackupReadiness.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -BackupPath "C:\sql_backup"
+.\deploy\Deploy-SqlMigration.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -ValidationOnly
 ```
 
 To deploy one migration explicitly:
 
 ```powershell
-.\deploy\Deploy-SqlMigration.ps1 -MigrationId 20260602_001_add_schema_migration_history
+.\deploy\Deploy-SqlMigration.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -MigrationId 20260602_001_add_schema_migration_history
 ```
 
 Deployments from non-`main` branches are blocked by default. Emergency exceptions must include a
 reason:
 
 ```powershell
-.\deploy\Deploy-SqlMigration.ps1 -AllowNonMainBranch -Reason "Emergency production fix approved by owner"
+.\deploy\Deploy-SqlMigration.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -AllowNonMainBranch `
+  -Reason "Emergency production fix approved by owner"
 ```
 
 ### 7. Verify Deployment History
@@ -131,7 +167,10 @@ Get-Content .\logs\deployment.jsonl -Tail 20
 ### 8. Run Drift Check
 
 ```powershell
-.\deploy\Invoke-DriftCheck.ps1
+.\deploy\Invoke-DriftCheck.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER"
 ```
 
 Review the generated report under `reports/`. No drift means Production matches the expected
@@ -152,6 +191,106 @@ export/prod-schema-YYYYMMDD-HHMMSS
 ```
 
 The export script refuses direct `main` overwrite by design.
+
+## Nightly Production Export
+
+The old `Export-SqlSchemaAndPush.ps1` task must not remain active because it can push Production
+snapshots directly into `main`. Replace it with `deploy\Invoke-NightlyProdSchemaExport.ps1`.
+
+The new nightly workflow:
+
+1. Activates the bot dev environment from `C:\discord_file_downloader`.
+2. Requires a clean SQL repo working tree.
+3. Fetches and fast-forwards SQL `main`.
+4. Creates a timestamped `export/prod-schema-YYYYMMDD-HHMMSS` branch.
+5. Exports Production schema onto that branch.
+6. Commits and pushes only the export branch when schema changes exist.
+7. Switches the local SQL repo back to `main`.
+8. Writes structured export logs.
+
+### Replace The Scheduled Task
+
+On `MINI_AMD`, inspect the current scheduled task first:
+
+```powershell
+Get-ScheduledTask | Where-Object {
+  $_.TaskName -match "SQL|Schema|Export|K98|ROK"
+} | Select-Object TaskName, State
+```
+
+If the old task name is known, disable it and install the safe task:
+
+```powershell
+cd C:\discord_file_downloader
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+.\dev.ps1
+
+cd C:\K98-bot-SQL-Server
+.\deploy\Install-NightlySchemaExportTask.ps1 `
+  -TaskName "K98 SQL Nightly Schema Export" `
+  -OldTaskName "<old task name>" `
+  -DisableOldTask `
+  -RepoPath "C:\K98-bot-SQL-Server" `
+  -BotRepoPath "C:\discord_file_downloader" `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -At "01:30"
+```
+
+For unattended overnight execution when the RDP session is logged off, register with an explicit
+credential:
+
+```powershell
+$credential = Get-Credential "MINI_AMD\cwatt"
+
+.\deploy\Install-NightlySchemaExportTask.ps1 `
+  -TaskName "K98 SQL Nightly Schema Export" `
+  -OldTaskName "<old task name>" `
+  -DisableOldTask `
+  -RepoPath "C:\K98-bot-SQL-Server" `
+  -BotRepoPath "C:\discord_file_downloader" `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -At "01:30" `
+  -RunWhetherLoggedOnOrNot `
+  -Credential $credential
+```
+
+Use the same Windows account that already connects to SQL Server with Windows Auth and has GitHub
+push credentials available for the SQL repo.
+
+If the old task name is uncertain, disable it manually in Task Scheduler only after confirming its
+action points to `Export-SqlSchemaAndPush.ps1`.
+
+### Test The New Task
+
+Run the task manually:
+
+```powershell
+Start-ScheduledTask -TaskName "K98 SQL Nightly Schema Export"
+```
+
+Watch local state:
+
+```powershell
+Get-ScheduledTask -TaskName "K98 SQL Nightly Schema Export" | Get-ScheduledTaskInfo
+Get-Content C:\K98-bot-SQL-Server\logs\export.jsonl -Tail 20
+cd C:\K98-bot-SQL-Server
+git status
+git branch --show-current
+```
+
+Expected result:
+
+- task exits successfully
+- repo branch returns to `main`
+- `git status` is clean
+- if drift exists, an `export/prod-schema-*` branch is pushed
+- no scheduled job pushes directly to `main`
+
+If the task fails, leave the old task disabled until the failure is understood. Do not re-enable
+the old direct-to-main export routine.
 
 ## Backup Readiness
 
@@ -198,16 +337,174 @@ Failure cases:
 
 Use only when Production must be changed directly in SSMS.
 
-1. Record the emergency reason.
-2. Confirm backup readiness.
-3. Apply the smallest safe Production change.
-4. Run a Production schema export immediately.
-5. Create `hotfix/sql-short-description`.
-6. Add a migration matching the Production change.
-7. Open a PR into `main`.
-8. Merge after review.
-9. Run drift check to prove Git and Production are reconciled.
-10. Record final notes.
+### When This Is Allowed
+
+Use this path only when waiting for the normal PR flow would create unacceptable production risk,
+for example:
+
+- bot production is broken because an urgent SQL object is missing or malformed
+- a safe stored procedure/view fix is needed immediately
+- an operator-approved incident requires a minimum direct Production correction
+
+Do not use this path for convenience, routine feature work, broad schema redesign, destructive data
+cleanup, or speculative performance tuning.
+
+### Before Touching Production
+
+Create a local incident note before opening SSMS. A plain Markdown note is enough:
+
+```powershell
+cd C:\K98-bot-SQL-Server
+New-Item -ItemType Directory -Force -Path .\reports\hotfix | Out-Null
+notepad .\reports\hotfix\hotfix_YYYYMMDD_short_reason.md
+```
+
+Record:
+
+- UTC time
+- operator
+- incident reason
+- affected SQL object(s)
+- expected bot/user impact
+- exact intended SQL change
+- rollback or forward-fix approach
+- approval source
+
+Confirm backups:
+
+```powershell
+.\deploy\Test-SqlBackupReadiness.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -BackupPath "C:\sql_backup"
+```
+
+If backup readiness fails, stop unless the owner explicitly accepts restore risk in the incident
+note.
+
+### Apply The Direct Production Change
+
+In SSMS:
+
+1. Connect to `MINI_AMD`.
+2. Select database `ROK_TRACKER`.
+3. Paste only the minimum approved SQL.
+4. Prefer `CREATE OR ALTER` for procedures, views, and functions.
+5. Avoid destructive table/data changes unless the restore plan is explicit.
+6. Save the exact SQL text into the incident note.
+7. Execute once.
+8. Capture success/error output in the incident note.
+
+Run the narrowest smoke check possible. Examples:
+
+```sql
+SELECT OBJECT_ID(N'dbo.ObjectName') AS ObjectId;
+EXEC dbo.SomeVerificationProcedure;
+```
+
+### Export Production Immediately
+
+After the direct change, capture Production state:
+
+```powershell
+cd C:\discord_file_downloader
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+.\dev.ps1
+
+cd C:\K98-bot-SQL-Server
+.\deploy\Export-ProdSchemaSnapshot.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER"
+```
+
+This creates an `export/prod-schema-*` branch. It must not update `main`.
+
+### Reconcile Back Into Git
+
+Create a hotfix branch from current `main`:
+
+```powershell
+git switch main
+git pull origin main
+git switch -c hotfix/sql-short-reason
+```
+
+Create a migration:
+
+```powershell
+.\deploy\New-SqlMigration.ps1 `
+  -Description "reconcile emergency production hotfix" `
+  -RiskLevel Medium `
+  -Rollback Manual
+```
+
+Edit the migration so it exactly matches what was applied in Production. Include comments pointing
+to the incident note and export branch.
+
+Update `sql_schema/` to match Production. The safest source is the export branch/snapshot generated
+immediately after the hotfix. Copy only the affected object files, then review the diff:
+
+```powershell
+Copy-Item .\exports\prod-schema-YYYYMMDD-HHMMSS\dbo.ObjectName.StoredProcedure.sql `
+  .\sql_schema\dbo.ObjectName.StoredProcedure.sql -Force
+
+git diff
+```
+
+Validate and open PR:
+
+```powershell
+.\deploy\Validate-SqlRepo.ps1 -RepoPath C:\K98-bot-SQL-Server
+git add -A
+git commit -m "fix: reconcile emergency SQL hotfix"
+git push -u origin hotfix/sql-short-reason
+```
+
+PR body must include:
+
+- emergency reason
+- exact Production change time
+- affected object(s)
+- backup readiness result
+- smoke check result
+- export branch name
+- rollback/forward-fix notes
+
+### After The Hotfix PR Merges
+
+On `MINI_AMD`:
+
+```powershell
+git switch main
+git pull origin main
+.\deploy\Deploy-SqlMigration.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -ValidationOnly
+```
+
+If the migration is already effectively present in Production because of the emergency SSMS
+change, do not blindly apply a duplicate destructive migration. Either:
+
+- make the reconciliation migration idempotent and safe to run, or
+- mark the exact migration as applied only after owner approval and a documented manual history
+  insertion.
+
+Then run:
+
+```powershell
+.\deploy\Invoke-DriftCheck.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER"
+```
+
+The hotfix is not closed until drift is clean or the remaining drift is documented in a follow-up
+PR.
 
 ## Bot Promotion Interaction
 

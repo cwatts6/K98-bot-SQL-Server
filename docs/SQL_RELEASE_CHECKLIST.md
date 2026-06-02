@@ -4,6 +4,7 @@ Use this checklist for production SQL deployments.
 
 ## Pre-Deployment
 
+- [ ] Bot-machine shell was bootstrapped from `C:\discord_file_downloader`.
 - [ ] SQL PR is reviewed and merged into `main`.
 - [ ] Deployment is being run on the bot machine.
 - [ ] SQL Server authentication model is Windows Auth.
@@ -34,3 +35,12 @@ Use this checklist for production SQL deployments.
 - [ ] Reconcile unexpected drift through PR.
 - [ ] Record deployment notes and rollback posture.
 - [ ] Clean up merged branches after confirmation.
+
+## Nightly Export Task
+
+- [ ] Old `Export-SqlSchemaAndPush.ps1` scheduled task is disabled.
+- [ ] `K98 SQL Nightly Schema Export` scheduled task is installed.
+- [ ] New task action points to `deploy\Invoke-NightlyProdSchemaExport.ps1`.
+- [ ] Manual task run completed successfully.
+- [ ] SQL repo returned to clean `main` after the task.
+- [ ] Any pushed `export/prod-schema-*` branch was reviewed or intentionally left for drift review.
