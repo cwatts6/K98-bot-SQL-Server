@@ -1,1 +1,6 @@
-logs/
+logs/*
+!logs/.gitkeep
+reports/*
+!reports/.gitkeep
+exports/*
+!exports/.gitkeep

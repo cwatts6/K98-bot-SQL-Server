@@ -1,0 +1,14 @@
+{
+  "migration": "20260602_001_add_schema_migration_history",
+  "description": "Add SQL migration tracking table",
+  "author": "cwatts",
+  "requires_backup": true,
+  "risk_level": "Low",
+  "related_bot_pr": null,
+  "related_sql_pr": null,
+  "validation_required": [
+    "deploy/Validate-SqlRepo.ps1",
+    "deploy/Test-SqlBackupReadiness.ps1",
+    "manual smoke test"
+  ]
+}
