@@ -18,7 +18,11 @@ if (-not (Test-Path $scriptPath)) {
     throw "Nightly export script not found: $scriptPath"
 }
 
-if ($DisableOldTask -and -not [string]::IsNullOrWhiteSpace($OldTaskName)) {
+if ($DisableOldTask) {
+    if ([string]::IsNullOrWhiteSpace($OldTaskName)) {
+        throw "-OldTaskName is required when -DisableOldTask is used."
+    }
+
     $oldTask = Get-ScheduledTask -TaskName $OldTaskName -ErrorAction SilentlyContinue
     if ($oldTask) {
         Disable-ScheduledTask -TaskName $OldTaskName | Out-Null

@@ -67,7 +67,7 @@ try {
         $exportArgs += "-NoGitCommitPush"
     }
 
-    & powershell @exportArgs
+    & powershell.exe -NoProfile @exportArgs
     if ($LASTEXITCODE -ne 0) {
         throw "Export-ProdSchemaSnapshot.ps1 failed with exit code $LASTEXITCODE."
     }

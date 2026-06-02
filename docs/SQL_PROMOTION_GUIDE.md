@@ -120,8 +120,7 @@ git status
 .\deploy\Deploy-SqlMigration.ps1 `
   -RepoPath C:\K98-bot-SQL-Server `
   -ServerName "MINI_AMD" `
-  -DatabaseName "ROK_TRACKER" `
-  -ValidationOnly
+  -DatabaseName "ROK_TRACKER"
 ```
 
 To deploy one migration explicitly:
@@ -242,7 +241,7 @@ For unattended overnight execution when the RDP session is logged off, register 
 credential:
 
 ```powershell
-$credential = Get-Credential "MINI_AMD\cwatt"
+$credential = Get-Credential "$env:USERDOMAIN\$env:USERNAME"
 
 .\deploy\Install-NightlySchemaExportTask.ps1 `
   -TaskName "K98 SQL Nightly Schema Export" `
