@@ -18,6 +18,15 @@ if (-not (Test-Path $scriptPath)) {
     throw "Nightly export script not found: $scriptPath"
 }
 
+if ($RunWhetherLoggedOnOrNot) {
+    if ($null -eq $Credential) {
+        throw "-Credential is required with -RunWhetherLoggedOnOrNot."
+    }
+    if ([string]::IsNullOrWhiteSpace($Credential.GetNetworkCredential().Password)) {
+        throw "Credential password is empty. Recreate the credential with the account password, not a PIN."
+    }
+}
+
 if ($DisableOldTask) {
     if ([string]::IsNullOrWhiteSpace($OldTaskName)) {
         throw "-OldTaskName is required when -DisableOldTask is used."
@@ -48,9 +57,6 @@ $trigger = New-ScheduledTaskTrigger -Daily -At ([DateTime]::Parse($At))
 $settings = New-ScheduledTaskSettingsSet -MultipleInstances IgnoreNew -StartWhenAvailable -ExecutionTimeLimit (New-TimeSpan -Hours 2)
 
 if ($RunWhetherLoggedOnOrNot) {
-    if ($null -eq $Credential) {
-        throw "-Credential is required with -RunWhetherLoggedOnOrNot."
-    }
     Register-ScheduledTask `
         -TaskName $TaskName `
         -Action $action `
