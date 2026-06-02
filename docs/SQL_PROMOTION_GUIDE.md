@@ -104,7 +104,7 @@ On the bot machine:
 ```powershell
 cd C:\discord_file_downloader
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate.ps1
 .\dev.ps1
 
 cd C:\K98-bot-SQL-Server
@@ -409,7 +409,7 @@ After the direct change, capture Production state:
 ```powershell
 cd C:\discord_file_downloader
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate.ps1
 .\dev.ps1
 
 cd C:\K98-bot-SQL-Server
