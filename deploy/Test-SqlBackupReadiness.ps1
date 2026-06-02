@@ -20,6 +20,19 @@ $started = Get-Date
 $issues = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
 
+function Get-BackupRowValue {
+    param(
+        [Parameter(Mandatory=$true)]$Row,
+        [Parameter(Mandatory=$true)][string]$Name
+    )
+
+    if ($Row -is [System.Data.DataRow]) {
+        return $Row[$Name]
+    }
+
+    return $Row.$Name
+}
+
 function Add-BackupIssue {
     param([string]$Message)
     $issues.Add($Message)
@@ -56,9 +69,11 @@ WHERE name = $databaseLiteral;
     $logBackup = $null
 
     foreach ($row in $backupRows) {
-        if ($row.backup_type -eq "D") { $fullBackup = [DateTime]$row.last_backup_finish_date }
-        if ($row.backup_type -eq "I") { $diffBackup = [DateTime]$row.last_backup_finish_date }
-        if ($row.backup_type -eq "L") { $logBackup = [DateTime]$row.last_backup_finish_date }
+        $backupType = Get-BackupRowValue -Row $row -Name "backup_type"
+        $backupFinishedAt = Get-BackupRowValue -Row $row -Name "last_backup_finish_date"
+        if ($backupType -eq "D") { $fullBackup = [DateTime]$backupFinishedAt }
+        if ($backupType -eq "I") { $diffBackup = [DateTime]$backupFinishedAt }
+        if ($backupType -eq "L") { $logBackup = [DateTime]$backupFinishedAt }
     }
 
     if ($null -eq $fullBackup) {
@@ -76,8 +91,9 @@ WHERE name = $databaseLiteral;
     }
 
     $recoveryModel = $null
-    if ($recoveryRows) {
-        $recoveryModel = $recoveryRows[0].recovery_model_desc
+    $recoveryRowsArray = @($recoveryRows)
+    if ($recoveryRowsArray.Count -gt 0) {
+        $recoveryModel = [string](Get-BackupRowValue -Row $recoveryRowsArray[0] -Name "recovery_model_desc")
     }
 
     if ($recoveryModel -in @("FULL", "BULK_LOGGED")) {
