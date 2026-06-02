@@ -1,12 +1,19 @@
-# SQL Schema Export
+# SQL Schema Snapshots
 
-This folder is **generated automatically** by:
+This folder contains one generated file per SQL object:
 
-- `C:\Scripts\Export-SqlSchemaAndPush.ps1`
-- Nightly via Windows Task Scheduler
+- `Schema.Name.Table.sql`
+- `Schema.Name.View.sql`
+- `Schema.Name.StoredProcedure.sql`
+- `Schema.Name.UserDefinedFunction.sql`
+- `Schema.Name.UserDefinedTableType.sql`
 
-Contents:
-- One file per object: `Schema.Name.Type.sql`
-- Tables, views, stored procedures, and user-defined functions
+These files are reference material and drift evidence. Intentional SQL changes are deployed from
+reviewed migration files in `migrations/`.
 
-Do not edit these files by hand. Make changes in SQL Server, then let the export script regenerate and commit them.
+When a migration changes an object, update the matching snapshot in this folder as the expected
+post-deployment shape where practical. After deployment, run the drift check to confirm Production
+matches Git.
+
+Production exports must use `deploy/Export-ProdSchemaSnapshot.ps1` and must not push directly to
+`main`.
