@@ -54,11 +54,14 @@ function Invoke-K98Git {
 
     $previous = Get-Location
     Set-Location -Path $RepoRoot
+    $previousErrorActionPreference = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
     try {
         $output = & git @Arguments 2>&1 | ForEach-Object { $_.ToString() }
         $exitCode = $LASTEXITCODE
     }
     finally {
+        $ErrorActionPreference = $previousErrorActionPreference
         Set-Location -Path $previous
     }
 
