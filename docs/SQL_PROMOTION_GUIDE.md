@@ -582,7 +582,7 @@ Rehearsal steps:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-Copy-Item .\reports\hotfix\hotfix_template.md .\reports\hotfix\rehearsal_YYYYMMDD_sql_hotfix_rehearsal_table.md
+Copy-Item .\reports\hotfix\hotfix_template.md .\reports\hotfix\rehearsal_YYYYMMDD_HHMM_sql_hotfix_rehearsal_table.md
 ```
 
 2. Confirm the object does not already exist in Git or Production:
