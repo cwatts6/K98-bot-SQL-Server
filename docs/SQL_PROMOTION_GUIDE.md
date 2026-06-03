@@ -355,7 +355,7 @@ Create a local incident report from the template before opening SSMS:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-$stamp = Get-Date -Format "yyyyMMdd_HHmm"
+$stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmm")
 Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\hotfix_${stamp}_short_reason.md"
 notepad ".\reports\hotfix\hotfix_${stamp}_short_reason.md"
 ```
@@ -602,7 +602,7 @@ Create reports from the template:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-$stamp = Get-Date -Format "yyyyMMdd_HHmm"
+$stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmm")
 Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\hotfix_${stamp}_short_description.md"
 ```
 
@@ -646,7 +646,7 @@ Rehearsal steps:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-$stamp = Get-Date -Format "yyyyMMdd_HHmm"
+$stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmm")
 Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\rehearsal_${stamp}_sql_hotfix_rehearsal_table.md"
 notepad ".\reports\hotfix\rehearsal_${stamp}_sql_hotfix_rehearsal_table.md"
 ```
