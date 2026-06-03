@@ -97,11 +97,18 @@ Restore-from-backup decision point:
 
 ## 9. Final Status
 
-Resolved / Partially resolved / Reverted / Monitoring:
+Final status:
+
+Choose one:
+
+- resolved and reconciled
+- resolved with accepted documented drift
+- reverted
+- monitoring
+- incomplete, with owner-run steps listed
 
 Outstanding risks:
 
 Follow-up tasks:
 
 Deferred optimisations:
-

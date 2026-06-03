@@ -43,6 +43,17 @@ function Get-K98SqlBatchSummary {
     return $summary
 }
 
+function Test-K98RollbackScriptMatchesMigration {
+    param(
+        [Parameter(Mandatory=$true)][string]$RollbackScriptPath,
+        [Parameter(Mandatory=$true)][string]$MigrationId
+    )
+
+    $rollbackContent = Get-Content -Raw -Path $RollbackScriptPath
+    $escapedMigrationId = [regex]::Escape($MigrationId)
+    return $rollbackContent -match "(?im)^\s*RollbackForMigrationId\s*:\s*$escapedMigrationId\s*$"
+}
+
 try {
     $repoRoot = (Resolve-Path $RepoPath).ProviderPath
     $requiredDirs = @("sql_schema", "migrations", "deploy", "docs", "logs", "reports", "exports")
@@ -108,6 +119,9 @@ try {
             }
             if (-not (Test-Path $rollbackScript)) {
                 Add-ValidationError "$($file.Name) declares Rollback: Included but rollback script was not found: $rollbackScript"
+            }
+            elseif (-not (Test-K98RollbackScriptMatchesMigration -RollbackScriptPath $rollbackScript -MigrationId $migrationId)) {
+                Add-ValidationError "$($file.Name) declares Rollback: Included but rollback script does not include matching RollbackForMigrationId: $migrationId"
             }
         }
 

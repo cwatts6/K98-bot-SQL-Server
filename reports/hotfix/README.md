@@ -12,14 +12,14 @@ Use UTC timestamps.
 
 ```text
 hotfix_YYYYMMDD_HHMM_short_description.md
-rehearsal_YYYYMMDD_short_description.md
+rehearsal_YYYYMMDD_HHMM_short_description.md
 ```
 
 Examples:
 
 ```text
 hotfix_20260602_2130_restore_missing_proc.md
-rehearsal_20260602_sql_hotfix_rehearsal_table.md
+rehearsal_20260602_2130_sql_hotfix_rehearsal_table.md
 ```
 
 ## Required Evidence
@@ -57,4 +57,3 @@ Every report must end with one of:
 - reverted
 - monitoring
 - incomplete, with owner-run steps listed
-
