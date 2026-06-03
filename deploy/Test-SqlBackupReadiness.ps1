@@ -6,6 +6,7 @@ param(
     [int]$MaxFullBackupAgeHours = 24,
     [int]$MaxDiffBackupAgeHours = 8,
     [int]$MaxLogBackupAgeMinutes = 30,
+    [string]$ConfigPath,
     [switch]$WarnOnly
 )
 
@@ -19,6 +20,55 @@ $repoRoot = (Resolve-Path $RepoPath).ProviderPath
 $started = Get-Date
 $issues = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
+
+function Get-K98ConfigValue {
+    param(
+        [Parameter(Mandatory=$true)]$Config,
+        [Parameter(Mandatory=$true)][string[]]$Path,
+        [Parameter(Mandatory=$true)]$Default
+    )
+
+    $current = $Config
+    foreach ($part in $Path) {
+        if ($null -eq $current -or -not ($current.PSObject.Properties.Name -contains $part)) {
+            return $Default
+        }
+        $current = $current.$part
+    }
+    if ($null -eq $current) {
+        return $Default
+    }
+    return $current
+}
+
+function Import-K98BackupPolicyConfig {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        $candidate = Join-Path (Join-Path $repoRoot "deploy") "sql_deploy_config.json"
+        if (Test-Path $candidate) {
+            $Path = $candidate
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        return
+    }
+    if (-not (Test-Path $Path)) {
+        throw "Backup policy config not found: $Path"
+    }
+
+    $config = Get-Content -Raw -Path $Path | ConvertFrom-Json -ErrorAction Stop
+    $script:MaxFullBackupAgeHours = [int](Get-K98ConfigValue -Config $config -Path @("backup_policy", "max_full_backup_age_hours") -Default $script:MaxFullBackupAgeHours)
+    $script:MaxDiffBackupAgeHours = [int](Get-K98ConfigValue -Config $config -Path @("backup_policy", "max_differential_backup_age_hours") -Default $script:MaxDiffBackupAgeHours)
+    $script:MaxLogBackupAgeMinutes = [int](Get-K98ConfigValue -Config $config -Path @("backup_policy", "max_log_backup_age_minutes") -Default $script:MaxLogBackupAgeMinutes)
+    $script:BackupPath = [string](Get-K98ConfigValue -Config $config -Path @("backup_policy", "backup_path") -Default $script:BackupPath)
+    $warnOnlyValue = Get-K98ConfigValue -Config $config -Path @("backup_policy", "warn_only") -Default $null
+    if ($null -ne $warnOnlyValue) {
+        $script:WarnOnly = [bool]$warnOnlyValue
+    }
+}
+
+Import-K98BackupPolicyConfig -Path $ConfigPath
 
 function Get-BackupRowValue {
     param(
@@ -138,6 +188,7 @@ WHERE name = $databaseLiteral;
         differential_backup = $diffBackup
         log_backup = $logBackup
         issue_count = $issues.Count
+        backup_policy_config = $ConfigPath
         warning_count = $warnings.Count
         duration_ms = [int]((Get-Date) - $started).TotalMilliseconds
     }

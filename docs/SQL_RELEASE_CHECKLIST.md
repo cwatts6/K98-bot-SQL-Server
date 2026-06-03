@@ -4,6 +4,18 @@ Use this checklist for production SQL deployments.
 
 ## Pre-Deployment
 
+- [ ] SQL PR GitHub Actions validation passed.
+- [ ] `deploy/Validate-SqlRepo.ps1` passed locally or in CI.
+- [ ] PowerShell parser validation passed for changed deployment scripts.
+- [ ] SQLFluff advisory warnings were reviewed for changed migration/rollback scripts.
+- [ ] Credential-pattern scan did not report committed secrets.
+- [ ] Documentation path checks passed or missing references were corrected.
+- [ ] Nightly export main-branch protection proof passed in CI.
+- [ ] Optional later validators were considered when risk warranted them:
+  - SqlPackage / DACPAC structural validation
+  - tSQLt tests in a non-production SQL environment
+  - TSQLLint fallback if SQLFluff is unsuitable
+- [ ] Any skipped optional validator has a short PR note.
 - [ ] Bot-machine shell was bootstrapped from `C:\discord_file_downloader`.
 - [ ] SQL PR is reviewed and merged into `main`.
 - [ ] Deployment is being run on the bot machine.
@@ -14,7 +26,9 @@ Use this checklist for production SQL deployments.
 - [ ] Migration file and rollback notes are reviewed.
 - [ ] Bot dependency order is understood.
 - [ ] Backup readiness passes for full, differential, and log backups.
+- [ ] Differential backup warnings are recorded and accepted under the current warning-only policy.
 - [ ] External backup copy cadence is healthy.
+- [ ] Any backup threshold override uses an approved config/parameter and is recorded in deployment notes.
 - [ ] Smoke test plan is ready.
 
 ## Rollback Review
@@ -93,3 +107,12 @@ Use this checklist for production SQL deployments.
 - [ ] Manual task run completed successfully.
 - [ ] SQL repo returned to clean `main` after the task.
 - [ ] Any pushed `export/prod-schema-*` branch was reviewed or intentionally left for drift review.
+
+## Nightly Export Monitoring
+
+- [ ] `deploy/Test-NightlyExportHealth.ps1` reports success after task installation or changes.
+- [ ] Latest `nightly_export_finish` event in `logs/export.jsonl` is recent and succeeded.
+- [ ] Scheduled task `LastTaskResult` is `0` when Task Scheduler is available.
+- [ ] Failed or stale nightly export has an owner-visible follow-up note.
+- [ ] SQL repo branch/status was checked after a failed export.
+- [ ] Old direct-to-main export task remains disabled.

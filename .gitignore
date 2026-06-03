@@ -4,3 +4,4 @@ reports/*
 !reports/.gitkeep
 exports/*
 !exports/.gitkeep
+deploy/sql_deploy_config.json

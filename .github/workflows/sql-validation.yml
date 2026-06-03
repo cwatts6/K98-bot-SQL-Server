@@ -1,0 +1,129 @@
+name: SQL validation
+
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+      - "codex/**"
+
+jobs:
+  validate:
+    name: SQL repo validation
+    runs-on: windows-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Run SQL repository validator
+        shell: pwsh
+        run: .\deploy\Validate-SqlRepo.ps1
+
+      - name: Parse PowerShell deployment scripts
+        shell: pwsh
+        run: |
+          $scripts = Get-ChildItem -Path .\deploy -Filter *.ps1 -File
+          foreach ($script in $scripts) {
+            $tokens = $null
+            $errors = $null
+            [System.Management.Automation.Language.Parser]::ParseFile(
+              $script.FullName,
+              [ref]$tokens,
+              [ref]$errors
+            ) | Out-Null
+            if ($errors.Count -gt 0) {
+              Write-Host "PowerShell parser errors in $($script.FullName):"
+              $errors | ForEach-Object { Write-Host $_.Message }
+              exit 1
+            }
+          }
+
+      - name: Scan committed files for credential patterns
+        shell: pwsh
+        run: |
+          $paths = @(
+            "deploy\*.ps1",
+            "docs\*.md",
+            "docs\adr\*.md",
+            "migrations\*.sql",
+            "migrations\rollback\*.sql",
+            "*.json",
+            ".github\workflows\*.yml"
+          )
+          $pattern = "(?i)(Password\s*=|Pwd\s*=|User\s+ID\s*=|AccessToken|DiscordWebhook|ClientSecret|ConnectionString)"
+          $allowed = @(
+            "deploy\SqlDeploy.Common.ps1",
+            "deploy\Validate-SqlRepo.ps1"
+          )
+          $matches = Select-String -Path $paths -Pattern $pattern -ErrorAction SilentlyContinue |
+            Where-Object { $allowed -notcontains $_.Path.Substring((Get-Location).Path.Length + 1) } |
+            Where-Object { $_.Line -notmatch '^\s*\$pattern\s*=' }
+
+          if ($matches) {
+            $matches | ForEach-Object {
+              Write-Host "Potential credential pattern: $($_.Path):$($_.LineNumber)"
+            }
+            exit 1
+          }
+
+      - name: Validate documentation links and referenced repo paths
+        shell: pwsh
+        run: |
+          $docs = Get-ChildItem -Path .\docs -Filter *.md -File -Recurse
+          $missing = New-Object System.Collections.Generic.List[string]
+          $pattern = '(?<![A-Za-z]):?`?((?:deploy|docs|migrations|sql_schema)[\\/][^`\s)]+)'
+          foreach ($doc in $docs) {
+            $text = Get-Content -Raw -Path $doc.FullName
+            foreach ($match in [regex]::Matches($text, $pattern)) {
+              $raw = $match.Groups[1].Value.TrimEnd(".", ",", ":", ";")
+              if ($raw.Contains("*") -or $raw.Contains("<") -or $raw.Contains(">")) {
+                continue
+              }
+              if ($raw -match "ObjectName|sql_deploy_config\.json") {
+                continue
+              }
+              $candidate = Join-Path (Get-Location) ($raw -replace "/", "\")
+              if (-not (Test-Path $candidate)) {
+                $missing.Add("$($doc.Name) references missing path: $raw")
+              }
+            }
+          }
+          if ($missing.Count -gt 0) {
+            $missing | ForEach-Object { Write-Host $_ }
+            exit 1
+          }
+
+      - name: Prove nightly export avoids direct main pushes
+        shell: pwsh
+        run: |
+          $nightly = Get-Content -Raw -Path .\deploy\Invoke-NightlyProdSchemaExport.ps1
+          $export = Get-Content -Raw -Path .\deploy\Export-ProdSchemaSnapshot.ps1
+          if ($nightly -notmatch 'export/prod-schema') {
+            throw "Nightly export does not use the expected export/prod-schema branch prefix."
+          }
+          if ($nightly -match '-AllowMain') {
+            throw "Nightly export wrapper must not pass -AllowMain."
+          }
+          if ($export -notmatch 'if \(\$branch -eq "main" -and -not \$AllowMain\)') {
+            throw "Export script no longer contains the normal main-branch protection."
+          }
+          if ($export -notmatch '-Reason is required when -AllowMain is used') {
+            throw "Export script no longer requires a reason for -AllowMain."
+          }
+
+      - name: SQLFluff advisory lint
+        shell: pwsh
+        continue-on-error: true
+        run: |
+          python -m pip install sqlfluff==4.2.1
+          $sqlFiles = @(
+            Get-ChildItem -Path .\migrations -Filter *.sql -File
+            Get-ChildItem -Path .\migrations\rollback -Filter *.sql -File -ErrorAction SilentlyContinue
+          )
+          if ($sqlFiles.Count -eq 0) {
+            Write-Host "No migration SQL files found for SQLFluff advisory lint."
+            exit 0
+          }
+          sqlfluff lint --dialect tsql @($sqlFiles.FullName)
