@@ -93,7 +93,12 @@ try {
         }
 
         if ($null -ne $latestCleanupFailure) {
-            Add-NightlyExportWarning "Latest export cleanup failure requires manual branch/status review: $($latestCleanupFailure.error_message)"
+            $cleanupFailureUtc = ([DateTime]$latestCleanupFailure.timestamp_utc).ToUniversalTime()
+            $latestSucceededFinishUtc = if ($latestFinish -and $latestFinish.status -eq "Succeeded") { $latestFinishUtc } else { $null }
+
+            if ($null -eq $latestSucceededFinishUtc -or $cleanupFailureUtc -gt $latestSucceededFinishUtc) {
+                Add-NightlyExportWarning ("Latest export cleanup failure requires manual branch/status review: {0}" -f $latestCleanupFailure.error_message)
+            }
         }
     }
 
