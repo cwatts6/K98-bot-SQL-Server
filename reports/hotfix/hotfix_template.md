@@ -35,6 +35,8 @@ Last log backup:
 
 Backup readiness command/output reference:
 
+Backup readiness warnings:
+
 Any override used:
 
 ## 4. Production Change Applied
@@ -63,7 +65,7 @@ User-visible confirmation:
 
 ## 6. Drift And Export Evidence
 
-Export branch:
+Export snapshot path:
 
 Drift report path:
 
@@ -77,11 +79,23 @@ Migration created:
 
 Rollback classification:
 
+Rollback script:
+
+Schema snapshot updated:
+
+SQL validation result:
+
 SQL PR:
 
 Merge commit:
 
+Pre-deployment pending migration check:
+
+Deployment result:
+
 Deployment history check:
+
+Post-deployment pending migration check:
 
 Final drift check result:
 
