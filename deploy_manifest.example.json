@@ -4,6 +4,13 @@
   "author": "cwatts",
   "requires_backup": true,
   "risk_level": "Low",
+  "rollback": "Manual",
+  "rollback_script": null,
+  "data_change": false,
+  "data_safety_plan": "Not Required",
+  "estimated_rows_affected": null,
+  "pre_validation_query": null,
+  "post_validation_query": null,
   "related_bot_pr": null,
   "related_sql_pr": null,
   "validation_required": [

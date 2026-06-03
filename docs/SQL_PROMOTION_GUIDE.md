@@ -104,7 +104,7 @@ On the bot machine:
 ```powershell
 cd C:\discord_file_downloader
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate.ps1
 .\dev.ps1
 
 cd C:\K98-bot-SQL-Server
@@ -322,7 +322,8 @@ Rollback categories:
 
 - `Included`: a reviewed rollback script exists.
 - `Manual`: operator notes describe the recovery path.
-- `NotPossible`: recovery requires restore, forward fix, or bespoke data repair.
+- `Forward Fix Only`: correct with a new migration rather than rolling back.
+- `Not Possible`: recovery requires restore, forward fix, or bespoke data repair.
 
 Failure cases:
 
@@ -504,6 +505,241 @@ Then run:
 
 The hotfix is not closed until drift is clean or the remaining drift is documented in a follow-up
 PR.
+
+## Detailed Emergency And Rollback Standards
+
+### Emergency Hotfix Decision Tree
+
+Use the normal SQL PR workflow unless every answer supports emergency handling:
+
+1. Is Production down, corrupting data, blocking a critical bot function, or producing materially
+   wrong user output?
+   - If no, use the normal SQL PR workflow.
+   - If yes, continue.
+2. Is there a safe workaround outside SQL?
+   - If yes, apply the workaround and create a normal SQL PR.
+   - If no, continue.
+3. Is the required SQL change small, understood, and reversible or forward-fixable?
+   - If no, stop and consider restore or escalation.
+   - If yes, continue.
+4. Has backup readiness been confirmed?
+   - If no, run the backup readiness check.
+   - If the check fails, stop unless the owner explicitly accepts the risk in the hotfix report.
+5. Create or start the hotfix report.
+6. Apply only the minimum safe Production change.
+7. Validate.
+8. Export and run drift check.
+9. Reconcile Git.
+10. Complete the incident report.
+
+### Hotfix Report Setup
+
+Create reports from the template:
+
+```powershell
+cd C:\K98-bot-SQL-Server
+$stamp = Get-Date -Format "yyyyMMdd_HHmm"
+Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\hotfix_${stamp}_short_description.md"
+```
+
+Do not paste secrets, passwords, tokens, webhooks, or credential-bearing connection strings into
+the report.
+
+### Already-Applied Hotfix Reconciliation
+
+Use this when Production was changed before the formal hotfix report existed:
+
+1. Stop making further Production changes.
+2. Create a hotfix report immediately.
+3. Record everything known: who, when, why, exact SQL if available, affected objects, and
+   validation.
+4. Run backup readiness for the current state.
+5. Run drift check.
+6. Create a Git branch from current `main`.
+7. Create a reconciliation migration matching current Production.
+8. Do not re-run a migration that duplicates an already-applied destructive effect unless it is
+   idempotent and safe.
+9. Validate migration logic against `dbo.SchemaMigrationHistory` expectations.
+10. Open and merge the SQL PR.
+11. Run final drift check.
+12. Complete the incident report.
+
+### Controlled Hotfix Rehearsal
+
+Run this only when the owner has approved the rehearsal window.
+
+Preferred low-risk rehearsal object:
+
+```text
+dbo.SqlHotfixRehearsal
+```
+
+The object is deliberately isolated from bot runtime behavior.
+
+Rehearsal steps:
+
+1. Create a rehearsal report:
+
+```powershell
+cd C:\K98-bot-SQL-Server
+Copy-Item .\reports\hotfix\hotfix_template.md .\reports\hotfix\rehearsal_YYYYMMDD_sql_hotfix_rehearsal_table.md
+```
+
+2. Confirm the object does not already exist in Git or Production:
+
+```powershell
+Select-String -Path .\sql_schema\*.sql -Pattern "SqlHotfixRehearsal"
+```
+
+```sql
+SELECT OBJECT_ID(N'dbo.SqlHotfixRehearsal', N'U') AS ObjectId;
+```
+
+3. Confirm backup readiness:
+
+```powershell
+.\deploy\Test-SqlBackupReadiness.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -BackupPath "C:\sql_backup"
+```
+
+4. Apply the direct Production-style SQL in SSMS:
+
+```sql
+IF OBJECT_ID(N'dbo.SqlHotfixRehearsal', N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.SqlHotfixRehearsal
+    (
+        RehearsalId INT IDENTITY(1,1) NOT NULL
+            CONSTRAINT PK_SqlHotfixRehearsal PRIMARY KEY,
+        CreatedAtUtc DATETIME2(0) NOT NULL
+            CONSTRAINT DF_SqlHotfixRehearsal_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
+        Notes NVARCHAR(4000) NULL
+    );
+END;
+```
+
+5. Run drift check and record expected drift.
+6. Create a reconciliation migration and expected schema snapshot.
+7. Validate the SQL repo.
+8. Deploy or reconcile the migration according to the report notes.
+9. Run final drift check.
+10. Complete the rehearsal report with lessons learned.
+
+### Rollback Decision Tree
+
+1. Did deployment fail before any SQL changed?
+   - No rollback is required. Fix validation, backup, branch, or connection issues and retry.
+2. Did migration partially apply?
+   - Stop. Review deployment logs, transaction state, `SchemaMigrationHistory`, and
+     `DeploymentRunHistory`.
+   - Choose manual rollback, forward fix, or restore based on data risk.
+3. Did SQL succeed but bot validation fail?
+   - If backward-compatible, fix the bot or forward-fix SQL.
+   - If breaking, consider rollback or restore based on risk.
+4. Is there a reviewed rollback script?
+   - If yes, confirm backup readiness, review current state, run pre-validation, execute
+     deliberately, and run post-validation.
+   - If no, do not invent rollback under pressure. Prefer forward fix or restore decision.
+5. Is data loss involved or row impact unknown?
+   - Escalate restore-from-backup decision.
+
+### Reversible Migration Workflow
+
+- Migration declares `Rollback: Included`.
+- Matching rollback file exists under `migrations/rollback/`.
+- Rollback file includes `RollbackForMigrationId:`.
+- Rollback script includes pre/post validation.
+- Rollback script is reviewed in the same PR.
+- Rollback script is not automatically run by deployment tooling.
+- Operator must manually choose rollback after checking backup readiness.
+
+### Non-Reversible Migration Workflow
+
+- Migration declares `Rollback: Forward Fix Only` or `Rollback: Not Possible`.
+- PR explains why rollback is unsafe.
+- Release checklist confirms review.
+- Backup readiness is mandatory.
+- Post-deployment validation is mandatory.
+- Restore-from-backup decision point is documented.
+
+### Data Migration Safety Workflow
+
+For high-risk data changes:
+
+1. Run a preview `SELECT`.
+2. Confirm expected rows affected.
+3. Confirm backup readiness.
+4. Execute inside a transaction where safe.
+5. Capture rows affected.
+6. Run post-validation query.
+7. Record results in deployment or hotfix notes.
+
+Example pattern:
+
+```sql
+-- Preview
+SELECT COUNT(*) AS RowsToChange
+FROM dbo.ExampleTable
+WHERE ...;
+
+-- Change
+SET XACT_ABORT ON;
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    UPDATE dbo.ExampleTable
+    SET ExampleColumn = ...
+    WHERE ...;
+
+    SELECT @@ROWCOUNT AS RowsChanged;
+
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
+
+    THROW;
+END CATCH;
+```
+
+### Restore-From-Backup Escalation Points
+
+Restore is an operational decision, not casual rollback. Escalate when:
+
+- data corruption is suspected
+- unknown rows were changed
+- destructive change applied without reliable rollback
+- migration changed multiple dependent objects and failed mid-way
+- bot is producing materially wrong output and forward fix is not immediately safe
+
+Restore strategy depends on SQL Server recovery model and the available backup chain.
+
+### Backup Threshold Policy
+
+Current script defaults:
+
+- full backup max age: 24 hours
+- differential backup max age: 8 hours, warning-only in current script behavior
+- log backup max age: 30 minutes for `FULL` or `BULK_LOGGED` recovery models
+
+Use explicit parameters when the owner approves a temporary policy change. Record overrides in the
+deployment or hotfix report.
+
+### Hotfix Closure
+
+A hotfix report is complete only when it records:
+
+- final status
+- SQL PR, migration, and commit
+- export branch and drift report
+- final drift clean, or accepted drift with follow-up
+- rollback or forward-fix notes
+- deferred optimisations, if any
 
 ## Bot Promotion Interaction
 

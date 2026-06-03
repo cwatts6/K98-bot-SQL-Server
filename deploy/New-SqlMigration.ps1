@@ -4,7 +4,7 @@ param(
     [string]$RepoPath,
     [ValidateSet("Low", "Medium", "High")][string]$RiskLevel = "Low",
     [ValidateSet("Yes", "No")][string]$RequiresBackup = "Yes",
-    [ValidateSet("Manual", "Included", "NotPossible")][string]$Rollback = "Manual",
+    [ValidateSet("Manual", "Included", "Forward Fix Only", "Not Possible")][string]$Rollback = "Manual",
     [ValidateSet("Auto", "Required", "None")][string]$TransactionMode = "Auto"
 )
 
@@ -52,7 +52,13 @@ CreatedUtc: $createdUtc
 RequiresBackup: $RequiresBackup
 RiskLevel: $RiskLevel
 Rollback: $Rollback
+RollbackScript: N/A
 TransactionMode: $TransactionMode
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: N/A
+PreValidationQuery: N/A
+PostValidationQuery: N/A
 RelatedBotPR:
 RelatedSQLPR:
 */

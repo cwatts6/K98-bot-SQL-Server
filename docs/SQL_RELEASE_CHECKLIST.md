@@ -17,6 +17,25 @@ Use this checklist for production SQL deployments.
 - [ ] External backup copy cadence is healthy.
 - [ ] Smoke test plan is ready.
 
+## Rollback Review
+
+- [ ] Migration declares one rollback classification: `Included`, `Manual`, `Forward Fix Only`, or `Not Possible`.
+- [ ] `Rollback: Included` has a reviewed matching file under `migrations/rollback/`.
+- [ ] Rollback file includes `RollbackForMigrationId:`.
+- [ ] Non-reversible migrations explain why rollback is unsafe.
+- [ ] Forward-fix or restore-from-backup decision point is documented where rollback is unsafe.
+- [ ] Data-loss risk is understood before deployment.
+
+## Data Migration Review
+
+- [ ] `DataChange:` is set correctly.
+- [ ] `DataChange: Yes` includes or references a data safety plan.
+- [ ] Preview row-count query was reviewed.
+- [ ] Expected row-count range is documented.
+- [ ] Transaction and locking/runtime risk are understood.
+- [ ] Pre-validation and post-validation queries are ready.
+- [ ] Bot behavior impact is understood where config or bot-facing data changes.
+
 ## Deployment
 
 - [ ] Pull latest SQL repo `main`.
@@ -35,6 +54,26 @@ Use this checklist for production SQL deployments.
 - [ ] Reconcile unexpected drift through PR.
 - [ ] Record deployment notes and rollback posture.
 - [ ] Clean up merged branches after confirmation.
+
+## Emergency Hotfix Pre-Checks
+
+- [ ] Incident qualifies for emergency SQL hotfix path.
+- [ ] Owner/operator approval is recorded.
+- [ ] Hotfix report was created from `reports/hotfix/hotfix_template.md`.
+- [ ] Backup readiness was confirmed or override was explicitly approved.
+- [ ] Exact minimum SQL was reviewed before execution.
+- [ ] Rollback, forward-fix, or restore decision point is documented.
+
+## Emergency Hotfix Post-Checks
+
+- [ ] Exact SQL executed, timestamp, rows affected, and affected objects are recorded.
+- [ ] SQL smoke check completed.
+- [ ] Bot smoke check completed where relevant.
+- [ ] Production export/drift evidence was captured.
+- [ ] Reconciliation migration was created or owner-run reconciliation is listed.
+- [ ] SQL PR links the hotfix report and export branch.
+- [ ] Final drift check is clean or accepted drift is documented.
+- [ ] Hotfix report final status is complete.
 
 ## Nightly Export Task
 
