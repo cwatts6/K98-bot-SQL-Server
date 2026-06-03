@@ -2,7 +2,7 @@
 
 ## Status
 
-Accepted for Phase 2B implementation.
+Accepted and delivered for Phase 2B.
 
 ## Context
 
@@ -35,7 +35,8 @@ operator-approved overrides.
 
 Nightly export health is checked by a separate monitoring script that reads structured export logs
 and scheduled-task state when available. It does not deploy SQL, alter scheduled tasks, or push Git
-branches.
+branches. The nightly export wrapper also sends failure-only Discord alerts for export or cleanup
+failures when `SQL_SCHEMA_DISCORD_WEBHOOK_URL` is configured for the scheduled-task account.
 
 ## Options Considered
 
@@ -52,4 +53,5 @@ branches.
 - PRs get automated structural validation without live Production SQL access.
 - SQLFluff warnings are visible to reviewers but do not block merges during the pilot.
 - Backup warnings are deliberate policy outcomes rather than surprise noise.
-- Failed or stale nightly exports have a direct operator check and future agent hook.
+- Failed or stale nightly exports have a direct operator check, structured log evidence, and
+  failure-only Discord notification when configured.

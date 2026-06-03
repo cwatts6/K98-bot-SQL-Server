@@ -114,6 +114,6 @@ Use this checklist for production SQL deployments.
 - [ ] `deploy/Test-NightlyExportHealth.ps1` reports success after task installation or changes.
 - [ ] Latest `nightly_export_finish` event in `logs/export.jsonl` is recent and succeeded.
 - [ ] Scheduled task `LastTaskResult` is `0` when Task Scheduler is available.
-- [ ] Failed or stale nightly export has an owner-visible follow-up note.
+- [ ] Failed or stale nightly export has an owner-visible Discord alert or follow-up note.
 - [ ] SQL repo branch/status was checked after a failed export.
 - [ ] Old direct-to-main export task remains disabled.

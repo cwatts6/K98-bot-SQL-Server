@@ -370,8 +370,10 @@ task state/result when Task Scheduler is available. A failed or stale nightly ex
 evidence may be missing; inspect Task Scheduler, `logs/export.jsonl`, Git branch/status, and the
 latest `export/prod-schema-*` branch before relying on nightly export evidence.
 
-For an operator dashboard or future agent, run this script in warning-only mode and consume the
-structured `nightly_export_health` event appended to `logs/export.jsonl`.
+For an operator dashboard or monitoring agent, run this script in warning-only mode and consume the
+structured `nightly_export_health` event appended to `logs/export.jsonl`. Failure-only Discord
+alerts are handled by the nightly export wrapper itself when `SQL_SCHEMA_DISCORD_WEBHOOK_URL` is
+configured for the scheduled-task account.
 
 ## Rollback And Recovery
 
