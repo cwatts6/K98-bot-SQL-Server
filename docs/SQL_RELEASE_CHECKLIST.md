@@ -106,7 +106,7 @@ Use this checklist for production SQL deployments.
 - [ ] New task action points to `deploy\Invoke-NightlyProdSchemaExport.ps1`.
 - [ ] Manual task run completed successfully.
 - [ ] SQL repo returned to clean `main` after the task.
-- [ ] Failure-only Discord alert environment variable is configured for the scheduled-task account if operator notification is required.
+- [ ] `SQL_SCHEMA_DISCORD_WEBHOOK_URL` is configured for the scheduled-task account if failure-only Discord notification is required.
 - [ ] Any pushed `export/prod-schema-*` branch was reviewed or intentionally left for drift review.
 
 ## Nightly Export Monitoring
