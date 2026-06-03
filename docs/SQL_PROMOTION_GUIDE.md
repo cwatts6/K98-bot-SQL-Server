@@ -25,7 +25,7 @@ additional environments can be added later without replacing the process.
 ```powershell
 cd C:\discord_file_downloader
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\.venv\Scripts\Activate.ps1
+.\venv\Scripts\Activate.ps1
 .\dev.ps1
 ```
 
@@ -351,12 +351,13 @@ cleanup, or speculative performance tuning.
 
 ### Before Touching Production
 
-Create a local incident note before opening SSMS. A plain Markdown note is enough:
+Create a local incident report from the template before opening SSMS:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-New-Item -ItemType Directory -Force -Path .\reports\hotfix | Out-Null
-notepad .\reports\hotfix\hotfix_YYYYMMDD_short_reason.md
+$stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmm")
+Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\hotfix_${stamp}_short_reason.md"
+notepad ".\reports\hotfix\hotfix_${stamp}_short_reason.md"
 ```
 
 Record:
@@ -369,6 +370,7 @@ Record:
 - exact intended SQL change
 - rollback or forward-fix approach
 - approval source
+- backup readiness result, including warnings
 
 Confirm backups:
 
@@ -403,24 +405,25 @@ SELECT OBJECT_ID(N'dbo.ObjectName') AS ObjectId;
 EXEC dbo.SomeVerificationProcedure;
 ```
 
-### Export Production Immediately
+### Capture Drift Evidence Immediately
 
-After the direct change, capture Production state:
+After the direct change, capture Production state with the drift workflow. This exports a timestamped
+snapshot under `exports/` and writes a drift report under `reports/`:
 
 ```powershell
-cd C:\discord_file_downloader
-Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-.\venv\Scripts\Activate.ps1
-.\dev.ps1
-
 cd C:\K98-bot-SQL-Server
-.\deploy\Export-ProdSchemaSnapshot.ps1 `
+.\deploy\Invoke-DriftCheck.ps1 `
   -RepoPath C:\K98-bot-SQL-Server `
   -ServerName "MINI_AMD" `
   -DatabaseName "ROK_TRACKER"
 ```
 
-This creates an `export/prod-schema-*` branch. It must not update `main`.
+Expected emergency hotfix drift should be narrow and explainable. Record the generated export
+snapshot path, drift report path, expected drift, and unexpected drift in the incident report.
+
+Use `deploy\Export-ProdSchemaSnapshot.ps1` only when you specifically need a pushed
+`export/prod-schema-*` branch for review. Drift reconciliation can use the local snapshot created
+by `Invoke-DriftCheck.ps1`.
 
 ### Reconcile Back Into Git
 
@@ -429,7 +432,7 @@ Create a hotfix branch from current `main`:
 ```powershell
 git switch main
 git pull origin main
-git switch -c hotfix/sql-short-reason
+git switch -c codex/sql-hotfix-short-reason
 ```
 
 Create a migration:
@@ -441,17 +444,27 @@ Create a migration:
   -Rollback Manual
 ```
 
-Edit the migration so it exactly matches what was applied in Production. Include comments pointing
-to the incident note and export branch.
+Edit the migration so it exactly matches what was applied in Production. The migration must be
+idempotent when the Production change has already happened. Include comments or metadata pointing
+to the incident report and drift evidence.
+
+For a safely reversible hotfix, prefer `Rollback: Included`, a `RollbackScript:` path, and a
+matching rollback file with `RollbackForMigrationId:`.
 
 Update `sql_schema/` to match Production. The safest source is the export branch/snapshot generated
 immediately after the hotfix. Copy only the affected object files, then review the diff:
 
 ```powershell
-Copy-Item .\exports\prod-schema-YYYYMMDD-HHMMSS\dbo.ObjectName.StoredProcedure.sql `
-  .\sql_schema\dbo.ObjectName.StoredProcedure.sql -Force
+Copy-Item .\exports\prod-schema-YYYYMMDD-HHMMSS\dbo.ObjectName.ObjectType.sql `
+  .\sql_schema\dbo.ObjectName.ObjectType.sql -Force
 
 git diff
+```
+
+If the incident report should be committed, force-add it because `reports/` is ignored by default:
+
+```powershell
+git add -f .\reports\hotfix\hotfix_YYYYMMDD_HHMM_short_reason.md
 ```
 
 Validate and open PR:
@@ -460,7 +473,7 @@ Validate and open PR:
 .\deploy\Validate-SqlRepo.ps1 -RepoPath C:\K98-bot-SQL-Server
 git add -A
 git commit -m "fix: reconcile emergency SQL hotfix"
-git push -u origin hotfix/sql-short-reason
+git push -u origin codex/sql-hotfix-short-reason
 ```
 
 PR body must include:
@@ -472,6 +485,9 @@ PR body must include:
 - smoke check result
 - export branch name
 - rollback/forward-fix notes
+
+If GitHub CLI is not available on the deployment machine, open the PR from GitHub in a browser or
+ask Codex to create it after the branch is pushed.
 
 ### After The Hotfix PR Merges
 
@@ -487,12 +503,20 @@ git pull origin main
   -ValidationOnly
 ```
 
-If the migration is already effectively present in Production because of the emergency SSMS
-change, do not blindly apply a duplicate destructive migration. Either:
+If the reconciliation migration is already effectively present in Production because of the
+emergency SSMS change, it should still be deployed when it is idempotent. This records the migration
+in `dbo.SchemaMigrationHistory` and proves future deployments have no pending reconciliation work.
 
-- make the reconciliation migration idempotent and safe to run, or
-- mark the exact migration as applied only after owner approval and a documented manual history
-  insertion.
+Expected pre-deployment validation for an idempotent reconciliation:
+
+```text
+Validation succeeded. Pending migration count: 1
+PENDING: <reconciliation migration>.sql
+```
+
+Run drift check before deployment when the PR updated `sql_schema/`. A clean result means Git's
+expected schema now matches Production, but the migration may still be pending in migration
+history:
 
 Then run:
 
@@ -503,8 +527,48 @@ Then run:
   -DatabaseName "ROK_TRACKER"
 ```
 
-The hotfix is not closed until drift is clean or the remaining drift is documented in a follow-up
-PR.
+Deploy the idempotent reconciliation migration from `main`:
+
+```powershell
+.\deploy\Deploy-SqlMigration.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER"
+```
+
+Verify there are no pending migrations:
+
+```powershell
+.\deploy\Deploy-SqlMigration.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -ServerName "MINI_AMD" `
+  -DatabaseName "ROK_TRACKER" `
+  -ValidationOnly
+```
+
+Expected:
+
+```text
+Validation succeeded. Pending migration count: 0
+```
+
+Verify migration history:
+
+```sql
+SELECT TOP (5)
+    MigrationId,
+    Status,
+    AppliedAtUtc,
+    BranchName,
+    GitCommit
+FROM dbo.SchemaMigrationHistory
+WHERE MigrationId = N'<reconciliation migration id>'
+ORDER BY AppliedAtUtc DESC;
+```
+
+The hotfix is not closed until drift is clean, migration history is recorded, and the incident
+report final status is complete. If the migration is not idempotent, stop and get owner approval
+before any manual history insertion.
 
 ## Detailed Emergency And Rollback Standards
 
@@ -538,7 +602,7 @@ Create reports from the template:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-$stamp = Get-Date -Format "yyyyMMdd_HHmm"
+$stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmm")
 Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\hotfix_${stamp}_short_description.md"
 ```
 
@@ -582,7 +646,9 @@ Rehearsal steps:
 
 ```powershell
 cd C:\K98-bot-SQL-Server
-Copy-Item .\reports\hotfix\hotfix_template.md .\reports\hotfix\rehearsal_YYYYMMDD_HHMM_sql_hotfix_rehearsal_table.md
+$stamp = [DateTime]::UtcNow.ToString("yyyyMMdd_HHmm")
+Copy-Item .\reports\hotfix\hotfix_template.md ".\reports\hotfix\rehearsal_${stamp}_sql_hotfix_rehearsal_table.md"
+notepad ".\reports\hotfix\rehearsal_${stamp}_sql_hotfix_rehearsal_table.md"
 ```
 
 2. Confirm the object does not already exist in Git or Production:
@@ -621,12 +687,28 @@ BEGIN
 END;
 ```
 
-5. Run drift check and record expected drift.
-6. Create a reconciliation migration and expected schema snapshot.
-7. Validate the SQL repo.
-8. Deploy or reconcile the migration according to the report notes.
-9. Run final drift check.
-10. Complete the rehearsal report with lessons learned.
+5. Validate the object exists and the table is empty.
+6. Run drift check and record expected drift.
+7. Create a reconciliation branch, migration, rollback script if applicable, and expected schema
+   snapshot from the drift export.
+8. Validate the SQL repo and open a reconciliation PR.
+9. After merge, pull `main`, run deployment validation, run drift check, deploy the idempotent
+   reconciliation migration, and confirm pending migration count is zero.
+10. Complete the rehearsal report with migration history, final drift status, and lessons learned.
+
+The successful Phase 2A rehearsal proved this exact sequence:
+
+```text
+Backup readiness succeeded with a differential-age warning
+-> direct SQL created dbo.SqlHotfixRehearsal
+-> post-change validation confirmed object exists and table is empty
+-> drift check showed one expected added object
+-> reconciliation PR added migration, rollback script, and schema snapshot
+-> pre-deployment ValidationOnly showed one pending migration
+-> drift check was clean after Git reconciliation
+-> deployment applied the idempotent migration and recorded SchemaMigrationHistory
+-> final ValidationOnly showed zero pending migrations
+```
 
 ### Rollback Decision Tree
 
@@ -738,6 +820,9 @@ A hotfix report is complete only when it records:
 - SQL PR, migration, and commit
 - export branch and drift report
 - final drift clean, or accepted drift with follow-up
+- migration history status, applied UTC, branch, and commit when a reconciliation migration was
+  deployed
+- final `Deploy-SqlMigration.ps1 -ValidationOnly` pending count
 - rollback or forward-fix notes
 - deferred optimisations, if any
 

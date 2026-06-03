@@ -61,6 +61,8 @@ Use this checklist for production SQL deployments.
 - [ ] Owner/operator approval is recorded.
 - [ ] Hotfix report was created from `reports/hotfix/hotfix_template.md`.
 - [ ] Backup readiness was confirmed or override was explicitly approved.
+- [ ] Backup readiness warnings were recorded and accepted.
+- [ ] Object or data pre-check confirms expected starting state.
 - [ ] Exact minimum SQL was reviewed before execution.
 - [ ] Rollback, forward-fix, or restore decision point is documented.
 
@@ -69,10 +71,18 @@ Use this checklist for production SQL deployments.
 - [ ] Exact SQL executed, timestamp, rows affected, and affected objects are recorded.
 - [ ] SQL smoke check completed.
 - [ ] Bot smoke check completed where relevant.
-- [ ] Production export/drift evidence was captured.
+- [ ] Production drift evidence was captured with `deploy/Invoke-DriftCheck.ps1`.
+- [ ] Drift report contains only expected drift, or unexpected drift is documented.
 - [ ] Reconciliation migration was created or owner-run reconciliation is listed.
+- [ ] Schema snapshot was copied from the drift export.
+- [ ] Rollback script exists and validates when `Rollback: Included`.
+- [ ] `deploy/Validate-SqlRepo.ps1` passes before PR.
 - [ ] SQL PR links the hotfix report and export branch.
+- [ ] After PR merge, `Deploy-SqlMigration.ps1 -ValidationOnly` is reviewed.
+- [ ] Idempotent reconciliation migration is deployed from `main` to record migration history.
+- [ ] Final `Deploy-SqlMigration.ps1 -ValidationOnly` pending migration count is zero.
 - [ ] Final drift check is clean or accepted drift is documented.
+- [ ] `dbo.SchemaMigrationHistory` confirms the reconciliation migration is applied.
 - [ ] Hotfix report final status is complete.
 
 ## Nightly Export Task
