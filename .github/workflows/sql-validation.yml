@@ -106,7 +106,7 @@ jobs:
           if ($nightly -match '-AllowMain') {
             throw "Nightly export wrapper must not pass -AllowMain."
           }
-          if ($export -notmatch 'if \(\$branch -eq "main" -and -not \$AllowMain\)') {
+          if ($export -notmatch 'if\s*\(\s*\$branch\s+-eq\s+"main"\s+-and\s+-not\s+\$AllowMain\s*\)') {
             throw "Export script no longer contains the normal main-branch protection."
           }
           if ($export -notmatch '-Reason is required when -AllowMain is used') {

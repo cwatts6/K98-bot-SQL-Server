@@ -21,11 +21,13 @@ $started = Get-Date
 $issues = New-Object System.Collections.Generic.List[string]
 $warnings = New-Object System.Collections.Generic.List[string]
 
+$script:AppliedBackupPolicyConfigPath = $null
+
 function Get-K98ConfigValue {
     param(
         [Parameter(Mandatory=$true)]$Config,
         [Parameter(Mandatory=$true)][string[]]$Path,
-        [Parameter(Mandatory=$true)]$Default
+        [AllowNull()]$Default
     )
 
     $current = $Config
@@ -53,9 +55,11 @@ function Import-K98BackupPolicyConfig {
     if ([string]::IsNullOrWhiteSpace($Path)) {
         return
     }
+    $script:AppliedBackupPolicyConfigPath = $Path
     if (-not (Test-Path $Path)) {
         throw "Backup policy config not found: $Path"
     }
+    $script:AppliedBackupPolicyConfigPath = (Resolve-Path $Path).ProviderPath
 
     $config = Get-Content -Raw -Path $Path | ConvertFrom-Json -ErrorAction Stop
     $script:MaxFullBackupAgeHours = [int](Get-K98ConfigValue -Config $config -Path @("backup_policy", "max_full_backup_age_hours") -Default $script:MaxFullBackupAgeHours)
@@ -67,8 +71,6 @@ function Import-K98BackupPolicyConfig {
         $script:WarnOnly = [bool]$warnOnlyValue
     }
 }
-
-Import-K98BackupPolicyConfig -Path $ConfigPath
 
 function Get-BackupRowValue {
     param(
@@ -94,6 +96,8 @@ function Add-BackupWarning {
 }
 
 try {
+    Import-K98BackupPolicyConfig -Path $ConfigPath
+
     $databaseLiteral = ConvertTo-K98SqlLiteral -Value $DatabaseName
     $backupQuery = @"
 SELECT
@@ -188,7 +192,7 @@ WHERE name = $databaseLiteral;
         differential_backup = $diffBackup
         log_backup = $logBackup
         issue_count = $issues.Count
-        backup_policy_config = $ConfigPath
+        backup_policy_config = $script:AppliedBackupPolicyConfigPath
         warning_count = $warnings.Count
         duration_ms = [int]((Get-Date) - $started).TotalMilliseconds
     }
@@ -212,6 +216,7 @@ catch {
         status = "Failed"
         server = $ServerName
         database = $DatabaseName
+        backup_policy_config = $script:AppliedBackupPolicyConfigPath
         error_message = $_.Exception.Message
     }
     throw

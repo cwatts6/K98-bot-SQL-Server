@@ -3,6 +3,7 @@ param(
     [string]$TaskName = "K98 SQL Nightly Schema Export",
     [int]$MaxExportAgeHours = 30,
     [switch]$SkipScheduledTaskCheck,
+    [int]$LogTailLines = 2000,
     [switch]$WarnOnly
 )
 
@@ -48,30 +49,37 @@ try {
         Add-NightlyExportIssue "Export log not found: $logPath"
     }
     else {
-        $events = Get-Content -Path $logPath |
-            Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
-            ForEach-Object { ConvertFrom-K98JsonLine -Line $_ } |
-            Where-Object { $null -ne $_ }
+        $recentLines = @(Get-Content -Path $logPath -Tail $LogTailLines)
+        for ($index = $recentLines.Count - 1; $index -ge 0; $index--) {
+            if ($null -ne $latestFinish -and $null -ne $latestCleanupFailure) {
+                break
+            }
+            $line = $recentLines[$index]
+            if ([string]::IsNullOrWhiteSpace($line)) {
+                continue
+            }
 
-        $latestFinish = $events |
-            Where-Object {
-                $_.script -eq "Invoke-NightlyProdSchemaExport.ps1" -and
-                $_.operation -eq "nightly_export_finish"
-            } |
-            Sort-Object { [DateTime]$_.timestamp_utc } -Descending |
-            Select-Object -First 1
+            $event = ConvertFrom-K98JsonLine -Line $line
+            if ($null -eq $event) {
+                continue
+            }
 
-        $latestCleanupFailure = $events |
-            Where-Object {
-                $_.script -eq "Invoke-NightlyProdSchemaExport.ps1" -and
-                $_.operation -eq "nightly_export_cleanup" -and
-                $_.status -eq "Failed"
-            } |
-            Sort-Object { [DateTime]$_.timestamp_utc } -Descending |
-            Select-Object -First 1
+            if ($null -eq $latestFinish -and
+                $event.script -eq "Invoke-NightlyProdSchemaExport.ps1" -and
+                $event.operation -eq "nightly_export_finish") {
+                $latestFinish = $event
+            }
+
+            if ($null -eq $latestCleanupFailure -and
+                $event.script -eq "Invoke-NightlyProdSchemaExport.ps1" -and
+                $event.operation -eq "nightly_export_cleanup" -and
+                $event.status -eq "Failed") {
+                $latestCleanupFailure = $event
+            }
+        }
 
         if ($null -eq $latestFinish) {
-            Add-NightlyExportIssue "No nightly_export_finish event found in export log."
+            Add-NightlyExportIssue "No nightly_export_finish event found in the last $LogTailLines export log line(s)."
         }
         else {
             $latestFinishUtc = ([DateTime]$latestFinish.timestamp_utc).ToUniversalTime()
@@ -134,6 +142,7 @@ try {
         task_last_run_time = $taskLastRunTime
         task_last_task_result = $taskLastTaskResult
         max_export_age_hours = $MaxExportAgeHours
+        log_tail_lines = $LogTailLines
         latest_export_status = if ($latestFinish) { $latestFinish.status } else { $null }
         latest_export_timestamp_utc = if ($latestFinish) { $latestFinish.timestamp_utc } else { $null }
         issue_count = $issues.Count
