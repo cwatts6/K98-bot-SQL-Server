@@ -224,6 +224,7 @@ The new nightly workflow:
 6. Commits and pushes only the export branch when schema changes exist.
 7. Switches the local SQL repo back to `main`.
 8. Writes structured export logs.
+9. Sends a Discord alert on export or cleanup failure when `SQL_SCHEMA_DISCORD_WEBHOOK_URL` is configured for the scheduled-task account.
 
 ### Replace The Scheduled Task
 
@@ -276,6 +277,10 @@ $credential = Get-Credential "$env:USERDOMAIN\$env:USERNAME"
 
 Use the same Windows account that already connects to SQL Server with Windows Auth and has GitHub
 push credentials available for the SQL repo.
+
+To restore failure-only Discord notifications, set `SQL_SCHEMA_DISCORD_WEBHOOK_URL` for the same
+Windows account that runs the scheduled task. Do not paste webhook URLs into scripts, docs, config
+files, logs, hotfix reports, or PR comments.
 
 If the old task name is uncertain, disable it manually in Task Scheduler only after confirming its
 action points to `Export-SqlSchemaAndPush.ps1`.
