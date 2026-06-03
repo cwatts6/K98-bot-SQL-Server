@@ -43,6 +43,17 @@ function Get-K98SqlBatchSummary {
     return $summary
 }
 
+function Test-K98RollbackScriptMatchesMigration {
+    param(
+        [Parameter(Mandatory=$true)][string]$RollbackScriptPath,
+        [Parameter(Mandatory=$true)][string]$MigrationId
+    )
+
+    $rollbackContent = Get-Content -Raw -Path $RollbackScriptPath
+    $escapedMigrationId = [regex]::Escape($MigrationId)
+    return $rollbackContent -match "(?im)^\s*RollbackForMigrationId\s*:\s*$escapedMigrationId\s*$"
+}
+
 try {
     $repoRoot = (Resolve-Path $RepoPath).ProviderPath
     $requiredDirs = @("sql_schema", "migrations", "deploy", "docs", "logs", "reports", "exports")
@@ -59,6 +70,7 @@ try {
             Where-Object { $_.Name -notmatch "\.rollback\.sql$" } |
             Sort-Object Name
     }
+    $rollbackDir = Join-Path $migrationDir "rollback"
 
     $idCounts = @{}
     foreach ($file in $migrationFiles) {
@@ -91,32 +103,84 @@ try {
             Add-ValidationError "$($file.Name) RequiresBackup must be Yes or No"
         }
 
-        if ($metadata.ContainsKey("Rollback") -and $metadata["Rollback"] -notin @("Included", "Manual", "NotPossible")) {
-            Add-ValidationError "$($file.Name) Rollback must be Included, Manual, or NotPossible"
+        if ($metadata.ContainsKey("Rollback") -and $metadata["Rollback"] -notin @("Included", "Manual", "Forward Fix Only", "Not Possible", "NotPossible")) {
+            Add-ValidationError "$($file.Name) Rollback must be Included, Manual, Forward Fix Only, or Not Possible"
+        }
+        if ($metadata.ContainsKey("Rollback") -and $metadata["Rollback"] -eq "NotPossible") {
+            Add-ValidationWarning "$($file.Name) uses legacy Rollback value NotPossible; prefer Not Possible"
+        }
+        if ($metadata.ContainsKey("Rollback") -and $metadata["Rollback"] -eq "Included") {
+            $rollbackScript = $null
+            if ($metadata.ContainsKey("RollbackScript") -and -not [string]::IsNullOrWhiteSpace($metadata["RollbackScript"]) -and $metadata["RollbackScript"] -ne "N/A") {
+                $rollbackScript = Join-Path $repoRoot ($metadata["RollbackScript"] -replace "/", [System.IO.Path]::DirectorySeparatorChar)
+            }
+            else {
+                $rollbackScript = Join-Path $rollbackDir "$migrationId`_rollback.sql"
+            }
+            if (-not (Test-Path $rollbackScript)) {
+                Add-ValidationError "$($file.Name) declares Rollback: Included but rollback script was not found: $rollbackScript"
+            }
+            elseif (-not (Test-K98RollbackScriptMatchesMigration -RollbackScriptPath $rollbackScript -MigrationId $migrationId)) {
+                Add-ValidationError "$($file.Name) declares Rollback: Included but rollback script does not include matching RollbackForMigrationId: $migrationId"
+            }
         }
 
         if ($metadata.ContainsKey("TransactionMode") -and $metadata["TransactionMode"] -notin @("Auto", "Required", "None")) {
             Add-ValidationError "$($file.Name) TransactionMode must be Auto, Required, or None"
         }
+        if ($metadata.ContainsKey("DataChange") -and $metadata["DataChange"] -notin @("Yes", "No")) {
+            Add-ValidationError "$($file.Name) DataChange must be Yes or No"
+        }
+        if ($metadata.ContainsKey("DataSafetyPlan") -and $metadata["DataSafetyPlan"] -notin @("Not Required", "Required", "Included")) {
+            Add-ValidationError "$($file.Name) DataSafetyPlan must be Not Required, Required, or Included"
+        }
+        if ($metadata.ContainsKey("DataChange") -and $metadata["DataChange"] -eq "Yes") {
+            if (-not $metadata.ContainsKey("DataSafetyPlan") -or $metadata["DataSafetyPlan"] -eq "Not Required" -or [string]::IsNullOrWhiteSpace($metadata["DataSafetyPlan"])) {
+                Add-ValidationWarning "$($file.Name) declares DataChange: Yes without DataSafetyPlan: Required or Included"
+            }
+        }
 
         $content = Get-Content -Raw -Path $file.FullName
+        $hasHighRiskOperation = $false
         if ($content -match "(?im)^\s*DROP\s+TABLE\s+(?!IF\s+EXISTS\s+#)(?!#)") {
             Add-ValidationWarning "$($file.Name) contains DROP TABLE; confirm rollback and data safety"
+            $hasHighRiskOperation = $true
         }
         if ($content -match "(?im)^\s*TRUNCATE\s+TABLE\s+") {
             Add-ValidationWarning "$($file.Name) contains TRUNCATE TABLE; confirm data safety"
+            $hasHighRiskOperation = $true
         }
         foreach ($batch in (Split-K98SqlBatches -SqlText $content)) {
             $batchSummary = Get-K98SqlBatchSummary -Batch $batch
             if ($batch -match "(?im)^\s*UPDATE\s+\S+\s+SET\s+" -and $batch -notmatch "(?im)\bWHERE\b") {
                 Add-ValidationWarning "$($file.Name) may contain UPDATE without WHERE in batch: $batchSummary"
+                $hasHighRiskOperation = $true
             }
             if ($batch -match "(?im)^\s*DELETE\s+FROM\s+" -and $batch -notmatch "(?im)\bWHERE\b") {
                 Add-ValidationWarning "$($file.Name) may contain DELETE without WHERE in batch: $batchSummary"
+                $hasHighRiskOperation = $true
+            }
+        }
+        if ($hasHighRiskOperation) {
+            if (-not $metadata.ContainsKey("DataSafetyPlan") -or $metadata["DataSafetyPlan"] -eq "Not Required") {
+                Add-ValidationWarning "$($file.Name) contains high-risk SQL without DataSafetyPlan: Required or Included"
             }
         }
         if ($content -match "(?i)(Password\s*=|Pwd\s*=|User\s+ID\s*=|AccessToken|DiscordWebhook|ConnectionString)") {
             Add-ValidationError "$($file.Name) may contain a secret or connection string"
+        }
+    }
+
+    if (Test-Path $rollbackDir) {
+        $rollbackFiles = Get-ChildItem -Path $rollbackDir -Filter "*.sql" -File
+        foreach ($rollbackFile in $rollbackFiles) {
+            $rollbackContent = Get-Content -Raw -Path $rollbackFile.FullName
+            if ($rollbackContent -notmatch "(?im)^\s*RollbackForMigrationId\s*:") {
+                Add-ValidationError "$($rollbackFile.Name) missing required header field: RollbackForMigrationId"
+            }
+            if ($rollbackContent -match "(?i)(Password\s*=|Pwd\s*=|User\s+ID\s*=|AccessToken|DiscordWebhook|ConnectionString)") {
+                Add-ValidationError "$($rollbackFile.Name) may contain a secret or connection string"
+            }
         }
     }
 
