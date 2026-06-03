@@ -1,0 +1,16 @@
+{
+  "backup_policy": {
+    "server_name": "MINI_AMD",
+    "database_name": "ROK_TRACKER",
+    "backup_path": "C:\\sql_backup",
+    "max_full_backup_age_hours": 24,
+    "max_differential_backup_age_hours": 8,
+    "max_log_backup_age_minutes": 30,
+    "warn_only": false,
+    "differential_backup_policy": "warning_only",
+    "notes": "Current policy blocks stale full/log backups but treats missing or stale differential backups as warnings. Copy this file to sql_deploy_config.json for local overrides; do not commit environment-specific secrets."
+  },
+  "nightly_export_health": {
+    "max_export_age_hours": 30
+  }
+}

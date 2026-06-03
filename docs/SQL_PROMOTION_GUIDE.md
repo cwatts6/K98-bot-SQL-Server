@@ -97,6 +97,24 @@ Open a PR into SQL repo `main`. The PR should include:
 - bot dependency notes
 - validation output
 
+### SQL PR Validation
+
+SQL pull requests run the `SQL validation` GitHub Actions workflow. The workflow is read-only with
+respect to Production SQL and must not require live `MINI_AMD` connectivity.
+
+Blocking checks:
+
+- `deploy/Validate-SqlRepo.ps1`
+- PowerShell parser validation for `deploy/*.ps1`
+- practical committed-file credential pattern scanning
+- documentation path sanity checks
+- scripted proof that nightly exports do not normally push directly to `main`
+
+SQLFluff runs as an advisory check for migration and rollback scripts using the `tsql` dialect. It
+is intentionally warning-only during Phase 2B while the team tunes rules and avoids style churn in
+generated `sql_schema/` snapshots. Treat SQLFluff warnings as review prompts, not automatic merge
+blockers, until the policy is explicitly changed.
+
 ### 6. Deploy From Merged Main
 
 On the bot machine:
@@ -293,6 +311,23 @@ the old direct-to-main export routine.
 
 ## Backup Readiness
 
+Backup threshold policy is explicit and configurable. Default thresholds remain compatible with
+the proven production behavior:
+
+- full backup: 24 hours, blocking when stale or missing
+- differential backup: 8 hours, warning-only when stale or missing
+- log backup: 30 minutes when recovery model is `FULL` or `BULK_LOGGED`, blocking when stale or missing
+
+The example policy lives at:
+
+```powershell
+deploy\sql_deploy_config.example.json
+```
+
+Copy it to `deploy\sql_deploy_config.json` only for local/operator-specific overrides. Do not
+commit environment-specific secrets. Use `-ConfigPath` with `Test-SqlBackupReadiness.ps1` when an
+operator-approved policy file should override script defaults.
+
 Backups are checked through SQL Server `msdb` history and supported by files under
 `C:\sql_backup`.
 
@@ -313,6 +348,25 @@ Use explicit parameters if the production policy changes:
 
 If backup readiness cannot be verified, stop and resolve it before deployment unless the owner
 approves a documented emergency exception.
+
+### Nightly Export Health Monitoring
+
+Use the monitor script after scheduled-task installation, after a failed export, and during
+operator checks:
+
+```powershell
+.\deploy\Test-NightlyExportHealth.ps1 `
+  -RepoPath C:\K98-bot-SQL-Server `
+  -TaskName "K98 SQL Nightly Schema Export"
+```
+
+The monitor inspects `logs/export.jsonl` for the latest nightly finish event and checks scheduled
+task state/result when Task Scheduler is available. A failed or stale nightly export means drift
+evidence may be missing; inspect Task Scheduler, `logs/export.jsonl`, Git branch/status, and the
+latest `export/prod-schema-*` branch before relying on nightly export evidence.
+
+For an operator dashboard or future agent, run this script in warning-only mode and consume the
+structured `nightly_export_health` event appended to `logs/export.jsonl`.
 
 ## Rollback And Recovery
 
@@ -803,6 +857,17 @@ Restore strategy depends on SQL Server recovery model and the available backup c
 
 ### Backup Threshold Policy
 
+Current policy:
+
+- stale or missing full backups block deployment
+- stale or missing log backups block deployment when recovery model requires log backups
+- stale or missing differential backups warn but do not block deployment
+
+This matches the Phase 2A rehearsal, where backup readiness succeeded with a differential-age
+warning. If the owner changes this policy, update `deploy\sql_deploy_config.example.json`, the
+release checklist, and deployment notes together. Use explicit command parameters or `-ConfigPath`
+for temporary overrides and record the reason in the deployment or hotfix report.
+
 Current script defaults:
 
 - full backup max age: 24 hours
@@ -882,3 +947,17 @@ Review the generated drift report. If Production changed outside Git, reconcile 
 ### Export On Main
 
 Use an export branch. Direct export to `main` defeats the Git-first model.
+
+## Future Optional Validation
+
+Phase 2B includes SQLFluff as an advisory migration linter. The following validation options remain
+optional later-phase candidates:
+
+- SqlPackage / DACPAC validation: useful for structural model validation or non-production
+  database comparisons once tool installation and artifact policy are approved.
+- tSQLt: useful for stored procedure/function unit tests after a DEV or UAT SQL Server exists.
+  Do not install tSQLt objects in Production for PR validation.
+- TSQLLint: possible fallback if SQLFluff proves unsuitable, but not the first-choice dependency
+  for this repo.
+
+Normal PR CI must remain read-only and must not require live Production SQL access.
