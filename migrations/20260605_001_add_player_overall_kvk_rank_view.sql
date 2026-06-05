@@ -12,7 +12,7 @@ DataChange: No
 DataSafetyPlan: Not Required
 EstimatedRowsAffected: N/A
 PreValidationQuery: SELECT OBJECT_ID(N'KVK.vw_Player_Overall_KVK_Rank', N'V') AS ObjectId;
-PostValidationQuery: SELECT TOP (20) KVK_NO, governor_id, overall_kvk_rank, overall_kvk_total_governors, overall_kvk_percentile FROM KVK.vw_Player_Overall_KVK_Rank ORDER BY KVK_NO DESC, overall_kvk_rank ASC;
+PostValidationQuery: SELECT TOP (20) KVK_NO, governor_id, overall_kvk_rank, overall_kvk_total_governors, overall_kvk_top_percent FROM KVK.vw_Player_Overall_KVK_Rank ORDER BY KVK_NO DESC, overall_kvk_rank ASC;
 RelatedBotPR:
 RelatedSQLPR:
 */
@@ -61,7 +61,7 @@ SELECT
                 THEN (overall_kvk_rank * 100.0) / overall_kvk_total_governors
             ELSE NULL
         END AS decimal(6, 2)
-    ) AS overall_kvk_percentile,
+    ) AS overall_kvk_top_percent,
     last_scan_id,
     computed_at_utc
 FROM RankedPlayers;

@@ -43,7 +43,7 @@ SELECT
                 THEN (overall_kvk_rank * 100.0) / overall_kvk_total_governors
             ELSE NULL
         END AS decimal(6, 2)
-    ) AS overall_kvk_percentile,
+    ) AS overall_kvk_top_percent,
     last_scan_id,
     computed_at_utc
 FROM RankedPlayers;
