@@ -336,6 +336,43 @@ DECLARE
 TRUNCATE TABLE STATS_FOR_UPLOAD
 
 INSERT INTO STATS_FOR_UPLOAD
+(
+[Rank],
+[KVK_RANK],
+[Gov_ID],
+[Governor_Name],
+[Starting Power],
+[Power_Delta],
+[T4_KILLS],
+[T5_KILLS],
+[T4&T5_Kills],
+[KILLS_OUTSIDE_KVK],
+[Kill Target],
+[% of Kill Target],
+[Deads_Delta],
+[DEADS_OUTSIDE_KVK],
+[T4_Deads],
+[T5_Deads],
+[Dead_Target],
+[% of Dead Target],
+[Zeroed],
+[DKP_SCORE],
+[DKP Target],
+[% of DKP Target],
+[HelpsDelta],
+[RSS_Assist_Delta],
+[RSS_Gathered_Delta],
+[Pass 4 Kills],
+[Pass 6 Kills],
+[Pass 7 Kills],
+[Pass 8 Kills],
+[Pass 4 Deads],
+[Pass 6 Deads],
+[Pass 7 Deads],
+[Pass 8 Deads],
+[KVK_NO],
+[LAST_REFRESH]
+)
 SELECT 
 [Rank], KVK_RANK, Gov_ID AS [Governor ID], RTRIM(Governor_Name) AS [Governor_Name], [Starting Power] AS [Power], ISNULL(Power_Delta, 0) AS [Power Delta] , ISNULL(T4_KILLS, 0) T4_Kills, ISNULL(T5_KILLS, 0) T5_Kills,
 ISNULL([T4&T5_Kills],0) [T4&T5_Kills], KILLS_OUTSIDE_KVK AS [OFF_SEASON_KILLS], [Kill Target], ISNULL([% of Kill target], 0) [% of Kill target], ISNULL(Deads, 0) Deads, DEADS_OUTSIDE_KVK AS [OFF_SEASON_DEADS],

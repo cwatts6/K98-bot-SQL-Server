@@ -27,3 +27,5 @@ GO
 IF OBJECT_ID(N'dbo.SP_Stats_for_Upload', N'P') IS NOT NULL
 BEGIN
     EXEC sys.sp_refreshsqlmodule N'dbo.SP_Stats_for_Upload';
+END
+GO
