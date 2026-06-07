@@ -663,41 +663,52 @@ ORDER BY [RANK] ASC;
 TRUNCATE TABLE ALL_STATS_FOR_DASHBAORD
 
 INSERT INTO ALL_STATS_FOR_DASHBAORD
-SELECT  [Rank]
-      ,[KVK_RANK]
-      ,[Gov_ID]
-      ,ISNULL(RTRIM(Governor_Name), '') [Governor_Name]
-      ,[Starting Power]
-      ,ISNULL([Power_Delta], 0) [Power_Delta]
-	  ,ISNULL(T4_Kills, 0) T4_Kills
-	  ,ISNULL(T5_Kills, 0) T5_Kills
-      ,ISNULL([T4&T5_Kills], 0) [T4&T5_Kills]
-      ,ISNULL([Kill Target], 0) [Kill Target]
-      ,ISNULL([% of Kill target], 0) [% of Kill target]
-      ,ISNULL([Deads], 0) [Deads]
-	  ,ISNULL(T4_Deads, 0) T4_Deads
-	  ,ISNULL(T5_Deads, 0) T5_Deads
-      ,ISNULL([Dead Target], 0) [Dead Target]
-      ,ISNULL([% of Dead Target], 0) [% of Dead Target]
-      ,ISNULL([Zeroed], 0) [Zeroed]
-      ,isnull([DKP_SCORE], 0) [DKP_SCORE]
-      ,isnull([DKP Target], 0) [DKP Target]
-      ,ISNULL([% of DKP Target], 0) [% of DKP Target]
-      ,isnull([Helps], 0) [Helps]
-      ,isnull([RSS_Assist], 0) [RSS_Assist]
-      ,ISNULL([RSS_Gathered], 0) [RSS_Gathered]
-      ,ISNULL([Pass 4 Kills], 0) [Pass 4 Kills]
-	  ,ISNULL([Pass 6 Kills], 0) [Pass 6 Kills]
-	  ,ISNULL([Pass 7 Kills], 0) [Pass 7 Kills]
-	  ,ISNULL([Pass 8 Kills], 0) [Pass 8 Kills]
-      ,ISNULL([Pass 4 Deads], 0) [Pass 4 Deads]
-	  ,ISNULL([Pass 6 Deads], 0) [Pass 6 Deads]
-	  ,ISNULL([Pass 7 Deads], 0) [Pass 7 Deads]
-	  ,ISNULL([Pass 8 Deads], 0) [Pass 8 Deads]
-      ,[KVK_NO]
-
-  FROM [ROK_TRACKER].[dbo].[EXCEL_FOR_DASHBOARD]
-  WHERE Gov_ID <> 12025033
+(
+      [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
+      [Starting Power], [Power_Delta], [T4_Kills], [T5_Kills],
+      [T4&T5_Kills], [Kill Target], [% of Kill target],
+      [Deads_Delta], [T4_Deads], [T5_Deads], [Dead Target],
+      [% of Dead Target], [Zeroed], [DKP_SCORE], [DKP Target],
+      [% of DKP Target], [HelpsDelta], [RSS_Assist_Delta],
+      [RSS_Gathered_Delta], [Pass 4 Kills], [Pass 6 Kills],
+      [Pass 7 Kills], [Pass 8 Kills], [Pass 4 Deads],
+      [Pass 6 Deads], [Pass 7 Deads], [Pass 8 Deads], [KVK_NO]
+)
+SELECT
+      ed.[Rank],
+      ed.[KVK_RANK],
+      ed.[Gov_ID],
+      ISNULL(RTRIM(ed.[Governor_Name]), '') AS [Governor_Name],
+      ed.[Starting Power],
+      ISNULL(ed.[Power_Delta], 0) AS [Power_Delta],
+      ISNULL(ed.[T4_KILLS], 0) AS [T4_Kills],
+      ISNULL(ed.[T5_KILLS], 0) AS [T5_Kills],
+      ISNULL(ed.[T4&T5_Kills], 0) AS [T4&T5_Kills],
+      ISNULL(ed.[Kill Target], 0) AS [Kill Target],
+      ISNULL(ed.[% of Kill Target], 0) AS [% of Kill target],
+      ISNULL(ed.[Deads_Delta], 0) AS [Deads_Delta],
+      ISNULL(ed.[T4_Deads], 0) AS [T4_Deads],
+      ISNULL(ed.[T5_Deads], 0) AS [T5_Deads],
+      ISNULL(ed.[Dead_Target], 0) AS [Dead Target],
+      ISNULL(ed.[% of Dead Target], 0) AS [% of Dead Target],
+      ISNULL(ed.[Zeroed], 0) AS [Zeroed],
+      ISNULL(ed.[DKP_SCORE], 0) AS [DKP_SCORE],
+      ISNULL(ed.[DKP Target], 0) AS [DKP Target],
+      ISNULL(ed.[% of DKP Target], 0) AS [% of DKP Target],
+      ISNULL(ed.[HelpsDelta], 0) AS [HelpsDelta],
+      ISNULL(ed.[RSS_Assist_Delta], 0) AS [RSS_Assist_Delta],
+      ISNULL(ed.[RSS_Gathered_Delta], 0) AS [RSS_Gathered_Delta],
+      ISNULL(ed.[Pass 4 Kills], 0) AS [Pass 4 Kills],
+      ISNULL(ed.[Pass 6 Kills], 0) AS [Pass 6 Kills],
+      ISNULL(ed.[Pass 7 Kills], 0) AS [Pass 7 Kills],
+      ISNULL(ed.[Pass 8 Kills], 0) AS [Pass 8 Kills],
+      ISNULL(ed.[Pass 4 Deads], 0) AS [Pass 4 Deads],
+      ISNULL(ed.[Pass 6 Deads], 0) AS [Pass 6 Deads],
+      ISNULL(ed.[Pass 7 Deads], 0) AS [Pass 7 Deads],
+      ISNULL(ed.[Pass 8 Deads], 0) AS [Pass 8 Deads],
+      ed.[KVK_NO]
+FROM [ROK_TRACKER].[dbo].[EXCEL_FOR_DASHBOARD] AS ed
+WHERE ed.Gov_ID <> 12025033
 
   --SELECT * FROM ALL_STATS_FOR_DASHBAORD
 
