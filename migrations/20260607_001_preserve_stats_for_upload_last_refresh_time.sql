@@ -1,9 +1,280 @@
-﻿SET ANSI_NULLS ON
+/*
+MigrationId: 20260607_001_preserve_stats_for_upload_last_refresh_time
+Purpose: Preserve source scan time in STATS_FOR_UPLOAD.LAST_REFRESH
+Author: cwatts
+CreatedUtc: 2026-06-07
+RequiresBackup: Yes
+RiskLevel: Low
+Rollback: Included
+RollbackScript: migrations/rollback/20260607_001_preserve_stats_for_upload_last_refresh_time_rollback.sql
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Included
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT DATA_TYPE, DATETIME_PRECISION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'STATS_FOR_UPLOAD' AND COLUMN_NAME = 'LAST_REFRESH';
+PostValidationQuery: SELECT DATA_TYPE, DATETIME_PRECISION FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = 'dbo' AND TABLE_NAME = 'STATS_FOR_UPLOAD' AND COLUMN_NAME = 'LAST_REFRESH';
+RelatedBotPR:
+RelatedSQLPR:
+
+DataSafetyPlanNotes:
+- Top-level migration changes one nullable column from date to datetime2(0).
+- DROP/TRUNCATE statements below are inside stored procedure definitions and are not executed by
+  applying this migration.
+*/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+IF OBJECT_ID(N'dbo.STATS_FOR_UPLOAD', N'U') IS NOT NULL
+   AND EXISTS (
+       SELECT 1
+       FROM sys.columns
+       WHERE object_id = OBJECT_ID(N'dbo.STATS_FOR_UPLOAD', N'U')
+         AND name = N'LAST_REFRESH'
+         AND system_type_id = TYPE_ID(N'date')
+   )
+BEGIN
+    ALTER TABLE dbo.STATS_FOR_UPLOAD
+    ALTER COLUMN LAST_REFRESH datetime2(0) NULL;
+END
+GO
+
+SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SP_Stats_for_Upload]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[SP_Stats_for_Upload] AS'
+END
+GO
+ALTER PROCEDURE [dbo].[SP_Stats_for_Upload]
+WITH EXECUTE AS CALLER
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE
+        @LatestKVK       INT,
+        @MaxScan         INT,
+        @TableName       NVARCHAR(128),
+        @TableNameFull   NVARCHAR(260),
+        @sql             NVARCHAR(MAX);
+
+
+
+    ------------------------------------------------------------
+    -- Step 1: Get max scan available
+    ------------------------------------------------------------
+    SELECT @MaxScan = MAX(SCANORDER)
+    FROM dbo.KingdomScanData4;
+
+    IF @MaxScan IS NULL
+    BEGIN
+        RAISERROR('SP_Stats_for_Upload: No scan data available.',16,1);
+        RETURN;
+    END
+
+    ------------------------------------------------------------
+    -- Step 2: Get latest eligible KVKVersion
+    ------------------------------------------------------------
+    SELECT TOP 1 @LatestKVK = KVKVersion
+    FROM dbo.ProcConfig
+    WHERE ConfigKey = 'MATCHMAKING_SCAN'
+      AND TRY_CAST(ConfigValue AS INT) <= @MaxScan
+    ORDER BY KVKVersion DESC;
+
+    IF @LatestKVK IS NULL
+    BEGIN
+        RAISERROR('SP_Stats_for_Upload: no eligible KVK found (MATCHMAKING_SCAN <= max scan).',16,1);
+        RETURN;
+    END
+
+    ------------------------------------------------------------
+    -- FIX: Ensure transaction commits are fully visible
+    ------------------------------------------------------------
+    PRINT 'SP_Stats_for_Upload: Forcing commit flush via CHECKPOINT...';
+    CHECKPOINT;
+
+    -- Small safety delay to ensure data visibility
+    WAITFOR DELAY '00:00:00.100';  -- 100ms delay
+
+	PRINT 'SP_Stats_for_Upload: Populating STATS_FOR_UPLOAD from EXCEL_FOR_KVK_' + CAST(@LatestKVK AS VARCHAR(10));
+
+    ------------------------------------------------------------
+    -- Step 5b: Verify statistics on source table
+    ------------------------------------------------------------
+    SET @TableName = 'EXCEL_FOR_KVK_' + CAST(@LatestKVK AS NVARCHAR(10));
+    SET @TableNameFull = QUOTENAME('dbo') + N'.' + QUOTENAME(@TableName);
+
+    -- Check if statistics exist; if not, create them
+    IF NOT EXISTS (
+        SELECT 1
+        FROM sys.stats s
+        INNER JOIN sys.tables t ON s.object_id = t.object_id
+        WHERE t.name = @TableName
+          AND s.name LIKE '_WA_Sys%' -- Auto-created stats
+           OR s.name LIKE 'IX_%'      -- Index stats
+    )
+    BEGIN
+        PRINT 'SP_Stats_for_Upload: No statistics found on ' + @TableName + ', creating...';
+        SET @sql = N'UPDATE STATISTICS ' + @TableNameFull + N' WITH FULLSCAN;';
+        EXEC sp_executesql @sql;
+    END
+    ELSE
+    BEGIN
+        PRINT 'SP_Stats_for_Upload: Statistics already exist on ' + @TableName;
+    END
+
+    PRINT 'SP_Stats_for_Upload: Beginning STATS_FOR_UPLOAD population...';
+
+    ------------------------------------------------------------
+    -- Step 6: Build table name dynamically
+    ------------------------------------------------------------
+    -- Already set above in @TableNameFull
+
+
+    ------------------------------------------------------------
+    -- Step 7: Truncate + insert from refreshed table
+    ------------------------------------------------------------
+    SET @sql = N'TRUNCATE TABLE dbo.STATS_FOR_UPLOAD;';
+
+    SET @sql += N'
+    DECLARE @MAXDATE datetime2(0) = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
+
+    DECLARE @X_KVK INT = (
+        SELECT TOP 1 TRY_CAST(KVKVersion AS INT)
+        FROM dbo.ProcConfig
+        WHERE ConfigKey = ''MATCHMAKING_SCAN''
+          AND TRY_CAST(ConfigValue AS INT) <= (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData4)
+        ORDER BY KVKVersion DESC
+    );
+
+    INSERT INTO dbo.STATS_FOR_UPLOAD
+    (
+        [Rank],[KVK_RANK],[Gov_ID],[Governor_Name],
+        [Starting Power],[Power_Delta],
+        [Civilization],[KvKPlayed],[MostKvKKill],[MostKvKDead],[MostKvKHeal],
+        [Acclaim],[HighestAcclaim],[AOOJoined],[AOOWon],[AOOAvgKill],[AOOAvgDead],[AOOAvgHeal],
+        [Starting_T4&T5_KILLS],[T4_KILLS],[T5_KILLS],[T4&T5_Kills],[KILLS_OUTSIDE_KVK],[Kill Target],[% of Kill Target],
+        [Starting_Deads],[Deads_Delta],[DEADS_OUTSIDE_KVK],[T4_Deads],[T5_Deads],[Dead_Target],[% of Dead Target],
+        [Zeroed],
+        [DKP_SCORE],[DKP Target],[% of DKP Target],
+        [HelpsDelta],[RSS_Assist_Delta],[RSS_Gathered_Delta],
+        [Pass 4 Kills],[Pass 6 Kills],[Pass 7 Kills],[Pass 8 Kills],
+        [Pass 4 Deads],[Pass 6 Deads],[Pass 7 Deads],[Pass 8 Deads],
+        [Starting_HealedTroops],[HealedTroopsDelta],
+        [Starting_KillPoints],[KillPointsDelta],
+        [RangedPoints],[RangedPointsDelta],
+        [AutarchTimes],
+        [Max_PreKvk_Points],[Max_HonorPoints],[PreKvk_Rank],[Honor_Rank],
+        [KVK_NO],
+        [LAST_REFRESH],[STATUS]
+    )
+    SELECT
+        [Rank],
+        [KVK_RANK],
+        CAST([Gov_ID] AS bigint) AS [Gov_ID],
+        RTRIM([Governor_Name]) AS [Governor_Name],
+		[Starting Power],
+        ISNULL([Power_Delta],0),
+		[Civilization],
+        ISNULL([KvKPlayed],0),
+        ISNULL([MostKvKKill],0),
+        ISNULL([MostKvKDead],0),
+        ISNULL([MostKvKHeal],0),
+		ISNULL([Acclaim],0),
+        ISNULL([HighestAcclaim],0),
+        ISNULL([AOOJoined],0),
+        ISNULL([AOOWon],0),
+        ISNULL([AOOAvgKill],0),
+        ISNULL([AOOAvgDead],0),
+        ISNULL([AOOAvgHeal],0),
+		ISNULL([Starting_T4&T5_KILLS],0),
+        ISNULL([T4_KILLS],0),
+        ISNULL([T5_KILLS],0),
+        ISNULL([T4&T5_Kills],0),
+        ISNULL([KILLS_OUTSIDE_KVK],0),
+        ISNULL([Kill Target],0),
+        ISNULL([% of Kill Target],0),
+		ISNULL([Starting_Deads],0),
+        ISNULL([Deads_Delta],0),
+        ISNULL([DEADS_OUTSIDE_KVK],0),
+        ISNULL([T4_Deads],0),
+        ISNULL([T5_Deads],0),
+        ISNULL([Dead_Target],0),
+        ISNULL([% of Dead Target],0),
+		ISNULL([Zeroed],0),
+		ISNULL([DKP_SCORE],0),
+        ISNULL([DKP Target],0),
+        ISNULL([% of DKP Target],0),
+		ISNULL([HelpsDelta],0),
+        ISNULL([RSS_Assist_Delta],0),
+        ISNULL([RSS_Gathered_Delta],0),
+        ISNULL([Pass 4 Kills],0),
+        ISNULL([Pass 6 Kills],0),
+        ISNULL([Pass 7 Kills],0),
+        ISNULL([Pass 8 Kills],0),
+        ISNULL([Pass 4 Deads],0),
+        ISNULL([Pass 6 Deads],0),
+        ISNULL([Pass 7 Deads],0),
+        ISNULL([Pass 8 Deads],0),
+        ISNULL([Starting_HealedTroops],0),
+        ISNULL([HealedTroopsDelta],0),
+        ISNULL([Starting_KillPoints],0),
+        ISNULL([KillPointsDelta],0),
+        ISNULL([RangedPoints],0),
+        ISNULL([RangedPointsDelta],0),
+        ISNULL([AutarchTimes],0),
+        ISNULL([Max_PreKvk_Points],0),
+        ISNULL([Max_HonorPoints],0),
+        ISNULL([PreKvk_Rank],0),
+        ISNULL([Honor_Rank],0),
+        [KVK_NO],
+        @MAXDATE AS [LAST_REFRESH],
+        CASE
+            WHEN CAST([Gov_ID] AS bigint) IN (
+                SELECT GovernorID
+                FROM dbo.EXEMPT_FROM_STATS
+                WHERE KVK_NO IN (0, @X_KVK)
+            ) THEN ''EXEMPT''
+            ELSE ''INCLUDED''
+        END AS [STATUS]
+    FROM ' + @TableNameFull + N';';
+
+    EXEC sp_executesql @sql;
+
+    ------------------------------------------------------------
+    -- Step 8: Rebuild/reorganize indexes for optimal performance
+    ------------------------------------------------------------
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.STATS_FOR_UPLOAD') AND name = N'IX_STATS_FOR_UPLOAD_GovID')
+    BEGIN
+        ALTER INDEX [IX_STATS_FOR_UPLOAD_GovID] ON dbo.STATS_FOR_UPLOAD REBUILD WITH (ONLINE = OFF);
+        PRINT 'SP_Stats_for_Upload: Rebuilt index IX_STATS_FOR_UPLOAD_GovID';
+    END
+
+    IF EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'dbo.STATS_FOR_UPLOAD') AND name = N'IX_STATS_FOR_UPLOAD_KVK_NO')
+    BEGIN
+        ALTER INDEX [IX_STATS_FOR_UPLOAD_KVK_NO] ON dbo.STATS_FOR_UPLOAD REBUILD WITH (ONLINE = OFF);
+        PRINT 'SP_Stats_for_Upload: Rebuilt index IX_STATS_FOR_UPLOAD_KVK_NO';
+    END
+
+    UPDATE STATISTICS dbo.STATS_FOR_UPLOAD WITH FULLSCAN;
+    PRINT 'SP_Stats_for_Upload: Updated statistics on STATS_FOR_UPLOAD';
+
+    PRINT 'SP_Stats_for_Upload: Completed successfully for KVK ' + CAST(@LatestKVK AS VARCHAR(10))
+        + ' using scan ' + CAST(@MaxScan AS VARCHAR(10))
+        + ' at ' + CONVERT(VARCHAR, GETDATE(), 120);
+END
+GO
+
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL] AS' 
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL] AS'
 END
+GO
 ALTER PROCEDURE [dbo].[UPDATE_ALL]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL
@@ -20,9 +291,9 @@ BEGIN
 		DECLARE @actual_param2 NVARCHAR(100) = ISNULL(@param2, (SELECT TOP 1 KINGDOM_SEED FROM KS));
 		DECLARE @StartTime DATETIME = GETDATE();
 
-		
 
-        DECLARE 
+
+        DECLARE
             @MATHCHMAKING_SCAN FLOAT = 148,
             @MAXSCAN FLOAT = (SELECT MAX(SCANORDER) FROM KingdomScanData4),
             @PRE_PASS_4_SCAN FLOAT = 156,
@@ -34,7 +305,7 @@ BEGIN
             @CURRENTKVK3 FLOAT = 11;
             --@KINGDOMRANK FLOAT = 1099,
             --@KINGDOMSEED NVARCHAR(20) = 'C Seed';
-       
+
 
         -- Step 1: Refresh latest data
         EXEC UPDATE_RALLY_DATA;
@@ -43,7 +314,7 @@ BEGIN
         -- Step 2: Insert into KingdomScanData5
         INSERT INTO KingdomScanData5 (PowerRank, GovernorName, GovernorID, Alliance, Power, KillPoints, Deads,
                                       T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS,
-                                      Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER, [Troops Power], 
+                                      Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER, [Troops Power],
                                       [City Hall], [Tech Power], [Building Power], [Commander Power])
         SELECT ROW_NUMBER() OVER (ORDER BY [Power] DESC),
                RTRIM([Name]), [Governor ID], [Alliance], [Power], [Total Kill Points], [Dead Troops],
@@ -52,7 +323,7 @@ BEGIN
                [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
         FROM IMPORT_STAGING;
 
-     
+
 		-- Step 3: Copy to KingdomScanData4 only if SCANORDER is greater
 		IF (
 			SELECT MAX(SCANORDER) FROM KingdomScanData5
@@ -62,11 +333,11 @@ BEGIN
 		BEGIN
 			INSERT INTO KingdomScanData4
 			SELECT *
-			FROM KingdomScanData5 
+			FROM KingdomScanData5
 			WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM KingdomScanData5);
 		END
 
-		
+
 
         -- Step 4: Truncate staging
         TRUNCATE TABLE IMPORT_STAGING;
@@ -84,7 +355,7 @@ BEGIN
 		-----------------------------------------------
 -- 1. Consolidated Deads Delta
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN THEN DeadsDelta ELSE 0 END) AS DeadsDelta,
     SUM(CASE WHEN DeltaOrder > @LASTKVKEND AND DeltaOrder <= @PRE_PASS_4_SCAN THEN DeadsDelta ELSE 0 END) AS DeadsDeltaOutKVK,
@@ -100,7 +371,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 2. Consolidated Kills Delta (T4&T5)
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS T4T5KillsDelta,
     SUM(CASE WHEN DeltaOrder > @LASTKVKEND AND DeltaOrder <= @PRE_PASS_4_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS KillsOutsideKVK,
@@ -116,7 +387,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 3. Consolidated T4/T5 Kills
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(T4KILLSDelta, 0)) AS T4KillsDelta
 INTO #KillsT4
@@ -124,7 +395,7 @@ FROM ROK_TRACKER.dbo.T4KillDelta
 WHERE DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(T5KILLSDelta, 0)) AS T5KillsDelta
 INTO #KillsT5
@@ -135,7 +406,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 4. Other Delta Metrics (RSS, Helps, Power)
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(HelpsDelta, 0)) AS HelpsDelta
 INTO #Helps
@@ -143,7 +414,7 @@ FROM ROK_TRACKER.dbo.HelpsDelta
 WHERE DeltaOrder > @MATHCHMAKING_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(RSSASSISTDelta, 0)) AS RSSAssistDelta
 INTO #RSSAssist
@@ -151,7 +422,7 @@ FROM ROK_TRACKER.dbo.RSSASSISTDelta
 WHERE DeltaOrder > @MATHCHMAKING_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(RSSGatheredDelta, 0)) AS RSSGatheredDelta
 INTO #RSSGathered
@@ -159,7 +430,7 @@ FROM ROK_TRACKER.dbo.RSSGatheredDelta
 WHERE DeltaOrder > @MATHCHMAKING_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(Power_Delta, 0)) AS PowerDelta
 INTO #Power
@@ -170,7 +441,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 5. Latest Snapshot of Governors
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     GovernorName,
     PowerRank,
@@ -183,7 +454,7 @@ WHERE SCANORDER = @MATHCHMAKING_SCAN;
 -- 6. Final Join to Staging Table
 -----------------------------------------------
 INSERT INTO STAGING_STATS
-SELECT 
+SELECT
     s.GovernorID,
     s.PowerRank,
     s.[Power],
@@ -195,7 +466,7 @@ SELECT
     k.KillsOutsideKVK AS [KILLS_OUTSIDE_KVK],
     k.P4Kills AS [P4T4&T5_KILLSDelta],
 	k.P6Kills AS [P6T4&T5_KillsDelta],
-	k.P7Kills AS [P7T4&T5_KillsDelta], 
+	k.P7Kills AS [P7T4&T5_KillsDelta],
 	k.P8Kills AS [P8T4&T5_KillsDelta],
     d.DeadsDelta,
     d.DeadsDeltaOutKVK AS [DEADS_OUTSIDE_KVK],
@@ -230,11 +501,11 @@ SELECT  S1.[GovernorID],
 		END AS [DKP_Score]
 		INTO #DKP
 		FROM [ROK_TRACKER].[dbo].[STAGING_STATS] AS S1
-	 LEFT JOIN ZEROED AS Z ON z.GovernorID=S1.GovernorID AND ScanOrder = @MATHCHMAKING_SCAN 
+	 LEFT JOIN ZEROED AS Z ON z.GovernorID=S1.GovernorID AND ScanOrder = @MATHCHMAKING_SCAN
 
-SELECT GovernorID, MAX(T4_Deads) as [T4 Deads], MAX (T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER 
+SELECT GovernorID, MAX(T4_Deads) as [T4 Deads], MAX (T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER
 INTO #HD1
-FROM HoH_Deads 
+FROM HoH_Deads
 GROUP BY GovernorID
 
   DROP TABLE EXCEL_FOR_CURRENT_KVK
@@ -253,19 +524,19 @@ SELECT	TOP (5000)
 		,t.[Kill Target] AS [Kill Target]
 		,CASE WHEN t.[Kill Target]  = 0
 				THEN 0
-				ELSE ROUND(s.[T4&T5_KILLSDelta]/t.[Kill Target]  * 100, 2) 
+				ELSE ROUND(s.[T4&T5_KILLSDelta]/t.[Kill Target]  * 100, 2)
 				END AS [% of Kill target]
 		,s.[DeadsDelta] AS Deads
 		,s.DEADS_OUTSIDE_KVK
 		,COALESCE(HD.[T4 Deads],0) AS T4_Deads
 		,COALESCE(HD.[T5 Deads],0) AS T5_Deads
 		,t.[Dead Target] AS [Dead Target]
-		
+
 		,CASE WHEN t.[Dead Target] = 0
 			THEN 0
 			WHEN z.GovernorID = s.GovernorID
-			THEN ROUND((s.DeadsDelta * 0.1)/t.[Dead Target] *100, 2) 
-			ELSE ROUND(s.DeadsDelta/t.[Dead Target] *100, 2) 
+			THEN ROUND((s.DeadsDelta * 0.1)/t.[Dead Target] *100, 2)
+			ELSE ROUND(s.DeadsDelta/t.[Dead Target] *100, 2)
 			END AS [% of Dead Target]
 			,z.Zeroed
 		,D.[DKP_SCORE]
@@ -294,34 +565,34 @@ SELECT	TOP (5000)
   LEFT JOIN #HD1 AS HD on S.GovernorID=HD.GovernorID
   JOIN EXCEL_OUTPUT_KVK_TARGETS_MAR25 AS T ON T.gov_id=S.Governorid
   LEFT JOIN #DKP AS D on D.GovernorID=S.Governorid
-  LEFT JOIN ZEROED AS Z ON z.GovernorID=S.GovernorID AND Z.ScanOrder = @MATHCHMAKING_SCAN 
+  LEFT JOIN ZEROED AS Z ON z.GovernorID=S.GovernorID AND Z.ScanOrder = @MATHCHMAKING_SCAN
   ORDER BY PowerRank ASC
 
-EXEC CREATE_THE_AVERAGES 
+EXEC CREATE_THE_AVERAGES
 
 DROP TABLE #DKP, #HD1, EXCEL_FOR_DASHBOARD
 
 SELECT TOP (5000000) * INTO EXCEL_FOR_DASHBOARD FROM
 
-( SELECT * 
+( SELECT *
   FROM EXCEL_FOR_CURRENT_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_JAN25_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_SEPT24_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_MAY24_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM  EXCEL_FOR_FEB24_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_OCT23_KVK
-  UNION 
-  SELECT * 
+  UNION
+  SELECT *
   FROM EXCEL_FOR_JUL23_KVK) AS T
 ORDER BY KVK_NO, [RANK]
 
@@ -373,15 +644,15 @@ INSERT INTO STATS_FOR_UPLOAD
 [KVK_NO],
 [LAST_REFRESH]
 )
-SELECT 
+SELECT
 [Rank], KVK_RANK, Gov_ID AS [Governor ID], RTRIM(Governor_Name) AS [Governor_Name], [Starting Power] AS [Power], ISNULL(Power_Delta, 0) AS [Power Delta] , ISNULL(T4_KILLS, 0) T4_Kills, ISNULL(T5_KILLS, 0) T5_Kills,
 ISNULL([T4&T5_Kills],0) [T4&T5_Kills], KILLS_OUTSIDE_KVK AS [OFF_SEASON_KILLS], [Kill Target], ISNULL([% of Kill target], 0) [% of Kill target], ISNULL(Deads, 0) Deads, DEADS_OUTSIDE_KVK AS [OFF_SEASON_DEADS],
 T4_Deads, T5_Deads, [Dead Target], ISNULL([% of Dead Target], 0) [% of Dead Target], ISNULL(Zeroed, 0) Zeroed, ISNULL([DKP_Score], 0) [DKP_SCORE], [DKP Target],
-ISNULL([% of DKP Target], 0) [% of DKP Target], ISNULL(HELPS, 0) Helps, ISNULL(RSS_Assist, 0) RSS_Assist, ISNULL(RSS_Gathered, 0 ) RSS_Gathered, 
+ISNULL([% of DKP Target], 0) [% of DKP Target], ISNULL(HELPS, 0) Helps, ISNULL(RSS_Assist, 0) RSS_Assist, ISNULL(RSS_Gathered, 0 ) RSS_Gathered,
 ISNULL([Pass 4 Kills], 0) [Pass 4 Kills], ISNULL([Pass 6 Kills], 0) [Pass 6 Kills], ISNULL([Pass 7 Kills], 0) [Pass7 Kills], ISNULL([Pass 8 Kills], 0) [Pass 8 Kills],
 ISNULL([Pass 4 Deads], 0) [Pass 4 Deads], ISNULL([Pass 6 Deads], 0) [Pass 6 Deads], ISNULL([Pass 7 Deads], 0) [Pass 7 Deads], ISNULL([Pass 8 Deads], 0) [Pass 8 Deads], KVK_NO, @MAXDATE AS LAST_REFRESH
 --INTO STATS_FOR_UPLOAD
-FROM EXCEL_FOR_CURRENT_KVK 
+FROM EXCEL_FOR_CURRENT_KVK
 WHERE Gov_ID <> 12025033
 ORDER BY [RANK] ASC;
 
@@ -430,14 +701,14 @@ SELECT  [Rank]
 
   --SELECT * FROM ALL_STATS_FOR_DASHBAORD
 
- ---- OUTPUT NUMBER 3 = POWER BY MONTH ---- 
+ ---- OUTPUT NUMBER 3 = POWER BY MONTH ----
  TRUNCATE TABLE POWER_BY_MONTH
- 
+
  INSERT INTO POWER_BY_MONTH
- SELECT TOP (5000000) * 
+ SELECT TOP (5000000) *
 
  FROM (
- 
+
 SELECT GovernorID, RTRIM(GovernorName) AS [GovernorName] ,MAX([Power]) AS 'POWER', MAX(KillPoints) AS KILLPOINTS, MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
 FROM  KingdomScanData4
 WHERE GovernorID NOT IN (0, 12025033)
@@ -462,7 +733,7 @@ TRUNCATE TABLE [KS]
 --DROP TABLE IF EXISTS [KS]
 
 INSERT INTO [KS]
-SELECT SUM(CAST([Power] AS BIGINT)) AS KINGDOM_POWER, 
+SELECT SUM(CAST([Power] AS BIGINT)) AS KINGDOM_POWER,
 COUNT(GovernorID) AS Governors,
 SUM([KillPoints]) AS KP,
 SUM([TOTAL_KILLS]) as [KILL],
@@ -509,4 +780,4 @@ SET ANSI_WARNINGS ON;
         THROW;
     END CATCH
 END;
-
+GO
