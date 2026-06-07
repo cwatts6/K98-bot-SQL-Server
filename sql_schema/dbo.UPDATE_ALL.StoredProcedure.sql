@@ -329,7 +329,7 @@ EXEC CREATE_DASH
 
 ---- OUTPUT NUMBER 1 = KVK STATS ----
 DECLARE
-@MAXDATE AS DATETIME = (SELECT MAX(ScanDate) FROM KingdomScanData4)
+@MAXDATE AS datetime2(0) = (SELECT MAX(ScanDate) FROM KingdomScanData4)
 
 --DROP TABLE STATS_FOR_UPLOAD
 
@@ -342,7 +342,7 @@ ISNULL([T4&T5_Kills],0) [T4&T5_Kills], KILLS_OUTSIDE_KVK AS [OFF_SEASON_KILLS], 
 T4_Deads, T5_Deads, [Dead Target], ISNULL([% of Dead Target], 0) [% of Dead Target], ISNULL(Zeroed, 0) Zeroed, ISNULL([DKP_Score], 0) [DKP_SCORE], [DKP Target],
 ISNULL([% of DKP Target], 0) [% of DKP Target], ISNULL(HELPS, 0) Helps, ISNULL(RSS_Assist, 0) RSS_Assist, ISNULL(RSS_Gathered, 0 ) RSS_Gathered, 
 ISNULL([Pass 4 Kills], 0) [Pass 4 Kills], ISNULL([Pass 6 Kills], 0) [Pass 6 Kills], ISNULL([Pass 7 Kills], 0) [Pass7 Kills], ISNULL([Pass 8 Kills], 0) [Pass 8 Kills],
-ISNULL([Pass 4 Deads], 0) [Pass 4 Deads], ISNULL([Pass 6 Deads], 0) [Pass 6 Deads], ISNULL([Pass 7 Deads], 0) [Pass 7 Deads], ISNULL([Pass 8 Deads], 0) [Pass 8 Deads], KVK_NO, CAST(@MAXDATE AS DATE) AS LAST_REFRESH
+ISNULL([Pass 4 Deads], 0) [Pass 4 Deads], ISNULL([Pass 6 Deads], 0) [Pass 6 Deads], ISNULL([Pass 7 Deads], 0) [Pass 7 Deads], ISNULL([Pass 8 Deads], 0) [Pass 8 Deads], KVK_NO, @MAXDATE AS LAST_REFRESH
 --INTO STATS_FOR_UPLOAD
 FROM EXCEL_FOR_CURRENT_KVK 
 WHERE Gov_ID <> 12025033

@@ -62,7 +62,7 @@ CREATE TABLE [dbo].[STATS_FOR_UPLOAD](
 	[PreKvk_Rank] [bigint] NULL,
 	[Honor_Rank] [bigint] NULL,
 	[KVK_NO] [int] NULL,
-	[LAST_REFRESH] [date] NULL,
+	[LAST_REFRESH] [datetime2](0) NULL,
 	[STATUS] [nvarchar](20) COLLATE Latin1_General_CI_AS NULL
 ) ON [PRIMARY]
 END

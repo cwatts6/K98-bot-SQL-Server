@@ -97,7 +97,7 @@ BEGIN
     SET @sql = N'TRUNCATE TABLE dbo.STATS_FOR_UPLOAD;';
 
     SET @sql += N'
-    DECLARE @MAXDATE DATETIME = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
+    DECLARE @MAXDATE datetime2(0) = (SELECT MAX(ScanDate) FROM dbo.KingdomScanData4);
 
     DECLARE @X_KVK INT = (
         SELECT TOP 1 TRY_CAST(KVKVersion AS INT)
@@ -188,7 +188,7 @@ BEGIN
         ISNULL([PreKvk_Rank],0),
         ISNULL([Honor_Rank],0),
         [KVK_NO],
-        CAST(@MAXDATE AS date) AS [LAST_REFRESH],
+        @MAXDATE AS [LAST_REFRESH],
         CASE 
             WHEN CAST([Gov_ID] AS bigint) IN (
                 SELECT GovernorID 
