@@ -454,6 +454,30 @@ WHERE SCANORDER = @MATHCHMAKING_SCAN;
 -- 6. Final Join to Staging Table
 -----------------------------------------------
 INSERT INTO STAGING_STATS
+(
+    GovernorID,
+    PowerRank,
+    [Power],
+    Power_Delta,
+    GovernorName,
+    T4KillsDelta,
+    T5KillsDelta,
+    [T4&T5_KILLSDelta],
+    KILLS_OUTSIDE_KVK,
+    [P4T4&T5_KILLSDelta],
+    [P6T4&T5_KillsDelta],
+    [P7T4&T5_KillsDelta],
+    [P8T4&T5_KillsDelta],
+    DeadsDelta,
+    DEADS_OUTSIDE_KVK,
+    P4DeadsDelta,
+    P6DeadsDelta,
+    P7DeadsDelta,
+    P8DeadsDelta,
+    HelpsDelta,
+    RSSASSISTDelta,
+    RSSGatheredDelta
+)
 SELECT
     s.GovernorID,
     s.PowerRank,
@@ -716,18 +740,24 @@ WHERE ed.Gov_ID <> 12025033
  TRUNCATE TABLE POWER_BY_MONTH
 
  INSERT INTO POWER_BY_MONTH
- SELECT TOP (5000000) *
+ (
+ GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS],
+ DEADS, [MONTH], HealedTroops, RangedPoints
+ )
+ SELECT TOP (5000000)
+ GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS],
+ DEADS, [MONTH], HealedTroops, RangedPoints
 
  FROM (
 
-SELECT GovernorID, RTRIM(GovernorName) AS [GovernorName] ,MAX([Power]) AS 'POWER', MAX(KillPoints) AS KILLPOINTS, MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
+SELECT GovernorID, RTRIM(GovernorName) AS [GovernorName] ,MAX([Power]) AS 'POWER', MAX(KillPoints) AS KILLPOINTS, MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH], MAX(HealedTroops) AS HealedTroops, MAX(RangedPoints) AS RangedPoints
 FROM  KingdomScanData4
 WHERE GovernorID NOT IN (0, 12025033)
 GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)
 
 UNION
 
-SELECT GovernorID, RTRIM(GovernorName) AS [GovernorName], MAX([Power]) AS 'POWER', MAX(KillPoints) AS KILLPOINTS, MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH]
+SELECT GovernorID, RTRIM(GovernorName) AS [GovernorName], MAX([Power]) AS 'POWER', MAX(KillPoints) AS KILLPOINTS, MAX([T4&T5_KILLS]) AS [T4&T5KILLS], MAX(Deads) AS DEADS, EOMONTH(ScanDate) AS [MONTH], MAX(HealedTroops) AS HealedTroops, MAX(RangedPoints) AS RangedPoints
 FROM THE_AVERAGES
 GROUP BY GovernorID, GovernorName, EOMONTH(ScanDate)) AS T
 ORDER BY GovernorID, [MONTH];
@@ -744,6 +774,10 @@ TRUNCATE TABLE [KS]
 --DROP TABLE IF EXISTS [KS]
 
 INSERT INTO [KS]
+(
+KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [Last Update],
+KINGDOM_RANK, KINGDOM_SEED, CH25, HealedTroops, RangedPoints
+)
 SELECT SUM(CAST([Power] AS BIGINT)) AS KINGDOM_POWER,
 COUNT(GovernorID) AS Governors,
 SUM([KillPoints]) AS KP,
@@ -753,7 +787,10 @@ SUM([DEADS]) AS [DEAD],
 --'1554' AS KINGDOM_RANK,
 @actual_param1 AS KINGDOM_RANK,
 --'C' AS KINGDOM_SEED
-@actual_param2 AS KINGDOM_SEED
+@actual_param2 AS KINGDOM_SEED,
+CAST(SUM(CASE WHEN [City Hall] = 25 THEN 1 ELSE 0 END) AS INT) AS CH25,
+SUM(ISNULL([HealedTroops], 0)) AS HealedTroops,
+SUM(ISNULL([RangedPoints], 0)) AS RangedPoints
 --INTO [KS]
 FROM KingdomScanData4
 WHERE ScanDate = @MAXDATE
