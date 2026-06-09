@@ -11,7 +11,7 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    DECLARE 
+    DECLARE
         @LatestKVK       INT,
         @MaxScan         INT,
         @TableName       NVARCHAR(128),
@@ -52,12 +52,12 @@ BEGIN
     ------------------------------------------------------------
     PRINT 'SP_Stats_for_Upload: Forcing commit flush via CHECKPOINT...';
     CHECKPOINT;
-    
+
     -- Small safety delay to ensure data visibility
     WAITFOR DELAY '00:00:00.100';  -- 100ms delay
 
 	PRINT 'SP_Stats_for_Upload: Populating STATS_FOR_UPLOAD from EXCEL_FOR_KVK_' + CAST(@LatestKVK AS VARCHAR(10));
-    
+
     ------------------------------------------------------------
     -- Step 5b: Verify statistics on source table
     ------------------------------------------------------------
@@ -66,7 +66,7 @@ BEGIN
 
     -- Check if statistics exist; if not, create them
     IF NOT EXISTS (
-        SELECT 1 
+        SELECT 1
         FROM sys.stats s
         INNER JOIN sys.tables t ON s.object_id = t.object_id
         WHERE t.name = @TableName
@@ -101,7 +101,7 @@ BEGIN
 
     DECLARE @X_KVK INT = (
         SELECT TOP 1 TRY_CAST(KVKVersion AS INT)
-        FROM dbo.ProcConfig 
+        FROM dbo.ProcConfig
         WHERE ConfigKey = ''MATCHMAKING_SCAN''
           AND TRY_CAST(ConfigValue AS INT) <= (SELECT MAX(SCANORDER) FROM dbo.KingdomScanData4)
         ORDER BY KVKVersion DESC
@@ -189,9 +189,9 @@ BEGIN
         ISNULL([Honor_Rank],0),
         [KVK_NO],
         @MAXDATE AS [LAST_REFRESH],
-        CASE 
+        CASE
             WHEN CAST([Gov_ID] AS bigint) IN (
-                SELECT GovernorID 
+                SELECT GovernorID
                 FROM dbo.EXEMPT_FROM_STATS
                 WHERE KVK_NO IN (0, @X_KVK)
             ) THEN ''EXEMPT''
@@ -219,8 +219,8 @@ BEGIN
     UPDATE STATISTICS dbo.STATS_FOR_UPLOAD WITH FULLSCAN;
     PRINT 'SP_Stats_for_Upload: Updated statistics on STATS_FOR_UPLOAD';
 
-    PRINT 'SP_Stats_for_Upload: Completed successfully for KVK ' + CAST(@LatestKVK AS VARCHAR(10)) 
-        + ' using scan ' + CAST(@MaxScan AS VARCHAR(10)) 
+    PRINT 'SP_Stats_for_Upload: Completed successfully for KVK ' + CAST(@LatestKVK AS VARCHAR(10))
+        + ' using scan ' + CAST(@MaxScan AS VARCHAR(10))
         + ' at ' + CONVERT(VARCHAR, GETDATE(), 120);
 END
 
