@@ -1,9 +1,42 @@
-﻿SET ANSI_NULLS ON
+/*
+MigrationId: 20260616_001_fix_excel_dashboard_explicit_union
+Purpose: Rebuild EXCEL_FOR_DASHBOARD with explicit EXCEL_FOR_KVK column mapping
+Author: cwatts
+CreatedUtc: 2026-06-16
+RequiresBackup: Yes
+RiskLevel: Low
+Rollback: Manual
+RollbackScript: N/A
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Included
+EstimatedRowsAffected: N/A for migration; next UPDATE_ALL2 rebuilds dbo.EXCEL_FOR_DASHBOARD from eligible EXCEL_FOR_KVK tables
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.sp_Rebuild_ExcelForDashboard', N'P') AS ObjectId;
+PostValidationQuery: SELECT OBJECT_ID(N'dbo.sp_Rebuild_ExcelForDashboard', N'P') AS ObjectId;
+RelatedBotPR:
+RelatedSQLPR:
+*/
+
+/*
+Data safety notes:
+- This migration only replaces dbo.sp_Rebuild_ExcelForDashboard; it does not execute the dashboard rebuild.
+- The procedure retains the existing rebuild behavior of dropping/recreating dbo.EXCEL_FOR_DASHBOARD when UPDATE_ALL2 runs.
+- The runtime rebuild source remains the eligible dbo.EXCEL_FOR_KVK_<n> tables selected by ProcConfig MATCHMAKING_SCAN.
+- The change removes SELECT * UNION ALL so differing physical column order cannot corrupt Conduct or other dashboard values.
+- Rollback is manual: redeploy the previous procedure body if required, then rerun UPDATE_ALL2 to rebuild dashboard outputs.
+*/
+
+SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
+
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_Rebuild_ExcelForDashboard]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_Rebuild_ExcelForDashboard] AS' 
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_Rebuild_ExcelForDashboard] AS'
 END
+GO
+
 ALTER PROCEDURE [dbo].[sp_Rebuild_ExcelForDashboard]
 WITH EXECUTE AS CALLER
 AS
@@ -20,9 +53,9 @@ BEGIN
     SELECT @MaxScan = MAX(SCANORDER) FROM dbo.KingdomScanData4;
 
     ----------------------------------------------------------------
-    -- Build dynamic UNION of EXCEL_FOR_KVK_<KVK> tables that are eligible
-    -- Eligible KVK versions are those with a MATCHMAKING_SCAN value in ProcConfig
-    -- smaller than the current max scanorder.
+    -- Build dynamic UNION of EXCEL_FOR_KVK_<KVK> tables that are eligible.
+    -- Use explicit column mapping because upgraded databases may have
+    -- different physical column order after ALTER TABLE ... ADD.
     ----------------------------------------------------------------
     DECLARE cur CURSOR FOR
     SELECT DISTINCT KVKVersion
@@ -119,7 +152,7 @@ BEGIN
     CLOSE cur;
     DEALLOCATE cur;
 
-    -- If there are eligible KVK tables, build the EXCEL_FOR_DASHBOARD as a union of them
+    -- If there are eligible KVK tables, build EXCEL_FOR_DASHBOARD as a union of them.
     IF LEN(ISNULL(@unionSql, '')) > 0
     BEGIN
         SET @sql = N'
@@ -145,4 +178,4 @@ BEGIN
         PRINT 'No eligible KVK tables found based on MATCHMAKING_SCAN and Max SCANORDER.';
     END
 END
-
+GO
