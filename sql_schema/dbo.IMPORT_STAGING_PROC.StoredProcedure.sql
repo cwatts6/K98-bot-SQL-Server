@@ -84,7 +84,7 @@ BEGIN
                 [HealedTroops], [RangedPoints], [Civilization], [KvKPlayed],
                 [MostKvKKill], [MostKvKDead], [MostKvKHeal],
                 [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
-                [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+                [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal], [Conduct],
                 -- NEW FIELD
                 [AutarchTimes]
             )
@@ -160,6 +160,7 @@ BEGIN
                 TRY_CAST(REPLACE([AOO Avg Kill], ',', '') AS BIGINT) AS [AOOAvgKill],
                 TRY_CAST(REPLACE([AOO Avg Dead], ',', '') AS BIGINT) AS [AOOAvgDead],
                 TRY_CAST(REPLACE([AOO Avg Heal], ',', '') AS BIGINT) AS [AOOAvgHeal],
+                TRY_CAST(NULLIF(REPLACE(CONVERT(nvarchar(50), [Credit]), ',', ''), '') AS decimal(5,2)) AS [Conduct],
                 
                 -- NEW FIELD: Autarch Times
                 TRY_CAST([Autarch Times] AS INT) AS [AutarchTimes]

@@ -70,8 +70,10 @@ BEGIN
         FROM sys.stats s
         INNER JOIN sys.tables t ON s.object_id = t.object_id
         WHERE t.name = @TableName
-          AND s.name LIKE '_WA_Sys%' -- Auto-created stats
-           OR s.name LIKE 'IX_%'      -- Index stats
+          AND (
+              s.name LIKE '_WA_Sys%' -- Auto-created stats
+              OR s.name LIKE 'IX_%'  -- Index stats
+          )
     )
     BEGIN
         PRINT 'SP_Stats_for_Upload: No statistics found on ' + @TableName + ', creating...';
@@ -112,7 +114,7 @@ BEGIN
         [Rank],[KVK_RANK],[Gov_ID],[Governor_Name],
         [Starting Power],[Power_Delta],
         [Civilization],[KvKPlayed],[MostKvKKill],[MostKvKDead],[MostKvKHeal],
-        [Acclaim],[HighestAcclaim],[AOOJoined],[AOOWon],[AOOAvgKill],[AOOAvgDead],[AOOAvgHeal],
+        [Acclaim],[HighestAcclaim],[AOOJoined],[AOOWon],[AOOAvgKill],[AOOAvgDead],[AOOAvgHeal],[Conduct],
         [Starting_T4&T5_KILLS],[T4_KILLS],[T5_KILLS],[T4&T5_Kills],[KILLS_OUTSIDE_KVK],[Kill Target],[% of Kill Target],
         [Starting_Deads],[Deads_Delta],[DEADS_OUTSIDE_KVK],[T4_Deads],[T5_Deads],[Dead_Target],[% of Dead Target],
         [Zeroed],
@@ -147,6 +149,7 @@ BEGIN
         ISNULL([AOOAvgKill],0),
         ISNULL([AOOAvgDead],0),
         ISNULL([AOOAvgHeal],0),
+        [Conduct],
 		ISNULL([Starting_T4&T5_KILLS],0),
         ISNULL([T4_KILLS],0),
         ISNULL([T5_KILLS],0),

@@ -147,7 +147,8 @@ BEGIN
         AOOWon           int     NULL,
         AOOAvgKill       bigint  NULL,
         AOOAvgDead       bigint  NULL,
-        AOOAvgHeal       bigint  NULL
+        AOOAvgHeal       bigint  NULL,
+        Conduct          decimal(5,2) NULL
     );
 
     INSERT INTO #LATEST (
@@ -162,6 +163,7 @@ BEGIN
         , AOOAvgKill
         , AOOAvgDead
         , AOOAvgHeal
+        , Conduct
     )
     SELECT
         ksd.GovernorID,
@@ -174,7 +176,8 @@ BEGIN
         ksd.AOOWon,
         ksd.AOOAvgKill,
         ksd.AOOAvgDead,
-        ksd.AOOAvgHeal
+        ksd.AOOAvgHeal,
+        ksd.Conduct
     FROM dbo.KingdomScanData4 ksd
     WHERE ksd.ScanOrder = @LatestScanToUse;
 
@@ -400,6 +403,7 @@ BEGIN
 		, AOOAvgKill
 		, AOOAvgDead
 		, AOOAvgHeal
+		, Conduct
 		, KillPointsDelta
 		, KillPoints
 		, HealedTroopsDelta
@@ -449,6 +453,7 @@ BEGIN
 		, COALESCE(lst.AOOAvgKill, 0)               AS AOOAvgKill         -- FROM #LATEST
 		, COALESCE(lst.AOOAvgDead, 0)               AS AOOAvgDead         -- FROM #LATEST
 		, COALESCE(lst.AOOAvgHeal, 0)               AS AOOAvgHeal         -- FROM #LATEST
+		, lst.Conduct                                AS Conduct            -- FROM #LATEST
 		, COALESCE(kp.KillPointsDelta, 0)           AS KillPointsDelta
 		, COALESCE(s.KillPoints, 0)                 AS KillPoints
 		, COALESCE(he.HealedTroopsDelta, 0)         AS HealedTroopsDelta
@@ -528,6 +533,7 @@ BEGIN
         CAST(S.[AOOAvgKill] AS bigint)                               AS [AOOAvgKill],
         CAST(S.[AOOAvgDead] AS bigint)                               AS [AOOAvgDead],
         CAST(S.[AOOAvgHeal] AS bigint)                               AS [AOOAvgHeal],
+        CAST(S.[Conduct] AS decimal(5,2))                             AS [Conduct],
 
         CAST(S.[Starting_T4&T5_KILLS] AS bigint)                     AS [Starting_T4&T5_KILLS],
         CAST(S.[T4KillsDelta] AS bigint)                             AS [T4_KILLS],

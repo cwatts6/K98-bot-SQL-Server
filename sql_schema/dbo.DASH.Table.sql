@@ -42,6 +42,7 @@ CREATE TABLE [dbo].[DASH](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[Starting KillPoints] [float] NULL,
 	[Starting Deads] [float] NULL,
 	[Starting T4&T5_KILLS] [float] NULL,

@@ -39,6 +39,7 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[KillPointsDelta] [bigint] NULL,
 	[KillPoints] [bigint] NULL,
 	[HealedTroopsDelta] [bigint] NULL,

@@ -21,6 +21,7 @@ CREATE TABLE [dbo].[STATS_FOR_UPLOAD](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[Starting_T4&T5_KILLS] [bigint] NULL,
 	[T4_KILLS] [bigint] NULL,
 	[T5_KILLS] [bigint] NULL,

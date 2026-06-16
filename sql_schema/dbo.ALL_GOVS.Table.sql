@@ -36,6 +36,7 @@ CREATE TABLE [dbo].[ALL_GOVS](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[CityHallLevel] [float] NULL
 ) ON [PRIMARY]
 END

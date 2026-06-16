@@ -59,7 +59,7 @@ BEGIN
             , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
             , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
-            , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
+            , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal, Conduct
         )
         SELECT
               ROW_NUMBER() OVER (ORDER BY [Power] DESC, [Governor ID] ASC) AS PowerRank
@@ -81,7 +81,7 @@ BEGIN
             , [ScanDate], [SCANORDER]
             , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
             , [HealedTroops], [RangedPoints], [Civilization], [AutarchTimes], [KvKPlayed], [MostKvKKill], [MostKvKDead], [MostKvKHeal]
-            , [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal]
+            , [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon], [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal], [Conduct]
         FROM dbo.IMPORT_STAGING WITH (TABLOCK);
 
         SET @rowsKS5 = @@ROWCOUNT;
@@ -110,7 +110,7 @@ BEGIN
                 , RSS_Gathered, RSSAssistance, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
                 , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
-                , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
+                , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal, Conduct
             )
             SELECT
                   PowerRank, GovernorName, GovernorID,
@@ -120,7 +120,7 @@ BEGIN
                 , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
                 , [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
                 , HealedTroops, RangedPoints, Civilization, AutarchTimes, KvKPlayed, MostKvKKill, MostKvKDead, MostKvKHeal
-                , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal
+                , Acclaim, HighestAcclaim, AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal, Conduct
             FROM dbo.KingdomScanData5
             WHERE SCANORDER = @MaxScanOrder5
 
@@ -424,7 +424,7 @@ BEGIN
             [Starting Power], [Power_Delta], [Civilization], [KvKPlayed],
             [MostKvKKill], [MostKvKDead], [MostKvKHeal],
             [Acclaim], [HighestAcclaim], [AOOJoined], [AOOWon],
-            [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal],
+            [AOOAvgKill], [AOOAvgDead], [AOOAvgHeal], [Conduct],
             [Starting T4&T5_KILLS], [T4_KILLS], [T5_KILLS], [T4&T5_Kills],
             [KILLS_OUTSIDE_KVK], [Kill Target], [% of Kill target],
             [Starting Deads], Deads_Delta, [DEADS_OUTSIDE_KVK],
@@ -462,6 +462,7 @@ BEGIN
             COALESCE(ed.[AOOAvgKill], 0),
             COALESCE(ed.[AOOAvgDead], 0),
             COALESCE(ed.[AOOAvgHeal], 0),
+            ed.[Conduct],
             
             COALESCE(ed.[Starting_T4&T5_KILLS], 0),
             COALESCE(ed.[T4_KILLS], 0),

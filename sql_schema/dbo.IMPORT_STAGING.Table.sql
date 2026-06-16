@@ -41,6 +41,7 @@ CREATE TABLE [dbo].[IMPORT_STAGING](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[AutarchTimes] [int] NULL
 ) ON [PRIMARY]
 END

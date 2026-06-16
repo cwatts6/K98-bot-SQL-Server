@@ -133,6 +133,7 @@ BEGIN
         ROUND(AVG(CAST(ed.[AOOAvgKill] AS FLOAT)), 0) AS [AOOAvgKill],
         ROUND(AVG(CAST(ed.[AOOAvgDead] AS FLOAT)), 0) AS [AOOAvgDead],
         ROUND(AVG(CAST(ed.[AOOAvgHeal] AS FLOAT)), 0) AS [AOOAvgHeal],
+        CAST(NULL AS decimal(5,2)) AS [Conduct],
 
         -- Max / rank fields
         ROUND(AVG(CAST(ed.[Max_PreKvk_Points] AS FLOAT)), 0) AS [Max_PreKvk_Points],
@@ -229,6 +230,7 @@ BEGIN
         [AOOAvgKill], 
         [AOOAvgDead], 
         [AOOAvgHeal],
+        [Conduct],
         [Starting KillPoints], 
         [Starting Deads], 
         [Starting T4&T5_KILLS],
@@ -294,6 +296,7 @@ BEGIN
         [AOOAvgKill], 
         [AOOAvgDead], 
         [AOOAvgHeal],
+        [Conduct],
         [Starting KillPoints], 
         [Starting Deads], 
         [Starting T4&T5_KILLS],
@@ -383,6 +386,7 @@ BEGIN
             (N'AOOAvgKill',           N'[AOOAvgKill]'),
             (N'AOOAvgDead',           N'[AOOAvgDead]'),
             (N'AOOAvgHeal',           N'[AOOAvgHeal]'),
+            (N'Conduct',              N'[Conduct]'),
             (N'Starting_KillPoints',  N'[Starting KillPoints]'),
             (N'Starting_Deads',       N'[Starting Deads]'),
             (N'Starting_T4&T5_KILLS', N'[Starting T4&T5_KILLS]'),

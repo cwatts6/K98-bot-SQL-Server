@@ -24,7 +24,8 @@ SELECT
     f.FortsTotal,
     f.SnapshotAt    AS FortsUpdated,
     -- NEW:
-    s.PowerRank
+    s.PowerRank,
+    s.Conduct
 FROM dbo.v_PlayerLatestStats AS s
 LEFT JOIN dbo.PlayerLocation            AS loc ON loc.GovernorID = s.GovernorID
 LEFT JOIN dbo.PlayerAccountStatus       AS acc ON acc.GovernorID = s.GovernorID
