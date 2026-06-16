@@ -17,7 +17,8 @@ RelatedBotPR:
 RelatedSQLPR:
 
 DataSafetyPlanNotes:
-- Adds nullable reporting-only columns; no existing data is modified or backfilled.
+- Adds nullable reporting-only columns; no durable business data is modified or backfilled.
+- Rebuilds transient dbo.IMPORT_STAGING_CSV when needed to preserve Credit-before-updated_on physical column order for BULK INSERT, copying existing staging rows by name.
 - Existing old fallback files remain safe because the bot import path now inserts a blank Credit column before updated_on when needed.
 - Conduct is not included in KVK target, DKP, delta, or performance scoring calculations.
 - Rollback is manual because dependent procedures/views must be reverted before dropping columns.
@@ -27,8 +28,109 @@ GO
 SET QUOTED_IDENTIFIER ON
 GO
 -- Add nullable schema columns.
-IF OBJECT_ID(N'dbo.IMPORT_STAGING_CSV', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.IMPORT_STAGING_CSV', N'Credit') IS NULL
-    ALTER TABLE dbo.IMPORT_STAGING_CSV ADD [Credit] decimal(5,2) NULL;
+-- IMPORT_STAGING_CSV is rebuilt when needed because BULK INSERT maps by physical ordinal.
+IF OBJECT_ID(N'dbo.IMPORT_STAGING_CSV', N'U') IS NOT NULL
+BEGIN
+    DECLARE @CreditColumnId int = (
+        SELECT column_id
+        FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'dbo.IMPORT_STAGING_CSV', N'U')
+          AND name = N'Credit'
+    );
+    DECLARE @UpdatedOnColumnId int = (
+        SELECT column_id
+        FROM sys.columns
+        WHERE object_id = OBJECT_ID(N'dbo.IMPORT_STAGING_CSV', N'U')
+          AND name = N'updated_on'
+    );
+
+    IF @CreditColumnId IS NULL OR (@UpdatedOnColumnId IS NOT NULL AND @CreditColumnId > @UpdatedOnColumnId)
+    BEGIN
+        IF OBJECT_ID(N'dbo.IMPORT_STAGING_CSV__ConductRebuild', N'U') IS NOT NULL
+            DROP TABLE dbo.IMPORT_STAGING_CSV__ConductRebuild;
+
+        CREATE TABLE dbo.IMPORT_STAGING_CSV__ConductRebuild(
+            [Governor ID] [bigint] NULL,
+            [Name] [nvarchar](200) COLLATE Latin1_General_CI_AS NULL,
+            [Power] [bigint] NULL,
+            [Alliance] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+            [T1-Kills] [bigint] NULL,
+            [T2-Kills] [bigint] NULL,
+            [T3-Kills] [bigint] NULL,
+            [T4-Kills] [bigint] NULL,
+            [T5-Kills] [bigint] NULL,
+            [Total Kill Points] [bigint] NULL,
+            [Dead Troops] [bigint] NULL,
+            [Healed Troops] [bigint] NULL,
+            [Rss Assistance] [bigint] NULL,
+            [Alliance Helps] [bigint] NULL,
+            [Rss Gathered] [bigint] NULL,
+            [City Hall] [int] NULL,
+            [Troops Power] [bigint] NULL,
+            [Tech Power] [bigint] NULL,
+            [Building Power] [bigint] NULL,
+            [Commander Power] [bigint] NULL,
+            [Civilization] [nvarchar](100) COLLATE Latin1_General_CI_AS NULL,
+            [Autarch Times] [int] NULL,
+            [Ranged Points] [bigint] NULL,
+            [KvK Played] [int] NULL,
+            [Most KvK Kill] [bigint] NULL,
+            [Most KvK Dead] [bigint] NULL,
+            [Most KvK Heal] [bigint] NULL,
+            [Acclaim] [bigint] NULL,
+            [Highest Acclaim] [bigint] NULL,
+            [AOO Joined] [bigint] NULL,
+            [AOO Won] [int] NULL,
+            [AOO Avg Kill] [bigint] NULL,
+            [AOO Avg Dead] [bigint] NULL,
+            [AOO Avg Heal] [bigint] NULL,
+            [Credit] [decimal](5,2) NULL,
+            [updated_on] [nvarchar](200) COLLATE Latin1_General_CI_AS NULL
+        ) ON [PRIMARY];
+
+        DECLARE @CreditSelectExpr nvarchar(200) = CASE
+            WHEN @CreditColumnId IS NULL THEN N'CAST(NULL AS decimal(5,2))'
+            ELSE N'[Credit]'
+        END;
+
+        DECLARE @CopyImportStagingCsvSql nvarchar(max) = N'
+            INSERT INTO dbo.IMPORT_STAGING_CSV__ConductRebuild (
+                [Governor ID], [Name], [Power], [Alliance], [T1-Kills], [T2-Kills], [T3-Kills],
+                [T4-Kills], [T5-Kills], [Total Kill Points], [Dead Troops], [Healed Troops],
+                [Rss Assistance], [Alliance Helps], [Rss Gathered], [City Hall], [Troops Power],
+                [Tech Power], [Building Power], [Commander Power], [Civilization], [Autarch Times],
+                [Ranged Points], [KvK Played], [Most KvK Kill], [Most KvK Dead], [Most KvK Heal],
+                [Acclaim], [Highest Acclaim], [AOO Joined], [AOO Won], [AOO Avg Kill],
+                [AOO Avg Dead], [AOO Avg Heal], [Credit], [updated_on]
+            )
+            SELECT
+                [Governor ID], [Name], [Power], [Alliance], [T1-Kills], [T2-Kills], [T3-Kills],
+                [T4-Kills], [T5-Kills], [Total Kill Points], [Dead Troops], [Healed Troops],
+                [Rss Assistance], [Alliance Helps], [Rss Gathered], [City Hall], [Troops Power],
+                [Tech Power], [Building Power], [Commander Power], [Civilization], [Autarch Times],
+                [Ranged Points], [KvK Played], [Most KvK Kill], [Most KvK Dead], [Most KvK Heal],
+                [Acclaim], [Highest Acclaim], [AOO Joined], [AOO Won], [AOO Avg Kill],
+                [AOO Avg Dead], [AOO Avg Heal], ' + @CreditSelectExpr + N', [updated_on]
+            FROM dbo.IMPORT_STAGING_CSV;';
+
+        EXEC sys.sp_executesql @CopyImportStagingCsvSql;
+
+        DROP TABLE dbo.IMPORT_STAGING_CSV;
+        EXEC sys.sp_rename N'dbo.IMPORT_STAGING_CSV__ConductRebuild', N'IMPORT_STAGING_CSV';
+    END
+END
+GO
+IF OBJECT_ID(N'dbo.IMPORT_STAGING_CSV', N'U') IS NOT NULL
+   AND NOT EXISTS (
+       SELECT 1
+       FROM sys.indexes
+       WHERE object_id = OBJECT_ID(N'dbo.IMPORT_STAGING_CSV', N'U')
+         AND name = N'IX_ImportStagingCsv_Gov'
+   )
+BEGIN
+    CREATE NONCLUSTERED INDEX [IX_ImportStagingCsv_Gov] ON [dbo].[IMPORT_STAGING_CSV] ([Governor ID] ASC)
+    WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY];
+END
 GO
 IF OBJECT_ID(N'dbo.IMPORT_STAGING', N'U') IS NOT NULL AND COL_LENGTH(N'dbo.IMPORT_STAGING', N'Conduct') IS NULL
     ALTER TABLE dbo.IMPORT_STAGING ADD [Conduct] decimal(5,2) NULL;
@@ -1170,8 +1272,10 @@ BEGIN
         FROM sys.stats s
         INNER JOIN sys.tables t ON s.object_id = t.object_id
         WHERE t.name = @TableName
-          AND s.name LIKE '_WA_Sys%' -- Auto-created stats
-           OR s.name LIKE 'IX_%'      -- Index stats
+          AND (
+              s.name LIKE '_WA_Sys%' -- Auto-created stats
+              OR s.name LIKE 'IX_%'  -- Index stats
+          )
     )
     BEGIN
         PRINT 'SP_Stats_for_Upload: No statistics found on ' + @TableName + ', creating...';

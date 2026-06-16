@@ -70,8 +70,10 @@ BEGIN
         FROM sys.stats s
         INNER JOIN sys.tables t ON s.object_id = t.object_id
         WHERE t.name = @TableName
-          AND s.name LIKE '_WA_Sys%' -- Auto-created stats
-           OR s.name LIKE 'IX_%'      -- Index stats
+          AND (
+              s.name LIKE '_WA_Sys%' -- Auto-created stats
+              OR s.name LIKE 'IX_%'  -- Index stats
+          )
     )
     BEGIN
         PRINT 'SP_Stats_for_Upload: No statistics found on ' + @TableName + ', creating...';
