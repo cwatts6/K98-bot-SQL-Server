@@ -43,6 +43,7 @@ CREATE TABLE [dbo].[KingdomScanData4](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[AutarchTimes] [int] NULL
 ) ON [PRIMARY]
 END

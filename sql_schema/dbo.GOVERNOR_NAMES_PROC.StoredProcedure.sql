@@ -60,6 +60,7 @@ BEGIN
                 AOOAvgKill,
                 AOOAvgDead,
                 AOOAvgHeal,
+                Conduct,
 
                 -- ✅ City Hall level (confirm column name)
                 [City Hall] AS CityHallLevel,
@@ -108,6 +109,7 @@ BEGIN
                 MAX(CASE WHEN rn = 1 THEN AOOAvgKill END)         AS AOOAvgKill,
                 MAX(CASE WHEN rn = 1 THEN AOOAvgDead END)         AS AOOAvgDead,
                 MAX(CASE WHEN rn = 1 THEN AOOAvgHeal END)         AS AOOAvgHeal,
+                MAX(CASE WHEN rn = 1 THEN Conduct END)            AS Conduct,
 
                 -- ✅ City Hall level
                 MAX(CASE WHEN rn = 1 THEN CityHallLevel END)      AS CityHallLevel
@@ -127,7 +129,7 @@ BEGIN
             -- new fields (inserted before timestamps)
             HealedTroops, RangedPoints, Civilization, KvKPlayed,
             MostKvKKill, MostKvKDead, MostKvKHeal, Acclaim, HighestAcclaim,
-            AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal,
+            AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal, Conduct,
 
             -- ✅ City Hall
             CityHallLevel,
@@ -162,6 +164,7 @@ BEGIN
             s.AOOAvgKill,
             s.AOOAvgDead,
             s.AOOAvgHeal,
+            s.Conduct,
 
             -- ✅ City Hall
             s.CityHallLevel,

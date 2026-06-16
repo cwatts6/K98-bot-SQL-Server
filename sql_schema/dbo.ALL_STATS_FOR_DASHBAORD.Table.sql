@@ -49,6 +49,7 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL,
 	[KillPoints] [bigint] NULL,
 	[KILLS_OUTSIDE_KVK] [bigint] NOT NULL,
 	[DEADS_OUTSIDE_KVK] [bigint] NOT NULL,

@@ -51,6 +51,7 @@ BEGIN
             CAST(NULL AS float)          AS [AOOAvgKill],
             CAST(NULL AS float)          AS [AOOAvgDead],
             CAST(NULL AS float)          AS [AOOAvgHeal],
+            CAST(NULL AS decimal(5,2))   AS [Conduct],
 
             CAST(NULL AS float)          AS [Starting_T4&T5_KILLS],
             CAST(NULL AS bigint)         AS [T4_KILLS],
@@ -138,6 +139,7 @@ BEGIN
         @RangedDeltaSrc NVARCHAR(200),
 
         @AutarchTimesSrc NVARCHAR(200),
+        @ConductSrc NVARCHAR(200),
 
         @MaxPreKvkSrc NVARCHAR(200),
         @MaxHonorSrc NVARCHAR(200),
@@ -344,6 +346,14 @@ BEGIN
                 ELSE 'CAST(0 AS bigint)'
             END;
 
+        -- Conduct (reporting-only point-in-time value, backward-compatible)
+        SET @ConductSrc =
+            CASE
+                WHEN EXISTS (SELECT 1 FROM sys.columns WHERE object_id=@obj_id AND name='Conduct')
+                    THEN '[Conduct]'
+                ELSE 'CAST(NULL AS decimal(5,2))'
+            END;
+
         -- Optional new columns (default if old tables don't have them)
         SET @MaxPreKvkSrc =
             CASE WHEN EXISTS (SELECT 1 FROM sys.columns WHERE object_id=@obj_id AND name='Max_PreKvk_Points')
@@ -382,6 +392,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
+    ' + @ConductSrc + ' AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],

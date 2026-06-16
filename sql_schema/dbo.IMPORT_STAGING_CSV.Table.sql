@@ -37,6 +37,7 @@ CREATE TABLE [dbo].[IMPORT_STAGING_CSV](
 	[AOO Avg Kill] [bigint] NULL,
 	[AOO Avg Dead] [bigint] NULL,
 	[AOO Avg Heal] [bigint] NULL,
+	[Credit] [decimal](5, 2) NULL,
 	[updated_on] [nvarchar](200) COLLATE Latin1_General_CI_AS NULL
 ) ON [PRIMARY]
 END
