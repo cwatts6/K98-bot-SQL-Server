@@ -20,9 +20,9 @@ BEGIN
 		DECLARE @actual_param2 NVARCHAR(100) = ISNULL(@param2, (SELECT TOP 1 KINGDOM_SEED FROM KS));
 		DECLARE @StartTime DATETIME = GETDATE();
 
-		
 
-        DECLARE 
+
+        DECLARE
             @MATHCHMAKING_SCAN FLOAT = 148,
             @MAXSCAN FLOAT = (SELECT MAX(SCANORDER) FROM KingdomScanData4),
             @PRE_PASS_4_SCAN FLOAT = 156,
@@ -34,7 +34,7 @@ BEGIN
             @CURRENTKVK3 FLOAT = 11;
             --@KINGDOMRANK FLOAT = 1099,
             --@KINGDOMSEED NVARCHAR(20) = 'C Seed';
-       
+
 
         -- Step 1: Refresh latest data
         EXEC UPDATE_RALLY_DATA;
@@ -43,7 +43,7 @@ BEGIN
         -- Step 2: Insert into KingdomScanData5
         INSERT INTO KingdomScanData5 (PowerRank, GovernorName, GovernorID, Alliance, Power, KillPoints, Deads,
                                       T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS,
-                                      Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER, [Troops Power], 
+                                      Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER, [Troops Power],
                                       [City Hall], [Tech Power], [Building Power], [Commander Power])
         SELECT ROW_NUMBER() OVER (ORDER BY [Power] DESC),
                RTRIM([Name]), [Governor ID], [Alliance], [Power], [Total Kill Points], [Dead Troops],
@@ -52,7 +52,7 @@ BEGIN
                [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
         FROM IMPORT_STAGING;
 
-     
+
 		-- Step 3: Copy to KingdomScanData4 only if SCANORDER is greater
 		IF (
 			SELECT MAX(SCANORDER) FROM KingdomScanData5
@@ -62,11 +62,11 @@ BEGIN
 		BEGIN
 			INSERT INTO KingdomScanData4
 			SELECT *
-			FROM KingdomScanData5 
+			FROM KingdomScanData5
 			WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM KingdomScanData5);
 		END
 
-		
+
 
         -- Step 4: Truncate staging
         TRUNCATE TABLE IMPORT_STAGING;
@@ -84,7 +84,7 @@ BEGIN
 		-----------------------------------------------
 -- 1. Consolidated Deads Delta
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN THEN DeadsDelta ELSE 0 END) AS DeadsDelta,
     SUM(CASE WHEN DeltaOrder > @LASTKVKEND AND DeltaOrder <= @PRE_PASS_4_SCAN THEN DeadsDelta ELSE 0 END) AS DeadsDeltaOutKVK,
@@ -100,7 +100,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 2. Consolidated Kills Delta (T4&T5)
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(CASE WHEN DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS T4T5KillsDelta,
     SUM(CASE WHEN DeltaOrder > @LASTKVKEND AND DeltaOrder <= @PRE_PASS_4_SCAN THEN [T4&T5_KILLSDelta] ELSE 0 END) AS KillsOutsideKVK,
@@ -116,7 +116,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 3. Consolidated T4/T5 Kills
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(T4KILLSDelta, 0)) AS T4KillsDelta
 INTO #KillsT4
@@ -124,7 +124,7 @@ FROM ROK_TRACKER.dbo.T4KillDelta
 WHERE DeltaOrder > @PRE_PASS_4_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(T5KILLSDelta, 0)) AS T5KillsDelta
 INTO #KillsT5
@@ -135,7 +135,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 4. Other Delta Metrics (RSS, Helps, Power)
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(HelpsDelta, 0)) AS HelpsDelta
 INTO #Helps
@@ -143,7 +143,7 @@ FROM ROK_TRACKER.dbo.HelpsDelta
 WHERE DeltaOrder > @MATHCHMAKING_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(RSSASSISTDelta, 0)) AS RSSAssistDelta
 INTO #RSSAssist
@@ -151,7 +151,7 @@ FROM ROK_TRACKER.dbo.RSSASSISTDelta
 WHERE DeltaOrder > @MATHCHMAKING_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(RSSGatheredDelta, 0)) AS RSSGatheredDelta
 INTO #RSSGathered
@@ -159,7 +159,7 @@ FROM ROK_TRACKER.dbo.RSSGatheredDelta
 WHERE DeltaOrder > @MATHCHMAKING_SCAN AND DeltaOrder <= @KVK_END_SCAN
 GROUP BY GovernorID;
 
-SELECT 
+SELECT
     GovernorID,
     SUM(COALESCE(Power_Delta, 0)) AS PowerDelta
 INTO #Power
@@ -170,7 +170,7 @@ GROUP BY GovernorID;
 -----------------------------------------------
 -- 5. Latest Snapshot of Governors
 -----------------------------------------------
-SELECT 
+SELECT
     GovernorID,
     GovernorName,
     PowerRank,
@@ -207,7 +207,7 @@ INSERT INTO STAGING_STATS
     RSSASSISTDelta,
     RSSGatheredDelta
 )
-SELECT 
+SELECT
     s.GovernorID,
     s.PowerRank,
     s.[Power],
@@ -219,7 +219,7 @@ SELECT
     k.KillsOutsideKVK AS [KILLS_OUTSIDE_KVK],
     k.P4Kills AS [P4T4&T5_KILLSDelta],
 	k.P6Kills AS [P6T4&T5_KillsDelta],
-	k.P7Kills AS [P7T4&T5_KillsDelta], 
+	k.P7Kills AS [P7T4&T5_KillsDelta],
 	k.P8Kills AS [P8T4&T5_KillsDelta],
     d.DeadsDelta,
     d.DeadsDeltaOutKVK AS [DEADS_OUTSIDE_KVK],
@@ -254,11 +254,11 @@ SELECT  S1.[GovernorID],
 		END AS [DKP_Score]
 		INTO #DKP
 		FROM [ROK_TRACKER].[dbo].[STAGING_STATS] AS S1
-	 LEFT JOIN ZEROED AS Z ON z.GovernorID=S1.GovernorID AND ScanOrder = @MATHCHMAKING_SCAN 
+	 LEFT JOIN ZEROED AS Z ON z.GovernorID=S1.GovernorID AND ScanOrder = @MATHCHMAKING_SCAN
 
-SELECT GovernorID, MAX(T4_Deads) as [T4 Deads], MAX (T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER 
+SELECT GovernorID, MAX(T4_Deads) as [T4 Deads], MAX (T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER
 INTO #HD1
-FROM HoH_Deads 
+FROM HoH_Deads
 GROUP BY GovernorID
 
   DROP TABLE EXCEL_FOR_CURRENT_KVK
@@ -277,19 +277,19 @@ SELECT	TOP (5000)
 		,t.[Kill Target] AS [Kill Target]
 		,CASE WHEN t.[Kill Target]  = 0
 				THEN 0
-				ELSE ROUND(s.[T4&T5_KILLSDelta]/t.[Kill Target]  * 100, 2) 
+				ELSE ROUND(s.[T4&T5_KILLSDelta]/t.[Kill Target]  * 100, 2)
 				END AS [% of Kill target]
 		,s.[DeadsDelta] AS Deads
 		,s.DEADS_OUTSIDE_KVK
 		,COALESCE(HD.[T4 Deads],0) AS T4_Deads
 		,COALESCE(HD.[T5 Deads],0) AS T5_Deads
 		,t.[Dead Target] AS [Dead Target]
-		
+
 		,CASE WHEN t.[Dead Target] = 0
 			THEN 0
 			WHEN z.GovernorID = s.GovernorID
-			THEN ROUND((s.DeadsDelta * 0.1)/t.[Dead Target] *100, 2) 
-			ELSE ROUND(s.DeadsDelta/t.[Dead Target] *100, 2) 
+			THEN ROUND((s.DeadsDelta * 0.1)/t.[Dead Target] *100, 2)
+			ELSE ROUND(s.DeadsDelta/t.[Dead Target] *100, 2)
 			END AS [% of Dead Target]
 			,z.Zeroed
 		,D.[DKP_SCORE]
@@ -318,34 +318,34 @@ SELECT	TOP (5000)
   LEFT JOIN #HD1 AS HD on S.GovernorID=HD.GovernorID
   JOIN EXCEL_OUTPUT_KVK_TARGETS_MAR25 AS T ON T.gov_id=S.Governorid
   LEFT JOIN #DKP AS D on D.GovernorID=S.Governorid
-  LEFT JOIN ZEROED AS Z ON z.GovernorID=S.GovernorID AND Z.ScanOrder = @MATHCHMAKING_SCAN 
+  LEFT JOIN ZEROED AS Z ON z.GovernorID=S.GovernorID AND Z.ScanOrder = @MATHCHMAKING_SCAN
   ORDER BY PowerRank ASC
 
-EXEC CREATE_THE_AVERAGES 
+EXEC CREATE_THE_AVERAGES
 
 DROP TABLE #DKP, #HD1, EXCEL_FOR_DASHBOARD
 
 SELECT TOP (5000000) * INTO EXCEL_FOR_DASHBOARD FROM
 
-( SELECT * 
+( SELECT *
   FROM EXCEL_FOR_CURRENT_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_JAN25_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_SEPT24_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_MAY24_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM  EXCEL_FOR_FEB24_KVK
   UNION
-  SELECT * 
+  SELECT *
   FROM EXCEL_FOR_OCT23_KVK
-  UNION 
-  SELECT * 
+  UNION
+  SELECT *
   FROM EXCEL_FOR_JUL23_KVK) AS T
 ORDER BY KVK_NO, [RANK]
 
@@ -397,15 +397,15 @@ INSERT INTO STATS_FOR_UPLOAD
 [KVK_NO],
 [LAST_REFRESH]
 )
-SELECT 
+SELECT
 [Rank], KVK_RANK, Gov_ID AS [Governor ID], RTRIM(Governor_Name) AS [Governor_Name], [Starting Power] AS [Power], ISNULL(Power_Delta, 0) AS [Power Delta] , ISNULL(T4_KILLS, 0) T4_Kills, ISNULL(T5_KILLS, 0) T5_Kills,
 ISNULL([T4&T5_Kills],0) [T4&T5_Kills], KILLS_OUTSIDE_KVK AS [OFF_SEASON_KILLS], [Kill Target], ISNULL([% of Kill target], 0) [% of Kill target], ISNULL(Deads, 0) Deads, DEADS_OUTSIDE_KVK AS [OFF_SEASON_DEADS],
 T4_Deads, T5_Deads, [Dead Target], ISNULL([% of Dead Target], 0) [% of Dead Target], ISNULL(Zeroed, 0) Zeroed, ISNULL([DKP_Score], 0) [DKP_SCORE], [DKP Target],
-ISNULL([% of DKP Target], 0) [% of DKP Target], ISNULL(HELPS, 0) Helps, ISNULL(RSS_Assist, 0) RSS_Assist, ISNULL(RSS_Gathered, 0 ) RSS_Gathered, 
+ISNULL([% of DKP Target], 0) [% of DKP Target], ISNULL(HELPS, 0) Helps, ISNULL(RSS_Assist, 0) RSS_Assist, ISNULL(RSS_Gathered, 0 ) RSS_Gathered,
 ISNULL([Pass 4 Kills], 0) [Pass 4 Kills], ISNULL([Pass 6 Kills], 0) [Pass 6 Kills], ISNULL([Pass 7 Kills], 0) [Pass7 Kills], ISNULL([Pass 8 Kills], 0) [Pass 8 Kills],
 ISNULL([Pass 4 Deads], 0) [Pass 4 Deads], ISNULL([Pass 6 Deads], 0) [Pass 6 Deads], ISNULL([Pass 7 Deads], 0) [Pass 7 Deads], ISNULL([Pass 8 Deads], 0) [Pass 8 Deads], KVK_NO, @MAXDATE AS LAST_REFRESH
 --INTO STATS_FOR_UPLOAD
-FROM EXCEL_FOR_CURRENT_KVK 
+FROM EXCEL_FOR_CURRENT_KVK
 WHERE Gov_ID <> 12025033
 ORDER BY [RANK] ASC;
 
@@ -465,9 +465,9 @@ WHERE ed.Gov_ID <> 12025033
 
   --SELECT * FROM ALL_STATS_FOR_DASHBAORD
 
- ---- OUTPUT NUMBER 3 = POWER BY MONTH ---- 
+ ---- OUTPUT NUMBER 3 = POWER BY MONTH ----
  TRUNCATE TABLE POWER_BY_MONTH
- 
+
  INSERT INTO POWER_BY_MONTH
  (
  GovernorID, GovernorName, [POWER], KILLPOINTS, [T4&T5KILLS],
