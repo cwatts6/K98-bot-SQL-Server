@@ -13,10 +13,11 @@ BEGIN
 
     ----------------------------------------------------------------
     -- This procedure:
-    -- 1) loads stats.csv into dbo.IMPORT_STAGING_CSV via BULK INSERT
-    -- 2) maps CSV columns into canonical dbo.IMPORT_STAGING
-    -- 3) applies a few cleanup fixes, computes deltas against last scan,
-    -- 4) archives the CSV file and returns summary info.
+    -- 1) loads stats.csv into dbo.IMPORT_STAGING_CSV_RAW via BULK INSERT
+    -- 2) converts raw text into typed dbo.IMPORT_STAGING_CSV
+    -- 3) maps CSV columns into canonical dbo.IMPORT_STAGING
+    -- 4) applies a few cleanup fixes, computes deltas against last scan,
+    -- 5) archives the CSV file and returns summary info.
     --
     -- Assumptions:
     -- - dbo.IMPORT_STAGING_CSV physical column order and names match the CSV header.
@@ -38,16 +39,18 @@ BEGIN
     BEGIN
         BEGIN TRY
             ----------------------------------------------------------------
-            -- Step 1: truncate CSV staging table (fresh load)
+            -- Step 1: truncate CSV staging tables (fresh load)
             ----------------------------------------------------------------
+            TRUNCATE TABLE dbo.IMPORT_STAGING_CSV_RAW;
             TRUNCATE TABLE dbo.IMPORT_STAGING_CSV;
 
             ----------------------------------------------------------------
-            -- Step 2: BULK INSERT CSV -> IMPORT_STAGING_CSV
-            -- Uses CSV-format options robust to quoted fields and UTF-8.
+            -- Step 2: BULK INSERT CSV -> IMPORT_STAGING_CSV_RAW
+            -- Raw text staging preserves Unicode and separates file decoding
+            -- from typed conversion diagnostics.
             ----------------------------------------------------------------
             DECLARE @bulksql NVARCHAR(MAX) = N'
-                BULK INSERT dbo.IMPORT_STAGING_CSV
+                BULK INSERT dbo.IMPORT_STAGING_CSV_RAW
                 FROM ''' + REPLACE(@CsvPath, '''', '''''') + N'''
                 WITH (
                     FORMAT = ''CSV'',
@@ -62,13 +65,64 @@ BEGIN
             EXEC sp_executesql @bulksql;
 
             ----------------------------------------------------------------
-            -- Step 3: Determine next scan order (preserve original behaviour)
+            -- Step 3: Convert raw text staging into typed CSV staging.
+            ----------------------------------------------------------------
+            INSERT INTO dbo.IMPORT_STAGING_CSV (
+                [Governor ID], [Name], [Power], [Alliance], [T1-Kills], [T2-Kills], [T3-Kills],
+                [T4-Kills], [T5-Kills], [Total Kill Points], [Dead Troops], [Healed Troops],
+                [Rss Assistance], [Alliance Helps], [Rss Gathered], [City Hall], [Troops Power],
+                [Tech Power], [Building Power], [Commander Power], [Civilization], [Autarch Times],
+                [Ranged Points], [KvK Played], [Most KvK Kill], [Most KvK Dead], [Most KvK Heal],
+                [Acclaim], [Highest Acclaim], [AOO Joined], [AOO Won], [AOO Avg Kill],
+                [AOO Avg Dead], [AOO Avg Heal], [Credit], [updated_on]
+            )
+            SELECT
+                TRY_CAST(NULLIF(REPLACE([Governor ID], ',', ''), '') AS bigint) AS [Governor ID],
+                LEFT(NULLIF(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(CONVERT(nvarchar(max), [Name]), CHAR(13), N' '), CHAR(10), N' '), CHAR(9), N' '))), N''), 200) AS [Name],
+                TRY_CAST(NULLIF(REPLACE([Power], ',', ''), '') AS bigint) AS [Power],
+                LEFT(NULLIF(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(CONVERT(nvarchar(max), [Alliance]), CHAR(13), N' '), CHAR(10), N' '), CHAR(9), N' '))), N''), 100) AS [Alliance],
+                TRY_CAST(NULLIF(REPLACE([T1-Kills], ',', ''), '') AS bigint) AS [T1-Kills],
+                TRY_CAST(NULLIF(REPLACE([T2-Kills], ',', ''), '') AS bigint) AS [T2-Kills],
+                TRY_CAST(NULLIF(REPLACE([T3-Kills], ',', ''), '') AS bigint) AS [T3-Kills],
+                TRY_CAST(NULLIF(REPLACE([T4-Kills], ',', ''), '') AS bigint) AS [T4-Kills],
+                TRY_CAST(NULLIF(REPLACE([T5-Kills], ',', ''), '') AS bigint) AS [T5-Kills],
+                TRY_CAST(NULLIF(REPLACE([Total Kill Points], ',', ''), '') AS bigint) AS [Total Kill Points],
+                TRY_CAST(NULLIF(REPLACE([Dead Troops], ',', ''), '') AS bigint) AS [Dead Troops],
+                TRY_CAST(NULLIF(REPLACE([Healed Troops], ',', ''), '') AS bigint) AS [Healed Troops],
+                TRY_CAST(NULLIF(REPLACE([Rss Assistance], ',', ''), '') AS bigint) AS [Rss Assistance],
+                TRY_CAST(NULLIF(REPLACE([Alliance Helps], ',', ''), '') AS bigint) AS [Alliance Helps],
+                TRY_CAST(NULLIF(REPLACE([Rss Gathered], ',', ''), '') AS bigint) AS [Rss Gathered],
+                TRY_CAST(NULLIF(REPLACE([City Hall], ',', ''), '') AS int) AS [City Hall],
+                TRY_CAST(NULLIF(REPLACE([Troops Power], ',', ''), '') AS bigint) AS [Troops Power],
+                TRY_CAST(NULLIF(REPLACE([Tech Power], ',', ''), '') AS bigint) AS [Tech Power],
+                TRY_CAST(NULLIF(REPLACE([Building Power], ',', ''), '') AS bigint) AS [Building Power],
+                TRY_CAST(NULLIF(REPLACE([Commander Power], ',', ''), '') AS bigint) AS [Commander Power],
+                LEFT(NULLIF(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(CONVERT(nvarchar(max), [Civilization]), CHAR(13), N' '), CHAR(10), N' '), CHAR(9), N' '))), N''), 100) AS [Civilization],
+                TRY_CAST(NULLIF(REPLACE([Autarch Times], ',', ''), '') AS int) AS [Autarch Times],
+                TRY_CAST(NULLIF(REPLACE([Ranged Points], ',', ''), '') AS bigint) AS [Ranged Points],
+                TRY_CAST(NULLIF(REPLACE([KvK Played], ',', ''), '') AS int) AS [KvK Played],
+                TRY_CAST(NULLIF(REPLACE([Most KvK Kill], ',', ''), '') AS bigint) AS [Most KvK Kill],
+                TRY_CAST(NULLIF(REPLACE([Most KvK Dead], ',', ''), '') AS bigint) AS [Most KvK Dead],
+                TRY_CAST(NULLIF(REPLACE([Most KvK Heal], ',', ''), '') AS bigint) AS [Most KvK Heal],
+                TRY_CAST(NULLIF(REPLACE([Acclaim], ',', ''), '') AS bigint) AS [Acclaim],
+                TRY_CAST(NULLIF(REPLACE([Highest Acclaim], ',', ''), '') AS bigint) AS [Highest Acclaim],
+                TRY_CAST(NULLIF(REPLACE([AOO Joined], ',', ''), '') AS bigint) AS [AOO Joined],
+                TRY_CAST(NULLIF(REPLACE([AOO Won], ',', ''), '') AS int) AS [AOO Won],
+                TRY_CAST(NULLIF(REPLACE([AOO Avg Kill], ',', ''), '') AS bigint) AS [AOO Avg Kill],
+                TRY_CAST(NULLIF(REPLACE([AOO Avg Dead], ',', ''), '') AS bigint) AS [AOO Avg Dead],
+                TRY_CAST(NULLIF(REPLACE([AOO Avg Heal], ',', ''), '') AS bigint) AS [AOO Avg Heal],
+                TRY_CAST(NULLIF(REPLACE([Credit], ',', ''), '') AS decimal(5,2)) AS [Credit],
+                LEFT(NULLIF(LTRIM(RTRIM(REPLACE(REPLACE(REPLACE(CONVERT(nvarchar(max), [updated_on]), CHAR(13), N' '), CHAR(10), N' '), CHAR(9), N' '))), N''), 200) AS [updated_on]
+            FROM dbo.IMPORT_STAGING_CSV_RAW;
+
+            ----------------------------------------------------------------
+            -- Step 4: Determine next scan order (preserve original behaviour)
             -- OPTIMIZATION: Use TOP 1 instead of MAX for better performance
             ----------------------------------------------------------------
             SELECT @NextScanOrder = ISNULL((SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC), 0) + 1;
 
             ----------------------------------------------------------------
-            -- Step 4: Truncate canonical staging and insert mapped values
+            -- Step 5: Truncate canonical staging and insert mapped values
             -- OPTIMIZATION: Added AutarchTimes mapping
             ----------------------------------------------------------------
             TRUNCATE TABLE dbo.IMPORT_STAGING;
@@ -170,7 +224,7 @@ BEGIN
             SET @InsertedRows = @@ROWCOUNT;
 
             ----------------------------------------------------------------
-            -- Step 5: Clean up known alliance typos
+            -- Step 6: Clean up known alliance typos
             -- OPTIMIZATION: Batched into single UPDATE for better performance
             ----------------------------------------------------------------
             UPDATE dbo.IMPORT_STAGING
@@ -182,7 +236,7 @@ BEGIN
             WHERE ALLIANCE IN ('[k98A]SparTanS$S', '[K98B]Trojan$S');
 
             ----------------------------------------------------------------
-            -- Step 6: Delta update from latest scan (preserve original behaviour)
+            -- Step 7: Delta update from latest scan (preserve original behaviour)
             ----------------------------------------------------------------
             WITH LatestScan AS (
                 SELECT GovernorID,
@@ -209,7 +263,7 @@ BEGIN
             INNER JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
 
             ----------------------------------------------------------------
-            -- Step 7: Archive the CSV (move to Import_Archive folder with formatted name)
+            -- Step 8: Archive the CSV (move to Import_Archive folder with formatted name)
             ----------------------------------------------------------------
             SELECT TOP 1 @LatestDate = ScanDate
             FROM dbo.IMPORT_STAGING
@@ -228,7 +282,7 @@ BEGIN
             EXEC xp_cmdshell @MoveCommand;
 
             ----------------------------------------------------------------
-            -- Step 8: Output summary & cleanup
+            -- Step 9: Output summary & cleanup
             ----------------------------------------------------------------
             PRINT '--- IMPORT STAGING SUMMARY ---';
             PRINT 'Rows Inserted: ' + CAST(@InsertedRows AS VARCHAR(20));
@@ -257,7 +311,7 @@ BEGIN
     END
     ELSE
     BEGIN
-        PRINT '⚠️ File not found: ' + @CsvPath;
+        PRINT 'Warning: File not found: ' + @CsvPath;
         PRINT 'Import skipped.';
         RETURN 1;
     END
