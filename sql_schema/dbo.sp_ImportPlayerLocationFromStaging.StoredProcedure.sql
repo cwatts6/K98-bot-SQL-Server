@@ -17,8 +17,8 @@ BEGIN
             CAST(y AS INT) AS Y,
             ShieldEndsAtUnix,
             CASE
-                WHEN ShieldEndsAtUnix IS NULL OR ShieldEndsAtUnix = 0 THEN NULL
                 WHEN ShieldEndsAtUtc IS NOT NULL THEN ShieldEndsAtUtc
+                WHEN ShieldEndsAtUnix IS NULL OR ShieldEndsAtUnix <= 0 THEN NULL
                 WHEN ShieldEndsAtUnix > 2147483647 THEN NULL
                 ELSE DATEADD(SECOND, ShieldEndsAtUnix, CONVERT(datetime2(0), '1970-01-01'))
             END AS ShieldEndsAtUtc,

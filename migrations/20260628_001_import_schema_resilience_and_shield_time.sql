@@ -32,13 +32,29 @@ BEGIN
             CONSTRAINT PK_FallbackImportBatchControl PRIMARY KEY CLUSTERED,
         CreatedAtUtc datetime2(0) NOT NULL
             CONSTRAINT DF_FallbackImportBatchControl_CreatedAtUtc DEFAULT SYSUTCDATETIME(),
-        SourceType nvarchar(64) NOT NULL,
-        SourceFilename nvarchar(260) NULL,
-        ScoreHeader nvarchar(64) NULL,
-        ColumnsPresentJson nvarchar(max) NULL,
+        SourceType nvarchar(64) COLLATE Latin1_General_CI_AS NOT NULL,
+        SourceFilename nvarchar(260) COLLATE Latin1_General_CI_AS NULL,
+        ScoreHeader nvarchar(64) COLLATE Latin1_General_CI_AS NULL,
+        ColumnsPresentJson nvarchar(max) COLLATE Latin1_General_CI_AS NULL,
         RowsInSource int NULL,
         RowsWritten int NULL
     );
+END;
+
+IF OBJECT_ID(N'dbo.FallbackImportBatchControl', N'U') IS NOT NULL
+   AND NOT EXISTS (
+        SELECT 1
+        FROM sys.default_constraints dc
+        INNER JOIN sys.columns c
+            ON c.object_id = dc.parent_object_id
+           AND c.column_id = dc.parent_column_id
+        WHERE dc.parent_object_id = OBJECT_ID(N'dbo.FallbackImportBatchControl')
+          AND c.name = N'CreatedAtUtc'
+    )
+BEGIN
+    ALTER TABLE dbo.FallbackImportBatchControl
+        ADD CONSTRAINT DF_FallbackImportBatchControl_CreatedAtUtc
+        DEFAULT SYSUTCDATETIME() FOR CreatedAtUtc;
 END;
 
 IF COL_LENGTH(N'dbo.PlayerLocation_Staging', N'ShieldEndsAtUnix') IS NULL
@@ -67,8 +83,8 @@ BEGIN
             CAST(y AS INT) AS Y,
             ShieldEndsAtUnix,
             CASE
-                WHEN ShieldEndsAtUnix IS NULL OR ShieldEndsAtUnix = 0 THEN NULL
                 WHEN ShieldEndsAtUtc IS NOT NULL THEN ShieldEndsAtUtc
+                WHEN ShieldEndsAtUnix IS NULL OR ShieldEndsAtUnix <= 0 THEN NULL
                 WHEN ShieldEndsAtUnix > 2147483647 THEN NULL
                 ELSE DATEADD(SECOND, ShieldEndsAtUnix, CONVERT(datetime2(0), ''1970-01-01''))
             END AS ShieldEndsAtUtc,
@@ -119,8 +135,8 @@ BEGIN
             CAST(y AS INT) AS Y,
             ShieldEndsAtUnix,
             CASE
-                WHEN ShieldEndsAtUnix IS NULL OR ShieldEndsAtUnix = 0 THEN NULL
                 WHEN ShieldEndsAtUtc IS NOT NULL THEN ShieldEndsAtUtc
+                WHEN ShieldEndsAtUnix IS NULL OR ShieldEndsAtUnix <= 0 THEN NULL
                 WHEN ShieldEndsAtUnix > 2147483647 THEN NULL
                 ELSE DATEADD(SECOND, ShieldEndsAtUnix, CONVERT(datetime2(0), ''1970-01-01''))
             END AS ShieldEndsAtUtc,
