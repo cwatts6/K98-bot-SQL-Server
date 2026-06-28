@@ -11,6 +11,8 @@ CREATE TABLE [dbo].[PlayerLocation_Staging](
 	[player_alliance] [nvarchar](50) COLLATE Latin1_General_CI_AS NULL,
 	[x] [int] NOT NULL,
 	[y] [int] NOT NULL,
+	[ShieldEndsAtUnix] [bigint] NULL,
+	[ShieldEndsAtUtc] [datetime2](0) NULL,
 	[ImportedAt] [datetime2](0) NOT NULL
 ) ON [PRIMARY]
 END
