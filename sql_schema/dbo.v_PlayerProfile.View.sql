@@ -16,6 +16,8 @@ SELECT
     loc.X,
     loc.Y,
     loc.LastUpdated AS LocationUpdated,
+    loc.ShieldEndsAtUnix,
+    loc.ShieldEndsAtUtc,
     acc.Status,
     acc.UpdatedAt   AS StatusUpdated,
     f.FortsRank,

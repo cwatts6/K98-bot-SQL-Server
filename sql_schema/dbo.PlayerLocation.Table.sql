@@ -6,6 +6,8 @@ CREATE TABLE [dbo].[PlayerLocation](
 	[GovernorID] [bigint] NOT NULL,
 	[X] [int] NOT NULL,
 	[Y] [int] NOT NULL,
+	[ShieldEndsAtUnix] [bigint] NULL,
+	[ShieldEndsAtUtc] [datetime2](0) NULL,
 	[LastUpdated] [datetime2](0) NOT NULL,
 PRIMARY KEY CLUSTERED 
 (
