@@ -24,14 +24,14 @@ GO
 ALTER PROCEDURE [dbo].[usp_ImportAudit_CompleteBatch]
     @ImportAuditBatchId bigint,
     @Status nvarchar(32) = N'completed',
-    @RowsInSource int = NULL,
     @RowsStaged int = NULL,
     @RowsWritten int = NULL,
     @RowsSkipped int = NULL,
     @ExternalBatchTable nvarchar(256) = NULL,
     @ExternalBatchId nvarchar(128) = NULL,
     @DetailsJson nvarchar(max) = NULL,
-    @CompletedAtUtc datetime2(3) = NULL
+    @CompletedAtUtc datetime2(3) = NULL,
+    @RowsInSource int = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -71,7 +71,6 @@ GO
 ALTER PROCEDURE [dbo].[usp_ImportAudit_FailBatch]
     @ImportAuditBatchId bigint,
     @Status nvarchar(32) = N'failed',
-    @RowsInSource int = NULL,
     @ErrorType nvarchar(128) = NULL,
     @ErrorText nvarchar(2000) = NULL,
     @RowsStaged int = NULL,
@@ -80,7 +79,8 @@ ALTER PROCEDURE [dbo].[usp_ImportAudit_FailBatch]
     @ExternalBatchTable nvarchar(256) = NULL,
     @ExternalBatchId nvarchar(128) = NULL,
     @DetailsJson nvarchar(max) = NULL,
-    @CompletedAtUtc datetime2(3) = NULL
+    @CompletedAtUtc datetime2(3) = NULL,
+    @RowsInSource int = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
