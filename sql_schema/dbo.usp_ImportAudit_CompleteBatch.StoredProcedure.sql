@@ -7,6 +7,7 @@ END
 ALTER PROCEDURE [dbo].[usp_ImportAudit_CompleteBatch]
     @ImportAuditBatchId bigint,
     @Status nvarchar(32) = N'completed',
+    @RowsInSource int = NULL,
     @RowsStaged int = NULL,
     @RowsWritten int = NULL,
     @RowsSkipped int = NULL,
@@ -33,6 +34,7 @@ BEGIN
     UPDATE dbo.ImportAuditBatch
     SET Status = @Status,
         CompletedAtUtc = COALESCE(@CompletedAtUtc, SYSUTCDATETIME()),
+        RowsInSource = COALESCE(@RowsInSource, RowsInSource),
         RowsStaged = COALESCE(@RowsStaged, RowsStaged),
         RowsWritten = COALESCE(@RowsWritten, RowsWritten),
         RowsSkipped = COALESCE(@RowsSkipped, RowsSkipped),

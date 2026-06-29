@@ -7,6 +7,7 @@ END
 ALTER PROCEDURE [dbo].[usp_ImportAudit_FailBatch]
     @ImportAuditBatchId bigint,
     @Status nvarchar(32) = N'failed',
+    @RowsInSource int = NULL,
     @ErrorType nvarchar(128) = NULL,
     @ErrorText nvarchar(2000) = NULL,
     @RowsStaged int = NULL,
@@ -35,6 +36,7 @@ BEGIN
     UPDATE dbo.ImportAuditBatch
     SET Status = @Status,
         CompletedAtUtc = COALESCE(@CompletedAtUtc, SYSUTCDATETIME()),
+        RowsInSource = COALESCE(@RowsInSource, RowsInSource),
         RowsStaged = COALESCE(@RowsStaged, RowsStaged),
         RowsWritten = COALESCE(@RowsWritten, RowsWritten),
         RowsSkipped = COALESCE(@RowsSkipped, RowsSkipped),
