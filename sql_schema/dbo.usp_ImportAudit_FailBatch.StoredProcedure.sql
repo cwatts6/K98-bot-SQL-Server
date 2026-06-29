@@ -15,7 +15,8 @@ ALTER PROCEDURE [dbo].[usp_ImportAudit_FailBatch]
     @ExternalBatchTable nvarchar(256) = NULL,
     @ExternalBatchId nvarchar(128) = NULL,
     @DetailsJson nvarchar(max) = NULL,
-    @CompletedAtUtc datetime2(3) = NULL
+    @CompletedAtUtc datetime2(3) = NULL,
+    @RowsInSource int = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -35,6 +36,7 @@ BEGIN
     UPDATE dbo.ImportAuditBatch
     SET Status = @Status,
         CompletedAtUtc = COALESCE(@CompletedAtUtc, SYSUTCDATETIME()),
+        RowsInSource = COALESCE(@RowsInSource, RowsInSource),
         RowsStaged = COALESCE(@RowsStaged, RowsStaged),
         RowsWritten = COALESCE(@RowsWritten, RowsWritten),
         RowsSkipped = COALESCE(@RowsSkipped, RowsSkipped),
