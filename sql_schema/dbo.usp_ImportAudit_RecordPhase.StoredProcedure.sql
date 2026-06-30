@@ -1,22 +1,22 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ImportAudit_RecordPhase]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_RecordPhase] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_RecordPhase] AS' 
 END
 ALTER PROCEDURE [dbo].[usp_ImportAudit_RecordPhase]
-    @ImportAuditBatchId bigint,
-    @PhaseName nvarchar(64),
-    @PhaseStatus nvarchar(32),
-    @StartedAtUtc datetime2(3) = NULL,
-    @CompletedAtUtc datetime2(3) = NULL,
-    @RowsIn int = NULL,
-    @RowsOut int = NULL,
-    @DurationMs int = NULL,
-    @ErrorType nvarchar(128) = NULL,
-    @ErrorText nvarchar(2000) = NULL,
-    @DetailsJson nvarchar(max) = NULL,
-    @SetBatchStatus nvarchar(32) = NULL
+	@ImportAuditBatchId [bigint],
+	@PhaseName [nvarchar](64),
+	@PhaseStatus [nvarchar](32),
+	@StartedAtUtc [datetime2](3) = NULL,
+	@CompletedAtUtc [datetime2](3) = NULL,
+	@RowsIn [int] = NULL,
+	@RowsOut [int] = NULL,
+	@DurationMs [int] = NULL,
+	@ErrorType [nvarchar](128) = NULL,
+	@ErrorText [nvarchar](2000) = NULL,
+	@DetailsJson [nvarchar](max) = NULL,
+	@SetBatchStatus [nvarchar](32) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -84,4 +84,5 @@ BEGIN
     END CATCH;
 
     SELECT @ImportAuditPhaseId AS ImportAuditPhaseId;
-END
+END;
+
