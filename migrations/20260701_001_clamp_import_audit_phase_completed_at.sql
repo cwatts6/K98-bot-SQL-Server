@@ -1,10 +1,27 @@
-SET ANSI_NULLS ON
-SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ImportAudit_RecordPhase]') AND type in (N'P', N'PC'))
-BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_RecordPhase] AS'
-END
-ALTER PROCEDURE [dbo].[usp_ImportAudit_RecordPhase]
+/*
+MigrationId: 20260701_001_clamp_import_audit_phase_completed_at
+Purpose: Clamp generic import audit phase completion timestamps that precede phase start
+Author: cwatts
+CreatedUtc: 2026-07-01
+RequiresBackup: No
+RiskLevel: Low
+Rollback: Manual
+RollbackScript: N/A
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.usp_ImportAudit_RecordPhase') AS PhaseProc, OBJECT_ID(N'dbo.ImportAuditPhase') AS PhaseTable;
+PostValidationQuery: SELECT OBJECT_ID(N'dbo.usp_ImportAudit_RecordPhase') AS PhaseProc, OBJECT_ID(N'dbo.ImportAuditPhase') AS PhaseTable;
+RelatedBotPR:
+RelatedSQLPR:
+*/
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_ImportAudit_RecordPhase
     @ImportAuditBatchId bigint,
     @PhaseName nvarchar(64),
     @PhaseStatus nvarchar(32),
@@ -93,3 +110,4 @@ BEGIN
 
     SELECT @ImportAuditPhaseId AS ImportAuditPhaseId;
 END
+GO
