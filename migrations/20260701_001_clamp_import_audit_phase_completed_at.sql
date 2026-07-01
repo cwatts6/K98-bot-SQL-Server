@@ -41,7 +41,8 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE @ImportAuditPhaseId bigint;
-    DECLARE @EffectiveStartedAtUtc datetime2(3) = COALESCE(@StartedAtUtc, SYSUTCDATETIME());
+    DECLARE @EffectiveStartedAtUtc datetime2(3) =
+        COALESCE(@StartedAtUtc, @CompletedAtUtc, SYSUTCDATETIME());
     DECLARE @EffectiveCompletedAtUtc datetime2(3) =
         CASE
             WHEN @CompletedAtUtc IS NOT NULL
