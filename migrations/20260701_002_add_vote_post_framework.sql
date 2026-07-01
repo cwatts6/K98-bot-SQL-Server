@@ -1,5 +1,5 @@
 /*
-MigrationId: 20260701_001_add_vote_post_framework
+MigrationId: 20260701_002_add_vote_post_framework
 Purpose: Add SQL-backed Discord vote post framework tables
 Author: cwatts
 CreatedUtc: 2026-07-01
@@ -19,6 +19,7 @@ RelatedSQLPR:
 
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[VotePosts]') AND type = N'U')
 BEGIN
@@ -46,6 +47,7 @@ BEGIN
         CONSTRAINT [PK_VotePosts] PRIMARY KEY CLUSTERED ([VotePostID] ASC)
     );
 END;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[VotePostOptions]') AND type = N'U')
 BEGIN
@@ -60,6 +62,7 @@ BEGIN
         CONSTRAINT [PK_VotePostOptions] PRIMARY KEY CLUSTERED ([OptionID] ASC)
     );
 END;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[VotePostVotes]') AND type = N'U')
 BEGIN
@@ -74,6 +77,7 @@ BEGIN
         CONSTRAINT [PK_VotePostVotes] PRIMARY KEY CLUSTERED ([VotePostID] ASC, [DiscordUserID] ASC)
     );
 END;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[VotePostReminders]') AND type = N'U')
 BEGIN
@@ -89,6 +93,7 @@ BEGIN
         CONSTRAINT [PK_VotePostReminders] PRIMARY KEY CLUSTERED ([ReminderID] ASC)
     );
 END;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[VotePostAudit]') AND type = N'U')
 BEGIN
@@ -104,6 +109,7 @@ BEGIN
         CONSTRAINT [PK_VotePostAudit] PRIMARY KEY CLUSTERED ([AuditID] ASC)
     );
 END;
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePosts_Status')
     ALTER TABLE [dbo].[VotePosts] ADD CONSTRAINT [DF_VotePosts_Status] DEFAULT ('Open') FOR [Status];
@@ -129,19 +135,23 @@ IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePostR
     ALTER TABLE [dbo].[VotePostReminders] ADD CONSTRAINT [DF_VotePostReminders_CreatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [CreatedAtUtc];
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePostAudit_CreatedAtUtc')
     ALTER TABLE [dbo].[VotePostAudit] ADD CONSTRAINT [DF_VotePostAudit_CreatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [CreatedAtUtc];
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VotePostOptions_VotePosts')
     ALTER TABLE [dbo].[VotePostOptions] WITH CHECK ADD CONSTRAINT [FK_VotePostOptions_VotePosts] FOREIGN KEY([VotePostID]) REFERENCES [dbo].[VotePosts] ([VotePostID]);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[VotePostOptions]') AND name = N'UX_VotePostOptions_PostOption')
+    CREATE UNIQUE NONCLUSTERED INDEX [UX_VotePostOptions_PostOption] ON [dbo].[VotePostOptions]([VotePostID], [OptionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VotePostVotes_VotePosts')
     ALTER TABLE [dbo].[VotePostVotes] WITH CHECK ADD CONSTRAINT [FK_VotePostVotes_VotePosts] FOREIGN KEY([VotePostID]) REFERENCES [dbo].[VotePosts] ([VotePostID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VotePostVotes_Options')
-    ALTER TABLE [dbo].[VotePostVotes] WITH CHECK ADD CONSTRAINT [FK_VotePostVotes_Options] FOREIGN KEY([OptionID]) REFERENCES [dbo].[VotePostOptions] ([OptionID]);
+    ALTER TABLE [dbo].[VotePostVotes] WITH CHECK ADD CONSTRAINT [FK_VotePostVotes_Options] FOREIGN KEY([VotePostID], [OptionID]) REFERENCES [dbo].[VotePostOptions] ([VotePostID], [OptionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VotePostVotes_OriginalOptions')
-    ALTER TABLE [dbo].[VotePostVotes] WITH CHECK ADD CONSTRAINT [FK_VotePostVotes_OriginalOptions] FOREIGN KEY([OriginalOptionID]) REFERENCES [dbo].[VotePostOptions] ([OptionID]);
+    ALTER TABLE [dbo].[VotePostVotes] WITH CHECK ADD CONSTRAINT [FK_VotePostVotes_OriginalOptions] FOREIGN KEY([VotePostID], [OriginalOptionID]) REFERENCES [dbo].[VotePostOptions] ([VotePostID], [OptionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VotePostReminders_VotePosts')
     ALTER TABLE [dbo].[VotePostReminders] WITH CHECK ADD CONSTRAINT [FK_VotePostReminders_VotePosts] FOREIGN KEY([VotePostID]) REFERENCES [dbo].[VotePosts] ([VotePostID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_VotePostAudit_VotePosts')
     ALTER TABLE [dbo].[VotePostAudit] WITH CHECK ADD CONSTRAINT [FK_VotePostAudit_VotePosts] FOREIGN KEY([VotePostID]) REFERENCES [dbo].[VotePosts] ([VotePostID]);
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_VotePosts_Status')
     ALTER TABLE [dbo].[VotePosts] WITH CHECK ADD CONSTRAINT [CK_VotePosts_Status] CHECK ([Status] IN ('Open', 'Closed', 'Cancelled'));
@@ -149,6 +159,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_VotePosts_C
     ALTER TABLE [dbo].[VotePosts] WITH CHECK ADD CONSTRAINT [CK_VotePosts_Closed] CHECK (([Status] <> 'Closed') OR ([ClosedAtUtc] IS NOT NULL));
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_VotePostReminders_Offset')
     ALTER TABLE [dbo].[VotePostReminders] WITH CHECK ADD CONSTRAINT [CK_VotePostReminders_Offset] CHECK ([OffsetMinutesBeforeClose] > 0);
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_VotePostAudit_DetailsJson')
+    ALTER TABLE [dbo].[VotePostAudit] WITH CHECK ADD CONSTRAINT [CK_VotePostAudit_DetailsJson] CHECK ([DetailsJson] IS NULL OR ISJSON([DetailsJson]) = 1);
+GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[VotePosts]') AND name = N'IX_VotePosts_OpenDue')
     CREATE NONCLUSTERED INDEX [IX_VotePosts_OpenDue] ON [dbo].[VotePosts]([Status], [ClosesAtUtc]) INCLUDE([ChannelID], [MessageID], [CloseMentionEveryone]);
