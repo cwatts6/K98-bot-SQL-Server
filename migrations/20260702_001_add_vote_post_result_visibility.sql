@@ -1,6 +1,6 @@
 /*
 MigrationId: 20260702_001_add_vote_post_result_visibility
-Purpose: Add public result visibility mode to SQL-backed Discord vote posts
+Purpose: Add result visibility mode to SQL-backed Discord vote posts
 Author: cwatts
 CreatedUtc: 2026-07-02
 RequiresBackup: Yes
@@ -21,6 +21,8 @@ RelatedSQLPR:
 Data safety note:
 Existing VotePosts rows receive the PublicLive default, preserving Phase 1-4 public
 live-result behaviour. No voter rows, option rows, audit rows, or export surfaces are changed.
+If the column already exists from a partial/manual deployment, NULL or unexpected values are
+normalized to PublicLive before enforcing NOT NULL and the check constraint.
 */
 
 SET ANSI_NULLS ON;
@@ -32,6 +34,18 @@ BEGIN
     ALTER TABLE [dbo].[VotePosts]
         ADD [ResultVisibility] [varchar](30) COLLATE Latin1_General_CI_AS NOT NULL
             CONSTRAINT [DF_VotePosts_ResultVisibility] DEFAULT ('PublicLive');
+END;
+GO
+
+IF COL_LENGTH(N'dbo.VotePosts', N'ResultVisibility') IS NOT NULL
+BEGIN
+    UPDATE [dbo].[VotePosts]
+    SET [ResultVisibility] = 'PublicLive'
+    WHERE [ResultVisibility] IS NULL
+       OR [ResultVisibility] NOT IN ('PublicLive', 'HiddenUntilClose');
+
+    ALTER TABLE [dbo].[VotePosts]
+        ALTER COLUMN [ResultVisibility] [varchar](30) COLLATE Latin1_General_CI_AS NOT NULL;
 END;
 GO
 
