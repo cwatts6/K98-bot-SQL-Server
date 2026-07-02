@@ -186,6 +186,8 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyResponses]') AND name = N'UX_SurveyResponses_User')
     CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyResponses_User] ON [dbo].[SurveyResponses]([SurveyID], [DiscordUserID]);
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyQuestions]') AND name = N'UX_SurveyQuestions_SurveyQuestion')
+    CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyQuestions_SurveyQuestion] ON [dbo].[SurveyQuestions]([SurveyID], [SurveyQuestionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyQuestionOptions]') AND name = N'UX_SurveyQuestionOptions_QuestionOption')
     CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyQuestionOptions_QuestionOption] ON [dbo].[SurveyQuestionOptions]([SurveyQuestionID], [SurveyOptionID]);
 GO
@@ -200,8 +202,8 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswers_Re
     ALTER TABLE [dbo].[SurveyAnswers] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswers_Responses] FOREIGN KEY([ResponseID]) REFERENCES [dbo].[SurveyResponses] ([ResponseID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswers_ResponseUser')
     ALTER TABLE [dbo].[SurveyAnswers] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswers_ResponseUser] FOREIGN KEY([SurveyID], [DiscordUserID]) REFERENCES [dbo].[SurveyResponses] ([SurveyID], [DiscordUserID]);
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswers_Questions')
-    ALTER TABLE [dbo].[SurveyAnswers] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswers_Questions] FOREIGN KEY([SurveyQuestionID]) REFERENCES [dbo].[SurveyQuestions] ([SurveyQuestionID]);
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswers_SurveyQuestions')
+    ALTER TABLE [dbo].[SurveyAnswers] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswers_SurveyQuestions] FOREIGN KEY([SurveyID], [SurveyQuestionID]) REFERENCES [dbo].[SurveyQuestions] ([SurveyID], [SurveyQuestionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswers_QuestionOptions')
     ALTER TABLE [dbo].[SurveyAnswers] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswers_QuestionOptions] FOREIGN KEY([SurveyQuestionID], [SurveyOptionID]) REFERENCES [dbo].[SurveyQuestionOptions] ([SurveyQuestionID], [SurveyOptionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyReminders_SurveyPosts')
@@ -210,8 +212,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAudit_Surv
     ALTER TABLE [dbo].[SurveyAudit] WITH CHECK ADD CONSTRAINT [FK_SurveyAudit_SurveyPosts] FOREIGN KEY([SurveyID]) REFERENCES [dbo].[SurveyPosts] ([SurveyID]);
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyResponses]') AND name = N'UX_SurveyResponses_User')
-    CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyResponses_User] ON [dbo].[SurveyResponses]([SurveyID], [DiscordUserID]);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyQuestions]') AND name = N'UX_SurveyQuestions_Key')
     CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyQuestions_Key] ON [dbo].[SurveyQuestions]([SurveyID], [QuestionKey]);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyQuestions]') AND name = N'UX_SurveyQuestions_Sort')
@@ -220,8 +220,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[Su
     CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyQuestionOptions_Key] ON [dbo].[SurveyQuestionOptions]([SurveyQuestionID], [OptionKey]);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyQuestionOptions]') AND name = N'UX_SurveyQuestionOptions_Sort')
     CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyQuestionOptions_Sort] ON [dbo].[SurveyQuestionOptions]([SurveyQuestionID], [SortOrder]);
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyQuestionOptions]') AND name = N'UX_SurveyQuestionOptions_QuestionOption')
-    CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyQuestionOptions_QuestionOption] ON [dbo].[SurveyQuestionOptions]([SurveyQuestionID], [SurveyOptionID]);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyPosts]') AND name = N'IX_SurveyPosts_OpenDue')
     CREATE NONCLUSTERED INDEX [IX_SurveyPosts_OpenDue] ON [dbo].[SurveyPosts]([Status], [ClosesAtUtc]) INCLUDE([ChannelID], [MessageID], [CloseMentionEveryone]);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyReminders]') AND name = N'IX_SurveyReminders_Due')
