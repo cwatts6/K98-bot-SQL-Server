@@ -62,17 +62,25 @@ BEGIN
        OR [VoteMode] NOT IN ('OneChoice', 'MultiSelect');
 
     UPDATE [dbo].[VotePosts]
-    SET [MinSelections] = 1
-    WHERE [MinSelections] IS NULL
-       OR [MinSelections] < 1
-       OR [VoteMode] = 'OneChoice';
+    SET [MinSelections] = CASE
+            WHEN [VoteMode] = 'OneChoice' THEN 1
+            WHEN [MinSelections] IS NULL OR [MinSelections] < 1 THEN 1
+            WHEN [MinSelections] > 6 THEN 6
+            ELSE [MinSelections]
+        END;
 
     UPDATE [dbo].[VotePosts]
-    SET [MaxSelections] = 1
-    WHERE [MaxSelections] IS NULL
-       OR [MaxSelections] < [MinSelections]
-       OR [MaxSelections] > 6
-       OR [VoteMode] = 'OneChoice';
+    SET [MaxSelections] = CASE
+            WHEN [VoteMode] = 'OneChoice' THEN 1
+            WHEN [MaxSelections] IS NULL OR [MaxSelections] < 2 THEN 2
+            WHEN [MaxSelections] > 6 THEN 6
+            ELSE [MaxSelections]
+        END;
+
+    UPDATE [dbo].[VotePosts]
+    SET [MaxSelections] = [MinSelections]
+    WHERE [VoteMode] = 'MultiSelect'
+      AND [MaxSelections] < [MinSelections];
 
     ALTER TABLE [dbo].[VotePosts]
         ALTER COLUMN [VoteMode] [varchar](30) COLLATE Latin1_General_CI_AS NOT NULL;
@@ -86,7 +94,12 @@ GO
 IF NOT EXISTS (
     SELECT 1
     FROM sys.default_constraints
-    WHERE name = N'DF_VotePosts_VoteMode'
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePosts')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePosts'),
+            N'VoteMode',
+            N'ColumnId'
+          )
 )
 BEGIN
     ALTER TABLE [dbo].[VotePosts]
@@ -98,7 +111,12 @@ GO
 IF NOT EXISTS (
     SELECT 1
     FROM sys.default_constraints
-    WHERE name = N'DF_VotePosts_MinSelections'
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePosts')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePosts'),
+            N'MinSelections',
+            N'ColumnId'
+          )
 )
 BEGIN
     ALTER TABLE [dbo].[VotePosts]
@@ -110,7 +128,12 @@ GO
 IF NOT EXISTS (
     SELECT 1
     FROM sys.default_constraints
-    WHERE name = N'DF_VotePosts_MaxSelections'
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePosts')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePosts'),
+            N'MaxSelections',
+            N'ColumnId'
+          )
 )
 BEGIN
     ALTER TABLE [dbo].[VotePosts]
@@ -174,13 +197,49 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePostMultiSelectVotes_OriginalOptionIDsJson')
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.default_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePostMultiSelectVotes')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePostMultiSelectVotes'),
+            N'OriginalOptionIDsJson',
+            N'ColumnId'
+          )
+)
     ALTER TABLE [dbo].[VotePostMultiSelectVotes] ADD CONSTRAINT [DF_VotePostMultiSelectVotes_OriginalOptionIDsJson] DEFAULT (N'[]') FOR [OriginalOptionIDsJson];
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePostMultiSelectVotes_CreatedAtUtc')
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.default_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePostMultiSelectVotes')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePostMultiSelectVotes'),
+            N'CreatedAtUtc',
+            N'ColumnId'
+          )
+)
     ALTER TABLE [dbo].[VotePostMultiSelectVotes] ADD CONSTRAINT [DF_VotePostMultiSelectVotes_CreatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [CreatedAtUtc];
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePostMultiSelectVotes_UpdatedAtUtc')
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.default_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePostMultiSelectVotes')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePostMultiSelectVotes'),
+            N'UpdatedAtUtc',
+            N'ColumnId'
+          )
+)
     ALTER TABLE [dbo].[VotePostMultiSelectVotes] ADD CONSTRAINT [DF_VotePostMultiSelectVotes_UpdatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [UpdatedAtUtc];
-IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_VotePostMultiSelectSelections_CreatedAtUtc')
+IF NOT EXISTS (
+    SELECT 1
+    FROM sys.default_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.VotePostMultiSelectSelections')
+      AND parent_column_id = COLUMNPROPERTY(
+            OBJECT_ID(N'dbo.VotePostMultiSelectSelections'),
+            N'CreatedAtUtc',
+            N'ColumnId'
+          )
+)
     ALTER TABLE [dbo].[VotePostMultiSelectSelections] ADD CONSTRAINT [DF_VotePostMultiSelectSelections_CreatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [CreatedAtUtc];
 GO
 
