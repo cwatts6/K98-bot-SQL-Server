@@ -110,6 +110,14 @@ IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_SurveyAns
     ALTER TABLE [dbo].[SurveyAnswerDetails] ADD CONSTRAINT [DF_SurveyAnswerDetails_UpdatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [UpdatedAtUtc];
 GO
 
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyAnswers]') AND name = N'UX_SurveyAnswers_ResponseOption')
+    CREATE UNIQUE NONCLUSTERED INDEX [UX_SurveyAnswers_ResponseOption] ON [dbo].[SurveyAnswers]([ResponseID], [SurveyID], [DiscordUserID], [SurveyQuestionID], [SurveyOptionID]);
+GO
+
+IF EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswerDetails_Answers')
+    ALTER TABLE [dbo].[SurveyAnswerDetails] DROP CONSTRAINT [FK_SurveyAnswerDetails_Answers];
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyTextAnswers_Response')
     ALTER TABLE [dbo].[SurveyTextAnswers] WITH CHECK ADD CONSTRAINT [FK_SurveyTextAnswers_Response] FOREIGN KEY([ResponseID], [SurveyID], [DiscordUserID]) REFERENCES [dbo].[SurveyResponses] ([ResponseID], [SurveyID], [DiscordUserID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyTextAnswers_SurveyQuestions')
@@ -117,7 +125,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyTextAnswer
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswerDetails_Response')
     ALTER TABLE [dbo].[SurveyAnswerDetails] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswerDetails_Response] FOREIGN KEY([ResponseID], [SurveyID], [DiscordUserID]) REFERENCES [dbo].[SurveyResponses] ([ResponseID], [SurveyID], [DiscordUserID]);
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyAnswerDetails_Answers')
-    ALTER TABLE [dbo].[SurveyAnswerDetails] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswerDetails_Answers] FOREIGN KEY([SurveyID], [DiscordUserID], [SurveyQuestionID], [SurveyOptionID]) REFERENCES [dbo].[SurveyAnswers] ([SurveyID], [DiscordUserID], [SurveyQuestionID], [SurveyOptionID]);
+    ALTER TABLE [dbo].[SurveyAnswerDetails] WITH CHECK ADD CONSTRAINT [FK_SurveyAnswerDetails_Answers] FOREIGN KEY([ResponseID], [SurveyID], [DiscordUserID], [SurveyQuestionID], [SurveyOptionID]) REFERENCES [dbo].[SurveyAnswers] ([ResponseID], [SurveyID], [DiscordUserID], [SurveyQuestionID], [SurveyOptionID]);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[SurveyTextAnswers]') AND name = N'IX_SurveyTextAnswers_Response')
