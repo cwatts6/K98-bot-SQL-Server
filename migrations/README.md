@@ -5,6 +5,10 @@ This folder is the deployable source for intentional SQL changes.
 Schema snapshots in `sql_schema/` are generated reference material. Do not deploy from
 snapshots directly unless an approved emergency recovery plan requires it.
 
+Notable deployed SQL milestones that need cross-repo closeout context may also be recorded in
+`docs/SQL_DELIVERY_LOG.md`. That log is informational; migration files and
+`dbo.SchemaMigrationHistory` remain the deployment source of truth.
+
 ## Naming
 
 Use sortable migration names:
