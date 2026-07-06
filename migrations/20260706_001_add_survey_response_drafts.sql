@@ -103,6 +103,9 @@ IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyRespo
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyResponseDrafts_Revision')
     ALTER TABLE [dbo].[SurveyResponseDrafts] WITH CHECK ADD CONSTRAINT [CK_SurveyResponseDrafts_Revision]
     CHECK ([Revision] >= 1);
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyResponseDrafts_ExpiredAt')
+    ALTER TABLE [dbo].[SurveyResponseDrafts] WITH CHECK ADD CONSTRAINT [CK_SurveyResponseDrafts_ExpiredAt]
+    CHECK ([Status] <> 'Expired' OR [ExpiresAtUtc] IS NOT NULL);
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyResponseDrafts_PayloadJson')
     ALTER TABLE [dbo].[SurveyResponseDrafts] WITH CHECK ADD CONSTRAINT [CK_SurveyResponseDrafts_PayloadJson]
     CHECK (ISJSON([DraftPayloadJson]) = 1);
