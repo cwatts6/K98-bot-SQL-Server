@@ -39,7 +39,6 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
 	[KillPointsDelta] [bigint] NULL,
 	[KillPoints] [bigint] NULL,
 	[HealedTroopsDelta] [bigint] NULL,
@@ -50,7 +49,8 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[PreKvkRank] [bigint] NULL,
 	[HonorRank] [bigint] NULL,
 	[RangedPointsDelta] [bigint] NULL,
-	[AutarchTimes] [bigint] NULL
+	[AutarchTimes] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_STAGING_STATS_RangedPointsDelta]') AND type = 'D')
