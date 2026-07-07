@@ -1,4 +1,4 @@
-﻿/*
+/*
 MigrationId: 20260707_001_add_survey_rating_scales
 Purpose: Add configurable rating scales, scale labels, and named rating values to survey ratings
 Author: cwatts
@@ -44,12 +44,12 @@ GO
 
 IF COL_LENGTH(N'dbo.SurveyQuestions', N'RatingLowLabel') IS NULL
     ALTER TABLE [dbo].[SurveyQuestions]
-    ADD [RatingLowLabel] [nvarchar](40) NULL;
+    ADD [RatingLowLabel] [nvarchar](40) COLLATE Latin1_General_CI_AS NULL;
 GO
 
 IF COL_LENGTH(N'dbo.SurveyQuestions', N'RatingHighLabel') IS NULL
     ALTER TABLE [dbo].[SurveyQuestions]
-    ADD [RatingHighLabel] [nvarchar](40) NULL;
+    ADD [RatingHighLabel] [nvarchar](40) COLLATE Latin1_General_CI_AS NULL;
 GO
 
 IF EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyQuestions_RatingScale')
@@ -121,6 +121,7 @@ BEGIN
         [SurveyRatingChoiceLabelID] [bigint] IDENTITY(1,1) NOT NULL,
         [SurveyID] [bigint] NOT NULL,
         [SurveyQuestionID] [bigint] NOT NULL,
+        [QuestionType] [varchar](30) COLLATE Latin1_General_CI_AS NOT NULL,
         [RatingValue] [tinyint] NOT NULL,
         [Label] [nvarchar](80) COLLATE Latin1_General_CI_AS NOT NULL,
         [CreatedAtUtc] [datetime2](0) NOT NULL,
@@ -130,16 +131,26 @@ BEGIN
 END;
 GO
 
+IF COL_LENGTH(N'dbo.SurveyRatingChoiceLabels', N'QuestionType') IS NULL
+    ALTER TABLE [dbo].[SurveyRatingChoiceLabels]
+    ADD [QuestionType] [varchar](30) COLLATE Latin1_General_CI_AS NOT NULL
+        CONSTRAINT [DF_SurveyRatingChoiceLabels_QuestionType] DEFAULT ('Rating');
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_SurveyRatingChoiceLabels_CreatedAtUtc')
     ALTER TABLE [dbo].[SurveyRatingChoiceLabels] ADD CONSTRAINT [DF_SurveyRatingChoiceLabels_CreatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [CreatedAtUtc];
 IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_SurveyRatingChoiceLabels_UpdatedAtUtc')
     ALTER TABLE [dbo].[SurveyRatingChoiceLabels] ADD CONSTRAINT [DF_SurveyRatingChoiceLabels_UpdatedAtUtc] DEFAULT (SYSUTCDATETIME()) FOR [UpdatedAtUtc];
+IF NOT EXISTS (SELECT 1 FROM sys.default_constraints WHERE name = N'DF_SurveyRatingChoiceLabels_QuestionType')
+    ALTER TABLE [dbo].[SurveyRatingChoiceLabels] ADD CONSTRAINT [DF_SurveyRatingChoiceLabels_QuestionType] DEFAULT ('Rating') FOR [QuestionType];
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyRatingChoiceLabels_Value')
     ALTER TABLE [dbo].[SurveyRatingChoiceLabels] WITH CHECK ADD CONSTRAINT [CK_SurveyRatingChoiceLabels_Value] CHECK ([RatingValue] BETWEEN 1 AND 10);
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyRatingChoiceLabels_Label')
     ALTER TABLE [dbo].[SurveyRatingChoiceLabels] WITH CHECK ADD CONSTRAINT [CK_SurveyRatingChoiceLabels_Label] CHECK (LEN(LTRIM(RTRIM([Label]))) BETWEEN 1 AND 80);
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name = N'CK_SurveyRatingChoiceLabels_QuestionType')
+    ALTER TABLE [dbo].[SurveyRatingChoiceLabels] WITH CHECK ADD CONSTRAINT [CK_SurveyRatingChoiceLabels_QuestionType] CHECK ([QuestionType] = 'Rating');
 GO
 
 IF NOT EXISTS (
@@ -164,8 +175,8 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name = N'FK_SurveyRatingChoiceLabels_Questions')
     ALTER TABLE [dbo].[SurveyRatingChoiceLabels] WITH CHECK ADD CONSTRAINT [FK_SurveyRatingChoiceLabels_Questions]
-    FOREIGN KEY([SurveyID], [SurveyQuestionID])
-    REFERENCES [dbo].[SurveyQuestions] ([SurveyID], [SurveyQuestionID]);
+    FOREIGN KEY([SurveyID], [SurveyQuestionID], [QuestionType])
+    REFERENCES [dbo].[SurveyQuestions] ([SurveyID], [SurveyQuestionID], [QuestionType]);
 GO
 
 CREATE OR ALTER VIEW dbo.v_SurveyReportingQuestionSummary
@@ -220,19 +231,22 @@ RatingStats AS (
     GROUP BY SurveyID, SurveyQuestionID
 ),
 RatingLabels AS (
-    SELECT DISTINCT l.SurveyID, l.SurveyQuestionID,
+    SELECT label_questions.SurveyID, label_questions.SurveyQuestionID,
            STUFF((
                SELECT '; ' + CONVERT(varchar(3), l2.RatingValue) + '=' + l2.Label
                FROM dbo.SurveyRatingChoiceLabels l2
-               WHERE l2.SurveyID = l.SurveyID
-                 AND l2.SurveyQuestionID = l.SurveyQuestionID
+               WHERE l2.SurveyID = label_questions.SurveyID
+                 AND l2.SurveyQuestionID = label_questions.SurveyQuestionID
                ORDER BY l2.RatingValue ASC
                FOR XML PATH(''), TYPE
            ).value('.', 'nvarchar(max)'), 1, 2, '') AS RatingLabels
-    FROM dbo.SurveyRatingChoiceLabels l
+    FROM (
+        SELECT DISTINCT SurveyID, SurveyQuestionID
+        FROM dbo.SurveyRatingChoiceLabels
+    ) label_questions
 ),
 RatingDistributionQuestions AS (
-    SELECT q.SurveyID, q.SurveyQuestionID
+    SELECT q.SurveyID, q.SurveyQuestionID, q.RatingMinValue, q.RatingMaxValue
     FROM dbo.SurveyQuestions q
     WHERE q.QuestionType = 'Rating'
 ),
@@ -249,10 +263,7 @@ RatingDistribution AS (
                  ON l.SurveyID = q.SurveyID
                 AND l.SurveyQuestionID = q.SurveyQuestionID
                 AND l.RatingValue = v.RatingValue
-               JOIN dbo.SurveyQuestions q2
-                 ON q2.SurveyID = q.SurveyID
-                AND q2.SurveyQuestionID = q.SurveyQuestionID
-               WHERE v.RatingValue BETWEEN q2.RatingMinValue AND q2.RatingMaxValue
+               WHERE v.RatingValue BETWEEN q.RatingMinValue AND q.RatingMaxValue
                GROUP BY v.RatingValue, l.Label
                ORDER BY v.RatingValue ASC
                FOR XML PATH(''), TYPE
