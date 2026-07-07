@@ -1,4 +1,4 @@
-﻿/*
+/*
 MigrationId: 20260707_002_add_vote_survey_option_emojis
 Purpose: Add optional emoji/icon metadata to vote and survey option tables
 Author: cwatts
@@ -72,7 +72,8 @@ CHECK (
     (
         [EmojiKind] = 'Unicode'
         AND [EmojiText] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiText]))) BETWEEN 1 AND 16
+        AND DATALENGTH([EmojiText]) = DATALENGTH(LTRIM(RTRIM([EmojiText])))
+        AND LEN([EmojiText]) BETWEEN 1 AND 16
         AND [EmojiName] IS NULL
         AND [EmojiID] IS NULL
         AND ISNULL([EmojiAnimated], 0) = 0
@@ -81,12 +82,16 @@ CHECK (
     (
         [EmojiKind] = 'CustomDiscord'
         AND [EmojiText] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiText]))) BETWEEN 1 AND 120
+        AND DATALENGTH([EmojiText]) = DATALENGTH(LTRIM(RTRIM([EmojiText])))
+        AND LEN([EmojiText]) BETWEEN 1 AND 120
         AND [EmojiName] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiName]))) BETWEEN 2 AND 64
+        AND DATALENGTH([EmojiName]) = DATALENGTH(LTRIM(RTRIM([EmojiName])))
+        AND LEN([EmojiName]) BETWEEN 2 AND 64
         AND [EmojiID] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiID]))) BETWEEN 2 AND 32
+        AND DATALENGTH([EmojiID]) = DATALENGTH(LTRIM(RTRIM([EmojiID])))
+        AND LEN([EmojiID]) BETWEEN 2 AND 32
         AND [EmojiID] NOT LIKE '%[^0-9]%'
+        AND [EmojiAnimated] IS NOT NULL
         AND [EmojiAnimated] IN (0, 1)
     )
 );
@@ -134,7 +139,8 @@ CHECK (
     (
         [EmojiKind] = 'Unicode'
         AND [EmojiText] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiText]))) BETWEEN 1 AND 16
+        AND DATALENGTH([EmojiText]) = DATALENGTH(LTRIM(RTRIM([EmojiText])))
+        AND LEN([EmojiText]) BETWEEN 1 AND 16
         AND [EmojiName] IS NULL
         AND [EmojiID] IS NULL
         AND ISNULL([EmojiAnimated], 0) = 0
@@ -143,12 +149,16 @@ CHECK (
     (
         [EmojiKind] = 'CustomDiscord'
         AND [EmojiText] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiText]))) BETWEEN 1 AND 120
+        AND DATALENGTH([EmojiText]) = DATALENGTH(LTRIM(RTRIM([EmojiText])))
+        AND LEN([EmojiText]) BETWEEN 1 AND 120
         AND [EmojiName] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiName]))) BETWEEN 2 AND 64
+        AND DATALENGTH([EmojiName]) = DATALENGTH(LTRIM(RTRIM([EmojiName])))
+        AND LEN([EmojiName]) BETWEEN 2 AND 64
         AND [EmojiID] IS NOT NULL
-        AND LEN(LTRIM(RTRIM([EmojiID]))) BETWEEN 2 AND 32
+        AND DATALENGTH([EmojiID]) = DATALENGTH(LTRIM(RTRIM([EmojiID])))
+        AND LEN([EmojiID]) BETWEEN 2 AND 32
         AND [EmojiID] NOT LIKE '%[^0-9]%'
+        AND [EmojiAnimated] IS NOT NULL
         AND [EmojiAnimated] IN (0, 1)
     )
 );
