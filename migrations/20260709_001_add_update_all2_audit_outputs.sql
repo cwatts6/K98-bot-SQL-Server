@@ -1,10 +1,36 @@
+/*
+MigrationId: 20260709_001_add_update_all2_audit_outputs
+Purpose: Add non-invasive UPDATE_ALL2 phase audit output rows for fallback import observability
+Author: cwatts
+CreatedUtc: 2026-07-09
+RequiresBackup: No
+RiskLevel: Medium
+Rollback: Manual
+RollbackScript: N/A
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Included
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.UPDATE_ALL2', N'P') AS UpdateAll2Proc, OBJECT_ID(N'dbo.SP_TaskStatus', N'U') AS TaskStatusTable;
+PostValidationQuery: SELECT OBJECT_ID(N'dbo.UPDATE_ALL2', N'P') AS UpdateAll2Proc, OBJECT_ID(N'dbo.SP_TaskStatus', N'U') AS TaskStatusTable;
+RelatedBotPR:
+RelatedSQLPR:
+*/
+
+/*
+Deployment notes:
+- This migration only redeploys dbo.UPDATE_ALL2 with an additional result set of phase audit markers.
+- Existing DROP TABLE and TRUNCATE TABLE statements appear inside the stored procedure body only;
+  this migration does not execute dbo.UPDATE_ALL2 or mutate import/output data during deployment.
+- The final 8-column UPDATE_ALL2 summary result set remains last for existing Python parsing.
+- SP_TaskStatus counter/status writes, output table rebuild behavior, and fallback import data contracts are unchanged.
+- Rollback is manual: redeploy the previous dbo.UPDATE_ALL2 body if the extra result set causes an unexpected consumer issue.
+*/
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL2]') AND type in (N'P', N'PC'))
-BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL2] AS' 
-END
-ALTER PROCEDURE [dbo].[UPDATE_ALL2]
+GO
+CREATE OR ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL
 WITH EXECUTE AS CALLER
@@ -864,4 +890,7 @@ BEGIN
 		THROW;
 	END CATCH
 END
+
+
+GO
 
