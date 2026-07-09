@@ -13,6 +13,7 @@ ALTER PROCEDURE [dbo].[usp_VoteSurveyAdminDelete]
     @Reason [nvarchar](500) = NULL,
     @DeletedBy [nvarchar](128) = NULL,
     @BreakGlassProductionDelete [bit] = 0
+WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
@@ -57,6 +58,17 @@ BEGIN
 
     IF @NormalizedContentKind = 'VOTE'
     BEGIN
+        SELECT
+            @ContentID = NULL,
+            @Title = NULL,
+            @Status = NULL,
+            @GuildID = NULL,
+            @ChannelID = NULL,
+            @MessageID = NULL,
+            @CreatedAtUtc = NULL,
+            @ClosesAtUtc = NULL,
+            @ClosedAtUtc = NULL;
+
         SELECT
             @ContentID = p.VotePostID,
             @Title = p.Title,
@@ -107,6 +119,17 @@ BEGIN
     END;
     ELSE
     BEGIN
+        SELECT
+            @ContentID = NULL,
+            @Title = NULL,
+            @Status = NULL,
+            @GuildID = NULL,
+            @ChannelID = NULL,
+            @MessageID = NULL,
+            @CreatedAtUtc = NULL,
+            @ClosesAtUtc = NULL,
+            @ClosedAtUtc = NULL;
+
         SELECT
             @ContentID = p.SurveyID,
             @Title = p.Title,
