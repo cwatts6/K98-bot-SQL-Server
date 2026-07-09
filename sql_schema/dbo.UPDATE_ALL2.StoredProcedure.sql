@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL2]') AND type in (N'P', N'PC'))
 BEGIN
@@ -443,24 +443,28 @@ BEGIN
             END
             ELSE
             BEGIN
+                SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+                SET @StepStart = SYSUTCDATETIME();
                 INSERT INTO @UpdateAll2PhaseAudit
                     (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
                 VALUES
-                    (N'update_all2_excel_for_kvk_refresh', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                    (N'update_all2_excel_for_kvk_refresh', N'skipped', @StepStart, @StepStart, 0,
                      N'{"reason":"no_valid_scan"}'),
-                    (N'update_all2_stats_for_upload', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                    (N'update_all2_stats_for_upload', N'skipped', @StepStart, @StepStart, 0,
                      N'{"reason":"no_valid_scan"}');
                 PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no valid scan available)';
             END
         END
         ELSE
         BEGIN
+            SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+            SET @StepStart = SYSUTCDATETIME();
             INSERT INTO @UpdateAll2PhaseAudit
                 (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
             VALUES
-                (N'update_all2_excel_for_kvk_refresh', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                (N'update_all2_excel_for_kvk_refresh', N'skipped', @StepStart, @StepStart, 0,
                  N'{"reason":"no_eligible_kvk"}'),
-                (N'update_all2_stats_for_upload', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                (N'update_all2_stats_for_upload', N'skipped', @StepStart, @StepStart, 0,
                  N'{"reason":"no_eligible_kvk"}');
             PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no eligible KVK found)';
         END

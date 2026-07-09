@@ -1,4 +1,4 @@
-﻿/*
+/*
 MigrationId: 20260709_001_add_update_all2_audit_outputs
 Purpose: Add non-invasive UPDATE_ALL2 phase audit output rows for fallback import observability
 Author: cwatts
@@ -469,24 +469,28 @@ BEGIN
             END
             ELSE
             BEGIN
+                SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+                SET @StepStart = SYSUTCDATETIME();
                 INSERT INTO @UpdateAll2PhaseAudit
                     (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
                 VALUES
-                    (N'update_all2_excel_for_kvk_refresh', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                    (N'update_all2_excel_for_kvk_refresh', N'skipped', @StepStart, @StepStart, 0,
                      N'{"reason":"no_valid_scan"}'),
-                    (N'update_all2_stats_for_upload', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                    (N'update_all2_stats_for_upload', N'skipped', @StepStart, @StepStart, 0,
                      N'{"reason":"no_valid_scan"}');
                 PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no valid scan available)';
             END
         END
         ELSE
         BEGIN
+            SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+            SET @StepStart = SYSUTCDATETIME();
             INSERT INTO @UpdateAll2PhaseAudit
                 (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
             VALUES
-                (N'update_all2_excel_for_kvk_refresh', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                (N'update_all2_excel_for_kvk_refresh', N'skipped', @StepStart, @StepStart, 0,
                  N'{"reason":"no_eligible_kvk"}'),
-                (N'update_all2_stats_for_upload', N'skipped', SYSUTCDATETIME(), SYSUTCDATETIME(), 0,
+                (N'update_all2_stats_for_upload', N'skipped', @StepStart, @StepStart, 0,
                  N'{"reason":"no_eligible_kvk"}');
             PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no eligible KVK found)';
         END
