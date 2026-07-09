@@ -106,7 +106,7 @@ BEGIN
                 MIN(CreatedAtUtc) AS FirstAuditAtUtc,
                 MAX(CreatedAtUtc) AS LastAuditAtUtc,
                 JSON_QUERY((
-                    SELECT ActionType, COUNT_BIG(1) AS RowCount
+                    SELECT ActionType, COUNT_BIG(1) AS [RowCount]
                     FROM dbo.VotePostAudit
                     WHERE VotePostID = @VotePostID
                     GROUP BY ActionType
@@ -176,7 +176,7 @@ BEGIN
                 MIN(CreatedAtUtc) AS FirstAuditAtUtc,
                 MAX(CreatedAtUtc) AS LastAuditAtUtc,
                 JSON_QUERY((
-                    SELECT ActionType, COUNT_BIG(1) AS RowCount
+                    SELECT ActionType, COUNT_BIG(1) AS [RowCount]
                     FROM dbo.SurveyAudit
                     WHERE SurveyID = @SurveyID
                     GROUP BY ActionType
@@ -204,7 +204,7 @@ BEGIN
         @ReasonTrimmed AS Reason,
         @DeletedByTrimmed AS DeletedBy;
 
-    SELECT [key] AS RowName, TRY_CONVERT(bigint, [value]) AS RowCount
+    SELECT [key] AS RowName, TRY_CONVERT(bigint, [value]) AS [RowCount]
     FROM OPENJSON(@RowCountsJson)
     ORDER BY [key];
 
@@ -254,7 +254,7 @@ BEGIN
                 MIN(CreatedAtUtc) AS FirstAuditAtUtc,
                 MAX(CreatedAtUtc) AS LastAuditAtUtc,
                 JSON_QUERY((
-                    SELECT ActionType, COUNT_BIG(1) AS RowCount
+                    SELECT ActionType, COUNT_BIG(1) AS [RowCount]
                     FROM dbo.VotePostAudit
                     WHERE VotePostID = @VotePostID
                     GROUP BY ActionType
@@ -313,7 +313,7 @@ BEGIN
                 MIN(CreatedAtUtc) AS FirstAuditAtUtc,
                 MAX(CreatedAtUtc) AS LastAuditAtUtc,
                 JSON_QUERY((
-                    SELECT ActionType, COUNT_BIG(1) AS RowCount
+                    SELECT ActionType, COUNT_BIG(1) AS [RowCount]
                     FROM dbo.SurveyAudit
                     WHERE SurveyID = @SurveyID
                     GROUP BY ActionType
