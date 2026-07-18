@@ -1,10 +1,23 @@
+/*
+RollbackForMigrationId: 20260718_001_add_personal_stats_source_refresh
+Purpose: Restore the previous personal-stats procedure result contract
+Author: cwatts
+CreatedUtc: 2026-07-18
+RiskLevel: Low
+DataLossRisk: None
+RollbackType: Full
+RequiresBackup: Yes
+PreRollbackValidation: Confirm the deployed bot no longer requires StatsSourceRefreshedAtUtc.
+PostRollbackValidation: SELECT OBJECT_ID(N'dbo.usp_GetPersonalStatsDaily', N'P') AS PersonalStatsProcedure;
+RelatedSQLPR:
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetPersonalStatsDaily]') AND type in (N'P', N'PC'))
-BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetPersonalStatsDaily] AS'
-END
-ALTER PROCEDURE [dbo].[usp_GetPersonalStatsDaily]
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[usp_GetPersonalStatsDaily]
     @GovernorIDs [dbo].[IntList] READONLY,
     @HistoryDays [smallint] = 180
 WITH EXECUTE AS CALLER
@@ -28,16 +41,10 @@ BEGIN
         SELECT MAX(ks.AsOfDate)
         FROM dbo.KingdomScanData4 AS ks
     );
-    DECLARE @StatsSourceRefreshedAtUtc datetime = (
-        SELECT MAX(ks.ScanDate)
-        FROM dbo.KingdomScanData4 AS ks
-        WHERE ks.AsOfDate = @StatsAnchorDate
-    );
     DECLARE @WindowStartDate date = DATEADD(DAY, 1 - @HistoryDays, @StatsAnchorDate);
 
     SELECT
         @StatsAnchorDate AS StatsAnchorDate,
-        @StatsSourceRefreshedAtUtc AS StatsSourceRefreshedAtUtc,
         @WindowStartDate AS WindowStartDate,
         @StatsAnchorDate AS WindowEndDate,
         @RequestedGovernorCount AS RequestedGovernorCount;
