@@ -1,12 +1,12 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetPersonalStatsDaily]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetPersonalStatsDaily] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetPersonalStatsDaily] AS' 
 END
 ALTER PROCEDURE [dbo].[usp_GetPersonalStatsDaily]
-    @GovernorIDs [dbo].[IntList] READONLY,
-    @HistoryDays [smallint] = 180
+	@GovernorIDs [dbo].[IntList] READONLY,
+	@HistoryDays [smallint] = 180
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -103,12 +103,8 @@ BEGIN
         JOIN @GovernorIDs AS ids ON ks.GovernorID = ids.ID
         WHERE ks.AsOfDate BETWEEN @WindowStartDate AND @StatsAnchorDate
         GROUP BY TRY_CONVERT(int, ks.GovernorID), ks.AsOfDate
-
         UNION
-
-        SELECT GovernorID, AsOfDate
-        FROM PreviousDates
-        WHERE AsOfDate IS NOT NULL
+        SELECT GovernorID, AsOfDate FROM PreviousDates WHERE AsOfDate IS NOT NULL
     ),
     RankedDayEnd AS
     (
@@ -170,12 +166,7 @@ BEGIN
         FROM DayValues AS values_today
     )
     INSERT INTO #StatsDaily
-    SELECT
-        GovernorID,
-        AsOfDate,
-        PreviousStatsDate,
-        PowerValue,
-        TroopPowerValue,
+    SELECT GovernorID, AsOfDate, PreviousStatsDate, PowerValue, TroopPowerValue,
         TRY_CONVERT(bigint, PowerValue - PreviousPowerValue),
         TRY_CONVERT(bigint, TroopPowerValue - PreviousTroopPowerValue),
         TRY_CONVERT(bigint, KillPointsValue - PreviousKillPointsValue),
@@ -201,69 +192,45 @@ BEGIN
 
     ;WITH ActivitySource AS
     (
-        SELECT
-            TRY_CONVERT(int, rows.GovernorID) AS GovernorID,
+        SELECT TRY_CONVERT(int, rows.GovernorID) AS GovernorID,
             CONVERT(date, headers.SnapshotTsUtc) AS AsOfDate,
             CONVERT(date, headers.WeekStartUtc) AS WeekStartDate,
-            headers.SnapshotTsUtc,
-            rows.SnapshotId,
+            headers.SnapshotTsUtc, rows.SnapshotId,
             TRY_CONVERT(bigint, rows.BuildingTotal) AS BuildActivityValue,
             TRY_CONVERT(bigint, rows.TechDonationTotal) AS TechDonationsValue
         FROM dbo.AllianceActivitySnapshotRow AS rows
-        JOIN dbo.AllianceActivitySnapshotHeader AS headers
-          ON headers.SnapshotId = rows.SnapshotId
-        JOIN @GovernorIDs AS ids
-          ON rows.GovernorID = ids.ID
+        JOIN dbo.AllianceActivitySnapshotHeader AS headers ON headers.SnapshotId = rows.SnapshotId
+        JOIN @GovernorIDs AS ids ON rows.GovernorID = ids.ID
         WHERE headers.SnapshotTsUtc < DATEADD(DAY, 1, CONVERT(datetime2(0), @StatsAnchorDate))
           AND headers.WeekStartUtc >= CONVERT(datetime2(0), DATEADD(DAY, -6, @WindowStartDate))
     ),
     PreviousDates AS
     (
         SELECT GovernorID, WeekStartDate, MAX(AsOfDate) AS AsOfDate
-        FROM ActivitySource
-        WHERE AsOfDate < @WindowStartDate
-        GROUP BY GovernorID, WeekStartDate
+        FROM ActivitySource WHERE AsOfDate < @WindowStartDate GROUP BY GovernorID, WeekStartDate
     ),
     RelevantDates AS
     (
-        SELECT GovernorID, WeekStartDate, AsOfDate
-        FROM ActivitySource
-        WHERE AsOfDate BETWEEN @WindowStartDate AND @StatsAnchorDate
-        GROUP BY GovernorID, WeekStartDate, AsOfDate
-
+        SELECT GovernorID, WeekStartDate, AsOfDate FROM ActivitySource
+        WHERE AsOfDate BETWEEN @WindowStartDate AND @StatsAnchorDate GROUP BY GovernorID, WeekStartDate, AsOfDate
         UNION
-
-        SELECT GovernorID, WeekStartDate, AsOfDate
-        FROM PreviousDates
+        SELECT GovernorID, WeekStartDate, AsOfDate FROM PreviousDates
     ),
     RankedDayEnd AS
     (
-        SELECT
-            source.GovernorID,
-            source.AsOfDate,
-            source.WeekStartDate,
-            source.BuildActivityValue,
-            source.TechDonationsValue,
-            ROW_NUMBER() OVER (
-                PARTITION BY source.GovernorID, source.WeekStartDate, source.AsOfDate
-                ORDER BY source.SnapshotTsUtc DESC, source.SnapshotId DESC
-            ) AS RowNumber
+        SELECT source.GovernorID, source.AsOfDate, source.WeekStartDate, source.BuildActivityValue, source.TechDonationsValue,
+            ROW_NUMBER() OVER (PARTITION BY source.GovernorID, source.WeekStartDate, source.AsOfDate ORDER BY source.SnapshotTsUtc DESC, source.SnapshotId DESC) AS RowNumber
         FROM ActivitySource AS source
-        JOIN RelevantDates AS dates
-          ON dates.GovernorID = source.GovernorID
-         AND dates.WeekStartDate = source.WeekStartDate
-         AND dates.AsOfDate = source.AsOfDate
+        JOIN RelevantDates AS dates ON dates.GovernorID = source.GovernorID AND dates.WeekStartDate = source.WeekStartDate AND dates.AsOfDate = source.AsOfDate
     ),
     DayEnd AS
     (
         SELECT GovernorID, AsOfDate, WeekStartDate, BuildActivityValue, TechDonationsValue
-        FROM RankedDayEnd
-        WHERE RowNumber = 1
+        FROM RankedDayEnd WHERE RowNumber = 1
     ),
     WithPrevious AS
     (
-        SELECT
-            values_today.*,
+        SELECT values_today.*,
             LAG(values_today.AsOfDate) OVER (PARTITION BY values_today.GovernorID, values_today.WeekStartDate ORDER BY values_today.AsOfDate) AS PreviousActivityDate,
             LAG(values_today.BuildActivityValue) OVER (PARTITION BY values_today.GovernorID, values_today.WeekStartDate ORDER BY values_today.AsOfDate) AS PreviousBuildActivityValue,
             LAG(values_today.TechDonationsValue) OVER (PARTITION BY values_today.GovernorID, values_today.WeekStartDate ORDER BY values_today.AsOfDate) AS PreviousTechDonationsValue
@@ -271,9 +238,7 @@ BEGIN
     ),
     ActivityDeltas AS
     (
-        SELECT
-            GovernorID,
-            AsOfDate,
+        SELECT GovernorID, AsOfDate,
             COALESCE(PreviousActivityDate, DATEADD(DAY, -1, WeekStartDate)) AS PreviousActivityDate,
             TRY_CONVERT(bigint, BuildActivityValue - COALESCE(PreviousBuildActivityValue, 0)) AS BuildActivityDelta,
             TRY_CONVERT(bigint, TechDonationsValue - COALESCE(PreviousTechDonationsValue, 0)) AS TechDonationsDelta
@@ -281,10 +246,7 @@ BEGIN
         WHERE AsOfDate >= @WindowStartDate
     )
     INSERT INTO #ActivityDaily
-    SELECT
-        GovernorID,
-        AsOfDate,
-        MAX(PreviousActivityDate),
+    SELECT GovernorID, AsOfDate, MAX(PreviousActivityDate),
         CASE WHEN COUNT(*) = COUNT(BuildActivityDelta) THEN SUM(BuildActivityDelta) END,
         CASE WHEN COUNT(*) = COUNT(TechDonationsDelta) THEN SUM(TechDonationsDelta) END
     FROM ActivityDeltas
@@ -301,9 +263,7 @@ BEGIN
     );
 
     INSERT INTO #FortsDaily
-    SELECT
-        TRY_CONVERT(int, forts.GovernorID),
-        forts.AsOfDate,
+    SELECT TRY_CONVERT(int, forts.GovernorID), forts.AsOfDate,
         SUM(TRY_CONVERT(bigint, forts.TotalRallies)),
         SUM(TRY_CONVERT(bigint, forts.RalliesLaunched)),
         SUM(TRY_CONVERT(bigint, forts.RalliesJoined))
@@ -326,42 +286,21 @@ BEGIN
     UNION
     SELECT GovernorID, AsOfDate FROM #FortsDaily;
 
-    SELECT
-        dates.GovernorID,
-        dates.AsOfDate,
+    SELECT dates.GovernorID, dates.AsOfDate,
         CONVERT(bit, CASE WHEN stats.GovernorID IS NULL THEN 0 ELSE 1 END) AS HasStats,
-        stats.PreviousStatsDate,
-        stats.PowerValue,
-        stats.TroopPowerValue,
-        stats.PowerDelta,
-        stats.TroopPowerDelta,
-        stats.KillPointsDelta,
-        stats.RSSGatheredDelta,
-        stats.RSSAssistDelta,
-        stats.HelpsDelta,
-        stats.T4KillsDelta,
-        stats.T5KillsDelta,
-        stats.DeadsDelta,
-        stats.HealedTroopsDelta,
+        stats.PreviousStatsDate, stats.PowerValue, stats.TroopPowerValue,
+        stats.PowerDelta, stats.TroopPowerDelta, stats.KillPointsDelta,
+        stats.RSSGatheredDelta, stats.RSSAssistDelta, stats.HelpsDelta,
+        stats.T4KillsDelta, stats.T5KillsDelta, stats.DeadsDelta, stats.HealedTroopsDelta,
         CONVERT(bit, CASE WHEN activity.GovernorID IS NULL THEN 0 ELSE 1 END) AS HasAllianceActivity,
-        activity.PreviousActivityDate,
-        activity.BuildActivityDelta,
-        activity.TechDonationsDelta,
+        activity.PreviousActivityDate, activity.BuildActivityDelta, activity.TechDonationsDelta,
         CONVERT(bit, CASE WHEN forts.GovernorID IS NULL THEN 0 ELSE 1 END) AS HasForts,
-        forts.FortsTotal,
-        forts.FortsLaunched,
-        forts.FortsJoined
+        forts.FortsTotal, forts.FortsLaunched, forts.FortsJoined
     FROM #ReportDates AS dates
-    LEFT JOIN #StatsDaily AS stats
-      ON stats.GovernorID = dates.GovernorID
-     AND stats.AsOfDate = dates.AsOfDate
-    LEFT JOIN #ActivityDaily AS activity
-      ON activity.GovernorID = dates.GovernorID
-     AND activity.AsOfDate = dates.AsOfDate
-    LEFT JOIN #FortsDaily AS forts
-      ON forts.GovernorID = dates.GovernorID
-     AND forts.AsOfDate = dates.AsOfDate
+    LEFT JOIN #StatsDaily AS stats ON stats.GovernorID = dates.GovernorID AND stats.AsOfDate = dates.AsOfDate
+    LEFT JOIN #ActivityDaily AS activity ON activity.GovernorID = dates.GovernorID AND activity.AsOfDate = dates.AsOfDate
+    LEFT JOIN #FortsDaily AS forts ON forts.GovernorID = dates.GovernorID AND forts.AsOfDate = dates.AsOfDate
     ORDER BY dates.GovernorID, dates.AsOfDate
     OPTION (RECOMPILE);
 END;
-GO
+
