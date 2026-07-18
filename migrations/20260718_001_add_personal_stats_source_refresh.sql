@@ -1,10 +1,28 @@
+/*
+MigrationId: 20260718_001_add_personal_stats_source_refresh
+Purpose: Expose the latest KingdomScanData4 source timestamp in the personal stats read contract
+Author: cwatts
+CreatedUtc: 2026-07-18
+RequiresBackup: Yes
+RiskLevel: Low
+Rollback: Included
+RollbackScript: migrations/rollback/20260718_001_add_personal_stats_source_refresh_rollback.sql
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT MAX(AsOfDate) AS StatsAnchorDate, MAX(ScanDate) AS LatestScanDateUtc FROM dbo.KingdomScanData4;
+PostValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetPersonalStatsDaily', N'P') AS PersonalStatsProcedure;
+RelatedBotPR:
+RelatedSQLPR:
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetPersonalStatsDaily]') AND type in (N'P', N'PC'))
-BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetPersonalStatsDaily] AS'
-END
-ALTER PROCEDURE [dbo].[usp_GetPersonalStatsDaily]
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[usp_GetPersonalStatsDaily]
     @GovernorIDs [dbo].[IntList] READONLY,
     @HistoryDays [smallint] = 180
 WITH EXECUTE AS CALLER
