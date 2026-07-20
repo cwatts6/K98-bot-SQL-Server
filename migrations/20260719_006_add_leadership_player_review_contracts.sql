@@ -1377,14 +1377,14 @@ BEGIN
     (
         SELECT TRY_CONVERT(bigint, history.[Gov_ID]) AS Gov_ID,
                TRY_CONVERT(int, history.[KVK_NO]) AS KVK_NO,
-               TRY_CONVERT(decimal(38,6), history.[Acclaim]) AS Acclaim,
-               TRY_CONVERT(decimal(38,6), history.[T4&T5_Kills]) AS Kills,
-               TRY_CONVERT(decimal(38,6), history.[KillPointsDelta]) AS KillPoints,
-               TRY_CONVERT(decimal(38,6), history.[Deads_Delta]) AS Deads,
-               TRY_CONVERT(decimal(38,6), history.[HealedTroopsDelta]) AS Healed,
-               TRY_CONVERT(decimal(38,6), history.[DKP_SCORE]) AS DKP,
-               TRY_CONVERT(decimal(38,6), history.[Max_PreKvk_Points]) AS PreKvk,
-               TRY_CONVERT(decimal(38,6), history.[Max_HonorPoints]) AS Honor,
+               TRY_CONVERT(decimal(38,8), history.[Acclaim]) AS Acclaim,
+               TRY_CONVERT(decimal(38,8), history.[T4&T5_Kills]) AS Kills,
+               TRY_CONVERT(decimal(38,8), history.[KillPointsDelta]) AS KillPoints,
+               TRY_CONVERT(decimal(38,8), history.[Deads_Delta]) AS Deads,
+               TRY_CONVERT(decimal(38,8), history.[HealedTroopsDelta]) AS Healed,
+               TRY_CONVERT(decimal(38,8), history.[DKP_SCORE]) AS DKP,
+               TRY_CONVERT(decimal(38,8), history.[Max_PreKvk_Points]) AS PreKvk,
+               TRY_CONVERT(decimal(38,8), history.[Max_HonorPoints]) AS Honor,
                combat.TankingScore,
                combat.IsEngaged
         FROM dbo.v_EXCEL_FOR_KVK_All AS history

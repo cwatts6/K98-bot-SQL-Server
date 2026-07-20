@@ -192,6 +192,20 @@ DECLARE @ScanEvidenceGuard nvarchar(1000) =
     + N'        RAISERROR(''sp_ExcelOutput_ByKVK: Requested final ScanOrder=%d has no source rows.'', 16, 1, @Scan);' + NCHAR(13) + NCHAR(10)
     + N'        RETURN;' + NCHAR(13) + NCHAR(10)
     + N'    END';
+DECLARE @TransactionMarker nvarchar(100) =
+    N'    BEGIN TRY';
+DECLARE @LatestScanEvidenceGuard nvarchar(1200) =
+    N'    IF NOT EXISTS' + NCHAR(13) + NCHAR(10)
+    + N'    (' + NCHAR(13) + NCHAR(10)
+    + N'        SELECT 1' + NCHAR(13) + NCHAR(10)
+    + N'        FROM dbo.KingdomScanData4' + NCHAR(13) + NCHAR(10)
+    + N'        WHERE ScanOrder = @LatestScanToUse' + NCHAR(13) + NCHAR(10)
+    + N'    )' + NCHAR(13) + NCHAR(10)
+    + N'    BEGIN' + NCHAR(13) + NCHAR(10)
+    + N'        RAISERROR(''sp_ExcelOutput_ByKVK: Resolved final ScanOrder=%d has no source rows.'', 16, 1, @LatestScanToUse);' + NCHAR(13) + NCHAR(10)
+    + N'        RETURN;' + NCHAR(13) + NCHAR(10)
+    + N'    END' + NCHAR(13) + NCHAR(10) + NCHAR(13) + NCHAR(10)
+    + @TransactionMarker;
 DECLARE @DefinitionChanged bit = 0;
 
 IF @OutputDefinition IS NULL
@@ -202,6 +216,18 @@ BEGIN
     IF CHARINDEX(@ScanCapMarker, @OutputDefinition) = 0
         THROW 51311, 'sp_ExcelOutput_ByKVK scan-evidence marker was not found.', 1;
     SET @OutputDefinition = REPLACE(@OutputDefinition, @ScanCapMarker, @ScanEvidenceGuard);
+    SET @DefinitionChanged = 1;
+END;
+
+IF CHARINDEX(N'Resolved final ScanOrder=%d has no source rows.', @OutputDefinition) = 0
+BEGIN
+    IF CHARINDEX(@TransactionMarker, @OutputDefinition) = 0
+        THROW 51312, 'sp_ExcelOutput_ByKVK resolved-scan evidence marker was not found.', 1;
+    SET @OutputDefinition = REPLACE(
+        @OutputDefinition,
+        @TransactionMarker,
+        @LatestScanEvidenceGuard
+    );
     SET @DefinitionChanged = 1;
 END;
 

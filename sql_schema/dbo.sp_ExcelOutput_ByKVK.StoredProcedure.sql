@@ -69,6 +69,17 @@ BEGIN
         ELSE @MaxAvailableScan
     END;
 
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.KingdomScanData4
+        WHERE ScanOrder = @LatestScanToUse
+    )
+    BEGIN
+        RAISERROR('sp_ExcelOutput_ByKVK: Resolved final ScanOrder=%d has no source rows.', 16, 1, @LatestScanToUse);
+        RETURN;
+    END
+
     BEGIN TRY
         BEGIN TRANSACTION;
 

@@ -42,12 +42,15 @@ $kvkOutputPaths = @(
 foreach ($path in $kvkOutputPaths) {
     $source = Get-SqlSource $path
     Assert-Contains $source 'Requested final ScanOrder=%d has no source rows\.' "$path must reject a missing exact final scan."
+    Assert-Contains $source 'Resolved final ScanOrder=%d has no source rows\.' "$path must reject a missing resolved output-ending scan."
 }
 Assert-Before (Get-SqlSource 'sql_schema\dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql') 'Requested final ScanOrder=%d has no source rows.' 'TRUNCATE TABLE dbo.STAGING_STATS' 'The canonical KVK output procedure must validate the exact scan before destructive staging work.'
+Assert-Before (Get-SqlSource 'sql_schema\dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql') 'Resolved final ScanOrder=%d has no source rows.' 'TRUNCATE TABLE dbo.STAGING_STATS' 'The canonical KVK output procedure must validate the resolved output-ending scan before destructive staging work.'
 $kvkOutput = Get-SqlSource 'sql_schema\dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql'
 Assert-Contains $kvkOutput '@FinalScanOrder\s*=\s*@LatestScanToUse' 'The KVK completion header must record the actual output-ending scan.'
 $kvkMigration = Get-SqlSource 'migrations\20260719_004_add_kvk_final_report_header.sql'
 Assert-Contains $kvkMigration 'REPLACE\(@OutputDefinition,\s*@ScanCapMarker,\s*@ScanEvidenceGuard\)' 'The KVK migration must inject the exact-scan guard at the pre-transaction scan-cap marker.'
+Assert-Contains $kvkMigration 'REPLACE\([\s\S]+@TransactionMarker,[\s\S]+@LatestScanEvidenceGuard' 'The KVK migration must inject the resolved-scan guard before the transaction.'
 Assert-Contains $kvkMigration '@FinalScanOrder\s*=\s*@LatestScanToUse' 'The KVK migration must inject the actual output-ending scan.'
 
 $kvkHeaderPaths = @(
@@ -131,7 +134,10 @@ $rankPaths = @(
 )
 foreach ($path in $rankPaths) {
     $source = Get-SqlSource $path
-    Assert-Contains $source 'TRY_CONVERT\(decimal\(38,6\),\s*history\.\[KillPointsDelta\]\)' "$path must rank integer-scale metrics using exact decimal values."
+    Assert-Contains $source 'TRY_CONVERT\(decimal\(38,8\),\s*history\.\[KillPointsDelta\]\)' "$path must rank integer-scale metrics without narrowing canonical Tanking Score precision."
+    if ($source -match 'TRY_CONVERT\(decimal\(38,6\),\s*history\.\[(Acclaim|T4&T5_Kills|KillPointsDelta|Deads_Delta|HealedTroopsDelta|DKP_SCORE|Max_PreKvk_Points|Max_HonorPoints)\]\)') {
+        $failures.Add("$path still narrows the canonical Tanking Score UNION to six decimal places.")
+    }
     if ($source -match 'TRY_CONVERT\(float,\s*history\.\[(Acclaim|T4&T5_Kills|KillPointsDelta|Deads_Delta|HealedTroopsDelta|DKP_SCORE|Max_PreKvk_Points|Max_HonorPoints)\]\)') {
         $failures.Add("$path still converts a ranked KVK metric to FLOAT.")
     }
