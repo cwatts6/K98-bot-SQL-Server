@@ -44,8 +44,11 @@ foreach ($path in $kvkOutputPaths) {
     Assert-Contains $source 'Requested final ScanOrder=%d has no source rows\.' "$path must reject a missing exact final scan."
 }
 Assert-Before (Get-SqlSource 'sql_schema\dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql') 'Requested final ScanOrder=%d has no source rows.' 'TRUNCATE TABLE dbo.STAGING_STATS' 'The canonical KVK output procedure must validate the exact scan before destructive staging work.'
+$kvkOutput = Get-SqlSource 'sql_schema\dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql'
+Assert-Contains $kvkOutput '@FinalScanOrder\s*=\s*@LatestScanToUse' 'The KVK completion header must record the actual output-ending scan.'
 $kvkMigration = Get-SqlSource 'migrations\20260719_004_add_kvk_final_report_header.sql'
 Assert-Contains $kvkMigration 'REPLACE\(@OutputDefinition,\s*@ScanCapMarker,\s*@ScanEvidenceGuard\)' 'The KVK migration must inject the exact-scan guard at the pre-transaction scan-cap marker.'
+Assert-Contains $kvkMigration '@FinalScanOrder\s*=\s*@LatestScanToUse' 'The KVK migration must inject the actual output-ending scan.'
 
 $kvkHeaderPaths = @(
     'sql_schema\dbo.KVKFinalReportHeader.Table.sql',
@@ -101,6 +104,37 @@ foreach ($path in $leadershipPaths) {
     Assert-Contains $source 'WHEN\s+4\s+THEN\s+rows\.RSSValue' "$path must count NULL RSS observations as missing metric units."
     Assert-Contains $source 'AND\s+NOT EXISTS[\s\S]+WHEN\s+4\s+THEN\s+rows\.RSSValue' "$path must exclude an incomplete RSS component from ranking and Activity Index."
     Assert-Contains $source 'r\.HelpsValue\s+IS NOT NULL[\s\S]+r\.RSSValue\s+IS NOT NULL[\s\S]+r\.PowerValue\s+IS NOT NULL' "$path must label Stats coverage complete only for valid required observations."
+}
+
+$auditPurgePaths = @(
+    'sql_schema\dbo.usp_PurgeLeadershipPlayerReviewAudit.StoredProcedure.sql',
+    'migrations\20260719_005_add_leadership_player_review_audit.sql'
+)
+foreach ($path in $auditPurgePaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'BEGIN\s+TRY[\s\S]+BEGIN\s+TRANSACTION' "$path must guard the audit purge transaction with TRY/CATCH."
+    Assert-Contains $source 'BEGIN\s+CATCH[\s\S]+IF\s+@@TRANCOUNT\s*>\s*0[\s\S]+ROLLBACK\s+TRANSACTION[\s\S]+THROW' "$path must roll back and rethrow purge failures."
+}
+
+$kvkHistoryPaths = @(
+    'sql_schema\dbo.usp_GetLeadershipPlayerKvkHistory.StoredProcedure.sql',
+    'migrations\20260719_006_add_leadership_player_review_contracts.sql'
+)
+foreach ($path in $kvkHistoryPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'TRY_CONVERT\(bigint,\s*exemption\.GovernorID\)\s*=\s*history\.Gov_ID' "$path must compare exemption Governor IDs as exact BIGINT values."
+}
+
+$rankPaths = @(
+    'sql_schema\dbo.usp_GetKvkHistorySummaryMetricRanks.StoredProcedure.sql',
+    'migrations\20260719_006_add_leadership_player_review_contracts.sql'
+)
+foreach ($path in $rankPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'TRY_CONVERT\(decimal\(38,6\),\s*history\.\[KillPointsDelta\]\)' "$path must rank integer-scale metrics using exact decimal values."
+    if ($source -match 'TRY_CONVERT\(float,\s*history\.\[(Acclaim|T4&T5_Kills|KillPointsDelta|Deads_Delta|HealedTroopsDelta|DKP_SCORE|Max_PreKvk_Points|Max_HonorPoints)\]\)') {
+        $failures.Add("$path still converts a ranked KVK metric to FLOAT.")
+    }
 }
 
 if ($failures.Count -gt 0) {

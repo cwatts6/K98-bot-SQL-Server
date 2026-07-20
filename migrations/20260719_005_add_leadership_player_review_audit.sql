@@ -154,7 +154,9 @@ BEGIN
         PRIMARY KEY CLUSTERED (AuditDateUtc, Action, Outcome)
     );
 
-    BEGIN TRANSACTION;
+    DECLARE @DeletedRows int;
+    BEGIN TRY
+        BEGIN TRANSACTION;
 
     INSERT INTO #ExpiredAggregate (AuditDateUtc, Action, Outcome, EventCount)
     SELECT CONVERT(date, ExecutedAtUtc), Action, Outcome, COUNT_BIG(*)
@@ -188,8 +190,14 @@ BEGIN
     DELETE FROM dbo.LeadershipPlayerReviewAudit
     WHERE ExpiresAtUtc <= @EffectiveNow;
 
-    DECLARE @DeletedRows int = @@ROWCOUNT;
-    COMMIT TRANSACTION;
+        SET @DeletedRows = @@ROWCOUNT;
+        COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF @@TRANCOUNT > 0
+            ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH;
 
     IF @EmitResult = 1
         SELECT @DeletedRows AS DeletedIdentifiedRows,

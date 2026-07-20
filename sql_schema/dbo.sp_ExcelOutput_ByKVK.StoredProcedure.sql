@@ -663,7 +663,7 @@ BEGIN
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
     EXEC dbo.usp_RecordKvkFinalReportCompletion
         @KVKNo = @KVK,
-        @FinalScanOrder = @Scan,
+        @FinalScanOrder = @LatestScanToUse,
         @FinalizationBasis = N'LIVE_OUTPUT';
 
 	        COMMIT TRANSACTION;

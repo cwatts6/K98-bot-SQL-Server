@@ -129,7 +129,7 @@ BEGIN
                TRY_CONVERT(int, history.Honor_Rank) AS HonorRank,
                CONVERT(bit, CASE WHEN EXISTS
                     (SELECT 1 FROM dbo.EXEMPT_FROM_STATS AS exemption
-                     WHERE exemption.GovernorID = history.Gov_ID
+                     WHERE TRY_CONVERT(bigint, exemption.GovernorID) = history.Gov_ID
                        AND ISNULL(exemption.Exempt, 1) = 1
                        AND TRY_CONVERT(int, exemption.KVK_NO) IN (0, history.KVK_NO))
                     THEN 1 ELSE 0 END) AS IsExempt

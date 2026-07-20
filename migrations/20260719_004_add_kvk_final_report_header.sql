@@ -177,7 +177,7 @@ DECLARE @RefreshMarker nvarchar(300) =
 DECLARE @CompletionCall nvarchar(500) =
     @RefreshMarker + NCHAR(13) + NCHAR(10)
     + N'    EXEC dbo.usp_RecordKvkFinalReportCompletion'
-    + N' @KVKNo = @KVK, @FinalScanOrder = @Scan, @FinalizationBasis = N''LIVE_OUTPUT'';';
+    + N' @KVKNo = @KVK, @FinalScanOrder = @LatestScanToUse, @FinalizationBasis = N''LIVE_OUTPUT'';';
 DECLARE @ScanCapMarker nvarchar(300) =
     N'    IF @Scan > @MaxAvailableScan SET @Scan = @MaxAvailableScan;';
 DECLARE @ScanEvidenceGuard nvarchar(1000) =
