@@ -8,6 +8,7 @@ CREATE TABLE [dbo].[stg_RallyDaily](
 	[GovernorName] [nvarchar](120) COLLATE Latin1_General_CI_AS NULL,
 	[TotalRallies] [int] NOT NULL,
 	[RalliesLaunched] [int] NOT NULL,
-	[RalliesJoined] [int] NOT NULL
+	[RalliesJoined] [int] NOT NULL,
+	[ImportToken] [uniqueidentifier] NULL
 ) ON [PRIMARY]
 END

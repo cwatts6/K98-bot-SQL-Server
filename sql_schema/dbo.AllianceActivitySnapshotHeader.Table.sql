@@ -12,6 +12,12 @@ CREATE TABLE [dbo].[AllianceActivitySnapshotHeader](
 	[SourceFileSha1] [varbinary](20) NULL,
 	[Row_Count] [int] NULL,
 	[CreatedUtc] [datetime2](0) NOT NULL,
+	[CompletionState] [nvarchar](24) COLLATE Latin1_General_CI_AS NOT NULL,
+	[ExpectedGovernorCount] [int] NULL,
+	[ObservedGovernorCount] [int] NULL,
+	[MissingExpectedGovernorCount] [int] NULL,
+	[InvalidMetricCount] [int] NULL,
+	[ValidatedAtUtc] [datetime2](0) NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[SnapshotId] ASC
@@ -22,6 +28,36 @@ PRIMARY KEY CLUSTERED
 	[SourceFileSha1] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]
 ) ON [PRIMARY]
+END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_AllianceActivityHeader_CompletionState]') AND type = 'D')
+BEGIN
+ALTER TABLE [dbo].[AllianceActivitySnapshotHeader] ADD CONSTRAINT [DF_AllianceActivityHeader_CompletionState] DEFAULT (N'LEGACY_UNVERIFIED') FOR [CompletionState]
+END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_AllianceActivityHeader_CompletionState]') AND type = 'C')
+BEGIN
+ALTER TABLE [dbo].[AllianceActivitySnapshotHeader] WITH CHECK ADD CONSTRAINT [CK_AllianceActivityHeader_CompletionState]
+CHECK ([CompletionState] IN (N'COMPLETE', N'PARTIAL', N'LEGACY_UNVERIFIED'))
+END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_AllianceActivityHeader_EvidenceCounts]') AND type = 'C')
+BEGIN
+ALTER TABLE [dbo].[AllianceActivitySnapshotHeader] WITH CHECK ADD CONSTRAINT [CK_AllianceActivityHeader_EvidenceCounts]
+CHECK (([ExpectedGovernorCount] IS NULL OR [ExpectedGovernorCount] >= 0)
+AND ([ObservedGovernorCount] IS NULL OR [ObservedGovernorCount] >= 0)
+AND ([MissingExpectedGovernorCount] IS NULL OR [MissingExpectedGovernorCount] >= 0)
+AND ([InvalidMetricCount] IS NULL OR [InvalidMetricCount] >= 0))
+END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_AllianceActivityHeader_CompleteEvidence]') AND type = 'C')
+BEGIN
+ALTER TABLE [dbo].[AllianceActivitySnapshotHeader] WITH CHECK ADD CONSTRAINT [CK_AllianceActivityHeader_CompleteEvidence]
+CHECK ([CompletionState] <> N'COMPLETE'
+OR ([ExpectedGovernorCount] IS NOT NULL
+AND [ObservedGovernorCount] IS NOT NULL
+AND [MissingExpectedGovernorCount] IS NOT NULL
+AND [InvalidMetricCount] IS NOT NULL
+AND [ValidatedAtUtc] IS NOT NULL
+AND [MissingExpectedGovernorCount] = 0
+AND [InvalidMetricCount] = 0
+AND [ExpectedGovernorCount] = [ObservedGovernorCount]))
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[AllianceActivitySnapshotHeader]') AND name = N'IX_AASH_WeekStart_SnapshotTs')
 CREATE NONCLUSTERED INDEX [IX_AASH_WeekStart_SnapshotTs] ON [dbo].[AllianceActivitySnapshotHeader]
