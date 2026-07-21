@@ -1,5 +1,32 @@
+/*
+MigrationId: 20260721_001_fix_leadership_audit_temp_collation
+Purpose: Match leadership audit purge temp-table text collation to the persistent audit contract
+Author: cwatts
+CreatedUtc: 2026-07-21
+RequiresBackup: Yes
+RiskLevel: Low
+Rollback: Manual
+RollbackScript: N/A
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.usp_PurgeLeadershipPlayerReviewAudit', N'P') AS PurgeProcedure;
+PostValidationQuery: SELECT OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_PurgeLeadershipPlayerReviewAudit', N'P')) AS UpdatedDefinition;
+RelatedBotPR:
+RelatedSQLPR:
+
+Notes:
+- SQL Server temp tables otherwise inherit tempdb collation, which can differ from this database.
+- DATABASE_DEFAULT follows the user database collation inherited by audit tables created through
+  the migration path, while remaining independent of tempdb collation, and prevents error 468.
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
+
 CREATE OR ALTER PROCEDURE dbo.usp_PurgeLeadershipPlayerReviewAudit
     @NowUtc datetime2(3) = NULL,
     @EmitResult bit = 1
@@ -52,3 +79,4 @@ BEGIN
         SELECT @DeletedRows AS DeletedIdentifiedRows,
                COALESCE((SELECT SUM(EventCount) FROM #ExpiredAggregate), 0) AS AggregatedEvents;
 END
+GO

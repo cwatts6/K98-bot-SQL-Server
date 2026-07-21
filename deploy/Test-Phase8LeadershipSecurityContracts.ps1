@@ -138,6 +138,16 @@ foreach ($path in $auditPurgePaths) {
     Assert-Contains $source 'BEGIN\s+CATCH[\s\S]+IF\s+@@TRANCOUNT\s*>\s*0[\s\S]+ROLLBACK\s+TRANSACTION[\s\S]+THROW' "$path must roll back and rethrow purge failures."
 }
 
+$auditCollationPaths = @(
+    'sql_schema\dbo.usp_PurgeLeadershipPlayerReviewAudit.StoredProcedure.sql',
+    'migrations\20260721_001_fix_leadership_audit_temp_collation.sql'
+)
+foreach ($path in $auditCollationPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'Action\s+nvarchar\(32\)\s+COLLATE\s+DATABASE_DEFAULT' "$path must align the audit action temp column with the deployed database-default audit collation."
+    Assert-Contains $source 'Outcome\s+nvarchar\(24\)\s+COLLATE\s+DATABASE_DEFAULT' "$path must align the audit outcome temp column with the deployed database-default audit collation."
+}
+
 $kvkHistoryPaths = @(
     'sql_schema\dbo.usp_GetLeadershipPlayerKvkHistory.StoredProcedure.sql',
     'migrations\20260719_006_add_leadership_player_review_contracts.sql'
