@@ -243,10 +243,11 @@ IF @DefinitionChanged = 1
 BEGIN
     -- OBJECT_DEFINITION preserves the module's original CREATE/ALTER header.
     -- A CREATE header must be changed before replaying an existing procedure.
-    DECLARE @CreateProcedurePosition int =
-        CHARINDEX(N'CREATE PROCEDURE', UPPER(@OutputDefinition));
-    DECLARE @CreateProcPosition int =
-        CHARINDEX(N'CREATE PROC', UPPER(@OutputDefinition));
+DECLARE @UpperOutputDefinition nvarchar(max) = UPPER(@OutputDefinition);
+DECLARE @CreateProcedurePosition int =
+    CHARINDEX(N'CREATE PROCEDURE', @UpperOutputDefinition);
+DECLARE @CreateProcPosition int =
+    CHARINDEX(N'CREATE PROC', @UpperOutputDefinition);
 
     IF @CreateProcedurePosition BETWEEN 1 AND 64
         SET @OutputDefinition = STUFF(
