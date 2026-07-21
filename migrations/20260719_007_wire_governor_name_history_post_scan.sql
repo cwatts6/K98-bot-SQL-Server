@@ -42,6 +42,27 @@ BEGIN
     IF CHARINDEX(@AliasMarker, @UpdateDefinition) = 0
         THROW 51204, 'UPDATE_ALL2 alias-history hook marker was not found.', 1;
     SET @UpdateDefinition = REPLACE(@UpdateDefinition, @AliasMarker, @AliasHook);
+
+    -- OBJECT_DEFINITION preserves the module's original CREATE/ALTER header.
+    -- A CREATE header must be changed before replaying an existing procedure.
+    DECLARE @UpperUpdateDefinition nvarchar(max) = UPPER(@UpdateDefinition);
+    DECLARE @CreateProcedurePosition int =
+        CHARINDEX(N'CREATE PROCEDURE', @UpperUpdateDefinition);
+    DECLARE @CreateProcPosition int =
+        CHARINDEX(N'CREATE PROC', @UpperUpdateDefinition);
+
+    IF @CreateProcedurePosition BETWEEN 1 AND 64
+        SET @UpdateDefinition = STUFF(
+            @UpdateDefinition,
+            @CreateProcedurePosition,
+            LEN(N'CREATE PROCEDURE'),
+            N'ALTER PROCEDURE'
+        );
+    ELSE IF @CreateProcPosition BETWEEN 1 AND 64
+        SET @UpdateDefinition = STUFF(
+            @UpdateDefinition, @CreateProcPosition, LEN(N'CREATE PROC'), N'ALTER PROC'
+        );
+
     EXEC sys.sp_executesql @UpdateDefinition;
 END;
 GO
