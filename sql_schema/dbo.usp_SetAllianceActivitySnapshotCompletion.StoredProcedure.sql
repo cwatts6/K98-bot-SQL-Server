@@ -55,9 +55,10 @@ BEGIN
         IF @ObservedGovernorCount <> @StoredRowCount
             THROW 51104, 'Alliance Activity observed count does not match stored snapshot rows.', 1;
         IF @CompletionState = N'COMPLETE'
-           AND (@MissingExpectedGovernorCount <> 0 OR @MissingMetricCount <> 0
+           AND (@ExpectedGovernorCount > @ObservedGovernorCount
+                OR @MissingExpectedGovernorCount <> 0 OR @MissingMetricCount <> 0
                 OR @InvalidMetricCount <> 0)
-            THROW 51105, 'A COMPLETE Alliance Activity snapshot requires full explicit-value coverage.', 1;
+            THROW 51105, 'A COMPLETE Alliance Activity snapshot requires coherent cohort counts and full explicit-value coverage.', 1;
 
         UPDATE dbo.AllianceActivitySnapshotHeader
         SET CompletionState = @CompletionState,

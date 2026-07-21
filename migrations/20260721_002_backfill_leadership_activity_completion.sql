@@ -19,7 +19,7 @@ RelatedSQLPR:
 Data safety:
 - Rally dates use a matching successful dbo.IngestionLog record when available; otherwise the
   existing unique per-date rows and InsertedAt timestamp are explicitly labelled INFERRED_DATE.
-- Rally dates with duplicate Governor IDs are not eligible for backfill.
+- Rally dates with duplicate or non-positive Governor IDs are not eligible for backfill.
 - Legacy Alliance Activity snapshots are promoted only when Row_Count matches the stored unique
   GovernorID rows and a 20-byte source hash is present.
 - Historical Building/Tech zero values are intentionally accepted as zero under the operator-
@@ -92,6 +92,7 @@ ALTER TABLE dbo.AllianceActivitySnapshotHeader WITH CHECK
             AND MissingMetricCount IS NOT NULL
             AND InvalidMetricCount IS NOT NULL
             AND ValidatedAtUtc IS NOT NULL
+            AND ExpectedGovernorCount <= ObservedGovernorCount
             AND MissingExpectedGovernorCount = 0
             AND MissingMetricCount = 0
             AND InvalidMetricCount = 0
@@ -155,9 +156,10 @@ BEGIN
         IF @ObservedGovernorCount <> @StoredRowCount
             THROW 51104, 'Alliance Activity observed count does not match stored snapshot rows.', 1;
         IF @CompletionState = N'COMPLETE'
-           AND (@MissingExpectedGovernorCount <> 0 OR @MissingMetricCount <> 0
+           AND (@ExpectedGovernorCount > @ObservedGovernorCount
+                OR @MissingExpectedGovernorCount <> 0 OR @MissingMetricCount <> 0
                 OR @InvalidMetricCount <> 0)
-            THROW 51105, 'A COMPLETE Alliance Activity snapshot requires full explicit-value coverage.', 1;
+            THROW 51105, 'A COMPLETE Alliance Activity snapshot requires coherent cohort counts and full explicit-value coverage.', 1;
 
         UPDATE dbo.AllianceActivitySnapshotHeader
         SET CompletionState = @CompletionState,
@@ -195,6 +197,8 @@ DECLARE @RallyBackfill TABLE
     SELECT AsOfDate,
            COUNT(*) AS SourceRowCount,
            COUNT(DISTINCT GovernorID) AS DistinctGovernorCount,
+           SUM(CASE WHEN GovernorID IS NULL OR GovernorID <= 0
+                    THEN 1 ELSE 0 END) AS InvalidGovernorIdRowCount,
            SUM(CASE WHEN TotalRallies < 0 OR RalliesLaunched < 0 OR RalliesJoined < 0
                          OR CONVERT(bigint, TotalRallies)
                             <> CONVERT(bigint, RalliesLaunched) + CONVERT(bigint, RalliesJoined)
@@ -202,46 +206,35 @@ DECLARE @RallyBackfill TABLE
            MAX(InsertedAt) AS LastInsertedAt
     FROM dbo.cur_RallyDaily
     GROUP BY AsOfDate
-),
-RankedAudit AS
-(
-    SELECT IngestionID, AsOfDate, RowsIn, EndedAt, Status, FileHash,
-           ROW_NUMBER() OVER
-           (PARTITION BY AsOfDate ORDER BY EndedAt DESC, IngestionID DESC) AS AuditRow
-    FROM dbo.IngestionLog
-    WHERE Source = N'rally_daily'
 )
 INSERT INTO @RallyBackfill
     (AsOfDate, ExpectedRowCount, CompletionBasis, CompletedAtUtc, ImportBatchID)
 SELECT rows.AsOfDate,
        rows.SourceRowCount,
        CASE WHEN audit.IngestionID IS NOT NULL
-                 AND audit.Status = N'success'
-                 AND audit.RowsIn = rows.SourceRowCount
-                 AND audit.EndedAt IS NOT NULL
-                 AND audit.FileHash IS NOT NULL
             THEN N'AUDIT_BACKFILL' ELSE N'INFERRED_DATE' END,
        CASE WHEN audit.IngestionID IS NOT NULL
-                 AND audit.Status = N'success'
-                 AND audit.RowsIn = rows.SourceRowCount
-                 AND audit.EndedAt IS NOT NULL
-                 AND audit.FileHash IS NOT NULL
             THEN audit.EndedAt ELSE rows.LastInsertedAt END,
-       CASE WHEN audit.IngestionID IS NOT NULL
-                 AND audit.Status = N'success'
-                 AND audit.RowsIn = rows.SourceRowCount
-                 AND audit.EndedAt IS NOT NULL
-                 AND audit.FileHash IS NOT NULL
-            THEN audit.IngestionID END
+       audit.IngestionID
 FROM RallyRows AS rows
-LEFT JOIN RankedAudit AS audit
-  ON audit.AsOfDate = rows.AsOfDate
- AND audit.AuditRow = 1
+OUTER APPLY
+(
+    SELECT TOP (1) candidate.IngestionID, candidate.EndedAt
+    FROM dbo.IngestionLog AS candidate
+    WHERE candidate.Source = N'rally_daily'
+      AND candidate.AsOfDate = rows.AsOfDate
+      AND candidate.Status = N'success'
+      AND candidate.RowsIn = rows.SourceRowCount
+      AND candidate.EndedAt IS NOT NULL
+      AND candidate.FileHash IS NOT NULL
+    ORDER BY candidate.EndedAt DESC, candidate.IngestionID DESC
+) AS audit
 LEFT JOIN dbo.RallyDailySnapshotHeader AS header
   ON header.AsOfDate = rows.AsOfDate
 WHERE header.AsOfDate IS NULL
   AND rows.SourceRowCount > 0
   AND rows.SourceRowCount = rows.DistinctGovernorCount
+  AND rows.InvalidGovernorIdRowCount = 0
   AND rows.InvalidMetricRowCount = 0
   AND rows.LastInsertedAt IS NOT NULL;
 

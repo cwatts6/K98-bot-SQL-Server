@@ -66,6 +66,7 @@ AND [MissingExpectedGovernorCount] IS NOT NULL
 AND [MissingMetricCount] IS NOT NULL
 AND [InvalidMetricCount] IS NOT NULL
 AND [ValidatedAtUtc] IS NOT NULL
+AND [ExpectedGovernorCount] <= [ObservedGovernorCount]
 AND [MissingExpectedGovernorCount] = 0
 AND [MissingMetricCount] = 0
 AND [InvalidMetricCount] = 0))

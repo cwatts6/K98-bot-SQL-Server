@@ -124,7 +124,9 @@ Assert-Contains $allianceBackfillMigration 'MissingMetricCount' 'Future completi
 Assert-Contains $allianceBackfillMigration 'AUDIT_BACKFILL' 'Rally history must prefer successful import audit evidence.'
 Assert-Contains $allianceBackfillMigration 'INFERRED_DATE' 'Rally history without audit evidence must remain explicitly inferred.'
 Assert-Contains $allianceBackfillMigration 'rows\.SourceRowCount\s*=\s*rows\.DistinctGovernorCount' 'Rally backfill must reject duplicate Governor IDs.'
+Assert-Contains $allianceBackfillMigration 'rows\.InvalidGovernorIdRowCount\s*=\s*0' 'Rally backfill must reject non-positive Governor IDs.'
 Assert-Contains $allianceBackfillMigration 'rows\.InvalidMetricRowCount\s*=\s*0' 'Rally backfill must reject invalid stored metrics.'
+Assert-Contains $allianceBackfillMigration 'OUTER\s+APPLY[\s\S]+candidate\.Status\s*=\s*N''success''[\s\S]+candidate\.RowsIn\s*=\s*rows\.SourceRowCount[\s\S]+candidate\.EndedAt\s+IS\s+NOT\s+NULL[\s\S]+candidate\.FileHash\s+IS\s+NOT\s+NULL' 'Rally backfill must rank only successful audit rows that match the stored date row count and have completion evidence.'
 Assert-Contains $allianceBackfillMigration 'header\.Row_Count\s*=\s*stored\.StoredRowCount' 'Legacy Alliance Activity backfill must match source and stored row counts.'
 Assert-Contains $allianceBackfillMigration 'stored\.InvalidStoredMetricCount\s*=\s*0' 'Legacy Alliance Activity backfill must reject negative stored metrics.'
 Assert-Contains $allianceBackfillMigration 'DATALENGTH\(header\.SourceFileSha1\)\s*=\s*20' 'Legacy Alliance Activity backfill must require source-file provenance.'
@@ -132,8 +134,18 @@ Assert-Contains $allianceBackfillMigration 'DATALENGTH\(header\.SourceFileSha1\)
 $allianceCompletionSource = Get-SqlSource 'sql_schema\dbo.usp_SetAllianceActivitySnapshotCompletion.StoredProcedure.sql'
 Assert-Contains $allianceCompletionSource '@MissingMetricCount\s+int' 'Alliance Activity completion must receive missing metric evidence.'
 Assert-Contains $allianceCompletionSource '@CompletionBasis\s+nvarchar\(32\)' 'Alliance Activity completion must record its validation basis.'
+Assert-Contains $allianceCompletionSource '@ExpectedGovernorCount\s*>\s*@ObservedGovernorCount' 'Alliance Activity completion must reject COMPLETE evidence with fewer observed rows than expected governors.'
 if ($allianceCompletionSource -match '@ExpectedGovernorCount\s*<>\s*@ObservedGovernorCount') {
     $failures.Add('Alliance Activity completion still rejects valid source rows outside the current scan cohort.')
+}
+
+$allianceCurrentEvidencePaths = @(
+    'sql_schema\dbo.AllianceActivitySnapshotHeader.Table.sql',
+    'migrations\20260721_002_backfill_leadership_activity_completion.sql'
+)
+foreach ($path in $allianceCurrentEvidencePaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'ExpectedGovernorCount\]?\s*<=\s*\[?ObservedGovernorCount' "$path must reject COMPLETE evidence with fewer observed rows than expected governors."
 }
 
 $leadershipPaths = @(
