@@ -14,7 +14,7 @@ EstimatedRowsAffected: 0
 PreValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetLeadershipPlayerIdentityHistory', N'P') AS IdentityProcedure;
 PostValidationQuery: SELECT OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_GetLeadershipPlayerIdentityHistory', N'P')) AS IdentityDefinition;
 RelatedBotPR: https://github.com/cwatts6/k98-bot/pull/537
-RelatedSQLPR: https://github.com/cwatts6/K98-bot-SQL-Server/pull/52
+RelatedSQLPR: https://github.com/cwatts6/K98-bot-SQL-Server/pull/53
 
 Contract change:
 - Alias history returns every persisted alias for the requested Governor IDs.
