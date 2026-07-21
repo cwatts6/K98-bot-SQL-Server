@@ -46,21 +46,54 @@ BEGIN
     -- OBJECT_DEFINITION preserves the module's original CREATE/ALTER header.
     -- A CREATE header must be changed before replaying an existing procedure.
     DECLARE @UpperUpdateDefinition nvarchar(max) = UPPER(@UpdateDefinition);
-    DECLARE @CreateProcedurePosition int =
-        CHARINDEX(N'CREATE PROCEDURE', @UpperUpdateDefinition);
-    DECLARE @CreateProcPosition int =
-        CHARINDEX(N'CREATE PROC', @UpperUpdateDefinition);
+    DECLARE @HeaderPosition int = 1;
+    DECLARE @ProcedureTokenPosition int;
+    DECLARE @ModuleVerb nvarchar(6);
+    DECLARE @CreateOrAlter bit = 0;
 
-    IF @CreateProcedurePosition BETWEEN 1 AND 64
+    WHILE @HeaderPosition <= LEN(@UpperUpdateDefinition)
+          AND UNICODE(SUBSTRING(@UpperUpdateDefinition, @HeaderPosition, 1))
+              IN (9, 10, 13, 32)
+        SET @HeaderPosition += 1;
+
+    IF @HeaderPosition NOT BETWEEN 1 AND 64
+        THROW 51205, 'UPDATE_ALL2 module header starts outside the allowed prefix.', 1;
+
+    IF SUBSTRING(@UpperUpdateDefinition, @HeaderPosition, LEN(N'CREATE')) = N'CREATE'
+        SET @ModuleVerb = N'CREATE';
+    ELSE IF SUBSTRING(@UpperUpdateDefinition, @HeaderPosition, LEN(N'ALTER')) = N'ALTER'
+        SET @ModuleVerb = N'ALTER';
+    ELSE
+        THROW 51205, 'UPDATE_ALL2 module header is not CREATE or ALTER.', 1;
+
+    SET @ProcedureTokenPosition = @HeaderPosition + LEN(@ModuleVerb);
+    WHILE UNICODE(SUBSTRING(@UpperUpdateDefinition, @ProcedureTokenPosition, 1))
+              IN (9, 10, 13, 32)
+        SET @ProcedureTokenPosition += 1;
+
+    IF @ModuleVerb = N'CREATE'
+       AND SUBSTRING(@UpperUpdateDefinition, @ProcedureTokenPosition, LEN(N'OR')) = N'OR'
+    BEGIN
+        SET @CreateOrAlter = 1;
+        SET @ProcedureTokenPosition += LEN(N'OR');
+        WHILE UNICODE(SUBSTRING(@UpperUpdateDefinition, @ProcedureTokenPosition, 1))
+                  IN (9, 10, 13, 32)
+            SET @ProcedureTokenPosition += 1;
+        IF SUBSTRING(@UpperUpdateDefinition, @ProcedureTokenPosition, LEN(N'ALTER'))
+              <> N'ALTER'
+            THROW 51205, 'UPDATE_ALL2 CREATE OR ALTER header is malformed.', 1;
+        SET @ProcedureTokenPosition += LEN(N'ALTER');
+        WHILE UNICODE(SUBSTRING(@UpperUpdateDefinition, @ProcedureTokenPosition, 1))
+                  IN (9, 10, 13, 32)
+            SET @ProcedureTokenPosition += 1;
+    END;
+
+    IF SUBSTRING(@UpperUpdateDefinition, @ProcedureTokenPosition, LEN(N'PROC')) <> N'PROC'
+        THROW 51205, 'UPDATE_ALL2 module header is not PROC or PROCEDURE.', 1;
+
+    IF @ModuleVerb = N'CREATE' AND @CreateOrAlter = 0
         SET @UpdateDefinition = STUFF(
-            @UpdateDefinition,
-            @CreateProcedurePosition,
-            LEN(N'CREATE PROCEDURE'),
-            N'ALTER PROCEDURE'
-        );
-    ELSE IF @CreateProcPosition BETWEEN 1 AND 64
-        SET @UpdateDefinition = STUFF(
-            @UpdateDefinition, @CreateProcPosition, LEN(N'CREATE PROC'), N'ALTER PROC'
+            @UpdateDefinition, @HeaderPosition, LEN(N'CREATE'), N'ALTER'
         );
 
     EXEC sys.sp_executesql @UpdateDefinition;

@@ -61,14 +61,16 @@ Assert-Contains $kvkMigration '@CreateProcPosition\s+BETWEEN\s+1\s+AND\s+64' 'Th
 Assert-Before $kvkMigration "@CreateProcPosition, LEN(N'CREATE PROC')" 'EXEC sys.sp_executesql @OutputDefinition' 'The KVK migration must normalize a CREATE PROC header to ALTER before executing the modified definition.'
 
 $aliasMigration = Get-SqlSource 'migrations\20260719_007_wire_governor_name_history_post_scan.sql'
-Assert-Contains $aliasMigration "CHARINDEX\(N'CREATE PROCEDURE',\s*@UpperUpdateDefinition\)" 'The alias-hook migration must detect a stored CREATE PROCEDURE header before replaying UPDATE_ALL2.'
-Assert-Contains $aliasMigration "N'ALTER PROCEDURE'" 'The alias-hook migration must replay existing UPDATE_ALL2 with ALTER semantics.'
-Assert-Before $aliasMigration "N'ALTER PROCEDURE'" 'EXEC sys.sp_executesql @UpdateDefinition' 'The alias-hook migration must normalize CREATE to ALTER before executing UPDATE_ALL2.'
-Assert-Contains $aliasMigration 'IF\s+@CreateProcedurePosition\s+BETWEEN\s+1\s+AND\s+64' 'The alias-hook migration must only rewrite a CREATE PROCEDURE token in the module header.'
-Assert-Contains $aliasMigration "CHARINDEX\(N'CREATE PROC',\s*@UpperUpdateDefinition\)" 'The alias-hook migration must detect a stored CREATE PROC header before replaying UPDATE_ALL2.'
-Assert-Contains $aliasMigration "N'ALTER PROC'" 'The alias-hook migration must replay existing UPDATE_ALL2 with ALTER semantics when normalizing a stored CREATE PROC header.'
-Assert-Contains $aliasMigration '@CreateProcPosition\s+BETWEEN\s+1\s+AND\s+64' 'The alias-hook migration must only rewrite a CREATE PROC token in the module header.'
-Assert-Before $aliasMigration "@CreateProcPosition, LEN(N'CREATE PROC')" 'EXEC sys.sp_executesql @UpdateDefinition' 'The alias-hook migration must normalize a CREATE PROC header to ALTER before executing UPDATE_ALL2.'
+Assert-Contains $aliasMigration 'UNICODE\(SUBSTRING\(@UpperUpdateDefinition,\s*@HeaderPosition,\s*1\)\)[\s\r\n]+IN\s*\(9,\s*10,\s*13,\s*32\)' 'The alias-hook migration must skip spaces, tabs, CR, and LF before parsing the UPDATE_ALL2 header.'
+Assert-Contains $aliasMigration '@HeaderPosition\s+NOT\s+BETWEEN\s+1\s+AND\s+64' 'The alias-hook migration must constrain header parsing to the module prefix.'
+Assert-Contains $aliasMigration "SUBSTRING\(@UpperUpdateDefinition,\s*@HeaderPosition,\s*LEN\(N'CREATE'\)\)\s*=\s*N'CREATE'" 'The alias-hook migration must parse CREATE independently from following SQL whitespace.'
+Assert-Contains $aliasMigration "SUBSTRING\(@UpperUpdateDefinition,\s*@ProcedureTokenPosition,\s*LEN\(N'PROC'\)\)\s*<>\s*N'PROC'" 'The alias-hook migration must validate PROC or PROCEDURE after skipping SQL whitespace.'
+Assert-Contains $aliasMigration "STUFF\([\s\S]+@HeaderPosition,\s*LEN\(N'CREATE'\),\s*N'ALTER'" 'The alias-hook migration must replace only the leading CREATE keyword.'
+Assert-Before $aliasMigration "@HeaderPosition, LEN(N'CREATE'), N'ALTER'" 'EXEC sys.sp_executesql @UpdateDefinition' 'The alias-hook migration must normalize the leading CREATE keyword before executing UPDATE_ALL2.'
+Assert-Contains $aliasMigration "THROW\s+51205" 'The alias-hook migration must fail closed for an unexpected UPDATE_ALL2 module header.'
+if ($aliasMigration -match "CHARINDEX\(N'CREATE (?:PROCEDURE|PROC)'") {
+    $failures.Add('The alias-hook migration still depends on exact single-space CREATE PROCEDURE syntax.')
+}
 
 $kvkHeaderPaths = @(
     'sql_schema\dbo.KVKFinalReportHeader.Table.sql',
