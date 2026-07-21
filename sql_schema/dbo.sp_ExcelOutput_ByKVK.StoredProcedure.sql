@@ -51,12 +51,34 @@ BEGIN
     END
     IF @Scan > @MaxAvailableScan SET @Scan = @MaxAvailableScan;
 
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.KingdomScanData4
+        WHERE ScanOrder = @Scan
+    )
+    BEGIN
+        RAISERROR('sp_ExcelOutput_ByKVK: Requested final ScanOrder=%d has no source rows.', 16, 1, @Scan);
+        RETURN;
+    END
+
     -- Determine which scan to use for latest data
     -- For completed KVKs use KVK_END_SCAN, for current KVK use MaxAvailableScan
     SET @LatestScanToUse = CASE 
         WHEN @MaxAvailableScan > @KVK_END_SCAN THEN @KVK_END_SCAN
         ELSE @MaxAvailableScan
     END;
+
+    IF NOT EXISTS
+    (
+        SELECT 1
+        FROM dbo.KingdomScanData4
+        WHERE ScanOrder = @LatestScanToUse
+    )
+    BEGIN
+        RAISERROR('sp_ExcelOutput_ByKVK: Resolved final ScanOrder=%d has no source rows.', 16, 1, @LatestScanToUse);
+        RETURN;
+    END
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -650,6 +672,10 @@ BEGIN
     DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
+    EXEC dbo.usp_RecordKvkFinalReportCompletion
+        @KVKNo = @KVK,
+        @FinalScanOrder = @LatestScanToUse,
+        @FinalizationBasis = N'LIVE_OUTPUT';
 
 	        COMMIT TRANSACTION;
     END TRY

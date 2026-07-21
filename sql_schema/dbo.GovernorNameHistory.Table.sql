@@ -6,6 +6,8 @@ CREATE TABLE [dbo].[GovernorNameHistory](
 	[GovernorID] [bigint] NOT NULL,
 	[GovernorName] [nvarchar](100) COLLATE Latin1_General_CI_AS NOT NULL,
 	[FirstSeen] [datetime2](0) NOT NULL,
+	[LastSeen] [datetime2](0) NOT NULL,
+	[SeenScanCount] [int] NOT NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[GovernorID] ASC,

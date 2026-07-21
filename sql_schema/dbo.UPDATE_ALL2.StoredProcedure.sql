@@ -226,6 +226,8 @@ BEGIN
             SELECT * FROM @IndexMaintLog;
         END
 
+        EXEC dbo.usp_UpsertGovernorNameHistoryForScan @ScanOrder = @MaxScanOrder5;
+
         -- 4) Truncate staging (safe post-insert)
         TRUNCATE TABLE dbo.IMPORT_STAGING;
 
