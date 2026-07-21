@@ -12,8 +12,8 @@ BEGIN
     CREATE TABLE #ExpiredAggregate
     (
         AuditDateUtc date NOT NULL,
-        Action nvarchar(32) COLLATE Latin1_General_CI_AS NOT NULL,
-        Outcome nvarchar(24) COLLATE Latin1_General_CI_AS NOT NULL,
+        Action nvarchar(32) COLLATE DATABASE_DEFAULT NOT NULL,
+        Outcome nvarchar(24) COLLATE DATABASE_DEFAULT NOT NULL,
         EventCount bigint NOT NULL,
         PRIMARY KEY CLUSTERED (AuditDateUtc, Action, Outcome)
     );

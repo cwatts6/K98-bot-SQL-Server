@@ -144,8 +144,8 @@ $auditCollationPaths = @(
 )
 foreach ($path in $auditCollationPaths) {
     $source = Get-SqlSource $path
-    Assert-Contains $source 'Action\s+nvarchar\(32\)\s+COLLATE\s+Latin1_General_CI_AS' "$path must align the audit action temp column with the persistent audit collation."
-    Assert-Contains $source 'Outcome\s+nvarchar\(24\)\s+COLLATE\s+Latin1_General_CI_AS' "$path must align the audit outcome temp column with the persistent audit collation."
+    Assert-Contains $source 'Action\s+nvarchar\(32\)\s+COLLATE\s+DATABASE_DEFAULT' "$path must align the audit action temp column with the deployed database-default audit collation."
+    Assert-Contains $source 'Outcome\s+nvarchar\(24\)\s+COLLATE\s+DATABASE_DEFAULT' "$path must align the audit outcome temp column with the deployed database-default audit collation."
 }
 
 $kvkHistoryPaths = @(
