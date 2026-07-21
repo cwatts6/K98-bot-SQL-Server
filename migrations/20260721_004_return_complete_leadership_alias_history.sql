@@ -42,7 +42,7 @@ IF @AliasDateFilterPosition > 0
         @IdentityDefinition,
         @AliasDateFilterPosition + LEN(@AliasDateFilter)
    ) > 0
-    THROW 51546, 'The expected unique alias history date filter was not found.', 1;
+    THROW 51546, 'The expected unique alias history date filter was found more than once.', 1;
 
 IF @AliasDateFilterPosition > 0
 BEGIN
