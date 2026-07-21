@@ -52,6 +52,10 @@ $kvkMigration = Get-SqlSource 'migrations\20260719_004_add_kvk_final_report_head
 Assert-Contains $kvkMigration 'REPLACE\(@OutputDefinition,\s*@ScanCapMarker,\s*@ScanEvidenceGuard\)' 'The KVK migration must inject the exact-scan guard at the pre-transaction scan-cap marker.'
 Assert-Contains $kvkMigration 'REPLACE\([\s\S]+@TransactionMarker,[\s\S]+@LatestScanEvidenceGuard' 'The KVK migration must inject the resolved-scan guard before the transaction.'
 Assert-Contains $kvkMigration '@FinalScanOrder\s*=\s*@LatestScanToUse' 'The KVK migration must inject the actual output-ending scan.'
+Assert-Contains $kvkMigration "CHARINDEX\(N'CREATE PROCEDURE',\s*UPPER\(@OutputDefinition\)\)" 'The KVK migration must detect a stored CREATE PROCEDURE header before replaying the definition.'
+Assert-Contains $kvkMigration "N'ALTER PROCEDURE'" 'The KVK migration must replay an existing output procedure with ALTER semantics.'
+Assert-Before $kvkMigration "N'ALTER PROCEDURE'" 'EXEC sys.sp_executesql @OutputDefinition' 'The KVK migration must normalize CREATE to ALTER before executing the modified definition.'
+Assert-Contains $kvkMigration 'IF\s+@CreateProcedurePosition\s+BETWEEN\s+1\s+AND\s+64' 'The KVK migration must only rewrite a CREATE token in the module header.'
 
 $kvkHeaderPaths = @(
     'sql_schema\dbo.KVKFinalReportHeader.Table.sql',
