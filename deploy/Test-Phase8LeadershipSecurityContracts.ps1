@@ -117,6 +117,25 @@ foreach ($path in $allianceProcedurePaths) {
     Assert-Contains $source 'IF\s+@@TRANCOUNT\s*=\s*0' "$path must own a transaction when called standalone."
 }
 
+$allianceBackfillMigration = Get-SqlSource 'migrations\20260721_002_backfill_leadership_activity_completion.sql'
+Assert-Contains $allianceBackfillMigration 'LEGACY_ASSUMED_ZERO' 'The historical Alliance Activity assumption must remain explicit.'
+Assert-Contains $allianceBackfillMigration 'SOURCE_VALIDATED' 'Future Alliance Activity completion must record source validation.'
+Assert-Contains $allianceBackfillMigration 'MissingMetricCount' 'Future completion evidence must distinguish missing metric cells.'
+Assert-Contains $allianceBackfillMigration 'AUDIT_BACKFILL' 'Rally history must prefer successful import audit evidence.'
+Assert-Contains $allianceBackfillMigration 'INFERRED_DATE' 'Rally history without audit evidence must remain explicitly inferred.'
+Assert-Contains $allianceBackfillMigration 'rows\.SourceRowCount\s*=\s*rows\.DistinctGovernorCount' 'Rally backfill must reject duplicate Governor IDs.'
+Assert-Contains $allianceBackfillMigration 'rows\.InvalidMetricRowCount\s*=\s*0' 'Rally backfill must reject invalid stored metrics.'
+Assert-Contains $allianceBackfillMigration 'header\.Row_Count\s*=\s*stored\.StoredRowCount' 'Legacy Alliance Activity backfill must match source and stored row counts.'
+Assert-Contains $allianceBackfillMigration 'stored\.InvalidStoredMetricCount\s*=\s*0' 'Legacy Alliance Activity backfill must reject negative stored metrics.'
+Assert-Contains $allianceBackfillMigration 'DATALENGTH\(header\.SourceFileSha1\)\s*=\s*20' 'Legacy Alliance Activity backfill must require source-file provenance.'
+
+$allianceCompletionSource = Get-SqlSource 'sql_schema\dbo.usp_SetAllianceActivitySnapshotCompletion.StoredProcedure.sql'
+Assert-Contains $allianceCompletionSource '@MissingMetricCount\s+int' 'Alliance Activity completion must receive missing metric evidence.'
+Assert-Contains $allianceCompletionSource '@CompletionBasis\s+nvarchar\(32\)' 'Alliance Activity completion must record its validation basis.'
+if ($allianceCompletionSource -match '@ExpectedGovernorCount\s*<>\s*@ObservedGovernorCount') {
+    $failures.Add('Alliance Activity completion still rejects valid source rows outside the current scan cohort.')
+}
+
 $leadershipPaths = @(
     'sql_schema\dbo.usp_GetLeadershipPlayerReview.StoredProcedure.sql',
     'migrations\20260719_006_add_leadership_player_review_contracts.sql'

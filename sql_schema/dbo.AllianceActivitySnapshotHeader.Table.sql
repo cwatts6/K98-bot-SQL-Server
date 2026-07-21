@@ -16,8 +16,10 @@ CREATE TABLE [dbo].[AllianceActivitySnapshotHeader](
 	[ExpectedGovernorCount] [int] NULL,
 	[ObservedGovernorCount] [int] NULL,
 	[MissingExpectedGovernorCount] [int] NULL,
+	[MissingMetricCount] [int] NULL,
 	[InvalidMetricCount] [int] NULL,
 	[ValidatedAtUtc] [datetime2](0) NULL,
+	[CompletionBasis] [nvarchar](32) COLLATE Latin1_General_CI_AS NULL,
 PRIMARY KEY CLUSTERED 
 (
 	[SnapshotId] ASC
@@ -44,7 +46,15 @@ ALTER TABLE [dbo].[AllianceActivitySnapshotHeader] WITH CHECK ADD CONSTRAINT [CK
 CHECK (([ExpectedGovernorCount] IS NULL OR [ExpectedGovernorCount] >= 0)
 AND ([ObservedGovernorCount] IS NULL OR [ObservedGovernorCount] >= 0)
 AND ([MissingExpectedGovernorCount] IS NULL OR [MissingExpectedGovernorCount] >= 0)
+AND ([MissingMetricCount] IS NULL OR [MissingMetricCount] >= 0)
 AND ([InvalidMetricCount] IS NULL OR [InvalidMetricCount] >= 0))
+END
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_AllianceActivityHeader_CompletionBasis]') AND type = 'C')
+BEGIN
+ALTER TABLE [dbo].[AllianceActivitySnapshotHeader] WITH CHECK ADD CONSTRAINT [CK_AllianceActivityHeader_CompletionBasis]
+CHECK (([CompletionState] = N'LEGACY_UNVERIFIED' AND [CompletionBasis] IS NULL)
+OR ([CompletionState] IN (N'COMPLETE', N'PARTIAL')
+AND [CompletionBasis] IN (N'SOURCE_VALIDATED', N'LEGACY_ASSUMED_ZERO')))
 END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CK_AllianceActivityHeader_CompleteEvidence]') AND type = 'C')
 BEGIN
@@ -53,11 +63,12 @@ CHECK ([CompletionState] <> N'COMPLETE'
 OR ([ExpectedGovernorCount] IS NOT NULL
 AND [ObservedGovernorCount] IS NOT NULL
 AND [MissingExpectedGovernorCount] IS NOT NULL
+AND [MissingMetricCount] IS NOT NULL
 AND [InvalidMetricCount] IS NOT NULL
 AND [ValidatedAtUtc] IS NOT NULL
 AND [MissingExpectedGovernorCount] = 0
-AND [InvalidMetricCount] = 0
-AND [ExpectedGovernorCount] = [ObservedGovernorCount]))
+AND [MissingMetricCount] = 0
+AND [InvalidMetricCount] = 0))
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[AllianceActivitySnapshotHeader]') AND name = N'IX_AASH_WeekStart_SnapshotTs')
 CREATE NONCLUSTERED INDEX [IX_AASH_WeekStart_SnapshotTs] ON [dbo].[AllianceActivitySnapshotHeader]
