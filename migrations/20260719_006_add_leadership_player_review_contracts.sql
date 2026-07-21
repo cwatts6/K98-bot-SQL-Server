@@ -47,8 +47,10 @@ RETURN
                   OR CONVERT(decimal(38,0), @HealedTroops) * 20 + @Deads <= 0
              THEN CONVERT(decimal(38,8), NULL)
              ELSE CONVERT(decimal(38,8),
-                 CONVERT(decimal(38,8), @KillPoints)
-                 / NULLIF(CONVERT(decimal(38,8),
+                 -- decimal(38,8) division collapses to scale 6 before the final cast.
+                 -- These precisions cover BIGINT inputs and retain the required 8 digits.
+                 CONVERT(decimal(20,1), @KillPoints)
+                 / NULLIF(CONVERT(decimal(22,1),
                      CONVERT(decimal(38,0), @HealedTroops) * 20 + @Deads), 0)
                  * 100.0) END AS TankingScore,
         CONVERT(bit, CASE WHEN @KillPoints > 0
