@@ -66,6 +66,7 @@ Assert-Contains $aliasMigration "N'ALTER PROCEDURE'" 'The alias-hook migration m
 Assert-Before $aliasMigration "N'ALTER PROCEDURE'" 'EXEC sys.sp_executesql @UpdateDefinition' 'The alias-hook migration must normalize CREATE to ALTER before executing UPDATE_ALL2.'
 Assert-Contains $aliasMigration 'IF\s+@CreateProcedurePosition\s+BETWEEN\s+1\s+AND\s+64' 'The alias-hook migration must only rewrite a CREATE PROCEDURE token in the module header.'
 Assert-Contains $aliasMigration "CHARINDEX\(N'CREATE PROC',\s*@UpperUpdateDefinition\)" 'The alias-hook migration must detect a stored CREATE PROC header before replaying UPDATE_ALL2.'
+Assert-Contains $aliasMigration "N'ALTER PROC'" 'The alias-hook migration must replay existing UPDATE_ALL2 with ALTER semantics when normalizing a stored CREATE PROC header.'
 Assert-Contains $aliasMigration '@CreateProcPosition\s+BETWEEN\s+1\s+AND\s+64' 'The alias-hook migration must only rewrite a CREATE PROC token in the module header.'
 Assert-Before $aliasMigration "@CreateProcPosition, LEN(N'CREATE PROC')" 'EXEC sys.sp_executesql @UpdateDefinition' 'The alias-hook migration must normalize a CREATE PROC header to ALTER before executing UPDATE_ALL2.'
 
