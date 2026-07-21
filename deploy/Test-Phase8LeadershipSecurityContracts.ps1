@@ -150,6 +150,19 @@ foreach ($path in $rankPaths) {
     }
 }
 
+$combatMetricPaths = @(
+    'sql_schema\dbo.fn_KvkCombatMetrics.UserDefinedFunction.sql',
+    'migrations\20260719_006_add_leadership_player_review_contracts.sql'
+)
+foreach ($path in $combatMetricPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'CONVERT\(decimal\(20,1\),\s*@KillPoints\)' "$path must preserve at least eight fractional Tanking Score digits through SQL division."
+    Assert-Contains $source 'NULLIF\(CONVERT\(decimal\(22,1\),' "$path must size the Tanking Score denominator for BIGINT healed and deads inputs."
+    if ($source -match 'CONVERT\(decimal\(38,8\),\s*@KillPoints\)\s*/\s*NULLIF\(CONVERT\(decimal\(38,8\),') {
+        $failures.Add("$path still forces SQL Server decimal division to six fractional digits.")
+    }
+}
+
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { Write-Error $_ }
     exit 1
