@@ -30,7 +30,6 @@ BEGIN
                MAX(history_rows.SeenScanCount) AS SeenScanCount
         FROM dbo.GovernorNameHistory AS history_rows
         JOIN @GovernorIDs AS requested ON requested.ID = history_rows.GovernorID
-        WHERE history_rows.LastSeen >= @StartDate
         GROUP BY history_rows.GovernorID,
                  dbo.fn_NormalizeGovernorNameKey(history_rows.GovernorName)
     )
