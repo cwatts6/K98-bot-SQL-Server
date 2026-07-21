@@ -148,16 +148,35 @@ foreach ($path in $allianceCurrentEvidencePaths) {
     Assert-Contains $source 'ExpectedGovernorCount\]?\s*<=\s*\[?ObservedGovernorCount' "$path must reject COMPLETE evidence with fewer observed rows than expected governors."
 }
 
-$leadershipPaths = @(
-    'sql_schema\dbo.usp_GetLeadershipPlayerReview.StoredProcedure.sql',
+$leadershipCanonicalPath = 'sql_schema\dbo.usp_GetLeadershipPlayerReview.StoredProcedure.sql'
+$leadershipCanonical = Get-SqlSource $leadershipCanonicalPath
+Assert-Contains $leadershipCanonical 'WHEN\s+4\s+THEN\s+rows\.RSSValue' "$leadershipCanonicalPath must count NULL RSS observations as missing metric units."
+Assert-Contains $leadershipCanonical 'CASE\s+WHEN\s+EXISTS[\s\S]+daily\.MetricValue\s+IS NOT NULL[\s\S]+THEN\s+1\s+ELSE\s+0\s+END' "$leadershipCanonicalPath must make a Stats metric available when at least one valid observation exists."
+Assert-Contains $leadershipCanonical 'WHEN\s+population\.IsCurrentlyAllied\s*=\s*0\s+THEN\s+0[\s\S]+WHEN\s+COUNT\(daily\.MetricValue\)\s*=\s*0\s+THEN\s+0' "$leadershipCanonicalPath must require current alliance membership and at least one valid Building/Tech observation."
+if ($leadershipCanonical -match 'AND\s+NOT EXISTS[\s\S]+WHEN\s+4\s+THEN\s+rows\.RSSValue') {
+    $failures.Add("$leadershipCanonicalPath still excludes a Stats metric from ranking when any observation is missing.")
+}
+if ($leadershipCanonical -match 'WHEN\s+COUNT\(DISTINCT\s+headers\.SnapshotDate\)\s*=\s*0\s+THEN\s+0[\s\S]+WHEN\s+COUNT\(daily\.MetricValue\)\s*=\s*0') {
+    $failures.Add("$leadershipCanonicalPath still requires complete Alliance Activity coverage before ranking.")
+}
+
+$leadershipCoveragePaths = @(
+    $leadershipCanonicalPath,
     'migrations\20260719_006_add_leadership_player_review_contracts.sql'
 )
-foreach ($path in $leadershipPaths) {
+foreach ($path in $leadershipCoveragePaths) {
     $source = Get-SqlSource $path
-    Assert-Contains $source 'WHEN\s+4\s+THEN\s+rows\.RSSValue' "$path must count NULL RSS observations as missing metric units."
-    Assert-Contains $source 'AND\s+NOT EXISTS[\s\S]+WHEN\s+4\s+THEN\s+rows\.RSSValue' "$path must exclude an incomplete RSS component from ranking and Activity Index."
     Assert-Contains $source 'r\.HelpsValue\s+IS NOT NULL[\s\S]+r\.RSSValue\s+IS NOT NULL[\s\S]+r\.PowerValue\s+IS NOT NULL' "$path must label Stats coverage complete only for valid required observations."
 }
+
+$partialRankingMigration = Get-SqlSource 'migrations\20260721_003_allow_partial_leadership_activity_ranking.sql'
+Assert-Contains $partialRankingMigration 'AND NOT EXISTS' 'The partial-ranking migration must remove the legacy Stats completeness gate.'
+Assert-Contains $partialRankingMigration 'WHEN COUNT\(DISTINCT headers\.SnapshotDate\) = 0 THEN 0' 'The partial-ranking migration must remove the legacy Alliance Activity completeness gate.'
+Assert-Contains $partialRankingMigration 'WHEN COUNT\(daily\.MetricValue\) = 0 THEN 0' 'The partial-ranking migration must retain the valid-observation requirement.'
+Assert-Contains $partialRankingMigration 'WHEN population\.IsCurrentlyAllied = 0 THEN 0' 'The partial-ranking migration must retain the current-alliance requirement.'
+Assert-Contains $partialRankingMigration 'THROW\s+51541' 'The partial-ranking migration must fail closed if the Stats contract marker is absent.'
+Assert-Contains $partialRankingMigration 'THROW\s+51542' 'The partial-ranking migration must fail closed if the Alliance Activity contract marker is absent.'
+Assert-Contains $partialRankingMigration "STUFF\([\s\S]+LEN\(N'CREATE OR ALTER'\),\s*N'ALTER'" 'The partial-ranking migration must replay an existing procedure with ALTER semantics.'
 
 $auditPurgePaths = @(
     'sql_schema\dbo.usp_PurgeLeadershipPlayerReviewAudit.StoredProcedure.sql',
