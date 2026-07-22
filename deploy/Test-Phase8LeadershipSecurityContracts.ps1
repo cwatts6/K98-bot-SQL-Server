@@ -264,6 +264,26 @@ foreach ($path in $leadershipKvkIndexPaths) {
     }
 }
 
+$leadershipCompositeIndexPaths = @(
+    'sql_schema\dbo.usp_GetLeadershipPlayerKvkHistory.StoredProcedure.sql',
+    'migrations\20260722_003_add_leadership_kvk_index_rank.sql'
+)
+foreach ($path in $leadershipCompositeIndexPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'SELECT TOP \(3\) index_details\.KVK_NO' "$path must bound the composite index to the latest three finalized KVKs."
+    Assert-Contains $source 'FROM dbo\.KVK_Details AS index_details' "$path must select composite-index KVKs from global KVK details, not the caller candidate horizon."
+    Assert-Contains $source 'SELECT index_kvk\.KVK_NO FROM #KvkIndexKvks AS index_kvk' "$path must add globally selected index KVKs to the calculation set."
+    Assert-Contains $source 'JOIN #Candidates AS output_candidate' "$path must keep the player-history result inside the caller candidate horizon."
+    Assert-Contains $source 'calculated\.IsExempt\s*=\s*1' "$path must exclude exempt KVK rows from the composite index."
+    Assert-Contains $source 'calculated\.T4T5Kills\s*=\s*0' "$path must score an observed zero Kills value as zero."
+    Assert-Contains $source 'calculated\.Deads\s*=\s*0' "$path must score an observed zero Deads value as zero."
+    Assert-Contains $source 'calculated\.Healed\s*=\s*0' "$path must score an observed zero Healed value as zero."
+    Assert-Contains $source 'ORDER BY indexes\.KvkIndexValue DESC' "$path must rank the uncapped KVK Index descending."
+    Assert-Contains $source 'AS KvkIndexCohortCount' "$path must expose the eligible kingdom cohort count."
+    Assert-Contains $source 'AS CandidateKvkCount' "$path must expose the globally finalized candidate count."
+    Assert-Contains $source 'AS Availability' "$path must expose honest KVK Index availability."
+}
+
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { Write-Error $_ }
     exit 1
