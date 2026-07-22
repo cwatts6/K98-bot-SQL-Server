@@ -1,15 +1,10 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER FUNCTION dbo.fn_KvkCombatMetrics
-(
-    @KillPoints bigint,
-    @HealedTroops bigint,
-    @Deads bigint,
-    @T4T5Kills bigint
-)
-RETURNS TABLE
-WITH SCHEMABINDING
-AS
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[fn_KvkCombatMetrics]') AND type in (N'FN', N'IF', N'TF', N'FS', N'FT'))
+BEGIN
+execute dbo.sp_executesql @statement = N'CREATE FUNCTION [dbo].[fn_KvkCombatMetrics](@KillPoints [bigint], @HealedTroops [bigint], @Deads [bigint], @T4T5Kills [bigint])
+RETURNS TABLE WITH SCHEMABINDING
+AS 
 RETURN
 (
     SELECT
@@ -29,3 +24,6 @@ RETURN
                               AND (@T4T5Kills > 0 OR @Deads > 0 OR @HealedTroops > 0)
                          THEN 1 ELSE 0 END) AS IsEngaged
 );
+' 
+END
+

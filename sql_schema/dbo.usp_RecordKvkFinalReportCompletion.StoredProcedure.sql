@@ -1,15 +1,20 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_RecordKvkFinalReportCompletion
-    @KVKNo int,
-    @FinalScanOrder int,
-    @FinalizationBasis nvarchar(24) = N'LIVE_OUTPUT',
-    @FinalDataAtUtc datetime2(0) = NULL
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_RecordKvkFinalReportCompletion]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_RecordKvkFinalReportCompletion] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_RecordKvkFinalReportCompletion]
+	@KVKNo [int],
+	@FinalScanOrder [int],
+	@FinalizationBasis [nvarchar](24) = N'LIVE_OUTPUT',
+	@FinalDataAtUtc [datetime2](0) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
+
     IF @KVKNo <= 0 OR @FinalScanOrder <= 0
         THROW 51301, 'KVK output completion requires positive KVK and scan values.', 1;
     IF @FinalizationBasis NOT IN (N'LIVE_OUTPUT', N'AUDIT_BACKFILL', N'INFERRED_BACKFILL')
@@ -62,4 +67,5 @@ BEGIN
             ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-END
+END;
+

@@ -1,12 +1,12 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetPersonalStatsDaily]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetPersonalStatsDaily] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetPersonalStatsDaily] AS' 
 END
 ALTER PROCEDURE [dbo].[usp_GetPersonalStatsDaily]
-    @GovernorIDs [dbo].[IntList] READONLY,
-    @HistoryDays [smallint] = 180
+	@GovernorIDs [dbo].[IntList] READONLY,
+	@HistoryDays [smallint] = 180
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -370,4 +370,4 @@ BEGIN
     ORDER BY dates.GovernorID, dates.AsOfDate
     OPTION (RECOMPILE);
 END;
-GO
+

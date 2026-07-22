@@ -1,9 +1,13 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerReview
-    @GovernorID bigint,
-    @PeriodDays smallint = 90,
-    @NowUtc datetime2(0) = NULL
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetLeadershipPlayerReview]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetLeadershipPlayerReview] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_GetLeadershipPlayerReview]
+	@GovernorID [bigint],
+	@PeriodDays [smallint] = 90,
+	@NowUtc [datetime2](0) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -248,7 +252,6 @@ BEGIN
               AND daily.MetricOrder = metric_list.MetricOrder
               AND daily.WasReset = 1
               AND daily.AsOfDate BETWEEN windows.StartDate AND windows.EndDate),
-            -- Missing observations remain visible in coverage but do not discard valid rates.
             CONVERT(bit, CASE WHEN EXISTS
             (
                 SELECT 1 FROM #StatsMetricDaily AS daily
@@ -256,7 +259,8 @@ BEGIN
                  AND daily.MetricOrder = metric_list.MetricOrder
                   AND daily.MetricValue IS NOT NULL
                   AND daily.AsOfDate BETWEEN windows.StartDate AND windows.EndDate
-            ) THEN 1 ELSE 0 END)
+            )
+             THEN 1 ELSE 0 END)
     FROM #Population AS population
     CROSS JOIN #Windows AS windows
     CROSS JOIN
@@ -398,7 +402,6 @@ BEGIN
            COUNT(DISTINCT headers.SnapshotDate)
              - COUNT(DISTINCT CASE WHEN daily.IsComplete = 1 THEN daily.SnapshotDate END),
            COALESCE(SUM(CASE WHEN daily.WasReset = 1 THEN 1 ELSE 0 END), 0),
-           -- Rank partial evidence by its valid-day rate; never impute a missing row as zero.
            CONVERT(bit, CASE
                WHEN population.IsCurrentlyAllied = 0 THEN 0
                WHEN COUNT(daily.MetricValue) = 0 THEN 0
@@ -859,3 +862,4 @@ BEGIN
              WHEN N'RALLY' THEN 3 WHEN N'ALIASES' THEN 4
              WHEN N'LOCATION' THEN 5 ELSE 6 END;
 END;
+
