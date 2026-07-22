@@ -217,6 +217,16 @@ BEGIN
            EngagedCohortCount, TankingCohortCount
     FROM Ranked;
 
+    CREATE TABLE #HealedCoverage
+    (
+        KVK_NO int NOT NULL PRIMARY KEY
+    );
+    INSERT INTO #HealedCoverage (KVK_NO)
+    SELECT calculated.KVK_NO
+    FROM #Calculated AS calculated
+    WHERE calculated.Healed > 0
+    GROUP BY calculated.KVK_NO;
+
     CREATE TABLE #KvkIndexScores
     (
         KVK_NO int NOT NULL,
@@ -232,21 +242,15 @@ BEGIN
                  OR calculated.T4T5Kills IS NULL
                  OR calculated.Deads IS NULL
                  OR calculated.Healed IS NULL
-                 OR calculated.KillTargetPercent IS NULL
-                 OR calculated.DeadTargetPercent IS NULL
-                 OR NOT EXISTS
-                    (
-                        SELECT 1
-                        FROM #Calculated AS healed_coverage
-                        WHERE healed_coverage.KVK_NO = calculated.KVK_NO
-                          AND healed_coverage.Healed > 0
-                    )
                    THEN NULL
                WHEN calculated.T4T5Kills = 0
                  OR calculated.Deads = 0
                  OR calculated.Healed = 0
                    THEN CONVERT(decimal(36,8), 0)
-               WHEN calculated.TankingScore IS NULL
+               WHEN calculated.KillTargetPercent IS NULL
+                 OR calculated.DeadTargetPercent IS NULL
+                 OR healed_coverage.KVK_NO IS NULL
+                 OR calculated.TankingScore IS NULL
                    THEN NULL
                ELSE CONVERT(decimal(36,8),
                     CONVERT(decimal(31,8), calculated.KillTargetPercent)
@@ -258,7 +262,9 @@ BEGIN
            END
     FROM #Calculated AS calculated
     JOIN #KvkIndexKvks AS index_kvk
-      ON index_kvk.KVK_NO = calculated.KVK_NO;
+      ON index_kvk.KVK_NO = calculated.KVK_NO
+    LEFT JOIN #HealedCoverage AS healed_coverage
+      ON healed_coverage.KVK_NO = calculated.KVK_NO;
 
     /* Result set 2: player final rows and canonical combat ranks. */
     SELECT calculated.KVK_NO, calculated.GovernorID, calculated.GovernorName,
@@ -276,10 +282,7 @@ BEGIN
            final_header.FinalDataAtUtc, final_header.State AS FinalOutputState,
            final_header.FinalizationBasis,
            ranks.KillPointsRank, ranks.DeadsRank,
-           CONVERT(bit, CASE WHEN EXISTS
-               (SELECT 1 FROM #Calculated AS healed_coverage
-                WHERE healed_coverage.KVK_NO = calculated.KVK_NO
-                  AND healed_coverage.Healed > 0)
+           CONVERT(bit, CASE WHEN healed_coverage.KVK_NO IS NOT NULL
                THEN 1 ELSE 0 END) AS HealedDataAvailable
     FROM #Calculated AS calculated
     JOIN #Candidates AS output_candidate
@@ -288,6 +291,8 @@ BEGIN
       ON ranks.KVK_NO = calculated.KVK_NO AND ranks.GovernorID = calculated.GovernorID
     LEFT JOIN dbo.KVKFinalReportHeader AS final_header
       ON final_header.KVK_NO = calculated.KVK_NO
+    LEFT JOIN #HealedCoverage AS healed_coverage
+      ON healed_coverage.KVK_NO = calculated.KVK_NO
     WHERE calculated.GovernorID = @GovernorID
     ORDER BY calculated.KVK_NO DESC;
 
