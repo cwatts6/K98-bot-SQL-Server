@@ -1,5 +1,62 @@
+/*
+MigrationId: 20260722_002_add_leadership_kvk_index_contract
+Purpose: Require positive Healed evidence for Tanking and add leadership KVK rank/coverage outputs
+Author: cwatts
+CreatedUtc: 2026-07-22
+RequiresBackup: No
+RiskLevel: Medium
+Rollback: Included
+RollbackScript: migrations/rollback/20260722_002_add_leadership_kvk_index_contract_rollback.sql
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.fn_KvkCombatMetrics', N'IF') AS CombatFunction, OBJECT_ID(N'dbo.usp_GetLeadershipPlayerKvkHistory', N'P') AS LeadershipKvkProcedure;
+PostValidationQuery: SELECT OBJECT_DEFINITION(OBJECT_ID(N'dbo.fn_KvkCombatMetrics')) AS CombatDefinition, OBJECT_DEFINITION(OBJECT_ID(N'dbo.usp_GetLeadershipPlayerKvkHistory')) AS LeadershipKvkDefinition;
+RelatedBotPR: 538
+RelatedSQLPR: 55
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
+CREATE OR ALTER FUNCTION dbo.fn_KvkCombatMetrics
+(
+    @KillPoints bigint,
+    @HealedTroops bigint,
+    @Deads bigint,
+    @T4T5Kills bigint
+)
+RETURNS TABLE
+WITH SCHEMABINDING
+AS
+RETURN
+(
+    SELECT
+        CASE WHEN @HealedTroops IS NULL THEN CONVERT(decimal(38,0), NULL)
+             ELSE CONVERT(decimal(38,0), @HealedTroops) * 20 END AS KPLoss,
+        CASE WHEN @KillPoints IS NULL OR @HealedTroops IS NULL OR @HealedTroops <= 0
+                  OR @Deads IS NULL
+                  OR CONVERT(decimal(38,0), @HealedTroops) * 20 + @Deads <= 0
+             THEN CONVERT(decimal(38,8), NULL)
+             ELSE CONVERT(decimal(38,8),
+                 -- decimal(38,8) division collapses to scale 6 before the final cast.
+                 -- These precisions cover BIGINT inputs and retain the required 8 digits.
+                 CONVERT(decimal(20,1), @KillPoints)
+                 / NULLIF(CONVERT(decimal(22,1),
+                     CONVERT(decimal(38,0), @HealedTroops) * 20 + @Deads), 0)
+                 * 100.0) END AS TankingScore,
+        CONVERT(bit, CASE WHEN @KillPoints > 0
+                              AND (@T4T5Kills > 0 OR @Deads > 0 OR @HealedTroops > 0)
+                         THEN 1 ELSE 0 END) AS IsEngaged
+);
+GO
+
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
 CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerKvkHistory
     @GovernorID bigint,
     @CandidateLimit tinyint = 12
@@ -222,3 +279,4 @@ BEGIN
     WHERE calculated.GovernorID = @GovernorID
     ORDER BY calculated.KVK_NO DESC;
 END;
+GO

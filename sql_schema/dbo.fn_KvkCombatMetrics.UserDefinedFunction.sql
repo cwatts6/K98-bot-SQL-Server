@@ -15,7 +15,8 @@ RETURN
     SELECT
         CASE WHEN @HealedTroops IS NULL THEN CONVERT(decimal(38,0), NULL)
              ELSE CONVERT(decimal(38,0), @HealedTroops) * 20 END AS KPLoss,
-        CASE WHEN @KillPoints IS NULL OR @HealedTroops IS NULL OR @Deads IS NULL
+        CASE WHEN @KillPoints IS NULL OR @HealedTroops IS NULL OR @HealedTroops <= 0
+                  OR @Deads IS NULL
                   OR CONVERT(decimal(38,0), @HealedTroops) * 20 + @Deads <= 0
              THEN CONVERT(decimal(38,8), NULL)
              ELSE CONVERT(decimal(38,8),
