@@ -1,5 +1,25 @@
+/*
+RollbackForMigrationId: 20260722_001_optimize_leadership_review_temp_metrics
+Purpose: Restore the prior leadership review procedure without the temp metric index
+Author: cwatts
+CreatedUtc: 2026-07-22
+RequiresBackup: No
+RiskLevel: Medium
+DataChange: No
+
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetLeadershipPlayerReview', N'P') AS ReviewProcedure;
+PostValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetLeadershipPlayerReview', N'P') AS ReviewProcedure;
+
+Operational notes:
+- Restores the exact pre-migration procedure definition.
+- No permanent data or schema object is removed.
+- Re-run the 30-day smoke and representative timing after rollback.
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
 CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerReview
     @GovernorID bigint,
     @PeriodDays smallint = 90,
@@ -214,9 +234,6 @@ BEGIN
             (CONVERT(tinyint, 4), N'RSS_GATHERED', CONVERT(decimal(38,4), RSSDelta), RSSReset),
             (CONVERT(tinyint, 6), N'POWER_CHANGE', CONVERT(decimal(38,4), PowerDelta), CONVERT(bit, 0))
     ) AS metric(MetricOrder, MetricCode, MetricValue, WasReset);
-
-    CREATE CLUSTERED INDEX CX_StatsMetricDaily_GovernorMetricDate
-        ON #StatsMetricDaily (GovernorID, MetricOrder, AsOfDate);
 
     INSERT INTO #MetricValues
         (WindowCode, GovernorID, MetricOrder, MetricCode, MetricTotal,

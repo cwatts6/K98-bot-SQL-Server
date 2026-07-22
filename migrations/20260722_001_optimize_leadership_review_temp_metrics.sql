@@ -1,5 +1,34 @@
+/*
+MigrationId: 20260722_001_optimize_leadership_review_temp_metrics
+Purpose: Optimize repeated leadership review temp-metric lookups
+Author: cwatts
+CreatedUtc: 2026-07-22
+RequiresBackup: No
+RiskLevel: Medium
+Rollback: Included
+RollbackScript: migrations/rollback/20260722_001_optimize_leadership_review_temp_metrics_rollback.sql
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: 0
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetLeadershipPlayerReview', N'P') AS ReviewProcedure;
+PostValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetLeadershipPlayerReview', N'P') AS ReviewProcedure;
+RelatedBotPR: 538
+RelatedSQLPR:
+
+Operational notes:
+- Adds one procedure-local clustered index after #StatsMetricDaily is populated.
+- The index is discarded automatically when the procedure ends; no permanent object is added.
+- Procedure parameters, six result-set shapes, row ordering, and missing/reset semantics are unchanged.
+- Representative 90-day evidence showed 352,775,271 heap rows read across 2,418 scans at the
+  repeated GovernorID/MetricOrder/AsOfDate lookup; this key matches that exact access path.
+- Validate 30/90 first with actual plans and STATISTICS IO/TIME before running 180/360.
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
 CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerReview
     @GovernorID bigint,
     @PeriodDays smallint = 90,

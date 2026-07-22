@@ -25,11 +25,17 @@ $canonicalPath = 'sql_schema\dbo.usp_GetLeadershipPlayerLastActive.StoredProcedu
 $migrationPath = 'migrations\20260721_005_add_leadership_player_last_active.sql'
 $rollbackPath = 'migrations\rollback\20260721_005_add_leadership_player_last_active_rollback.sql'
 $measurementPath = 'deploy\Measure-Phase81LeadershipPerformance.sql'
+$reviewCanonicalPath = 'sql_schema\dbo.usp_GetLeadershipPlayerReview.StoredProcedure.sql'
+$reviewMigrationPath = 'migrations\20260722_001_optimize_leadership_review_temp_metrics.sql'
+$reviewRollbackPath = 'migrations\rollback\20260722_001_optimize_leadership_review_temp_metrics_rollback.sql'
 
 $canonical = Get-SqlSource $canonicalPath
 $migration = Get-SqlSource $migrationPath
 $rollback = Get-SqlSource $rollbackPath
 $measurement = Get-SqlSource $measurementPath
+$reviewCanonical = Get-SqlSource $reviewCanonicalPath
+$reviewMigration = Get-SqlSource $reviewMigrationPath
+$reviewRollback = Get-SqlSource $reviewRollbackPath
 
 foreach ($source in @($canonical, $migration)) {
     Assert-Contains $source 'CREATE OR ALTER PROCEDURE\s+dbo\.usp_GetLeadershipPlayerLastActive' 'The Last Active procedure must use the approved additive object name.'
@@ -95,6 +101,29 @@ Assert-Contains $measurement 'reports/phase81_private' 'Raw evidence must use th
 Assert-Contains $measurement 'Never commit or share raw plans/Results' 'Raw SQL evidence must remain private.'
 Assert-Contains $measurement 'ParameterCompiledValue/ParameterRuntimeValue' 'Shared plan summaries must remove parameter values.'
 Assert-Contains $measurement 'CURSOR LOCAL FAST_FORWARD' 'The harness must run representative cases sequentially.'
+Assert-Contains $measurement 'Results to File' 'The harness must document one-save capture for heterogeneous result sets.'
+Assert-Contains $measurement 'CSV export saves[\s\S]+only one selected result grid' 'The harness must warn that CSV cannot preserve all six result schemas.'
+
+$reviewIndexPattern = 'CREATE\s+CLUSTERED\s+INDEX\s+CX_StatsMetricDaily_GovernorMetricDate\s+ON\s+#StatsMetricDaily\s*\(GovernorID,\s*MetricOrder,\s*AsOfDate\)'
+foreach ($source in @($reviewCanonical, $reviewMigration)) {
+    Assert-Contains $source $reviewIndexPattern 'The review procedure must index the repeated Governor/metric/date access path.'
+    $metricInsertPosition = $source.IndexOf('INSERT INTO #StatsMetricDaily', [System.StringComparison]::Ordinal)
+    $indexPosition = $source.IndexOf('CREATE CLUSTERED INDEX CX_StatsMetricDaily_GovernorMetricDate', [System.StringComparison]::Ordinal)
+    $metricValuesPosition = $source.IndexOf('INSERT INTO #MetricValues', [System.StringComparison]::Ordinal)
+    if ($metricInsertPosition -lt 0 -or $indexPosition -le $metricInsertPosition -or
+        $metricValuesPosition -le $indexPosition) {
+        $failures.Add('The temp index must be built after #StatsMetricDaily population and before repeated metric lookups.')
+    }
+    if ($source -match '\bCREATE\s+(?:(?:UNIQUE|CLUSTERED|NONCLUSTERED)\s+)*INDEX\s+(?!CX_StatsMetricDaily_GovernorMetricDate\b)') {
+        $failures.Add('The approved optimization must not add another index.')
+    }
+}
+Assert-Contains $reviewMigration 'Rollback:\s*Included' 'The review optimization migration must declare its included rollback.'
+Assert-Contains $reviewMigration 'DataChange:\s*No' 'The review optimization must remain code-only with no permanent data change.'
+Assert-Contains $reviewRollback 'RollbackForMigrationId:\s*20260722_001_optimize_leadership_review_temp_metrics' 'The rollback must target the exact optimization migration.'
+if ($reviewRollback -match $reviewIndexPattern) {
+    $failures.Add('Rollback must restore the prior procedure without the temp index.')
+}
 if (($measurement -match '\bDBCC\b') -or
     ($measurement -match 'ALTER\s+DATABASE\s+SCOPED\s+CONFIGURATION') -or
     ($measurement -match '\b(CREATE|ALTER|DROP|TRUNCATE)\s+(?:(?:UNIQUE|CLUSTERED|NONCLUSTERED)\s+)*(?:TABLE|INDEX)\s+(?!#)') -or

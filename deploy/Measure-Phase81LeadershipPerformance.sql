@@ -6,6 +6,9 @@ Read-only and intentionally non-automatic:
   running this tracked script. Never put real Governor IDs in this repository file.
 - Run from SSMS/Azure Data Studio in an approved measurement window.
 - Enable Include Actual Execution Plan before execution.
+- For a single save containing every heterogeneous result set, select SSMS Results to File
+  (Ctrl+Shift+F) before execution and save as restricted .rpt or .txt evidence. CSV export saves
+  only one selected result grid and cannot preserve the six different procedure result schemas.
 - Save raw .sqlplan, Messages, Results and client elapsed time only below the ignored private
   reports/phase81_private directory. Treat them as restricted leadership data.
 - Never commit or share raw plans/Results. Before sharing a summary, remove Governor IDs, names,
