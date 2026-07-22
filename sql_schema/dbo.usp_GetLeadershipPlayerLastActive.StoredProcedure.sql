@@ -46,6 +46,7 @@ BEGIN
         RssGatheredValue decimal(38,0) NULL,
         RssAssistedValue decimal(38,0) NULL,
         HelpsValue decimal(38,0) NULL,
+        ActivityWeekStartDate date NULL,
         BuildingValue decimal(38,0) NULL,
         TechValue decimal(38,0) NULL
     );
@@ -72,7 +73,8 @@ BEGIN
     )
     INSERT INTO #Observations
         (ScanOrder, ScanDateUtc, AsOfDate, PowerValue, HealedValue,
-         RssGatheredValue, RssAssistedValue, HelpsValue, BuildingValue, TechValue)
+         RssGatheredValue, RssAssistedValue, HelpsValue, ActivityWeekStartDate,
+         BuildingValue, TechValue)
     SELECT selected.ScanOrder,
            selected.ScanDateUtc,
            selected.AsOfDate,
@@ -81,12 +83,13 @@ BEGIN
            selected.RssGatheredValue,
            selected.RssAssistedValue,
            selected.HelpsValue,
+           CONVERT(date, activity_header.WeekStartUtc),
            TRY_CONVERT(decimal(38,0), activity_row.BuildingTotal),
            TRY_CONVERT(decimal(38,0), activity_row.TechDonationTotal)
     FROM RankedGovernorRows AS selected
     OUTER APPLY
     (
-        SELECT TOP (1) header.SnapshotId
+        SELECT TOP (1) header.SnapshotId, header.WeekStartUtc
         FROM dbo.AllianceActivitySnapshotHeader AS header
         WHERE header.CompletionState = N'COMPLETE'
           AND header.SnapshotTsUtc <= selected.ScanDateUtc
@@ -114,6 +117,8 @@ BEGIN
         PreviousRssAssistedValue decimal(38,0) NULL,
         HelpsValue decimal(38,0) NULL,
         PreviousHelpsValue decimal(38,0) NULL,
+        ActivityWeekStartDate date NULL,
+        PreviousActivityWeekStartDate date NULL,
         BuildingValue decimal(38,0) NULL,
         PreviousBuildingValue decimal(38,0) NULL,
         TechValue decimal(38,0) NULL,
@@ -132,6 +137,8 @@ BEGIN
                LAG(RssAssistedValue) OVER (ORDER BY ScanDateUtc, ScanOrder)
                    AS PreviousRssAssistedValue,
                LAG(HelpsValue) OVER (ORDER BY ScanDateUtc, ScanOrder) AS PreviousHelpsValue,
+               LAG(ActivityWeekStartDate) OVER (ORDER BY ScanDateUtc, ScanOrder)
+                   AS PreviousActivityWeekStartDate,
                LAG(BuildingValue) OVER (ORDER BY ScanDateUtc, ScanOrder)
                    AS PreviousBuildingValue,
                LAG(TechValue) OVER (ORDER BY ScanDateUtc, ScanOrder) AS PreviousTechValue
@@ -141,14 +148,18 @@ BEGIN
         (ScanOrder, ScanDateUtc, AsOfDate, PreviousScanOrder, PreviousScanDateUtc,
          PowerValue, PreviousPowerValue, HealedValue, PreviousHealedValue,
          RssGatheredValue, PreviousRssGatheredValue,
-         RssAssistedValue, PreviousRssAssistedValue,
-         HelpsValue, PreviousHelpsValue, BuildingValue, PreviousBuildingValue,
+          RssAssistedValue, PreviousRssAssistedValue,
+          HelpsValue, PreviousHelpsValue,
+          ActivityWeekStartDate, PreviousActivityWeekStartDate,
+          BuildingValue, PreviousBuildingValue,
          TechValue, PreviousTechValue)
     SELECT ScanOrder, ScanDateUtc, AsOfDate, PreviousScanOrder, PreviousScanDateUtc,
            PowerValue, PreviousPowerValue, HealedValue, PreviousHealedValue,
            RssGatheredValue, PreviousRssGatheredValue,
            RssAssistedValue, PreviousRssAssistedValue,
-           HelpsValue, PreviousHelpsValue, BuildingValue, PreviousBuildingValue,
+           HelpsValue, PreviousHelpsValue,
+           ActivityWeekStartDate, PreviousActivityWeekStartDate,
+           BuildingValue, PreviousBuildingValue,
            TechValue, PreviousTechValue
     FROM WithPrevious;
 
@@ -195,9 +206,17 @@ BEGIN
                                       THEN 1 ELSE 0 END),
                     (N'TECH_DONATIONS', 6,
                         CASE WHEN comparison.TechValue > comparison.PreviousTechValue
+                                  OR (comparison.TechValue > 0
+                                      AND comparison.PreviousTechValue IS NOT NULL
+                                      AND comparison.ActivityWeekStartDate
+                                          > comparison.PreviousActivityWeekStartDate)
                              THEN 1 ELSE 0 END),
                     (N'BUILDING_MINUTES', 7,
                         CASE WHEN comparison.BuildingValue > comparison.PreviousBuildingValue
+                                  OR (comparison.BuildingValue > 0
+                                      AND comparison.PreviousBuildingValue IS NOT NULL
+                                      AND comparison.ActivityWeekStartDate
+                                          > comparison.PreviousActivityWeekStartDate)
                              THEN 1 ELSE 0 END),
                     (N'FORT_RALLIES', 8,
                         CASE WHEN rally.CompletedReportCount > 0 AND rally.RallyTotal > 0
