@@ -235,6 +235,35 @@ foreach ($path in $combatMetricPaths) {
     }
 }
 
+$positiveHealedPaths = @(
+    'sql_schema\dbo.fn_KvkCombatMetrics.UserDefinedFunction.sql',
+    'migrations\20260722_002_add_leadership_kvk_index_contract.sql'
+)
+foreach ($path in $positiveHealedPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source '@HealedTroops\s*<=\s*0' "$path must require positive Healed evidence before calculating Tanking Score."
+}
+
+$leadershipKvkIndexPaths = @(
+    'sql_schema\dbo.usp_GetLeadershipPlayerKvkHistory.StoredProcedure.sql',
+    'migrations\20260722_002_add_leadership_kvk_index_contract.sql'
+)
+foreach ($path in $leadershipKvkIndexPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'CASE WHEN KillPoints > 0' "$path must rank only positive Kill Points values."
+    Assert-Contains $source 'ORDER BY KillPoints DESC' "$path must rank Kill Points descending."
+    Assert-Contains $source 'CASE WHEN Deads > 0' "$path must rank only positive Deads values."
+    Assert-Contains $source 'ORDER BY Deads DESC' "$path must rank Deads descending."
+    Assert-Contains $source 'CASE WHEN IsEngaged = 1 AND Healed > 0' "$path must require positive Healed evidence for Healed rank."
+    Assert-Contains $source 'COUNT\(CASE WHEN IsEngaged = 1 AND Healed > 0 THEN 1 END\)' "$path must count only positive-Healed engaged rows."
+    Assert-Contains $source 'ranks\.KillPointsRank,\s*ranks\.DeadsRank' "$path must append leadership Kill Points and Deads ranks."
+    Assert-Contains $source 'healed_coverage\.Healed\s*>\s*0' "$path must expose KVK-level positive-Healed source evidence."
+    Assert-Contains $source 'AS HealedDataAvailable' "$path must name the additive Healed availability result field."
+    if ($source -match 'FROM\s+#Calculated\s+WHERE\s+IsEngaged\s*=\s*1') {
+        $failures.Add("$path must not gate Kill Points and Deads ranks on shared engagement eligibility.")
+    }
+}
+
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { Write-Error $_ }
     exit 1
