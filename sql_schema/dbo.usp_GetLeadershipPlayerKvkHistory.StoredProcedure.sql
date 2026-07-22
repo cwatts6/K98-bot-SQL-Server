@@ -167,26 +167,29 @@ BEGIN
     ;WITH Ranked AS
     (
         SELECT KVK_NO, GovernorID,
-               CASE WHEN KillPoints IS NOT NULL
+               CASE WHEN KillPoints > 0
                     THEN RANK() OVER
-                        (PARTITION BY KVK_NO, CASE WHEN KillPoints IS NULL THEN 1 ELSE 0 END
+                        (PARTITION BY KVK_NO, CASE WHEN KillPoints > 0 THEN 0 ELSE 1 END
                          ORDER BY KillPoints DESC) END AS KillPointsRank,
-               CASE WHEN Deads IS NOT NULL
+               CASE WHEN Deads > 0
                     THEN RANK() OVER
-                        (PARTITION BY KVK_NO, CASE WHEN Deads IS NULL THEN 1 ELSE 0 END
+                        (PARTITION BY KVK_NO, CASE WHEN Deads > 0 THEN 0 ELSE 1 END
                          ORDER BY Deads DESC) END AS DeadsRank,
-               CASE WHEN Healed IS NOT NULL
+               CASE WHEN IsEngaged = 1 AND Healed > 0
                     THEN RANK() OVER
-                        (PARTITION BY KVK_NO, CASE WHEN Healed IS NULL THEN 1 ELSE 0 END
+                        (PARTITION BY KVK_NO,
+                         CASE WHEN IsEngaged = 1 AND Healed > 0 THEN 0 ELSE 1 END
                          ORDER BY Healed ASC) END AS HealedRank,
-               CASE WHEN TankingScore IS NOT NULL
+               CASE WHEN IsEngaged = 1 AND TankingScore IS NOT NULL
                     THEN RANK() OVER
-                        (PARTITION BY KVK_NO, CASE WHEN TankingScore IS NULL THEN 1 ELSE 0 END
+                        (PARTITION BY KVK_NO,
+                         CASE WHEN IsEngaged = 1 AND TankingScore IS NOT NULL THEN 0 ELSE 1 END
                          ORDER BY TankingScore DESC) END AS TankingRank,
-               COUNT(Healed) OVER (PARTITION BY KVK_NO) AS EngagedCohortCount,
-               COUNT(TankingScore) OVER (PARTITION BY KVK_NO) AS TankingCohortCount
+               COUNT(CASE WHEN IsEngaged = 1 AND Healed > 0 THEN 1 END)
+                   OVER (PARTITION BY KVK_NO) AS EngagedCohortCount,
+               COUNT(CASE WHEN IsEngaged = 1 AND TankingScore IS NOT NULL THEN 1 END)
+                   OVER (PARTITION BY KVK_NO) AS TankingCohortCount
         FROM #Calculated
-        WHERE IsEngaged = 1
     )
     INSERT INTO #EngagedRanks
     SELECT KVK_NO, GovernorID, KillPointsRank, DeadsRank, HealedRank, TankingRank,
