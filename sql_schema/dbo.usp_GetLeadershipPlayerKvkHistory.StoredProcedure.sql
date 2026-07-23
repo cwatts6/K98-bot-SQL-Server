@@ -181,6 +181,7 @@ BEGIN
         DeadsRank int NULL,
         HealedRank int NULL,
         TankingRank int NULL,
+        AcclaimRank int NULL,
         EngagedCohortCount int NOT NULL,
         TankingCohortCount int NOT NULL,
         PRIMARY KEY CLUSTERED (KVK_NO, GovernorID)
@@ -206,6 +207,10 @@ BEGIN
                         (PARTITION BY KVK_NO,
                          CASE WHEN IsEngaged = 1 AND TankingScore IS NOT NULL THEN 0 ELSE 1 END
                          ORDER BY TankingScore DESC) END AS TankingRank,
+               CASE WHEN Acclaim > 0
+                    THEN RANK() OVER
+                        (PARTITION BY KVK_NO, CASE WHEN Acclaim > 0 THEN 0 ELSE 1 END
+                         ORDER BY Acclaim DESC) END AS AcclaimRank,
                COUNT(CASE WHEN IsEngaged = 1 AND Healed > 0 THEN 1 END)
                    OVER (PARTITION BY KVK_NO) AS EngagedCohortCount,
                COUNT(CASE WHEN IsEngaged = 1 AND TankingScore IS NOT NULL THEN 1 END)
@@ -214,7 +219,7 @@ BEGIN
     )
     INSERT INTO #EngagedRanks
     SELECT KVK_NO, GovernorID, KillPointsRank, DeadsRank, HealedRank, TankingRank,
-           EngagedCohortCount, TankingCohortCount
+           AcclaimRank, EngagedCohortCount, TankingCohortCount
     FROM Ranked;
 
     CREATE TABLE #HealedCoverage
@@ -277,7 +282,7 @@ BEGIN
            calculated.PreKvkPoints, calculated.PreKvkRank,
            calculated.HonorPoints, calculated.HonorRank,
            calculated.IsExempt, calculated.IsEngaged,
-           ranks.HealedRank, ranks.TankingRank,
+           ranks.HealedRank, ranks.TankingRank, ranks.AcclaimRank,
            ranks.EngagedCohortCount, ranks.TankingCohortCount,
            final_header.FinalDataAtUtc, final_header.State AS FinalOutputState,
            final_header.FinalizationBasis,
