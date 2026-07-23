@@ -170,6 +170,22 @@ foreach ($path in $leadershipPowerRankPaths) {
     Assert-Contains $source 'TRY_CONVERT\(int,\s*PowerRank\)\s+AS\s+PowerRank' "$path must map the stored latest-scan Power rank as an integer."
 }
 
+$leadershipGovernorExistsPaths = @(
+    'sql_schema\dbo.usp_LeadershipPlayerGovernorExists.StoredProcedure.sql',
+    'migrations\20260723_002_add_leadership_governor_exists.sql'
+)
+foreach ($path in $leadershipGovernorExistsPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source '@GovernorID\s+bigint' "$path must receive one typed exact Governor ID."
+    Assert-Contains $source 'IF\s+@GovernorID\s+IS\s+NULL\s+OR\s+@GovernorID\s+<=\s+0' "$path must reject invalid Governor IDs."
+    Assert-Contains $source 'source\.GovernorID\s*=\s*CONVERT\(float,\s*@GovernorID\)' "$path must preserve the GovernorID-leading index seek."
+    Assert-Contains $source 'TRY_CONVERT\(bigint,\s*source\.GovernorID\)\s*=\s*@GovernorID' "$path must retain exact BIGINT equality after the indexed FLOAT comparison."
+    Assert-Contains $source 'AS\s+ExistsInDatabase' "$path must return an explicit one-row existence result."
+    if ($source -match 'CREATE\s+(?:UNIQUE\s+)?(?:CLUSTERED\s+|NONCLUSTERED\s+)?INDEX') {
+        $failures.Add("$path must not introduce another KingdomScanData4 index.")
+    }
+}
+
 $leadershipCoveragePaths = @(
     $leadershipCanonicalPath,
     'migrations\20260719_006_add_leadership_player_review_contracts.sql'
