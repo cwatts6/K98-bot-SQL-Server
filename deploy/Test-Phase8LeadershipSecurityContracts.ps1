@@ -257,11 +257,40 @@ foreach ($path in $leadershipKvkIndexPaths) {
     Assert-Contains $source 'CASE WHEN IsEngaged = 1 AND Healed > 0' "$path must require positive Healed evidence for Healed rank."
     Assert-Contains $source 'COUNT\(CASE WHEN IsEngaged = 1 AND Healed > 0 THEN 1 END\)' "$path must count only positive-Healed engaged rows."
     Assert-Contains $source 'ranks\.KillPointsRank,\s*ranks\.DeadsRank' "$path must append leadership Kill Points and Deads ranks."
-    Assert-Contains $source 'healed_coverage\.Healed\s*>\s*0' "$path must expose KVK-level positive-Healed source evidence."
+    if ($source -notmatch 'healed_coverage\.Healed\s*>\s*0' -and
+        $source -notmatch 'WHERE\s+calculated\.Healed\s*>\s*0') {
+        $failures.Add("$path must expose KVK-level positive-Healed source evidence.")
+    }
     Assert-Contains $source 'AS HealedDataAvailable' "$path must name the additive Healed availability result field."
     if ($source -match 'FROM\s+#Calculated\s+WHERE\s+IsEngaged\s*=\s*1') {
         $failures.Add("$path must not gate Kill Points and Deads ranks on shared engagement eligibility.")
     }
+}
+
+$leadershipCompositeIndexPaths = @(
+    'sql_schema\dbo.usp_GetLeadershipPlayerKvkHistory.StoredProcedure.sql',
+    'migrations\20260722_003_add_leadership_kvk_index_rank.sql'
+)
+foreach ($path in $leadershipCompositeIndexPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'SELECT TOP \(3\) index_details\.KVK_NO' "$path must bound the composite index to the latest three finalized KVKs."
+    Assert-Contains $source 'FROM dbo\.KVK_Details AS index_details' "$path must select composite-index KVKs from global KVK details, not the caller candidate horizon."
+    Assert-Contains $source 'SELECT index_kvk\.KVK_NO FROM #KvkIndexKvks AS index_kvk' "$path must add globally selected index KVKs to the calculation set."
+    Assert-Contains $source 'JOIN #Candidates AS output_candidate' "$path must keep the player-history result inside the caller candidate horizon."
+    Assert-Contains $source 'calculated\.IsExempt\s*=\s*1' "$path must exclude exempt KVK rows from the composite index."
+    Assert-Contains $source 'calculated\.T4T5Kills\s*=\s*0' "$path must score an observed zero Kills value as zero."
+    Assert-Contains $source 'calculated\.Deads\s*=\s*0' "$path must score an observed zero Deads value as zero."
+    Assert-Contains $source 'calculated\.Healed\s*=\s*0' "$path must score an observed zero Healed value as zero."
+    Assert-Before $source 'WHEN calculated.T4T5Kills = 0' 'WHEN calculated.KillTargetPercent IS NULL' "$path must score observed zero metrics before excluding unavailable derived percentages."
+    Assert-Contains $source 'CREATE TABLE #HealedCoverage' "$path must precompute KVK-level positive-Healed evidence."
+    Assert-Contains $source 'LEFT JOIN #HealedCoverage AS healed_coverage' "$path must reuse precomputed positive-Healed evidence."
+    if ($source -match 'NOT\s+EXISTS\s*\(\s*SELECT\s+1\s+FROM\s+#Calculated\s+AS\s+healed_coverage') {
+        $failures.Add("$path must not correlate positive-Healed coverage checks against #Calculated.")
+    }
+    Assert-Contains $source 'ORDER BY indexes\.KvkIndexValue DESC' "$path must rank the uncapped KVK Index descending."
+    Assert-Contains $source 'AS KvkIndexCohortCount' "$path must expose the eligible kingdom cohort count."
+    Assert-Contains $source 'AS CandidateKvkCount' "$path must expose the globally finalized candidate count."
+    Assert-Contains $source 'AS Availability' "$path must expose honest KVK Index availability."
 }
 
 if ($failures.Count -gt 0) {

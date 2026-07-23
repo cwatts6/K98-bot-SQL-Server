@@ -1,5 +1,15 @@
+/*
+RollbackForMigrationId: 20260722_003_add_leadership_kvk_index_rank
+Purpose: Restore the prior two-result-set leadership KVK history contract
+Author: cwatts
+CreatedUtc: 2026-07-22
+DataChange: No
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
 CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerKvkHistory
     @GovernorID bigint,
     @CandidateLimit tinyint = 12
@@ -57,21 +67,6 @@ BEGIN
     LEFT JOIN dbo.KVKFinalReportHeader AS final_header
       ON final_header.KVK_NO = candidates.KVK_NO
     ORDER BY candidates.KVK_NO DESC;
-
-    CREATE TABLE #KvkIndexKvks
-    (
-        KVK_NO int NOT NULL PRIMARY KEY
-    );
-    INSERT INTO #KvkIndexKvks (KVK_NO)
-    SELECT TOP (3) index_details.KVK_NO
-    FROM dbo.KVK_Details AS index_details
-    JOIN dbo.KVKFinalReportHeader AS final_header
-      ON final_header.KVK_NO = index_details.KVK_NO
-     AND final_header.State = N'OUTPUT_COMPLETE'
-    ORDER BY index_details.KVK_NO DESC;
-
-    DECLARE @KvkIndexCandidateCount int =
-        (SELECT COUNT(*) FROM #KvkIndexKvks);
 
     CREATE TABLE #Calculated
     (
@@ -149,13 +144,7 @@ BEGIN
                        AND TRY_CONVERT(int, exemption.KVK_NO) IN (0, history.KVK_NO))
                     THEN 1 ELSE 0 END) AS IsExempt
         FROM dbo.v_EXCEL_FOR_KVK_All AS history
-        JOIN
-        (
-            SELECT candidate.KVK_NO FROM #Candidates AS candidate
-            UNION
-            SELECT index_kvk.KVK_NO FROM #KvkIndexKvks AS index_kvk
-        ) AS relevant_kvk
-          ON relevant_kvk.KVK_NO = history.KVK_NO
+        JOIN #Candidates AS candidates ON candidates.KVK_NO = history.KVK_NO
         JOIN dbo.KVKFinalReportHeader AS final_header
           ON final_header.KVK_NO = history.KVK_NO
          AND final_header.State = N'OUTPUT_COMPLETE'
@@ -217,55 +206,6 @@ BEGIN
            EngagedCohortCount, TankingCohortCount
     FROM Ranked;
 
-    CREATE TABLE #HealedCoverage
-    (
-        KVK_NO int NOT NULL PRIMARY KEY
-    );
-    INSERT INTO #HealedCoverage (KVK_NO)
-    SELECT calculated.KVK_NO
-    FROM #Calculated AS calculated
-    WHERE calculated.Healed > 0
-    GROUP BY calculated.KVK_NO;
-
-    CREATE TABLE #KvkIndexScores
-    (
-        KVK_NO int NOT NULL,
-        GovernorID bigint NOT NULL,
-        KvkScore decimal(36,8) NULL,
-        PRIMARY KEY CLUSTERED (KVK_NO, GovernorID)
-    );
-    INSERT INTO #KvkIndexScores (KVK_NO, GovernorID, KvkScore)
-    SELECT calculated.KVK_NO,
-           calculated.GovernorID,
-           CASE
-               WHEN calculated.IsExempt = 1
-                 OR calculated.T4T5Kills IS NULL
-                 OR calculated.Deads IS NULL
-                 OR calculated.Healed IS NULL
-                   THEN NULL
-               WHEN calculated.T4T5Kills = 0
-                 OR calculated.Deads = 0
-                 OR calculated.Healed = 0
-                   THEN CONVERT(decimal(36,8), 0)
-               WHEN calculated.KillTargetPercent IS NULL
-                 OR calculated.DeadTargetPercent IS NULL
-                 OR healed_coverage.KVK_NO IS NULL
-                 OR calculated.TankingScore IS NULL
-                   THEN NULL
-               ELSE CONVERT(decimal(36,8),
-                    CONVERT(decimal(31,8), calculated.KillTargetPercent)
-                        * CONVERT(decimal(3,2), 0.60)
-                  + CONVERT(decimal(31,8), calculated.DeadTargetPercent)
-                        * CONVERT(decimal(3,2), 0.20)
-                  + CONVERT(decimal(31,8), calculated.TankingScore)
-                        * CONVERT(decimal(3,2), 0.20))
-           END
-    FROM #Calculated AS calculated
-    JOIN #KvkIndexKvks AS index_kvk
-      ON index_kvk.KVK_NO = calculated.KVK_NO
-    LEFT JOIN #HealedCoverage AS healed_coverage
-      ON healed_coverage.KVK_NO = calculated.KVK_NO;
-
     /* Result set 2: player final rows and canonical combat ranks. */
     SELECT calculated.KVK_NO, calculated.GovernorID, calculated.GovernorName,
            calculated.KVKRank, calculated.T4T5Kills, calculated.KillTarget,
@@ -282,50 +222,17 @@ BEGIN
            final_header.FinalDataAtUtc, final_header.State AS FinalOutputState,
            final_header.FinalizationBasis,
            ranks.KillPointsRank, ranks.DeadsRank,
-           CONVERT(bit, CASE WHEN healed_coverage.KVK_NO IS NOT NULL
+           CONVERT(bit, CASE WHEN EXISTS
+               (SELECT 1 FROM #Calculated AS healed_coverage
+                WHERE healed_coverage.KVK_NO = calculated.KVK_NO
+                  AND healed_coverage.Healed > 0)
                THEN 1 ELSE 0 END) AS HealedDataAvailable
     FROM #Calculated AS calculated
-    JOIN #Candidates AS output_candidate
-      ON output_candidate.KVK_NO = calculated.KVK_NO
     LEFT JOIN #EngagedRanks AS ranks
       ON ranks.KVK_NO = calculated.KVK_NO AND ranks.GovernorID = calculated.GovernorID
     LEFT JOIN dbo.KVKFinalReportHeader AS final_header
       ON final_header.KVK_NO = calculated.KVK_NO
-    LEFT JOIN #HealedCoverage AS healed_coverage
-      ON healed_coverage.KVK_NO = calculated.KVK_NO
     WHERE calculated.GovernorID = @GovernorID
     ORDER BY calculated.KVK_NO DESC;
-
-    /* Result set 3: selected-governor uncapped KVK Index and kingdom rank. */
-    ;WITH GovernorIndexes AS
-    (
-        SELECT scores.GovernorID,
-               CONVERT(decimal(38,8), AVG(scores.KvkScore)) AS KvkIndexValue,
-               COUNT(scores.KvkScore) AS ScoredKvkCount
-        FROM #KvkIndexScores AS scores
-        GROUP BY scores.GovernorID
-        HAVING COUNT(scores.KvkScore) > 0
-    ),
-    RankedIndexes AS
-    (
-        SELECT indexes.GovernorID,
-               indexes.KvkIndexValue,
-               indexes.ScoredKvkCount,
-               RANK() OVER (ORDER BY indexes.KvkIndexValue DESC) AS KvkIndexRank,
-               COUNT(*) OVER () AS KvkIndexCohortCount
-        FROM GovernorIndexes AS indexes
-    )
-    SELECT @GovernorID AS GovernorID,
-           ranked.KvkIndexValue,
-           ranked.KvkIndexRank,
-           COALESCE(ranked.KvkIndexCohortCount, 0) AS KvkIndexCohortCount,
-           COALESCE(ranked.ScoredKvkCount, 0) AS ScoredKvkCount,
-           @KvkIndexCandidateCount AS CandidateKvkCount,
-           CONVERT(varchar(16),
-               CASE WHEN ranked.ScoredKvkCount IS NULL THEN 'NOT_RECORDED'
-                    WHEN ranked.ScoredKvkCount = @KvkIndexCandidateCount THEN 'AVAILABLE'
-                    ELSE 'PARTIAL' END) AS Availability
-    FROM (VALUES (1)) AS seed(OneRow)
-    LEFT JOIN RankedIndexes AS ranked
-      ON ranked.GovernorID = @GovernorID;
 END;
+GO

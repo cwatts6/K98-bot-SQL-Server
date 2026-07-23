@@ -1,5 +1,26 @@
+/*
+MigrationId: 20260722_003_add_leadership_kvk_index_rank
+Purpose: Add the uncapped latest-three KVK Index kingdom rank result contract
+Author: cwatts
+CreatedUtc: 2026-07-22
+RequiresBackup: No
+RiskLevel: Medium
+Rollback: Included
+RollbackScript: migrations/rollback/20260722_003_add_leadership_kvk_index_rank_rollback.sql
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Not Required
+EstimatedRowsAffected: N/A
+PreValidationQuery: SELECT OBJECT_ID(N'dbo.usp_GetLeadershipPlayerKvkHistory', N'P') AS LeadershipKvkProcedure;
+PostValidationQuery: EXEC dbo.usp_GetLeadershipPlayerKvkHistory @GovernorID = 2441482, @CandidateLimit = 20;
+RelatedBotPR: 538
+RelatedSQLPR: 55
+*/
+
 SET ANSI_NULLS ON
+GO
 SET QUOTED_IDENTIFIER ON
+GO
 CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerKvkHistory
     @GovernorID bigint,
     @CandidateLimit tinyint = 12
@@ -329,3 +350,4 @@ BEGIN
     LEFT JOIN RankedIndexes AS ranked
       ON ranked.GovernorID = @GovernorID;
 END;
+GO
