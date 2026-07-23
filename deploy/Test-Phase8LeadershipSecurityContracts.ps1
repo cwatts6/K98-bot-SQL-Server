@@ -160,6 +160,16 @@ if ($leadershipCanonical -match 'WHEN\s+COUNT\(DISTINCT\s+headers\.SnapshotDate\
     $failures.Add("$leadershipCanonicalPath still requires complete Alliance Activity coverage before ranking.")
 }
 
+$leadershipPowerRankPaths = @(
+    $leadershipCanonicalPath,
+    'migrations\20260723_001_add_leadership_power_and_acclaim_ranks.sql'
+)
+foreach ($path in $leadershipPowerRankPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'target\.PowerRank\s+AS\s+PowerRank' "$path must expose the selected Governor latest-scan Power rank."
+    Assert-Contains $source 'TRY_CONVERT\(int,\s*PowerRank\)\s+AS\s+PowerRank' "$path must map the stored latest-scan Power rank as an integer."
+}
+
 $leadershipCoveragePaths = @(
     $leadershipCanonicalPath,
     'migrations\20260719_006_add_leadership_player_review_contracts.sql'
@@ -265,6 +275,17 @@ foreach ($path in $leadershipKvkIndexPaths) {
     if ($source -match 'FROM\s+#Calculated\s+WHERE\s+IsEngaged\s*=\s*1') {
         $failures.Add("$path must not gate Kill Points and Deads ranks on shared engagement eligibility.")
     }
+}
+
+$leadershipAcclaimRankPaths = @(
+    'sql_schema\dbo.usp_GetLeadershipPlayerKvkHistory.StoredProcedure.sql',
+    'migrations\20260723_001_add_leadership_power_and_acclaim_ranks.sql'
+)
+foreach ($path in $leadershipAcclaimRankPaths) {
+    $source = Get-SqlSource $path
+    Assert-Contains $source 'CASE\s+WHEN\s+Acclaim\s*>\s*0' "$path must rank only positive Acclaim values."
+    Assert-Contains $source 'ORDER\s+BY\s+Acclaim\s+DESC' "$path must rank Acclaim descending within each finalized KVK."
+    Assert-Contains $source 'ranks\.AcclaimRank' "$path must expose the selected Governor Acclaim rank."
 }
 
 $leadershipCompositeIndexPaths = @(
