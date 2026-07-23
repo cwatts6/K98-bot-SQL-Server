@@ -672,10 +672,7 @@ BEGIN
     DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
-    EXEC dbo.usp_RecordKvkFinalReportCompletion
-        @KVKNo = @KVK,
-        @FinalScanOrder = @LatestScanToUse,
-        @FinalizationBasis = N'LIVE_OUTPUT';
+    EXEC dbo.usp_RecordKvkFinalReportCompletion @KVKNo = @KVK, @FinalScanOrder = @LatestScanToUse, @FinalizationBasis = N'LIVE_OUTPUT';
 
 	        COMMIT TRANSACTION;
     END TRY
