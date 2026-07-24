@@ -1,9 +1,11 @@
-SET ANSI_NULLS ON
-GO
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-GO
-CREATE OR ALTER PROCEDURE dbo.usp_LeadershipPlayerGovernorExists
-    @GovernorID bigint
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_LeadershipPlayerGovernorExists]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_LeadershipPlayerGovernorExists] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_LeadershipPlayerGovernorExists]
+	@GovernorID [bigint]
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -24,4 +26,4 @@ BEGIN
         )
         THEN 1 ELSE 0 END) AS ExistsInDatabase;
 END
-GO
+

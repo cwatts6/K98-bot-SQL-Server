@@ -25,7 +25,6 @@ SELECT
     f.FortsJoined,
     f.FortsTotal,
     f.SnapshotAt    AS FortsUpdated,
-    -- NEW:
     s.PowerRank,
     s.Conduct
 FROM dbo.v_PlayerLatestStats AS s

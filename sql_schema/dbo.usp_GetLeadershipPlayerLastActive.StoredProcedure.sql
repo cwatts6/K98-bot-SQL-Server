@@ -1,9 +1,13 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerLastActive
-    @GovernorID bigint,
-    @HistoryDays smallint = 720,
-    @NowUtc datetime2(0) = NULL
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetLeadershipPlayerLastActive]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetLeadershipPlayerLastActive] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_GetLeadershipPlayerLastActive]
+	@GovernorID [bigint],
+	@HistoryDays [smallint] = 720,
+	@NowUtc [datetime2](0) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -249,3 +253,4 @@ BEGIN
                AS ComparedCompleteScanCount,
            @HistoryDays AS HistoryDays;
 END;
+
