@@ -1,25 +1,25 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ImportAudit_StartBatch]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_StartBatch] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_StartBatch] AS' 
 END
 ALTER PROCEDURE [dbo].[usp_ImportAudit_StartBatch]
-    @ImportKind nvarchar(64),
-    @SourceType nvarchar(64) = NULL,
-    @SourceFilename nvarchar(260) = NULL,
-    @SourceFileHashSha256 char(64) = NULL,
-    @SourceMessageId bigint = NULL,
-    @SourceChannelId bigint = NULL,
-    @ActorDiscordId bigint = NULL,
-    @QueueName nvarchar(128) = NULL,
-    @QueueChannelId bigint = NULL,
-    @ExternalBatchTable nvarchar(256) = NULL,
-    @ExternalBatchId nvarchar(128) = NULL,
-    @Status nvarchar(32) = N'started',
-    @RowsInSource int = NULL,
-    @DetailsJson nvarchar(max) = NULL,
-    @CorrelationId uniqueidentifier = NULL
+	@ImportKind [nvarchar](64),
+	@SourceType [nvarchar](64) = NULL,
+	@SourceFilename [nvarchar](260) = NULL,
+	@SourceFileHashSha256 [char](64) = NULL,
+	@SourceMessageId [bigint] = NULL,
+	@SourceChannelId [bigint] = NULL,
+	@ActorDiscordId [bigint] = NULL,
+	@QueueName [nvarchar](128) = NULL,
+	@QueueChannelId [bigint] = NULL,
+	@ExternalBatchTable [nvarchar](256) = NULL,
+	@ExternalBatchId [nvarchar](128) = NULL,
+	@Status [nvarchar](32) = N'started',
+	@RowsInSource [int] = NULL,
+	@DetailsJson [nvarchar](max) = NULL,
+	@CorrelationId [uniqueidentifier] = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -59,4 +59,5 @@ BEGIN
     SELECT
         CAST(SCOPE_IDENTITY() AS bigint) AS ImportAuditBatchId,
         @CorrelationId AS CorrelationId;
-END
+END;
+

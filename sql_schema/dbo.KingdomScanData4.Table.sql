@@ -43,8 +43,8 @@ CREATE TABLE [dbo].[KingdomScanData4](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
-	[AutarchTimes] [int] NULL
+	[AutarchTimes] [int] NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[KingdomScanData4]') AND name = N'CIX_KS4_ScanOrder_Governor')
