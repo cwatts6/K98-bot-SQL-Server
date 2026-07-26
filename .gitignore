@@ -6,3 +6,9 @@ exports/*
 !exports/.gitkeep
 deploy/sql_deploy_config.json
 *.sqlplan
+
+# Operator-held KingdomScanData4 raw evidence stays local; reviewed summaries
+# and hashes remain in the tracked Markdown manifests.
+performance_remediation/kingdomscandata4/phase1/**/*.rpt
+performance_remediation/kingdomscandata4/phase1/**/*.csv
+performance_remediation/kingdomscandata4/phase1/**/external_serialization_evidence.json
