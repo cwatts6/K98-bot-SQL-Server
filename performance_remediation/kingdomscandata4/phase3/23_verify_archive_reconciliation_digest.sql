@@ -48,6 +48,8 @@ DECLARE @WrongReceiptDigest binary(32) =
 DECLARE @RightReceiptDigest binary(32);
 DECLARE @WrongObservedError int = NULL;
 DECLARE @WrongObservedMessage nvarchar(2048) = NULL;
+DECLARE @QuotedPathError int = NULL;
+DECLARE @QuotedPathDigest binary(32);
 DECLARE @RightReturnCode int = NULL;
 DECLARE @Command nvarchar(4000);
 DECLARE @CommandResult int;
@@ -79,6 +81,19 @@ IF EXISTS
     THROW 52207, 'A dedicated archive reconciliation probe receipt already exists.', 1;
 
 BEGIN TRY
+    BEGIN TRY
+        EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE
+            @ApprovedPath =
+                N'C:\discord_file_downloader\downloads_test_phase3_rehearsal\Import_Archive\Stats_"quote_probe.csv',
+            @FileDigest = @QuotedPathDigest OUTPUT;
+    END TRY
+    BEGIN CATCH
+        SET @QuotedPathError = ERROR_NUMBER();
+    END CATCH;
+
+    IF @QuotedPathError <> 51872
+        THROW 52218, 'The archive hash helper did not reject an embedded double quote before command construction.', 1;
+
     SET @Command =
         N'cmd /d /c copy /b /y "'
         + REPLACE(@WrongFixturePath, N'"', N'""')
@@ -221,6 +236,7 @@ BEGIN TRY
         N'phase3_archive_reconciliation_digest' AS EvidenceSection,
         @WrongObservedError AS WrongDigestError,
         @WrongObservedMessage AS WrongDigestMessage,
+        @QuotedPathError AS QuotedPathError,
         @RightReturnCode AS MatchingDigestReturnCode,
         @WrongArchiveExists AS WrongProbeExistsAfterCleanup,
         @RightArchiveExists AS RightProbeExistsAfterCleanup,

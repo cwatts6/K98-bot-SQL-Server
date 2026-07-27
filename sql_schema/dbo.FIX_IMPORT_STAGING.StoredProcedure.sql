@@ -16,22 +16,12 @@ IF @@TRANCOUNT <> 0
 SET XACT_ABORT ON;
 
 DECLARE @DT DATETIME;
-DECLARE @EntryTranCount INT = @@TRANCOUNT;
-DECLARE @StartedLocalTransaction BIT = 0;
 DECLARE @ImportLockResult INT;
 DECLARE @CurrentMaxScanOrder INT;
 DECLARE @NextScanOrder INT;
 
 BEGIN TRY
-    IF @EntryTranCount = 0
-    BEGIN
-        BEGIN TRANSACTION;
-        SET @StartedLocalTransaction = 1;
-    END
-    ELSE
-    BEGIN
-        SAVE TRANSACTION FIX_IMPORT_STAGING_SAVEPOINT;
-    END;
+    BEGIN TRANSACTION;
 
     EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
         @LockTimeout = 60000,
@@ -138,14 +128,11 @@ SET
 FROM IMPORT_STAGING AS I
 JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
 
-    IF @StartedLocalTransaction = 1
-        COMMIT TRANSACTION;
+    COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
-    IF @StartedLocalTransaction = 1 AND XACT_STATE() <> 0
+    IF XACT_STATE() <> 0
         ROLLBACK TRANSACTION;
-    ELSE IF @EntryTranCount > 0 AND XACT_STATE() = 1
-        ROLLBACK TRANSACTION FIX_IMPORT_STAGING_SAVEPOINT;
 
     THROW;
 END CATCH;

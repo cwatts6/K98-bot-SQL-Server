@@ -20,6 +20,7 @@ BEGIN
            AND @ApprovedPath NOT LIKE N'C:\discord_file_downloader\downloads\Import[_]Archive\Stats[_]%'
        )
        OR CHARINDEX(N'''', @ApprovedPath) > 0
+       OR CHARINDEX(N'"', @ApprovedPath) > 0
        OR CHARINDEX(NCHAR(10), @ApprovedPath) > 0
        OR CHARINDEX(NCHAR(13), @ApprovedPath) > 0
        OR CHARINDEX(N'&', @ApprovedPath) > 0

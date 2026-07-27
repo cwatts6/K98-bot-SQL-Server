@@ -86,6 +86,9 @@ $archive = Get-RepoText (
 $archiveHashHelper = Get-RepoText (
     'sql_schema\dbo.HASH_KS4_IMPORT_ARCHIVE_FILE.StoredProcedure.sql'
 )
+$fixImport = Get-RepoText (
+    'sql_schema\dbo.FIX_IMPORT_STAGING.StoredProcedure.sql'
+)
 $lockHelper = Get-RepoText (
     'sql_schema\dbo.ACQUIRE_KS4_IMPORT_LOCK.StoredProcedure.sql'
 )
@@ -175,7 +178,7 @@ foreach ($source in @(
     $archive,
     $updateAll,
     $updateAll2,
-    (Get-RepoText 'sql_schema\dbo.FIX_IMPORT_STAGING.StoredProcedure.sql')
+    $fixImport
 )) {
     Assert-Matches $source $lockHelperPattern `
         'Every authoritative import path must use the private lock helper.'
@@ -197,9 +200,15 @@ Assert-Matches $updateAll `
 Assert-Matches $updateAll2 `
     'IF\s+@@TRANCOUNT\s+<>\s+0' `
     'UPDATE_ALL2 must refuse caller-owned transactions.'
-Assert-Matches (Get-RepoText 'sql_schema\dbo.FIX_IMPORT_STAGING.StoredProcedure.sql') `
+Assert-Matches $fixImport `
     'IF\s+@@TRANCOUNT\s+<>\s+0' `
     'FIX_IMPORT_STAGING must refuse caller-owned transactions.'
+Assert-Matches $fixImport `
+    'BEGIN\s+TRANSACTION' `
+    'FIX_IMPORT_STAGING must own one local transaction after rejecting ambient transactions.'
+Assert-NotMatches $fixImport `
+    'EntryTranCount|StartedLocalTransaction|SAVE\s+TRANSACTION|SAVEPOINT' `
+    'FIX_IMPORT_STAGING must not retain unreachable ambient/savepoint transaction branches.'
 Assert-Matches $archive `
     'IF\s+@@TRANCOUNT\s+<>\s+0' `
     'ARCHIVE_IMPORT_STAGING_FILE must refuse caller-owned transactions.'
@@ -221,12 +230,18 @@ Assert-Matches $archiveHashHelper `
 Assert-Matches $archiveHashHelper `
     "master\.dbo\.xp_cmdshell\s+@HashCommand" `
     'The archive-hash helper must hash the exact archive destination.'
+Assert-Matches $archiveHashHelper `
+    'CHARINDEX\s*\(\s*N''"''\s*,\s*@ApprovedPath\s*\)\s*>\s*0' `
+    'The archive-hash helper must reject embedded double quotes before building CMD text.'
 Assert-Matches $archiveReconciliationTest `
     'WrongObservedError\s*<>\s*51850' `
     'The archive reconciliation regression must assert the wrong-digest failure.'
 Assert-Matches $archiveReconciliationTest `
     "ArchiveStatus\s*=\s*N'archived'" `
     'The archive reconciliation regression must prove the matching-digest success path.'
+Assert-Matches $archiveReconciliationTest `
+    'QuotedPathError\s*<>\s*51872' `
+    'The archive reconciliation regression must assert embedded double-quote rejection.'
 foreach ($ambientError in @(51807, 51818, 51828, 51833, 51849)) {
     Assert-Matches $ambientTransactionTest `
         ([regex]::Escape([string] $ambientError)) `
