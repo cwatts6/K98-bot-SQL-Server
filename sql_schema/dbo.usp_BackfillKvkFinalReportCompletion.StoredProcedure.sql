@@ -1,15 +1,20 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_BackfillKvkFinalReportCompletion
-    @KVKNo int,
-    @FinalScanOrder int,
-    @FinalDataAtUtc datetime2(0),
-    @FinalizationBasis nvarchar(24) = N'AUDIT_BACKFILL'
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_BackfillKvkFinalReportCompletion]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_BackfillKvkFinalReportCompletion] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_BackfillKvkFinalReportCompletion]
+	@KVKNo [int],
+	@FinalScanOrder [int],
+	@FinalDataAtUtc [datetime2](0),
+	@FinalizationBasis [nvarchar](24) = N'AUDIT_BACKFILL'
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
+
     IF @KVKNo <= 0 OR @FinalScanOrder <= 0 OR @FinalDataAtUtc IS NULL
         THROW 51305, 'KVK completion backfill requires explicit positive KVK/scan values and an evidence timestamp.', 1;
     IF @FinalizationBasis NOT IN (N'AUDIT_BACKFILL', N'INFERRED_BACKFILL')
@@ -30,13 +35,16 @@ BEGIN
         WHERE TRY_CONVERT(int, KVK_NO) = @KVKNo
     )
         THROW 51309, 'KVK completion backfill requires existing final output rows.', 1;
+
     EXEC dbo.usp_RecordKvkFinalReportCompletion
          @KVKNo = @KVKNo,
          @FinalScanOrder = @FinalScanOrder,
          @FinalizationBasis = @FinalizationBasis,
          @FinalDataAtUtc = @FinalDataAtUtc;
+
     SELECT KVK_NO, FinalDataAtUtc, FinalScanOrder, OutputRowCount,
            Revision, State, FinalizationBasis
     FROM dbo.KVKFinalReportHeader
     WHERE KVK_NO = @KVKNo;
-END
+END;
+
