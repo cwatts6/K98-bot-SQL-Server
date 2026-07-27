@@ -11,10 +11,32 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET ANSI_WARNINGS OFF;
+    -- Phase 2 adds filtered uniqueness indexes to the canonical scan tables.
+    -- SQL Server requires ANSI_WARNINGS ON for every write touching them.
+    SET ANSI_WARNINGS ON;
+
+    IF @@TRANCOUNT <> 0
+        THROW 51828, 'UPDATE_ALL refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
+
+        DECLARE @ImportLockResult INT;
+        DECLARE @ImportReturnCode INT;
+        DECLARE @AllocatedScanOrder INT;
+        DECLARE @StagedRows INT;
+        DECLARE @RowsKS5 INT;
+        DECLARE @RowsKS4 INT;
+        DECLARE @ImportFileDigest BINARY(32);
+        DECLARE @ImportArchivePath NVARCHAR(4000);
+        DECLARE @ArchiveReturnCode INT;
+
+        EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
+            @LockTimeout = 60000,
+            @LockResult = @ImportLockResult OUTPUT;
+
+        IF @ImportLockResult < 0
+            THROW 51820, 'UPDATE_ALL could not acquire the KingdomScanData4 import mutex within 60000 ms; import was not started.', 1;
 
 		DECLARE @actual_param1 FLOAT = ISNULL(@param1, (SELECT TOP 1 KINGDOM_RANK FROM KS));
 		DECLARE @actual_param2 NVARCHAR(100) = ISNULL(@param2, (SELECT TOP 1 KINGDOM_SEED FROM KS));
@@ -23,22 +45,45 @@ BEGIN
 		
 
         DECLARE 
-            @MATHCHMAKING_SCAN FLOAT = 148,
-            @MAXSCAN FLOAT = (SELECT MAX(SCANORDER) FROM KingdomScanData4),
-            @PRE_PASS_4_SCAN FLOAT = 156,
-            @KVK_END_SCAN FLOAT = 171,
-            @PASS4END FLOAT = 161,
-            @PASS6END FLOAT = 167,
-            @PASS7END FLOAT = 170,
-            @LASTKVKEND FLOAT = 146,
-            @CURRENTKVK3 FLOAT = 11;
+            @MATHCHMAKING_SCAN INT = 148,
+            @MAXSCAN INT = (SELECT MAX(SCANORDER) FROM KingdomScanData4),
+            @PRE_PASS_4_SCAN INT = 156,
+            @KVK_END_SCAN INT = 171,
+            @PASS4END INT = 161,
+            @PASS6END INT = 167,
+            @PASS7END INT = 170,
+            @LASTKVKEND INT = 146,
+            @CURRENTKVK3 INT = 11;
             --@KINGDOMRANK FLOAT = 1099,
             --@KINGDOMSEED NVARCHAR(20) = 'C Seed';
        
 
         -- Step 1: Refresh latest data
         EXEC UPDATE_RALLY_DATA;
-        EXEC IMPORT_STAGING_PROC;
+        EXEC @ImportReturnCode = dbo.IMPORT_STAGING_PROC_CORE
+            @ImportFileDigest = @ImportFileDigest OUTPUT,
+            @ArchivePath = @ImportArchivePath OUTPUT;
+
+        IF @ImportReturnCode <> 0
+            THROW 51821, 'UPDATE_ALL stopped because IMPORT_STAGING_PROC failed.', 1;
+
+        SELECT
+            @AllocatedScanOrder = MIN(SCANORDER),
+            @StagedRows = COUNT(*)
+        FROM dbo.IMPORT_STAGING;
+
+        IF @AllocatedScanOrder IS NULL
+           OR @AllocatedScanOrder <> (SELECT MAX(SCANORDER) FROM dbo.IMPORT_STAGING)
+           OR @StagedRows <> (SELECT COUNT(DISTINCT [Governor ID]) FROM dbo.IMPORT_STAGING)
+            THROW 51822, 'UPDATE_ALL rejected empty, mixed-scan, or duplicate-governor canonical staging.', 1;
+
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.KingdomScanData5
+            WHERE SCANORDER = @AllocatedScanOrder
+        )
+            THROW 51823, 'UPDATE_ALL refused to reuse an existing KingdomScanData5 SCANORDER.', 1;
 
         -- Step 2: Insert into KingdomScanData5
         INSERT INTO KingdomScanData5 (PowerRank, GovernorName, GovernorID, Alliance, Power, KillPoints, Deads,
@@ -52,6 +97,19 @@ BEGIN
                [Troops Power], [City Hall], [Tech Power], [Building Power], [Commander Power]
         FROM IMPORT_STAGING;
 
+        SET @RowsKS5 = @@ROWCOUNT;
+
+        IF @RowsKS5 <> @StagedRows
+           OR EXISTS
+              (
+                  SELECT 1
+                  FROM dbo.KingdomScanData5
+                  WHERE SCANORDER = @AllocatedScanOrder
+                  GROUP BY SCANORDER, GovernorID
+                  HAVING COUNT_BIG(*) > 1
+              )
+            THROW 51824, 'UPDATE_ALL KingdomScanData5 row-count or duplicate-key validation failed.', 1;
+
      
 		-- Step 3: Copy to KingdomScanData4 only if SCANORDER is greater
 		IF (
@@ -60,10 +118,31 @@ BEGIN
 			SELECT ISNULL(MAX(SCANORDER), 0) FROM KingdomScanData4
 		)
 		BEGIN
+            IF EXISTS
+            (
+                SELECT 1
+                FROM dbo.KingdomScanData4
+                WHERE SCANORDER = @AllocatedScanOrder
+            )
+                THROW 51825, 'UPDATE_ALL refused to reuse an existing KingdomScanData4 SCANORDER.', 1;
+
 			INSERT INTO KingdomScanData4
 			SELECT *
 			FROM KingdomScanData5 
-			WHERE SCANORDER = (SELECT MAX(SCANORDER) FROM KingdomScanData5);
+			WHERE SCANORDER = @AllocatedScanOrder;
+
+            SET @RowsKS4 = @@ROWCOUNT;
+
+            IF @RowsKS4 <> @RowsKS5
+               OR EXISTS
+                  (
+                      SELECT 1
+                      FROM dbo.KingdomScanData4
+                      WHERE SCANORDER = @AllocatedScanOrder
+                      GROUP BY SCANORDER, GovernorID
+                      HAVING COUNT_BIG(*) > 1
+                  )
+                THROW 51826, 'UPDATE_ALL KingdomScanData4 row-count or duplicate-key validation failed.', 1;
 		END
 
 		
@@ -325,7 +404,43 @@ EXEC CREATE_THE_AVERAGES
 
 DROP TABLE #DKP, #HD1, EXCEL_FOR_DASHBOARD
 
-SELECT TOP (5000000) * INTO EXCEL_FOR_DASHBOARD FROM
+SELECT TOP (5000000)
+    [Rank],
+    [KVK_RANK],
+    [Gov_ID],
+    [Governor_Name],
+    [Starting Power],
+    [Power_Delta],
+    [T4_KILLS],
+    [T5_KILLS],
+    [T4&T5_Kills],
+    [KILLS_OUTSIDE_KVK],
+    [Kill Target],
+    [% of Kill target],
+    [Deads] AS [Deads_Delta],
+    [DEADS_OUTSIDE_KVK],
+    [T4_Deads],
+    [T5_Deads],
+    [Dead Target] AS [Dead_Target],
+    [% of Dead Target],
+    [Zeroed],
+    [DKP_SCORE],
+    [DKP Target],
+    [% of DKP Target],
+    [Helps] AS [HelpsDelta],
+    [RSS_Assist] AS [RSS_Assist_Delta],
+    [RSS_Gathered] AS [RSS_Gathered_Delta],
+    [Pass 4 Kills],
+    [Pass 6 Kills],
+    [Pass 7 Kills],
+    [Pass 8 Kills],
+    [Pass 4 Deads],
+    [Pass 6 Deads],
+    [Pass 7 Deads],
+    [Pass 8 Deads],
+    [KVK_NO]
+INTO EXCEL_FOR_DASHBOARD
+FROM
 
 ( SELECT * 
   FROM EXCEL_FOR_CURRENT_KVK
@@ -546,13 +661,20 @@ SET ANSI_WARNINGS ON;
 
         COMMIT;
 
+        EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
+            @FileDigest = @ImportFileDigest;
+
+        IF @ArchiveReturnCode <> 0
+            THROW 51827, 'UPDATE_ALL committed its database work but the stats.csv archive handoff did not complete.', 1;
+
 		INSERT INTO Update_ALL_Complete (CompletionTime)
 		VALUES (GETDATE());
 
 
     END TRY
     BEGIN CATCH
-        ROLLBACK;
+        IF XACT_STATE() <> 0
+            ROLLBACK;
         SET ANSI_WARNINGS ON;
         THROW;
     END CATCH

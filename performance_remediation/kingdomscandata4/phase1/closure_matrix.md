@@ -1,62 +1,64 @@
 # Phase 1 closure matrix
 
-Status updated 2026-07-26. Phase 1 collection, functional rehearsal, committed-import,
+Status updated 2026-07-27. Phase 1 collection, functional rehearsal, committed-import,
 scheduler/serialization, Query Store, bot/DAL contracts and exact migration/rollback rehearsal
 are complete. The formal Phase 1 gate is closed. The operator approved the exact Phase 2
 implementation/rehearsal plan on 2026-07-25. Representative-copy forward, drift-refusal,
 rollback, recovery, workload and irreversible-finalization rehearsals and the final SQL Changes
 security review are complete. The self-contained delivery-history retryability gap and its final
-61-file Changes review are also closed. Production execution remains separately gated.
+61-file Changes review are also closed. Phase 3 implementation, ordered representative-copy
+forward/rollback/reapply rehearsal and final Changes review are complete. Phase 4 is next.
+Production execution remains separately gated.
 
 | Object / path | Classification | Required resolution | Phase | Status |
 | --- | --- | --- | ---: | --- |
 | `dbo.IMPORT_STAGING_CSV_RAW` | Upstream raw landing | Preserve raw/error boundary; validate file/source contract | 1, 3 | Raw boundary retained; invalid numeric, blank optional, Unicode and maximum-width fixtures tested |
 | `dbo.IMPORT_STAGING_CSV` | Upstream typed boundary | Validate conversion/rejection behavior and final types | 1, 3 | `bigint`/`int` and `nvarchar(200/100)` boundary locked; width/Unicode/invalid behavior passed |
-| `dbo.IMPORT_STAGING` | Upstream canonical staging | Remove float/string mismatch after proof | 1, 3 | Live float/`nchar(255)` mismatch confirmed; coordinated migration pending |
-| `dbo.IMPORT_STAGING_PROC` | Upstream writer/orchestrator | Fix typed mapping, concurrency, idempotency and file handling | 1, 3 | Success/invalid/retry/concurrency behavior captured; no explicit mutex; Phase 3 correction still required |
-| `dbo.FIX_IMPORT_STAGING` | Upstream legacy writer helper | Establish runtime use; align or remove in coordinated release | 1, 3 | Static definition reviewed |
-| `dbo.KingdomScanData5` | Upstream promotion table | Align final contract and migration | 1, 2, 3 | Live float/`nchar(255)` mismatch confirmed; coordinated migration pending |
-| `dbo.UPDATE_ALL` | Direct writer | Establish runtime use; align or remove in coordinated release | 1, 3 | Static write found |
-| `dbo.UPDATE_ALL2` | Direct writer/orchestrator | Align types; separate unsafe maintenance; prove outputs/retry | 1, 3 | Functional scenarios and comparable committed warm-up plus measured ordinals 1-5 passed; stable 411-row material digest and 195,362.014 ms measured median; first ordinal-3 attempt excluded with raw-receipt retention limitation recorded |
+| `dbo.IMPORT_STAGING` | Upstream canonical staging | Remove float/string mismatch after proof | 1, 3 | Complete: Phase 2 type contract consumed by the Phase 3 import core; forward/rollback/reapply verified |
+| `dbo.IMPORT_STAGING_PROC` | Upstream writer/orchestrator | Fix typed mapping, concurrency, idempotency and file handling | 1, 3 | Complete: public wrapper, private core, mutex, atomic allocation, digest receipt, duplicate refusal and failure paths passed |
+| `dbo.FIX_IMPORT_STAGING` | Upstream legacy writer helper | Establish runtime use; align or remove in coordinated release | 1, 3 | Complete: retained legacy entry point uses the shared private core and passed committed import |
+| `dbo.KingdomScanData5` | Upstream promotion table | Align final contract and migration | 1, 2, 3 | Complete for Phase 3: Phase 2 final types retained and committed import row/value invariants passed |
+| `dbo.UPDATE_ALL` | Direct writer | Establish runtime use; align or remove in coordinated release | 1, 3 | Complete: retained legacy entry point passed durable import invariants through the shared core |
+| `dbo.UPDATE_ALL2` | Direct writer/orchestrator | Align types; separate unsafe maintenance; prove outputs/retry | 1, 3 | Complete: direct, duplicate, simultaneous, invalid/corrected and controlled Phase-B scenarios passed with one winner and stable durable output |
 | `dbo.KingdomScanData4` | Remediation centre | Prove data, select migration, reconcile all rows and indexes | 1, 2 | Phase 2 representative-copy implementation passed five forward runs, three production-usable early rollbacks, separately named backup/restore recovery, expected stale-receipt drift refusal before any retained-table drop, clean irreversible finalization, exact digests, ten retained indexes, permission/module/DBCC checks, retryable migration-history reset and no snapshot rollback; production remains gated |
-| `dbo.CREATE_DELTA_TABLES` | Direct SQL reader | Align variables/temp/output and prove results | 3 | Static reference found |
-| `dbo.CREATE_THE_AVERAGES` | Direct SQL reader | Align variables/temp/output and prove results | 3 | Static reference found |
-| `dbo.DEADSSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Five-run stable component baseline captured; after equivalence pending |
-| `dbo.HEALEDSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Five-run stable component baseline captured; after equivalence pending |
-| `dbo.HEALEDSUMMARY_PROC_OPT` | Summary reader | Establish canonical/runtime use; benchmark/equivalence | 3 | Static reference found |
-| `dbo.KILLPOINTSSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Static reference found |
-| `dbo.KILLSSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Static reference found |
-| `dbo.KT4SUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Static reference found |
-| `dbo.KT5SUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Static reference found |
-| `dbo.POWERSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Five-run stable component baseline captured; after equivalence pending |
-| `dbo.RANGEDSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Five-run stable component baseline captured; after equivalence pending |
-| `dbo.SUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Phase 2 type-migration after-run stable at 167,154.476 ms median with the exact 2,374-row digest; Phase 3 cleanup equivalence remains pending |
-| `dbo.Refresh_PlayerScanMeta` | Metadata writer | Validate full/incremental/no-op plans and consistency | 3 | Five-run full/incremental/no-op baselines stable; after equivalence pending |
+| `dbo.CREATE_DELTA_TABLES` | Direct SQL reader | Align variables/temp/output and prove results | 3 | Complete: aligned definition refreshed and compiled against final types |
+| `dbo.CREATE_THE_AVERAGES` | Direct SQL reader | Align variables/temp/output and prove results | 3 | Complete: retained definition refreshed and compiled against final types |
+| `dbo.DEADSSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.HEALEDSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.HEALEDSUMMARY_PROC_OPT` | Summary reader | Establish canonical/runtime use; benchmark/equivalence | 3 | Complete: retained/aligned definition refreshed and compiled |
+| `dbo.KILLPOINTSSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.KILLSSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.KT4SUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.KT5SUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.POWERSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.RANGEDSUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: cleanup included in the repeated controlled summary suite |
+| `dbo.SUMMARY_PROC` | Summary reader | Remove obsolete conversions; benchmark/equivalence | 3 | Complete: aligned definition passed controlled result/performance reconciliation |
+| `dbo.Refresh_PlayerScanMeta` | Metadata writer | Validate full/incremental/no-op plans and consistency | 3 | Complete: final definition refreshed/compiled and metadata workload remained stable |
 | `dbo.GOVERNOR_NAMES_PROC` | Direct reader | Align final string/ID contract and prove output | 3 | Static reference found |
-| `dbo.sp_ExcelOutput_ByKVK` | Direct reader/downstream writer | Align joins/output and prove exports | 3 | Static reference found |
+| `dbo.sp_ExcelOutput_ByKVK` | Direct reader/downstream writer | Align joins/output and prove exports | 3 | Complete: aligned definition refreshed/compiled with external contract preserved |
 | `dbo.sp_Loop_ExcelOutput_ByKVK` | Transitive orchestrator | Map calls and prove loop behavior | 3 | Static reference found |
 | `dbo.sp_Prep_ExcelOutputTable` | Direct reader/downstream writer | Align types and prove output | 3 | Static reference found |
 | `dbo.sp_Prep_TargetTable` | Direct reader/downstream writer | Align dynamic SQL/types and prove output | 3 | Static reference found |
-| `dbo.sp_Rebuild_ExcelForDashboard` | Direct reader/downstream writer | Align types and prove output | 3 | Static reference found |
+| `dbo.sp_Rebuild_ExcelForDashboard` | Direct reader/downstream writer | Align types and prove output | 3 | Complete: aligned definition refreshed/compiled with external contract preserved |
 | `dbo.sp_Rebuild_v_PlayerKVK_Last3` | Direct reader/downstream writer | Align types and prove output | 3 | Static reference found |
 | `dbo.sp_RefreshInactiveGovernors` | Direct reader/downstream writer | Align types and prove output | 3 | Static reference found |
 | `dbo.SP_Stats_for_Upload` | Direct reader/downstream writer | Align types and prove upload output | 3 | Static reference found |
-| `dbo.sp_TARGETS_MASTER` | Direct reader/downstream writer | Align types and prove target output | 3 | Static reference found |
-| `dbo.TARGETS` | Direct reader | Replace float scan variables and prove results | 3 | Static reference found |
-| `dbo.TARGETS_NEW` | Direct reader | Align temp/output shapes and prove results | 3 | Static reference found |
-| `dbo.TEST` | Direct reader/dead candidate | Establish runtime ownership before removal or alignment | 1, 3 | Static reference found |
+| `dbo.sp_TARGETS_MASTER` | Direct reader/downstream writer | Align types and prove target output | 3 | Complete: aligned definition refreshed/compiled with external contract preserved |
+| `dbo.TARGETS` | Direct reader | Replace float scan variables and prove results | 3 | Complete: scan variables aligned and definition refreshed/compiled |
+| `dbo.TARGETS_NEW` | Direct reader | Align temp/output shapes and prove results | 3 | Complete: temp/output contract aligned and definition refreshed/compiled |
+| `dbo.TEST` | Direct reader/dead candidate | Establish runtime ownership before removal or alignment | 1, 3 | Complete: retained and aligned; definition refreshed/compiled rather than removed |
 | `dbo.UPDATE_RALLY_DATA` | Direct reader/downstream writer | Align types and prove output | 3 | Static reference found |
-| `dbo.usp_BackfillKvkFinalReportCompletion` | Direct reader | Prove historical/backfill behavior | 3 | Static reference found |
-| `dbo.usp_GetLeadershipPlayerIdentityHistory` | Direct reader | Prove ID/string/date result contract | 3, 5 | Static reference found |
-| `dbo.usp_GetLeadershipPlayerLastActive` | Direct reader | Prove ID/date result contract | 3, 5 | High-activity 720-day five-run baseline stable; bot caller mapping pending |
-| `dbo.usp_GetLeadershipPlayerLookupDirectory` | Direct reader | Prove ID/string/date result contract | 3, 5 | 720-day directory five-run baseline stable; bot caller mapping pending |
-| `dbo.usp_GetLeadershipPlayerReview` | Direct reader | Prove large contract, plans and bot mapping | 3, 5 | Static reference found |
-| `dbo.usp_GetPersonalStatsDaily` | Direct reader | Prove stats contract and bot mapping | 3, 5 | Static reference found |
-| `dbo.usp_LeadershipPlayerGovernorExists` | Direct reader | Prove exact ID lookup contract | 3, 5 | Existing/absent five-run baselines stable; bot caller mapping pending |
-| `dbo.usp_UpsertGovernorNameHistoryForScan` | Direct reader/downstream writer | Remove obsolete conversion; prove idempotency | 3 | Query Store 143117/16603 mapped here; high-cost affected-alias aggregation requires after benchmark |
-| `dbo.STAGING_STATS` | Downstream staging table | Align remaining float metrics and joins | 3 | Live mixed float/`bigint` contract confirmed |
-| `dbo.EXCEL_FOR_DASHBOARD` | Downstream output table | Prove bigint alignment and row/value equivalence | 3 | Live `Gov_ID bigint` output alignment confirmed |
-| `dbo.STATS_FOR_UPLOAD` | Downstream output table | Prove bigint alignment and export contract | 3, 5 | Live `Gov_ID bigint` output alignment confirmed |
+| `dbo.usp_BackfillKvkFinalReportCompletion` | Direct reader | Prove historical/backfill behavior | 3 | Complete: aligned definition refreshed/compiled against final contracts |
+| `dbo.usp_GetLeadershipPlayerIdentityHistory` | Direct reader | Prove ID/string/date result contract | 3, 5 | Phase 3 complete: definition refreshed/compiled; mapped Phase 5 bot smoke remains mandatory |
+| `dbo.usp_GetLeadershipPlayerLastActive` | Direct reader | Prove ID/date result contract | 3, 5 | Phase 3 complete: aligned definition refreshed/compiled; mapped 720-day Phase 5 smoke retained |
+| `dbo.usp_GetLeadershipPlayerLookupDirectory` | Direct reader | Prove ID/string/date result contract | 3, 5 | Phase 3 complete: aligned definition refreshed/compiled; mapped 720-day Phase 5 smoke retained |
+| `dbo.usp_GetLeadershipPlayerReview` | Direct reader | Prove large contract, plans and bot mapping | 3, 5 | Phase 3 complete: pinned six-result-set workload passed one warm-up plus five measured runs |
+| `dbo.usp_GetPersonalStatsDaily` | Direct reader | Prove stats contract and bot mapping | 3, 5 | Phase 3 complete: retained definition refreshed/compiled; mapped Phase 5 smoke remains mandatory |
+| `dbo.usp_LeadershipPlayerGovernorExists` | Direct reader | Prove exact ID lookup contract | 3, 5 | Phase 3 complete: aligned definition refreshed/compiled; mapped present/absent Phase 5 smoke retained |
+| `dbo.usp_UpsertGovernorNameHistoryForScan` | Direct reader/downstream writer | Remove obsolete conversion; prove idempotency | 3 | Complete: aligned definition refreshed/compiled and mapped workload passed |
+| `dbo.STAGING_STATS` | Downstream staging table | Align remaining float metrics and joins | 3 | Complete: three directly written contracts converted with exact 2,371/9/411 verification |
+| `dbo.EXCEL_FOR_DASHBOARD` | Downstream output table | Prove bigint alignment and row/value equivalence | 3 | Complete: existing `Gov_ID bigint` contract retained and dependent modules compiled |
+| `dbo.STATS_FOR_UPLOAD` | Downstream output table | Prove bigint alignment and export contract | 3, 5 | Phase 3 complete: existing `Gov_ID bigint` contract retained; Phase 5 export smoke remains mandatory |
 | `dbo.v_Active_Players` | Direct view | Remove obsolete cast only after contract proof | 4, 5 | Static reference found |
 | `dbo.v_GovernorNames` | Direct view | Align ID/string semantics and consumers | 4, 5 | Static reference found |
 | `dbo.v_KVK_Under50_Last3_WithLatest` | Direct view | Align types and prove range/latest output | 4, 5 | Static reference found |
@@ -79,7 +81,7 @@ security review are complete. The self-contained delivery-history retryability g
 | `player_self_service/governor_dashboard_dal.py` | Bot DAL direct reader | Prove dashboard freshness/result contract | 5 | Contract map complete; coordinated implementation will replace the float predicate and obsolete new-integer casts while preserving the exact-one-row 19-column contract, latest precedence and present/absent smokes |
 | `leadership_player_review/dal.py` | Bot DAL procedure consumer | Prove exact-ID existence/result contract | 5 | Complete: six procedure entry points, fixed result-set ordinals/shapes/nulls/enums/order and exact lookup/existence/review/identity/KVK/last-active smokes retained |
 | SQL Agent job steps | Operational dependency | Collect job definitions/history and schedule overlap | 1 | Complete: all five jobs captured; four are backup/prune jobs and the fifth is standard `syspolicy_purge_history`; none invokes the import, 200/200 retained targeted outcomes succeeded and no overlaps were returned |
-| Bot `UPDATE_ALL2` invocation and serialization | Operational dependency | Prove every bot entry point and whether guards cover it | 1, 3 | Complete: monitored-channel imports hold one process-wide `processing_lock`, but admin `/run_sql_proc` calls the same runner without that lock; direct SQL also bypasses bot guards, so overlap remains possible and Phase 3 requires a database mutex |
+| Bot `UPDATE_ALL2` invocation and serialization | Operational dependency | Prove every bot entry point and whether guards cover it | 1, 3 | Complete: Phase 3 database mutex now serializes bot, admin and direct SQL paths; simultaneous-session proof produced one winner and one deterministic duplicate loser |
 | Query Store / plan cache | Workload dependency | Collect real callers, plans, metrics and regressions | 1 | Complete: 12/12 shortlisted pairs matched owners; 143117 retained as affected-alias aggregation; pinned procedure scenarios and five compiled accounts-DAL IDs map to exact after suites |
 | Cross-database references / synonyms | Schema dependency | Collect and reconcile with repository scan | 1 | No synonyms or external-server references found; repository reconciliation complete |
 
@@ -104,6 +106,24 @@ and 17/17 candidate ledgers with zero reportable findings. The later complete-de
 closed 61/61 file receipts with zero reportable findings after the delivery-history addition and
 ordered Phase 3–5 roadmap were included. Production execution remains separately gated and must
 confirm current effective grants and the SQL-host backup-folder ACL before the migration window.
+
+## Phase 3 gate summary
+
+| Gate | Status |
+| --- | --- |
+| Frozen dependency and rollback contract | Complete: 52 modules and 39 Phase 3 procedure definitions |
+| Import ownership and authorization | Complete: private role/helper chain, public-wrapper transaction guards, and no leaked locks |
+| Atomic allocation and duplicate control | Complete: database mutex, cross-table allocator and digest receipt passed simultaneous-session proof |
+| Forward/rollback/reapply | Complete on `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL` |
+| Downstream persisted contracts | Complete: `PlayerScanMeta`, `SUMMARY_PROC_STATE` and direct `STAGING_STATS` columns aligned; broader legacy surface deliberately retained |
+| Functional and mapped workloads | Complete: committed import, retry, direct/legacy, Phase-B failure, Query Store and module-refresh gates passed |
+| Repository validation | Complete: Phase 3 contract test, SQL repository validation and `git diff --check` passed |
+| Final Changes review | Complete with follow-up: scan `7ccf1007-269d-4470-94f0-638222312c5a` reported two Low/P3 mutable-path findings assigned to Phase 5 |
+
+The final Phase 3 reviewed snapshot is
+`codex-security-snapshot/v1:sha256:98d3c2f01c061c4a3557b5d2f43d0080b47cab9c9863279c8162f3dbb9d653a8`.
+The two findings share one immutable, uniquely named file-handoff remediation spanning the bot
+producer and SQL consumer. They block the combined release but do not block Phase 4 view work.
 
 ## 2026-07-26 security follow-up
 

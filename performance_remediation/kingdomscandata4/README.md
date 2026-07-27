@@ -3,10 +3,10 @@
 This folder contains the evidence and scripts for the five-phase remediation defined in
 `docs/Codex_Task_KingdomScanData4_Performance_Remediation.md`.
 
-Phase 1 collectors are read-only. The `phase2` package and matching migration/rollback scripts are
-representative-copy validated but are not authorized for production execution. Phases 3 through 5
-are separate implementation stages; the combined rehearsal and production decision are release
-gates after Phase 5, not part of Phase 2.
+Phase 1 collectors are read-only. The `phase2` and `phase3` packages and matching
+migration/rollback scripts are representative-copy validated but are not authorized for
+production execution. Phases 4 and 5 remain separate implementation stages; the combined
+rehearsal and production decision are release gates after Phase 5, not part of Phase 2.
 
 ## Current phase
 
@@ -18,8 +18,14 @@ final workload forward completed in 73,287.038 ms; `SUMMARY_PROC` improved to a 
 five-run median with exact result stability. Early rollback also resets the exact deployment
 history row to the retryable `Pending` state; its transaction and cleanup passed on the
 representative recovery copy. The complete 61-file delivery diff then passed its final Changes
-security review with zero reportable findings. Phase 2 is closed. Production execution remains
-separately gated.
+security review with zero reportable findings. Phase 2 is closed.
+
+Phase 3 is also complete on `codex/kingdomscandata4-phase3`. Its fresh Phase 2-to-Phase 3
+forward/rollback/forward rehearsal passed the import mutex, atomic allocation, duplicate receipt,
+archive, direct/legacy entry-point, failure, mapped workload, module refresh and repository gates.
+Final Changes scan `7ccf1007-269d-4470-94f0-638222312c5a` sealed with two Low/P3 findings that
+share one Phase 5 immutable-file handoff remediation. Phase 4 is next. Production execution
+remains separately gated.
 
 ## Authoritative phase order
 
@@ -27,12 +33,13 @@ separately gated.
 2. **Phase 2 — physical table migration:** complete after the self-contained forward,
    verification, early-rollback, finalization, recovery, performance and delivery-history
    retryability gates pass.
-3. **Phase 3 — procedures, import concurrency and downstream tables:** implement the database
-   mutex, atomic scan allocation, duplicate prevention and type-aligned procedure contracts.
-4. **Phase 4 — views and view consumers:** remove only obsolete conversion compensation and prove
-   bidirectional result/metadata equivalence.
-5. **Phase 5 — bot and DAL alignment:** implement the four approved bot paths in the separate bot
-   repository and prove all changed and source-unchanged consumer contracts.
+3. **Phase 3 — procedures, import concurrency and downstream tables:** complete; database mutex,
+   atomic scan allocation, duplicate prevention and type-aligned procedure contracts are frozen.
+4. **Phase 4 — views and view consumers:** next; remove only obsolete conversion compensation
+   and prove bidirectional result/metadata equivalence.
+5. **Phase 5 — bot, DAL and immutable import-file handoff:** implement the four approved bot
+   paths, the companion SQL consumer migration, and prove all changed and source-unchanged
+   consumer contracts.
 6. **Combined release gate:** rehearse the exact SQL and bot commits from a fresh restore, complete
    separate diff-focused security reviews, merge through the documented PR paths, and request
    explicit production execution approval.
@@ -121,6 +128,13 @@ procedures, or mutate data.
   protected SQL-host or database write access and can affect only the fixed, separately named
   non-production rehearsal target. Effective production grants and the SQL-host backup-folder ACL
   remain explicit production preflights because they are not represented in Git.
+- Phase 3 implementation/rehearsal: the exact 52-module contract and ordered Phase 2-to-Phase 3
+  forward/rollback/forward chain passed on
+  `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`. Final Changes scan
+  `7ccf1007-269d-4470-94f0-638222312c5a` reviewed snapshot
+  `codex-security-snapshot/v1:sha256:98d3c2f01c061c4a3557b5d2f43d0080b47cab9c9863279c8162f3dbb9d653a8`
+  and reported two Low/P3 mutable-file identity findings. The shared immutable-file remediation
+  is assigned to Phase 5 and blocks the combined release, not Phase 4 entry.
 - Raw `.rpt` outputs and `kingdomscandata4_sample.csv` are operator-held local evidence. They
   contain player-identifying values and an operator login and must not be committed without
   anonymisation/redaction.

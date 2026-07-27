@@ -1,12 +1,16 @@
-# KingdomScanData4 Phase 5 — bot and DAL alignment
+# KingdomScanData4 Phase 5 — bot, DAL and immutable file handoff
 
-Status: planned; starts after the final Phase 3/4 SQL contracts are available. Implementation
-belongs to the separate bot repository at `C:\discord_file_downloader`.
+Status: planned; starts after the final Phase 3/4 SQL contracts are available. Bot implementation
+belongs to the separate repository at `C:\discord_file_downloader`. The immutable-file protocol
+also requires a narrowly scoped companion SQL migration and canonical definition update in this
+repository.
 
 ## Objective
 
 Remove bot-side SQL compensation made obsolete by the corrected SQL contracts while preserving
-every public, DAL, import, export, ordering, null and fallback behavior.
+every public, DAL, import, export, ordering, null and fallback behavior. Close the two Phase 3
+Low/P3 mutable-path findings by binding producer publication, SQL claim, digest, import, receipt
+and archive to one immutable, uniquely named file.
 
 ## Repository and architecture rules
 
@@ -16,6 +20,8 @@ every public, DAL, import, export, ordering, null and fallback behavior.
 - Promote the validated mirror delta through the patch-based production flow and deploy only from
   `K98-bot/main`.
 - The SQL and bot repositories require separate test and diff-security evidence.
+- Do not combine the repositories into an invented Git diff. Freeze one exact SQL commit and one
+  exact bot commit for the combined release receipt.
 
 ## Approved changes
 
@@ -43,6 +49,27 @@ No source change is planned for `kvk_state.py`, `kvk/dal/kvk_history_dal.py`,
 `stats/dal/fallback_import_dal.py` or `leadership_player_review/dal.py` while their mapped
 contracts remain unchanged. Their exact smokes remain mandatory.
 
+## Immutable file-handoff remediation
+
+The following two findings are one root-cause family and must close together:
+
+- `csf_1a1c440452b02cdb787fa7c3`: source hash and `BULK INSERT` can observe different bytes.
+- `csf_3cb54318733d3a216dd91e9b`: source hash and archive `MOVE` can observe different bytes.
+
+The approved design requirements are:
+
+1. The bot writes to a private temporary name, closes the file, then atomically publishes a
+   unique completed name.
+2. SQL claims that exact completed name; the reusable `stats.csv` pathname is no longer the work
+   identity.
+3. Producer and directory ACL behavior prevents replacement or mutation after claim.
+4. Hashing, `BULK INSERT`, the receipt and archival all carry the claimed immutable identity.
+5. The archive destination is derived from the claim and rehashed before the receipt advances.
+6. Duplicate retry, invalid/corrected retry, controlled failure, reconciliation and crash recovery
+   remain deterministic.
+7. The SQL companion migration is backward/forward ordered for a stopped-writer maintenance
+   window and has an exact rollback definition.
+
 ## Required tests
 
 - Update `tests/test_player_self_service_accounts_dal.py`.
@@ -55,9 +82,12 @@ contracts remain unchanged. Their exact smokes remain mandatory.
   security-routing, pre-commit and full pytest gates.
 - Confirm pytest did not mutate production operational logs.
 - Run a bot-repository Changes security review against the final committed diff.
+- Run a separate SQL-repository Changes security review for the companion migration. Both scans
+  must validate closure of the two stable finding IDs.
 
 ## Exit gate
 
 Phase 5 closes only when the four approved paths are implemented, every changed and
-source-unchanged contract smoke passes, the full bot suite is clean, the separate security review
-is complete and the exact bot commit is ready for the combined release rehearsal.
+source-unchanged contract smoke passes, the full bot suite is clean, both repository-specific
+security reviews are complete, both mutable-path findings are closed, and the exact SQL and bot
+commits are ready for the combined release rehearsal.

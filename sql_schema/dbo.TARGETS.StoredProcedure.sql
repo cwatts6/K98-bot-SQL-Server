@@ -5,7 +5,7 @@ BEGIN
 EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[TARGETS] AS' 
 END
 ALTER PROCEDURE [dbo].[TARGETS]
-	@InputScanOrder [float] = NULL
+	@InputScanOrder [int] = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -19,7 +19,7 @@ BEGIN
                 @BAND5 FLOAT = 60000000,
                 @BAND6 FLOAT = 50000000,
                 @BAND7 FLOAT = 40000000,
-                @MATCHMAKINGSCAN FLOAT = ISNULL(@InputScanOrder, (SELECT MAX(SCANORDER) FROM KingdomScanData4));
+                @MATCHMAKINGSCAN INT = ISNULL(@InputScanOrder, (SELECT MAX(SCANORDER) FROM KingdomScanData4));
 
         -- Clear previous target data
         TRUNCATE TABLE TARGETS_JUN25;
@@ -74,6 +74,30 @@ BEGIN
 
         -- Insert full KVK target view
         INSERT INTO EXCEL_OUTPUT_KVK_TARGETS_JUN25
+        (
+            [Rank],
+            [RANK2],
+            [Gov_ID],
+            [Governor_Name],
+            [Power],
+            [City Hall],
+            [Troops Power],
+            [Tech Power],
+            [Building Power],
+            [Commander Power],
+            [Kill Target],
+            [Minimum Kill Target],
+            [Dead Target],
+            [DKP Target],
+            [Kills Mar25 KVK],
+            [DEADS Mar25 KVK],
+            [DKP Mar25 KVK],
+            [% DKP Target Mar25 KVK],
+            [Kills Jan25 KVK],
+            [DEADS Jan25 KVK],
+            [DKP Jan25 KVK],
+            [% DKP Target Jan25 KVK]
+        )
         SELECT TOP 5000
                P.PowerRank AS Rank,
                ROW_NUMBER() OVER (ORDER BY P.Power DESC) AS RANK2,

@@ -47,11 +47,11 @@ SELECT
     ROUND(AVG([T4&T5_Kills]), 0) AS [T4&T5_Kills],
     ROUND(AVG([Kill Target]), 0) AS [Kill Target],
     ROUND(AVG([% of Kill target]), 0) AS [% of Kill target],
-    ROUND(AVG([Deads]), 0) AS [Deads],
+    ROUND(AVG([Deads_Delta]), 0) AS [Deads],
     ROUND(AVG([T4_Deads]), 0) AS [T4_Deads],
     ROUND(AVG([T5_Deads]), 0) AS [T5_Deads],
-    ROUND(AVG([Dead Target]), 0) AS [Dead Target],
-    ROUND(AVG([% of Dead Target]), 0) AS [% of Dead Target],
+    ROUND(AVG([Dead_Target]), 0) AS [Dead_Target],
+    ROUND(AVG([% of Dead Target]), 0) AS [% of Dead_Target],
     ed.KVK_NO,
     ROUND(AVG([Pass 4 Kills]), 0) AS [Pass 4 Kills],
     ROUND(AVG([Pass 6 Kills]), 0) AS [Pass 6 Kills],
@@ -73,7 +73,7 @@ INSERT INTO DASH (
     [RANK], [KVK_RANK], [Gov_ID], [Governor_Name],
     [Starting Power], [T4_Kills], [T5_Kills], [T4&T5_Kills],
     [Kill Target], [% of Kill target], [Deads], [T4_Deads],
-    [T5_Deads], [Dead Target], [% of Dead Target], [KVK_NO],
+    [T5_Deads], [Dead_Target], [% of Dead_Target], [KVK_NO],
     [Pass 4 Kills], [Pass 6 Kills], [Pass 7 Kills], [Pass 8 Kills],
     [POWER_DELTA], [DKP_Score], [DKP Target], [% of DKP Target]
 )
@@ -85,7 +85,7 @@ INSERT INTO EXCEL_FOR_DASHBOARD (
     [Rank], [KVK_RANK], [Gov_ID], [Governor_Name],
     [Starting Power], [Power_Delta], [T4_KILLS], [T5_KILLS],
     [T4&T5_Kills], [Kill Target], [% of Kill target],
-    [Deads], [T4_Deads], [T5_Deads], [Dead Target],
+    [Deads_Delta], [T4_Deads], [T5_Deads], [Dead_Target],
     [% of Dead Target], [DKP_Score], [DKP Target],
     [% of DKP Target], [Pass 4 Kills], [Pass 6 Kills],
     [Pass 7 Kills], [Pass 8 Kills], [KVK_NO]
@@ -94,8 +94,8 @@ SELECT
     [RANK], [KVK_RANK], [Gov_ID], [Governor_Name],
     [Starting Power], [POWER_DELTA], [T4_Kills], [T5_Kills],
     [T4&T5_Kills], [Kill Target], [% of Kill target],
-    [Deads], [T4_Deads], [T5_Deads], [Dead Target],
-    [% of Dead Target], [DKP_Score], [DKP Target],
+    [Deads], [T4_Deads], [T5_Deads], [Dead_Target],
+    [% of Dead_Target], [DKP_Score], [DKP Target],
     [% of DKP Target], [Pass 4 Kills], [Pass 6 Kills],
     [Pass 7 Kills], [Pass 8 Kills], [KVK_NO]
 FROM DASH;

@@ -27,14 +27,13 @@ BEGIN
     );
 
     INSERT INTO #CompleteScans (ScanOrder, ScanDateUtc, AsOfDate)
-    SELECT TRY_CONVERT(bigint, source.SCANORDER),
+    SELECT source.SCANORDER,
            MAX(TRY_CONVERT(datetime2(0), source.ScanDate)),
            MAX(source.AsOfDate)
     FROM dbo.KingdomScanData4 AS source
     WHERE source.AsOfDate BETWEEN @HistoryStartDate AND @EffectiveUtcDate
-      AND TRY_CONVERT(bigint, source.SCANORDER) IS NOT NULL
       AND TRY_CONVERT(datetime2(0), source.ScanDate) IS NOT NULL
-    GROUP BY TRY_CONVERT(bigint, source.SCANORDER);
+    GROUP BY source.SCANORDER;
 
     CREATE TABLE #Observations
     (
@@ -68,8 +67,8 @@ BEGIN
                ) AS RowNumber
         FROM #CompleteScans AS scans
         JOIN dbo.KingdomScanData4 AS source
-          ON TRY_CONVERT(bigint, source.SCANORDER) = scans.ScanOrder
-         AND TRY_CONVERT(bigint, source.GovernorID) = @GovernorID
+          ON source.SCANORDER = scans.ScanOrder
+         AND source.GovernorID = @GovernorID
     )
     INSERT INTO #Observations
         (ScanOrder, ScanDateUtc, AsOfDate, PowerValue, HealedValue,

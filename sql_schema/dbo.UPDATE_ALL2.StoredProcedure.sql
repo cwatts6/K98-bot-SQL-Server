@@ -19,9 +19,19 @@ BEGIN
     SET CONCAT_NULL_YIELDS_NULL ON;
     SET QUOTED_IDENTIFIER ON;
     SET NUMERIC_ROUNDABORT OFF;
+
+    IF @@TRANCOUNT <> 0
+        THROW 51818, 'UPDATE_ALL2 refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
+
     SET XACT_ABORT ON;
 
     DECLARE @rc INT, @rowsKS5 INT, @rowsKS4 INT = 0;
+    DECLARE @ImportLockResult INT;
+    DECLARE @AllocatedScanOrder INT;
+    DECLARE @StagedRows INT;
+    DECLARE @ImportFileDigest BINARY(32);
+    DECLARE @ImportArchivePath NVARCHAR(4000);
+    DECLARE @ArchiveReturnCode INT;
     DECLARE @CurrentAuditPhase NVARCHAR(64) = N'update_all2_start';
     DECLARE @UpdateAll2PhaseAudit TABLE (
         SequenceNo INT IDENTITY(1,1) NOT NULL,
@@ -43,6 +53,13 @@ BEGIN
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
 
+        EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
+            @LockTimeout = 60000,
+            @LockResult = @ImportLockResult OUTPUT;
+
+        IF @ImportLockResult < 0
+            THROW 51810, 'UPDATE_ALL2 could not acquire the KingdomScanData4 import mutex within 60000 ms; Phase A was not started.', 1;
+
         -- Get deterministic defaults from KS. Choose "latest" row by [Last Update] if present.
         DECLARE @actual_param1 FLOAT = NULL,
                 @actual_param2 NVARCHAR(100) = NULL;
@@ -60,11 +77,31 @@ BEGIN
         DECLARE @StartTime DATETIME = GETDATE();
 
         -- 1) Refresh latest data
-        EXEC @rc = dbo.IMPORT_STAGING_PROC;
+        EXEC @rc = dbo.IMPORT_STAGING_PROC_CORE
+            @ImportFileDigest = @ImportFileDigest OUTPUT,
+            @ArchivePath = @ImportArchivePath OUTPUT;
         IF @rc <> 0
         BEGIN
             RAISERROR('IMPORT_STAGING_PROC failed (rc=%d).', 16, 1, @rc);
         END
+
+        SELECT
+            @AllocatedScanOrder = MIN(SCANORDER),
+            @StagedRows = COUNT(*)
+        FROM dbo.IMPORT_STAGING;
+
+        IF @AllocatedScanOrder IS NULL
+           OR @AllocatedScanOrder <> (SELECT MAX(SCANORDER) FROM dbo.IMPORT_STAGING)
+           OR @StagedRows <> (SELECT COUNT(DISTINCT [Governor ID]) FROM dbo.IMPORT_STAGING)
+            THROW 51811, 'UPDATE_ALL2 rejected empty, mixed-scan, or duplicate-governor canonical staging.', 1;
+
+        IF EXISTS
+        (
+            SELECT 1
+            FROM dbo.KingdomScanData5
+            WHERE SCANORDER = @AllocatedScanOrder
+        )
+            THROW 51812, 'UPDATE_ALL2 refused to reuse an existing KingdomScanData5 SCANORDER.', 1;
 
         -- 2) Insert into KingdomScanData5
         INSERT INTO dbo.KingdomScanData5 (
@@ -105,6 +142,17 @@ BEGIN
             RAISERROR('No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).', 16, 1);
         END
 
+        IF @rowsKS5 <> @StagedRows
+           OR EXISTS
+              (
+                  SELECT 1
+                  FROM dbo.KingdomScanData5
+                  WHERE SCANORDER = @AllocatedScanOrder
+                  GROUP BY SCANORDER, GovernorID
+                  HAVING COUNT_BIG(*) > 1
+              )
+            THROW 51813, 'UPDATE_ALL2 KingdomScanData5 row-count or duplicate-key validation failed.', 1;
+
         -- SMART INDEX MAINTENANCE: Only update stats for KS5 (lightweight)
         -- Full index rebuild happens nightly via maintenance job
         PRINT 'Updating statistics for KingdomScanData5 (quick sample)...';
@@ -112,12 +160,23 @@ BEGIN
         PRINT 'KingdomScanData5 statistics refreshed.';
 
         -- Cache MAX(SCANORDER) values to avoid repeated scans
-        DECLARE @MaxScanOrder5 BIGINT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData5 ORDER BY SCANORDER DESC);
-        DECLARE @MaxScanOrder4 BIGINT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC);
+        DECLARE @MaxScanOrder5 INT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData5 ORDER BY SCANORDER DESC);
+        DECLARE @MaxScanOrder4 INT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC);
+
+        IF @MaxScanOrder5 <> @AllocatedScanOrder
+            THROW 51814, 'UPDATE_ALL2 allocated scan does not match the latest KingdomScanData5 scan.', 1;
 
         -- 3) Promote to KS4 if newer
         IF @MaxScanOrder5 > @MaxScanOrder4
         BEGIN
+            IF EXISTS
+            (
+                SELECT 1
+                FROM dbo.KingdomScanData4
+                WHERE SCANORDER = @AllocatedScanOrder
+            )
+                THROW 51815, 'UPDATE_ALL2 refused to reuse an existing KingdomScanData4 SCANORDER.', 1;
+
             INSERT INTO dbo.KingdomScanData4 (
                   PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
@@ -139,6 +198,17 @@ BEGIN
             WHERE SCANORDER = @MaxScanOrder5
 
             SET @rowsKS4 = @@ROWCOUNT;
+
+            IF @rowsKS4 <> @rowsKS5
+               OR EXISTS
+                  (
+                      SELECT 1
+                      FROM dbo.KingdomScanData4
+                      WHERE SCANORDER = @AllocatedScanOrder
+                      GROUP BY SCANORDER, GovernorID
+                      HAVING COUNT_BIG(*) > 1
+                  )
+                THROW 51816, 'UPDATE_ALL2 KingdomScanData4 row-count or duplicate-key validation failed.', 1;
 
             ----------------------------------------------------------------
             -- SMART INDEX MAINTENANCE for KS4: Check fragmentation first
@@ -233,13 +303,20 @@ BEGIN
 
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
+        EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
+            @FileDigest = @ImportFileDigest;
+
+        IF @ArchiveReturnCode <> 0
+            THROW 51817, 'UPDATE_ALL2 committed Phase A but the stats.csv archive handoff did not complete.', 1;
+
         -- Return / Log Phase A summary values
         SELECT
             @MaxScanOrder5    AS Ks5_MaxScanOrder,
             @rowsKS5          AS Ks5_RowsInserted,
             @rowsKS4          AS Ks4_RowsInserted,
             (SELECT COUNT(*) FROM dbo.IMPORT_STAGING) AS ImportStaging_RowsAfterPhaseA,
-            (SELECT COUNT(*) FROM dbo.KingdomScanData4 WHERE SCANORDER = @MaxScanOrder4) AS Ks4_RowsInLatest;
+            (SELECT COUNT(*) FROM dbo.KingdomScanData4 WHERE SCANORDER = @MaxScanOrder4) AS Ks4_RowsInLatest,
+            @ImportArchivePath AS ArchivedFilePath;
 
         ----------------------------------------------------------------
         -- Phase B: Downstream builds (non-critical) - separate transaction

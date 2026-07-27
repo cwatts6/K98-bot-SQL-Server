@@ -15,7 +15,7 @@ BEGIN
     DECLARE @AnchorDate date = (SELECT MAX(AsOfDate) FROM dbo.KingdomScanData4);
     DECLARE @HistoryStart date = DATEADD(DAY, 1 - @HistoryDays, @AnchorDate);
     DECLARE @LatestScanOrder bigint =
-        (SELECT MAX(TRY_CONVERT(bigint, SCANORDER))
+        (SELECT MAX(SCANORDER)
          FROM dbo.KingdomScanData4 WHERE AsOfDate = @AnchorDate);
 
     ;WITH AliasGroups AS
@@ -34,17 +34,17 @@ BEGIN
     ),
     RankedLatest AS
     (
-        SELECT TRY_CONVERT(bigint, s.GovernorID) AS GovernorID,
+        SELECT s.GovernorID AS GovernorID,
                LEFT(LTRIM(RTRIM(CONVERT(nvarchar(255), s.GovernorName))), 100) AS CurrentGovernorName,
                LEFT(NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), s.Alliance))), N''), 100) AS CurrentAlliance,
                TRY_CONVERT(datetime2(0), s.ScanDate) AS LastGovernorScanAtUtc,
-               TRY_CONVERT(bigint, s.SCANORDER) AS LastGovernorScanOrder,
+               s.SCANORDER AS LastGovernorScanOrder,
                ROW_NUMBER() OVER
-               (PARTITION BY TRY_CONVERT(bigint, s.GovernorID)
+               (PARTITION BY s.GovernorID
                 ORDER BY s.SCANORDER DESC, s.ScanDate DESC, s.SCAN_UNO DESC) AS RowNumber
         FROM dbo.KingdomScanData4 AS s
         JOIN RelevantGovernors AS r
-          ON r.GovernorID = TRY_CONVERT(bigint, s.GovernorID)
+          ON r.GovernorID = s.GovernorID
         WHERE s.AsOfDate >= @HistoryStart
     ),
     Latest AS

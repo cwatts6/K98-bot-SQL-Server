@@ -8,8 +8,10 @@ does not authorize production execution.
 - Phase 2 physical migration and retryable early rollback are closed.
 - Phase 3 procedure/import/downstream work is closed.
 - Phase 4 view/consumer work is closed.
-- Phase 5 bot/DAL work is closed in the separate bot repository.
+- Phase 5 bot/DAL work and the companion SQL immutable-file migration are closed.
 - Exact SQL and bot commits, rollback definitions and security-review artifacts are identified.
+- Stable findings `csf_1a1c440452b02cdb787fa7c3` and
+  `csf_3cb54318733d3a216dd91e9b` are closed by the reviewed immutable-file protocol.
 
 ## Combined rehearsal order
 
@@ -21,11 +23,15 @@ does not authorize production execution.
 5. Apply Phase 2 forward migration and run its table/module/DBCC verification.
 6. Apply Phase 3 migrations and run procedure/import/concurrency/equivalence validation.
 7. Apply Phase 4 migrations and run view/consumer/equivalence validation.
-8. Run the complete committed-import, workload, Query Store and bot/DAL smoke matrix.
-9. Create a fresh combined-release acceptance receipt bound to the exact Phase 2 run ID, final
-   Phase 3/4 module hashes, SQL commit, bot commit and completed validation receipts.
-10. Finalize the retained Phase 2 tables only from that fresh combined receipt.
-11. Start the matching bot revision and rerun the end-to-end smoke suite.
+8. Apply the Phase 5 SQL companion migration for the immutable claimed-file protocol while all
+   writers remain stopped, then run its file-identity, failure and rollback smokes.
+9. Run the complete committed-import, workload, Query Store and bot/DAL smoke matrix against the
+   matching stopped bot revision and SQL contracts.
+10. Create a fresh combined-release acceptance receipt bound to the exact Phase 2 run ID, final
+   Phase 3/4/5 SQL module hashes, SQL commit, bot commit and completed validation receipts.
+11. Finalize the retained Phase 2 tables only from that fresh combined receipt.
+12. Deploy/start the matching bot revision and rerun the end-to-end bot and immutable-file import
+    smoke suite.
 
 The Phase 2 finalizer must not be weakened or manually bypassed. Before the combined rehearsal,
 add a guarded adapter or finalizer extension that consumes the combined receipt while retaining
@@ -36,12 +42,13 @@ the exact run-ID, time, lock, table-digest and no-drift controls.
 If any gate fails before finalization or application restart:
 
 1. keep every write entry point stopped;
-2. restore the exact Phase 4 prior view definitions;
-3. restore the exact Phase 3 prior procedure/function definitions;
-4. run the Phase 2 metadata-swap rollback;
-5. verify that `SchemaMigrationHistory` leaves the Phase 2 migration retryable;
-6. rerun original-schema/module/digest/DBCC smokes; and
-7. start only the old bot revision.
+2. roll back the Phase 5 SQL companion file-protocol migration;
+3. restore the exact Phase 4 prior view definitions;
+4. restore the exact Phase 3 prior procedure/function definitions;
+5. run the Phase 2 metadata-swap rollback;
+6. verify that `SchemaMigrationHistory` leaves the Phase 2 migration retryable;
+7. rerun original-schema/module/digest/DBCC smokes; and
+8. start only the old bot revision.
 
 After finalization or any post-cutover write, metadata-swap rollback is forbidden. Use a reviewed
 forward fix or the documented backup/log recovery branch.

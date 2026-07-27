@@ -1,7 +1,43 @@
 # KingdomScanData4 Phase 3 — procedures, import concurrency and downstream tables
 
-Status: planned; implementation has not started. Phase 2 is the entry dependency. Production
-execution is not authorized.
+Status: implementation and representative-copy rehearsal complete on
+`codex/kingdomscandata4-phase3`. Phase 2 representative-copy acceptance was the entry dependency
+and is complete. Phase 2 has not been deployed to production and did not need to be deployed there
+before Phase 3 implementation or representative-copy rehearsal. Production execution remains
+unauthorized until Phases 4 and 5, the combined release gate, reviewed promotion, and a separate
+go/no-go.
+
+The Phase 3 package is complete: the import mutex, atomic scan allocation, digest receipt,
+post-commit archive, duplicate replay refusal, three directly affected downstream table
+conversions, and aligned procedure definitions pass a fresh Phase 2-to-Phase 3
+forward/rollback/forward chain. Direct, legacy, invalid/corrected retry, simultaneous-session,
+controlled Phase-B failure, Query Store mapped, compilation, repository, and security checks are
+recorded in `rehearsal_report.md`. The broader legacy persisted surface is an evidence-backed
+retain decision, not an unfinished bulk conversion: approximately 190 columns remain unchanged
+because their independent writer/consumer proof belongs to later scoped work.
+
+The Changes-only security reviews drove three Phase 3 controls. The application-lock namespace
+belongs to a private database role. The lock helper, nested import core and archive-digest helper
+are denied to `public` and are reachable only through same-owner procedure chains. Every public
+import entry point rejects a caller-owned transaction before lock acquisition, and archive
+reconciliation hashes the exact destination before advancing a receipt. The final scan retained
+two Low/P3 mutable-path races: hash-to-`BULK INSERT` and hash-to-`MOVE`. They share one
+cross-repository immutable-file remediation assigned to Phase 5 and remain combined-release
+blockers.
+
+Phase 3 working contracts:
+
+- `affected_module_contract.md` freezes the exact 52-module dependency inventory, the 39
+  Phase 3 procedure definitions, downstream persisted contracts, baseline assignments and
+  rollback source.
+- `import_concurrency_design.md` records the mutex resource, lock ownership and timeout,
+  public/private transaction boundary, atomic scan allocation statement, duplicate key,
+  destination reconciliation and failure behavior.
+- `downstream_inventory.md` records the live production/representative split and the first
+  conversion-safe persisted contracts. Approximately 190 other legacy `float` key/scan columns
+  remain explicitly deferred until their writer/consumer and conversion evidence is complete.
+- `deployment_order.md` records the exact SQL-first and bot-second production sequence and answers
+  the PR #60 dependency question.
 
 ## Objective
 
@@ -94,3 +130,20 @@ requires otherwise.
 Phase 3 closes only when the mutex/allocation/duplicate strategy is proven under concurrency,
 every changed routine is result- and metadata-equivalent, the committed import remains correct and
 stable, rollback definitions are rehearsed, and the closure matrix contains exact receipts.
+
+The implementation and representative-copy portions of this exit gate are complete. Merge,
+promotion, and production deployment are separate later approvals; this branch has not changed
+production.
+
+## Freeze record
+
+- Final Changes scan: `7ccf1007-269d-4470-94f0-638222312c5a`.
+- Reviewed snapshot:
+  `codex-security-snapshot/v1:sha256:98d3c2f01c061c4a3557b5d2f43d0080b47cab9c9863279c8162f3dbb9d653a8`.
+- Findings: `csf_1a1c440452b02cdb787fa7c3` and
+  `csf_3cb54318733d3a216dd91e9b`, both Low/P3 and open for Phase 5.
+- Changes after that snapshot are limited to closure status, scan receipt, Phase 4/release
+  documentation and mechanical trailing-whitespace/final-newline cleanup in the generated
+  migration, rollback and canonical import-core files. No SQL token, executable behavior,
+  configuration, permission, deployment behavior or runtime contract changed after the reviewed
+  snapshot; this non-semantic delta uses a documented security-review skip.

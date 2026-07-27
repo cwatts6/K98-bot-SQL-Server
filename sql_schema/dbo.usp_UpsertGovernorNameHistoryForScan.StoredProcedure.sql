@@ -1,14 +1,14 @@
 SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 CREATE OR ALTER PROCEDURE dbo.usp_UpsertGovernorNameHistoryForScan
-    @ScanOrder bigint = NULL
+    @ScanOrder int = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
     IF @ScanOrder IS NULL
-        SELECT @ScanOrder = MAX(TRY_CONVERT(bigint, SCANORDER)) FROM dbo.KingdomScanData4;
+        SELECT @ScanOrder = MAX(SCANORDER) FROM dbo.KingdomScanData4;
     IF @ScanOrder IS NULL OR @ScanOrder <= 0
         THROW 51201, 'Governor alias upsert requires a valid scan order.', 1;
     IF NOT EXISTS (SELECT 1 FROM dbo.KingdomScanData4 WHERE SCANORDER = @ScanOrder)
@@ -21,10 +21,10 @@ BEGIN
         PRIMARY KEY CLUSTERED (GovernorID, GovernorNameKey)
     );
     INSERT INTO #AffectedAliases
-    SELECT DISTINCT TRY_CONVERT(bigint, GovernorID),
+    SELECT DISTINCT GovernorID,
            dbo.fn_NormalizeGovernorNameKey(CONVERT(nvarchar(255), GovernorName))
     FROM dbo.KingdomScanData4
-    WHERE SCANORDER = @ScanOrder AND TRY_CONVERT(bigint, GovernorID) > 0
+    WHERE SCANORDER = @ScanOrder AND GovernorID > 0
       AND dbo.fn_NormalizeGovernorNameKey(CONVERT(nvarchar(255), GovernorName)) IS NOT NULL;
 
     CREATE TABLE #ObservedAliases
@@ -39,14 +39,14 @@ BEGIN
     );
     ;WITH SourceRows AS
     (
-        SELECT TRY_CONVERT(bigint, s.GovernorID) AS GovernorID,
+        SELECT s.GovernorID,
                a.GovernorNameKey,
                LEFT(LTRIM(RTRIM(CONVERT(nvarchar(255), s.GovernorName))), 100) AS GovernorName,
                TRY_CONVERT(datetime2(0), s.ScanDate) AS ScanDate,
-               TRY_CONVERT(bigint, s.SCANORDER) AS ScanOrder
+               s.SCANORDER AS ScanOrder
         FROM dbo.KingdomScanData4 AS s
         JOIN #AffectedAliases AS a
-          ON a.GovernorID = TRY_CONVERT(bigint, s.GovernorID)
+          ON a.GovernorID = s.GovernorID
          AND a.GovernorNameKey = dbo.fn_NormalizeGovernorNameKey(CONVERT(nvarchar(255), s.GovernorName))
     ),
     Aggregated AS

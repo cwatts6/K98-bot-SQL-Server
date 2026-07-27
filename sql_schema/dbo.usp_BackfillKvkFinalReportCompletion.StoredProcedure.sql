@@ -20,7 +20,7 @@ BEGIN
     (
         SELECT 1
         FROM dbo.KingdomScanData4
-        WHERE TRY_CONVERT(int, SCANORDER) = @FinalScanOrder
+        WHERE SCANORDER = @FinalScanOrder
     )
         THROW 51308, 'KVK completion backfill could not find the final scan order.', 1;
     IF NOT EXISTS

@@ -54,10 +54,10 @@ BEGIN
         ScanOrdinal int NULL
     );
     INSERT INTO #IdentityScans (ScanOrder, AsOfDate)
-    SELECT TRY_CONVERT(bigint, SCANORDER), MAX(AsOfDate)
+    SELECT SCANORDER, MAX(AsOfDate)
     FROM dbo.KingdomScanData4
     WHERE AsOfDate BETWEEN @StartDate AND @AnchorDate
-    GROUP BY TRY_CONVERT(bigint, SCANORDER);
+    GROUP BY SCANORDER;
     ;WITH Ordered AS
     (
         SELECT ScanOrder, ROW_NUMBER() OVER (ORDER BY ScanOrder) AS ScanOrdinal
@@ -70,20 +70,20 @@ BEGIN
     /* Result set 2: consecutive complete-scan alliance episodes. */
     ;WITH RankedRows AS
     (
-        SELECT TRY_CONVERT(bigint, source.GovernorID) AS GovernorID,
+        SELECT source.GovernorID AS GovernorID,
                scans.ScanOrder, scans.ScanOrdinal, scans.AsOfDate,
                COALESCE(NULLIF(LEFT(LTRIM(RTRIM(CONVERT(nvarchar(255), source.Alliance))), 100), N''),
                         N'Unallied') AS AllianceDisplay,
                LOWER(COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), source.Alliance))), N''),
                               N'Unallied')) AS AllianceKey,
                ROW_NUMBER() OVER
-               (PARTITION BY TRY_CONVERT(bigint, source.GovernorID), scans.ScanOrder
+               (PARTITION BY source.GovernorID, scans.ScanOrder
                 ORDER BY source.ScanDate DESC, source.SCAN_UNO DESC) AS RowNumber
         FROM dbo.KingdomScanData4 AS source
         JOIN #IdentityScans AS scans
-          ON scans.ScanOrder = TRY_CONVERT(bigint, source.SCANORDER)
+          ON scans.ScanOrder = source.SCANORDER
         JOIN @GovernorIDs AS requested
-          ON requested.ID = TRY_CONVERT(bigint, source.GovernorID)
+          ON requested.ID = source.GovernorID
     ),
     SelectedRows AS
     (
