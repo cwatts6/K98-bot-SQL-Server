@@ -6,7 +6,8 @@ EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL] AS'
 END
 ALTER PROCEDURE [dbo].[UPDATE_ALL]
 	@param1 [float] = NULL,
-	@param2 [nvarchar](100) = NULL
+	@param2 [nvarchar](100) = NULL,
+    @CompletedFileName [nvarchar](260) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -19,6 +20,16 @@ BEGIN
         THROW 51828, 'UPDATE_ALL refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
 
     BEGIN TRY
+        DECLARE @ImportFileDigest BINARY(32);
+        DECLARE @ImportClaimedPath NVARCHAR(4000);
+        DECLARE @ImportArchivePath NVARCHAR(4000);
+
+        EXEC dbo.CLAIM_KS4_IMPORT_FILE
+            @CompletedFileName = @CompletedFileName,
+            @FileDigest = @ImportFileDigest OUTPUT,
+            @ClaimedPath = @ImportClaimedPath OUTPUT,
+            @ArchivePath = @ImportArchivePath OUTPUT;
+
         BEGIN TRANSACTION;
 
         DECLARE @ImportLockResult INT;
@@ -27,8 +38,6 @@ BEGIN
         DECLARE @StagedRows INT;
         DECLARE @RowsKS5 INT;
         DECLARE @RowsKS4 INT;
-        DECLARE @ImportFileDigest BINARY(32);
-        DECLARE @ImportArchivePath NVARCHAR(4000);
         DECLARE @ArchiveReturnCode INT;
 
         EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
@@ -61,6 +70,7 @@ BEGIN
         -- Step 1: Refresh latest data
         EXEC UPDATE_RALLY_DATA;
         EXEC @ImportReturnCode = dbo.IMPORT_STAGING_PROC_CORE
+            @CompletedFileName = @CompletedFileName,
             @ImportFileDigest = @ImportFileDigest OUTPUT,
             @ArchivePath = @ImportArchivePath OUTPUT;
 
@@ -662,7 +672,7 @@ SET ANSI_WARNINGS ON;
         COMMIT;
 
         EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
-            @FileDigest = @ImportFileDigest;
+            @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
             THROW 51827, 'UPDATE_ALL committed its database work but the stats.csv archive handoff did not complete.', 1;

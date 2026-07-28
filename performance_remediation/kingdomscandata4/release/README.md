@@ -1,23 +1,34 @@
-# KingdomScanData4 combined release gate
+# KingdomScanData4 Phase 5.2 combined release gate
 
 This is a release gate after Phases 2 through 5. It is not a sixth implementation phase and it
 does not authorize production execution.
+
+Current status 2026-07-28: the Phase 5.0 SQL entry component is closed. Phase 5.1 bot/DAL,
+real-token ACL evidence, exact commit freezing, and this combined rehearsal remain pending.
 
 ## Entry criteria
 
 - Phase 2 physical migration and retryable early rollback are closed.
 - Phase 3 procedure/import/downstream work is closed.
 - Phase 4 view/consumer work is closed.
-- Phase 5 bot/DAL work and the companion SQL immutable-file migration are closed.
+- Phase 5.0 SQL companion rehearsal and Phase 5.1 bot/DAL work are closed.
 - Exact SQL and bot commits, rollback definitions and security-review artifacts are identified.
 - Stable findings `csf_1a1c440452b02cdb787fa7c3` and
-  `csf_3cb54318733d3a216dd91e9b` are closed by the reviewed immutable-file protocol.
+  `csf_3cb54318733d3a216dd91e9b` are closed by the reviewed immutable-file protocol and retained
+  real-token ACL evidence.
 
 The closed Phase 4 SQL artifact is bound to final Changes scan
 `e6ce0a1d-7aba-428a-b40a-61001c924143` and reviewed snapshot
 `codex-security-snapshot/v1:sha256:a00ac727cab59a0ed585b7e6f615a3391fc792d95a1165c624c0328e978a909b`.
 That scan completed all 13 source-like worklist rows with no deferrals or
 reportable findings. This receipt does not authorize production execution.
+
+The closed Phase 5.0 SQL artifact is bound to final Changes scan
+`099379cd-119b-4402-8ecb-cf2e1c105f40` and reviewed snapshot
+`codex-security-snapshot/v1:sha256:cd7a6574c63a297d18f0748470292ed486fd3c7976d7c816d37ee20843bcd207`.
+That scan closed all 18 executable worklist rows with zero reportable findings and retained the
+real-token claimed-directory ACL check as a Phase 5.1 follow-up. This receipt does not authorize
+production execution.
 
 ## Combined rehearsal order
 

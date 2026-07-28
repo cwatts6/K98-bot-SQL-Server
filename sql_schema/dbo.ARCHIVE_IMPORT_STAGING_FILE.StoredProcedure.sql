@@ -5,29 +5,31 @@ BEGIN
 EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[ARCHIVE_IMPORT_STAGING_FILE] AS'
 END
 ALTER PROCEDURE [dbo].[ARCHIVE_IMPORT_STAGING_FILE]
-    @FileDigest [binary](32)
+    @CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
 
     DECLARE @ImportLockResult int;
+    DECLARE @FileDigest binary(32);
     DECLARE @SourcePath nvarchar(4000);
     DECLARE @ArchivePath nvarchar(4000);
-    DECLARE @ArchiveStatus nvarchar(20);
+    DECLARE @ClaimStatus nvarchar(24);
     DECLARE @SourceExists int;
     DECLARE @ArchiveExists int;
     DECLARE @CurrentFileDigest binary(32);
     DECLARE @MoveCommand nvarchar(4000);
     DECLARE @MoveExitCode int;
+    DECLARE @FinalStatus nvarchar(24);
 
     IF @@TRANCOUNT <> 0
         THROW 51849, 'ARCHIVE_IMPORT_STAGING_FILE refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
 
     SET XACT_ABORT ON;
 
-    IF @FileDigest IS NULL
-        THROW 51840, 'ARCHIVE_IMPORT_STAGING_FILE requires a non-null file digest.', 1;
+    IF @CompletedFileName IS NULL
+        THROW 51840, 'ARCHIVE_IMPORT_STAGING_FILE requires a completed filename.', 1;
 
     BEGIN TRY
         BEGIN TRANSACTION;
@@ -40,42 +42,63 @@ BEGIN
             THROW 51841, 'ARCHIVE_IMPORT_STAGING_FILE could not acquire the KingdomScanData4 import mutex within 60000 ms.', 1;
 
         SELECT
-            @SourcePath = SourcePath,
+            @FileDigest = FileDigest,
+            @SourcePath = ClaimedPath,
             @ArchivePath = ArchivePath,
-            @ArchiveStatus = ArchiveStatus
-        FROM dbo.KS4_ImportFileReceipt WITH (UPDLOCK, HOLDLOCK)
-        WHERE FileDigest = @FileDigest;
+            @ClaimStatus = ClaimStatus
+        FROM dbo.KS4_ImportFileClaim WITH (UPDLOCK, HOLDLOCK)
+        WHERE CompletedFileName = @CompletedFileName;
 
-        IF @SourcePath IS NULL
-            THROW 51842, 'ARCHIVE_IMPORT_STAGING_FILE did not find a committed receipt for the requested file digest.', 1;
+        IF @SourcePath IS NULL OR @FileDigest IS NULL
+            THROW 51842, 'ARCHIVE_IMPORT_STAGING_FILE did not find a digest-bound claim for the requested filename.', 1;
 
-        IF @SourcePath <> N'C:\discord_file_downloader\downloads\stats.csv'
-           OR @ArchivePath NOT LIKE N'C:\discord_file_downloader\downloads\Import[_]Archive\Stats[_]%'
-            THROW 51843, 'ARCHIVE_IMPORT_STAGING_FILE refused an unexpected source or archive path.', 1;
+        IF @SourcePath <>
+                N'C:\discord_file_downloader\downloads\Import_Claimed\' + @CompletedFileName
+           OR @ArchivePath <>
+                N'C:\discord_file_downloader\downloads\Import_Archive\' + @CompletedFileName
+            THROW 51843, 'ARCHIVE_IMPORT_STAGING_FILE refused claim-path definition drift.', 1;
 
-        IF CHARINDEX(N'"', @ArchivePath) > 0
-           OR CHARINDEX(N'&', @ArchivePath) > 0
-           OR CHARINDEX(N'|', @ArchivePath) > 0
-           OR CHARINDEX(N'<', @ArchivePath) > 0
-           OR CHARINDEX(N'>', @ArchivePath) > 0
-           OR CHARINDEX(N'^', @ArchivePath) > 0
-           OR CHARINDEX(N'%', @ArchivePath) > 0
-           OR CHARINDEX(N'!', @ArchivePath) > 0
-           OR CHARINDEX(NCHAR(10), @ArchivePath) > 0
-           OR CHARINDEX(NCHAR(13), @ArchivePath) > 0
-            THROW 51848, 'ARCHIVE_IMPORT_STAGING_FILE refused command-shell metacharacters in the archive path.', 1;
+        IF @ClaimStatus NOT IN
+           (
+               N'imported',
+               N'archived',
+               N'duplicate',
+               N'duplicate_archived'
+           )
+            THROW 51851, 'ARCHIVE_IMPORT_STAGING_FILE refused a claim that is not committed or duplicate.', 1;
 
-        IF @ArchiveStatus = N'archived'
-        BEGIN
-            COMMIT TRANSACTION;
-            RETURN 0;
-        END;
+        SET @FinalStatus =
+            CASE
+                WHEN @ClaimStatus IN (N'duplicate', N'duplicate_archived')
+                    THEN N'duplicate_archived'
+                ELSE N'archived'
+            END;
+
+        IF @ClaimStatus IN (N'imported', N'archived')
+           AND NOT EXISTS
+           (
+               SELECT 1
+               FROM dbo.KS4_ImportFileReceipt WITH (UPDLOCK, HOLDLOCK)
+               WHERE FileDigest = @FileDigest
+                 AND SourcePath = @SourcePath
+                 AND ArchivePath = @ArchivePath
+           )
+            THROW 51852, 'ARCHIVE_IMPORT_STAGING_FILE did not find the matching committed receipt.', 1;
+
+        IF @ClaimStatus IN (N'duplicate', N'duplicate_archived')
+           AND NOT EXISTS
+           (
+               SELECT 1
+               FROM dbo.KS4_ImportFileReceipt WITH (UPDLOCK, HOLDLOCK)
+               WHERE FileDigest = @FileDigest
+           )
+            THROW 51853, 'ARCHIVE_IMPORT_STAGING_FILE could not bind the duplicate claim to an existing receipt.', 1;
 
         EXEC master.dbo.xp_fileexist @SourcePath, @SourceExists OUTPUT;
         EXEC master.dbo.xp_fileexist @ArchivePath, @ArchiveExists OUTPUT;
 
-        -- A previous attempt may have completed the filesystem move and then
-        -- lost its database update. Reconcile that state idempotently.
+        -- Reconcile a previous move that completed before its database status
+        -- update. The destination digest is authoritative for reconciliation.
         IF ISNULL(@SourceExists, 0) <> 1 AND ISNULL(@ArchiveExists, 0) = 1
         BEGIN
             SET @CurrentFileDigest = NULL;
@@ -85,20 +108,29 @@ BEGIN
                 @FileDigest = @CurrentFileDigest OUTPUT;
 
             IF @CurrentFileDigest IS NULL OR @CurrentFileDigest <> @FileDigest
-                THROW 51850, 'ARCHIVE_IMPORT_STAGING_FILE refused to reconcile an archive destination whose digest differs from the committed receipt.', 1;
+                THROW 51850, 'ARCHIVE_IMPORT_STAGING_FILE refused to reconcile an archive destination whose digest differs from the claim.', 1;
 
-            UPDATE dbo.KS4_ImportFileReceipt
-            SET ArchiveStatus = N'archived',
-                ArchivedAtUtc = SYSUTCDATETIME(),
-                LastArchiveError = NULL
-            WHERE FileDigest = @FileDigest;
+            UPDATE dbo.KS4_ImportFileClaim
+            SET ClaimStatus = @FinalStatus,
+                ArchivedAtUtc = COALESCE(ArchivedAtUtc, SYSUTCDATETIME()),
+                LastError = NULL
+            WHERE CompletedFileName = @CompletedFileName;
+
+            IF @FinalStatus = N'archived'
+            BEGIN
+                UPDATE dbo.KS4_ImportFileReceipt
+                SET ArchiveStatus = N'archived',
+                    ArchivedAtUtc = COALESCE(ArchivedAtUtc, SYSUTCDATETIME()),
+                    LastArchiveError = NULL
+                WHERE FileDigest = @FileDigest;
+            END;
 
             COMMIT TRANSACTION;
             RETURN 0;
         END;
 
         IF ISNULL(@SourceExists, 0) <> 1
-            THROW 51844, 'ARCHIVE_IMPORT_STAGING_FILE found neither the expected source file nor its archive destination.', 1;
+            THROW 51844, 'ARCHIVE_IMPORT_STAGING_FILE found neither the claimed file nor its archive destination.', 1;
 
         IF ISNULL(@ArchiveExists, 0) = 1
             THROW 51845, 'ARCHIVE_IMPORT_STAGING_FILE refused to overwrite an existing archive destination.', 1;
@@ -108,7 +140,7 @@ BEGIN
             @FileDigest = @CurrentFileDigest OUTPUT;
 
         IF @CurrentFileDigest IS NULL OR @CurrentFileDigest <> @FileDigest
-            THROW 51846, 'ARCHIVE_IMPORT_STAGING_FILE refused to move a source file whose digest differs from the committed receipt.', 1;
+            THROW 51846, 'ARCHIVE_IMPORT_STAGING_FILE refused to move claimed bytes that differ from the durable digest.', 1;
 
         SET @MoveCommand =
             N'CMD /D /C MOVE "'
@@ -119,6 +151,8 @@ BEGIN
 
         EXEC @MoveExitCode = master.dbo.xp_cmdshell @MoveCommand, NO_OUTPUT;
 
+        SET @SourceExists = 0;
+        SET @ArchiveExists = 0;
         EXEC master.dbo.xp_fileexist @SourcePath, @SourceExists OUTPUT;
         EXEC master.dbo.xp_fileexist @ArchivePath, @ArchiveExists OUTPUT;
 
@@ -127,11 +161,29 @@ BEGIN
            OR ISNULL(@ArchiveExists, 0) <> 1
             THROW 51847, 'ARCHIVE_IMPORT_STAGING_FILE could not verify a successful filesystem move.', 1;
 
-        UPDATE dbo.KS4_ImportFileReceipt
-        SET ArchiveStatus = N'archived',
+        SET @CurrentFileDigest = NULL;
+
+        EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE
+            @ApprovedPath = @ArchivePath,
+            @FileDigest = @CurrentFileDigest OUTPUT;
+
+        IF @CurrentFileDigest IS NULL OR @CurrentFileDigest <> @FileDigest
+            THROW 51854, 'ARCHIVE_IMPORT_STAGING_FILE refused to advance after the archive destination rehash changed.', 1;
+
+        UPDATE dbo.KS4_ImportFileClaim
+        SET ClaimStatus = @FinalStatus,
             ArchivedAtUtc = SYSUTCDATETIME(),
-            LastArchiveError = NULL
-        WHERE FileDigest = @FileDigest;
+            LastError = NULL
+        WHERE CompletedFileName = @CompletedFileName;
+
+        IF @FinalStatus = N'archived'
+        BEGIN
+            UPDATE dbo.KS4_ImportFileReceipt
+            SET ArchiveStatus = N'archived',
+                ArchivedAtUtc = SYSUTCDATETIME(),
+                LastArchiveError = NULL
+            WHERE FileDigest = @FileDigest;
+        END;
 
         COMMIT TRANSACTION;
         RETURN 0;
@@ -143,12 +195,12 @@ BEGIN
             ROLLBACK TRANSACTION;
 
         BEGIN TRY
-            IF EXISTS
-            (
-                SELECT 1
-                FROM dbo.KS4_ImportFileReceipt
-                WHERE FileDigest = @FileDigest
-            )
+            UPDATE dbo.KS4_ImportFileClaim
+            SET LastError = @ErrorMessage
+            WHERE CompletedFileName = @CompletedFileName
+              AND ClaimStatus NOT IN (N'archived', N'duplicate_archived');
+
+            IF @FileDigest IS NOT NULL
             BEGIN
                 UPDATE dbo.KS4_ImportFileReceipt
                 SET LastArchiveError = @ErrorMessage

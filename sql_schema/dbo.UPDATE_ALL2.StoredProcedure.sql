@@ -6,7 +6,8 @@ EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL2] AS'
 END
 ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
-	@param2 [nvarchar](100) = NULL
+	@param2 [nvarchar](100) = NULL,
+    @CompletedFileName [nvarchar](260) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -30,6 +31,7 @@ BEGIN
     DECLARE @AllocatedScanOrder INT;
     DECLARE @StagedRows INT;
     DECLARE @ImportFileDigest BINARY(32);
+    DECLARE @ImportClaimedPath NVARCHAR(4000);
     DECLARE @ImportArchivePath NVARCHAR(4000);
     DECLARE @ArchiveReturnCode INT;
     DECLARE @CurrentAuditPhase NVARCHAR(64) = N'update_all2_start';
@@ -48,6 +50,12 @@ BEGIN
     );
 
     BEGIN TRY
+        EXEC dbo.CLAIM_KS4_IMPORT_FILE
+            @CompletedFileName = @CompletedFileName,
+            @FileDigest = @ImportFileDigest OUTPUT,
+            @ClaimedPath = @ImportClaimedPath OUTPUT,
+            @ArchivePath = @ImportArchivePath OUTPUT;
+
         ----------------------------------------------------------------
         -- Phase A: Import → KS5 → (maybe) KS4  [commit early]
         ----------------------------------------------------------------
@@ -78,6 +86,7 @@ BEGIN
 
         -- 1) Refresh latest data
         EXEC @rc = dbo.IMPORT_STAGING_PROC_CORE
+            @CompletedFileName = @CompletedFileName,
             @ImportFileDigest = @ImportFileDigest OUTPUT,
             @ArchivePath = @ImportArchivePath OUTPUT;
         IF @rc <> 0
@@ -304,7 +313,7 @@ BEGIN
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
         EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
-            @FileDigest = @ImportFileDigest;
+            @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
             THROW 51817, 'UPDATE_ALL2 committed Phase A but the stats.csv archive handoff did not complete.', 1;

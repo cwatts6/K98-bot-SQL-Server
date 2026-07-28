@@ -5,8 +5,13 @@ This folder contains the evidence and scripts for the five-phase remediation def
 
 Phase 1 collectors are read-only. The `phase2`, `phase3`, and `phase4` packages and matching
 migration/rollback scripts are representative-copy validated but are not authorized for
-production execution. Phase 4 is closed. Phase 5 is the next separate implementation stage; the
-combined rehearsal and production decision remain release gates after Phase 5.
+production execution. Phase 4 is closed. Phase 5.0 SQL is closed after its isolated
+forward/protocol/rollback/reapply rehearsal, repository gates and zero-finding final Changes
+review passed. Phase 5.1 bot/DAL now consumes that frozen SQL contract and owns the real-token ACL
+proof. Phase 5.2 is the combined rehearsal/promotion gate and remains distinct from production
+go/no-go.
+The Phase 5.1 implementation task pack is
+`docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`.
 
 ## Current phase
 
@@ -25,7 +30,8 @@ forward/rollback/forward rehearsal passed the import mutex, atomic allocation, d
 archive, direct/legacy entry-point, failure, mapped workload, module refresh and repository gates.
 Final Changes scan `7ccf1007-269d-4470-94f0-638222312c5a` sealed with two Low/P3 findings that
 share one Phase 5 immutable-file handoff remediation. Phase 4 is closed after its complete
-isolated rehearsal, repository gates, and zero-finding final Changes review. Phase 5 is next.
+isolated rehearsal, repository gates, and zero-finding final Changes review. Phase 5.0 SQL is
+closed after the equivalent forward/protocol/rollback/reapply and final Changes gates passed.
 Production execution remains separately gated.
 
 ## Authoritative phase order
@@ -39,10 +45,10 @@ Production execution remains separately gated.
 4. **Phase 4 — views and view consumers:** complete; the approved invalid/unused view is
    retired, four retained views are contract-aligned, and bidirectional result/metadata
    equivalence is proven.
-5. **Phase 5 — bot, DAL and immutable import-file handoff:** next; implement the four approved bot
-   paths, the companion SQL consumer migration, and prove all changed and source-unchanged
-   consumer contracts.
-6. **Combined release gate:** rehearse the exact SQL and bot commits from a fresh restore, complete
+5. **Phase 5 — bot, DAL and immutable import-file handoff:** Phase 5.0 SQL is closed on its
+   repository boundary; Phase 5.1 implements the four approved bot paths and proves all
+   changed/source-unchanged consumer and ACL contracts.
+6. **Phase 5.2 combined release gate:** rehearse the exact SQL and bot commits from a fresh restore, complete
    separate diff-focused security reviews, merge through the documented PR paths, and request
    explicit production execution approval.
 
@@ -148,6 +154,12 @@ procedures, or mutate data.
   `codex-security-snapshot/v1:sha256:a00ac727cab59a0ed585b7e6f615a3391fc792d95a1165c624c0328e978a909b`
   with Deep off, 13/13 completed source-like rows, no deferrals, and zero
   reportable findings. Phase 4 is closed; production was untouched.
+- Phase 5.0 SQL implementation/closure: the immutable claim table/procedure, fixed-root
+  completed-name consumers, digest-bound import/archive state, stopped-writer migration/rollback,
+  static contracts and protocol rehearsal assets passed offline validation and the full isolated
+  forward/protocol/rollback/reapply run. Final Changes scan
+  `099379cd-119b-4402-8ecb-cf2e1c105f40` closed 18/18 executable rows with zero reportable
+  findings. Real-token ACL evidence remains assigned to Phase 5.1; production is untouched.
 - Raw `.rpt` outputs and `kingdomscandata4_sample.csv` are operator-held local evidence. They
   contain player-identifying values and an operator login and must not be committed without
   anonymisation/redaction.
