@@ -18,6 +18,19 @@ The rollback source is commit `62cb739`.
 The migration refuses any mismatch before changing a definition. The rollback
 contains the exact four prior definitions and runs before Phase 3/2 rollback.
 
+## Exact deployed Phase 4 definitions
+
+The rollback refuses to replace any retained view unless its current stored
+module definition matches the reviewed post-Phase-4 hash. The guard runs before
+the first rollback `CREATE OR ALTER VIEW`.
+
+| Changed view | Expected deployed Phase 4 definition SHA-256 |
+| --- | --- |
+| `dbo.v_Active_Players` | `A6AB97DCA84D77938BB704C16EF2068D4068F984BBE16387F86AD0EC83A277D9` |
+| `dbo.v_MGE_SignupReview` | `19517DDD876737A0048C52ED9F6063612DCBC0D9DFEA1D39B7F3F47E2F6F6166` |
+| `dbo.vDaily_PlayerExport` | `A7A956AD759C68C23DF88F9E9DF13080196366C57AE2B5260F84370F4D0307C6` |
+| `dbo.vw_Governor_KVK_Summary_GlobalLatest` | `4214C47A48AF5D9D3958122B177CC0FEA111AAAB476B165836AF68E9B5B4ED3C` |
+
 ## Retained Phase 1/2 measurements
 
 These values are historical comparison points, not substitutes for the

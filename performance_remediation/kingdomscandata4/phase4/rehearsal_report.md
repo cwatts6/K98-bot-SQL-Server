@@ -164,4 +164,29 @@ not alter SQL tokens, executable behavior, tooling, configuration, permissions,
 deployment behavior, or runtime contracts and therefore use a documented
 security-review skip.
 
+## Post-review rollback drift-guard receipt
+
+PR review identified that the early rollback would otherwise overwrite a
+post-Phase 4 hotfix. The rollback now hashes all four current Phase 4 view
+definitions and refuses error `52065` before the first `CREATE OR ALTER VIEW`
+when any definition is missing or unexpected.
+
+The guard was rehearsed in
+`ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL` on 2026-07-28:
+
+- all four current deployed definitions matched their locked SHA-256 values;
+- an injected `dbo.v_MGE_SignupReview` hash mismatch was refused with error
+  `52065`; and
+- the database definition hash was unchanged before and after the rehearsal.
+
+The follow-up SQL Changes review, Deep off, completed as scan
+`d14836a4-d109-48e1-a1b1-75a5f5f310b1` against snapshot
+`codex-security-snapshot/v1:sha256:bf411953b6d7903b536810c83319178197e536d4ed91a21a34ecc5825598fb30`.
+Its one source-like worklist row has a complete receipt and it reported zero
+findings. This receipt-only documentation update does not change executable
+SQL, tooling, configuration, permissions, deployment behavior, or runtime
+contracts and therefore uses a documented security-review skip.
+
+No production database was queried or changed by this review follow-up.
+
 Production execution remains unauthorized.

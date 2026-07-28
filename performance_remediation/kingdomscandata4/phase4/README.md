@@ -106,7 +106,9 @@ separate explicit review.
 
 The retirement migration refuses definition drift, SQL module dependencies,
 explicit grants, signatures, and extended properties. The alignment migration
-refuses to start until the retired object is absent.
+refuses to start until the retired object is absent. The rollback verifies the
+exact four reviewed post-Phase-4 stored-definition hashes before its first view
+definition change, so a later hotfix cannot be silently overwritten.
 
 The isolated rehearsal established that the result-side casts on
 `dbo.v_Active_Players.GovernorID` and

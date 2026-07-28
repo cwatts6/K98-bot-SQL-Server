@@ -55,6 +55,50 @@ IF OBJECT_ID(N'dbo.KS4_ImportFileReceipt', N'U') IS NULL
    OR OBJECT_ID(N'dbo.ACQUIRE_KS4_IMPORT_LOCK', N'P') IS NULL
     THROW 52052, 'Phase 4 rollback requires the Phase 3 contracts to remain present until it completes.', 1;
 
+DECLARE @ExpectedPhase4Definitions TABLE
+(
+    ObjectName sysname NOT NULL PRIMARY KEY,
+    ExpectedPhase4DefinitionSha256 char(64) NOT NULL
+);
+
+INSERT @ExpectedPhase4Definitions
+(
+    ObjectName,
+    ExpectedPhase4DefinitionSha256
+)
+VALUES
+    (
+        N'dbo.v_Active_Players',
+        N'A6AB97DCA84D77938BB704C16EF2068D4068F984BBE16387F86AD0EC83A277D9'
+    ),
+    (
+        N'dbo.v_MGE_SignupReview',
+        N'19517DDD876737A0048C52ED9F6063612DCBC0D9DFEA1D39B7F3F47E2F6F6166'
+    ),
+    (
+        N'dbo.vDaily_PlayerExport',
+        N'A7A956AD759C68C23DF88F9E9DF13080196366C57AE2B5260F84370F4D0307C6'
+    ),
+    (
+        N'dbo.vw_Governor_KVK_Summary_GlobalLatest',
+        N'4214C47A48AF5D9D3958122B177CC0FEA111AAAB476B165836AF68E9B5B4ED3C'
+    );
+
+IF EXISTS
+(
+    SELECT expected.ObjectName
+    FROM @ExpectedPhase4Definitions AS expected
+    LEFT JOIN sys.sql_modules AS actual
+      ON actual.object_id = OBJECT_ID(expected.ObjectName, N'V')
+     AND CONVERT(
+             char(64),
+             HASHBYTES('SHA2_256', CONVERT(varbinary(max), actual.definition)),
+             2
+         ) = expected.ExpectedPhase4DefinitionSha256
+    WHERE actual.object_id IS NULL
+)
+    THROW 52065, 'Phase 4 rollback refused unexpected current view-definition drift.', 1;
+
 IF EXISTS
 (
     SELECT 1

@@ -96,6 +96,45 @@ Assert-Matches $migration 'TransactionMode:\s*Required' `
 Assert-Matches $rollback `
     'RollbackForMigrationId:\s*20260727_001_phase4_view_type_alignment' `
     'The Phase 4 rollback does not target the exact migration.'
+Assert-Matches $rollback `
+    'DECLARE\s+@ExpectedPhase4Definitions\s+TABLE' `
+    'The Phase 4 rollback must declare exact expected post-Phase-4 definitions.'
+Assert-Matches $rollback `
+    "THROW\s+52065,\s*'Phase 4 rollback refused unexpected current view-definition drift\.'" `
+    'The Phase 4 rollback must abort when a deployed Phase 4 view definition drifts.'
+
+foreach ($expectedPhase4Hash in @(
+    'A6AB97DCA84D77938BB704C16EF2068D4068F984BBE16387F86AD0EC83A277D9',
+    '19517DDD876737A0048C52ED9F6063612DCBC0D9DFEA1D39B7F3F47E2F6F6166',
+    'A7A956AD759C68C23DF88F9E9DF13080196366C57AE2B5260F84370F4D0307C6',
+    '4214C47A48AF5D9D3958122B177CC0FEA111AAAB476B165836AF68E9B5B4ED3C'
+)) {
+    if ($expectedPhase4Hash.Length -ne 64) {
+        $failures.Add(
+            "Expected deployed Phase 4 definition hash is not 64 characters: $expectedPhase4Hash"
+        )
+    }
+    Assert-Matches $rollback $expectedPhase4Hash `
+        "The Phase 4 rollback is missing reviewed deployed-definition hash: $expectedPhase4Hash"
+}
+
+$rollbackDriftGuardIndex = $rollback.IndexOf(
+    'DECLARE @ExpectedPhase4Definitions TABLE',
+    [System.StringComparison]::Ordinal
+)
+$rollbackFirstDefinitionIndex = $rollback.IndexOf(
+    'CREATE OR ALTER VIEW dbo.',
+    [System.StringComparison]::Ordinal
+)
+if (
+    $rollbackDriftGuardIndex -lt 0 -or
+    $rollbackFirstDefinitionIndex -lt 0 -or
+    $rollbackDriftGuardIndex -gt $rollbackFirstDefinitionIndex
+) {
+    $failures.Add(
+        'The Phase 4 rollback drift guard must execute before the first view definition change.'
+    )
+}
 
 Assert-Matches $retirement `
     'MigrationId:\s*20260727_000_retire_vAllianceActivity_WeeklyCumulative' `
