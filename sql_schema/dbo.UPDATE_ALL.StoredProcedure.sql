@@ -7,7 +7,7 @@ END
 ALTER PROCEDURE [dbo].[UPDATE_ALL]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL,
-    @CompletedFileName [nvarchar](260) = NULL
+    @CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -23,6 +23,7 @@ BEGIN
         DECLARE @ImportFileDigest BINARY(32);
         DECLARE @ImportClaimedPath NVARCHAR(4000);
         DECLARE @ImportArchivePath NVARCHAR(4000);
+        DECLARE @ImportError NVARCHAR(2000);
 
         EXEC dbo.CLAIM_KS4_IMPORT_FILE
             @CompletedFileName = @CompletedFileName,
@@ -72,10 +73,17 @@ BEGIN
         EXEC @ImportReturnCode = dbo.IMPORT_STAGING_PROC_CORE
             @CompletedFileName = @CompletedFileName,
             @ImportFileDigest = @ImportFileDigest OUTPUT,
-            @ArchivePath = @ImportArchivePath OUTPUT;
+            @ArchivePath = @ImportArchivePath OUTPUT,
+            @ImportError = @ImportError OUTPUT;
 
         IF @ImportReturnCode <> 0
-            THROW 51821, 'UPDATE_ALL stopped because IMPORT_STAGING_PROC failed.', 1;
+        BEGIN
+            SET @ImportError = COALESCE(
+                @ImportError,
+                N'UPDATE_ALL stopped because IMPORT_STAGING_PROC failed without returning error detail.'
+            );
+            THROW 51821, @ImportError, 1;
+        END;
 
         SELECT
             @AllocatedScanOrder = MIN(SCANORDER),
@@ -675,7 +683,7 @@ SET ANSI_WARNINGS ON;
             @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
-            THROW 51827, 'UPDATE_ALL committed its database work but the stats.csv archive handoff did not complete.', 1;
+            THROW 51827, 'UPDATE_ALL committed its database work but the immutable-file archive handoff did not complete.', 1;
 
 		INSERT INTO Update_ALL_Complete (CompletionTime)
 		VALUES (GETDATE());
@@ -683,8 +691,37 @@ SET ANSI_WARNINGS ON;
 
     END TRY
     BEGIN CATCH
+        DECLARE @OuterPersistedError nvarchar(2000) =
+            LEFT(
+                COALESCE(
+                    @ImportError,
+                    CONCAT(
+                        N'Error ',
+                        ERROR_NUMBER(),
+                        N' in ',
+                        COALESCE(ERROR_PROCEDURE(), N'UPDATE_ALL'),
+                        N' line ',
+                        ERROR_LINE(),
+                        N': ',
+                        COALESCE(ERROR_MESSAGE(), N'(no message)')
+                    )
+                ),
+                2000
+            );
+
         IF XACT_STATE() <> 0
             ROLLBACK;
+
+        BEGIN TRY
+            UPDATE dbo.KS4_ImportFileClaim
+            SET LastError = @OuterPersistedError
+            WHERE CompletedFileName = @CompletedFileName
+              AND ClaimStatus = N'claimed';
+        END TRY
+        BEGIN CATCH
+            -- Never mask the original UPDATE_ALL failure.
+        END CATCH;
+
         SET ANSI_WARNINGS ON;
         THROW;
     END CATCH

@@ -84,8 +84,8 @@ Require-Match $migration 'DECLARE @HasUnreconciledRetainedClaimEvidence bit = 0;
     'The Phase 5.0 migration must defer compilation of its optional retained-claim query.'
 Require-Match $migration 'EXEC sys\.sp_executesql[\s\S]*@HasUnreconciled = @HasUnreconciledRetainedClaimEvidence OUTPUT' `
     'The Phase 5.0 migration must query retained claim rows only after the optional table exists.'
-Require-Match $migration 'UPDATE dbo\.KS4_ImportFileClaim[\s\S]*SET LastError = @PersistedError' `
-    'The Phase 5.0 migration must persist the import-core error after rollback.'
+Require-Match $migration 'SET @ImportError = @PersistedError[\s\S]*IF @EntryTranCount = 0' `
+    'The Phase 5.0 migration must return nested errors and persist locally owned failures only after rollback.'
 $migrationFirstBatch = ($migration -split '(?m)^\s*GO\s*$')[0]
 $migrationFirstBatchWithoutStrings = [regex]::Replace(
     $migrationFirstBatch,
@@ -122,8 +122,12 @@ Require-Match $claimTable "N'duplicate_archived'" `
     'The claim ledger is missing deterministic duplicate archival state.'
 Require-Match $claimProc 'DATALENGTH\(@CompletedFileName\) <> 96' `
     'The claim procedure must enforce the fixed 48-character completed name.'
-Require-Match $claimProc 'stats_<32 hex>\.ready\.csv' `
+Require-Match $claimProc 'stats_<32 lowercase hex>\.ready\.csv' `
     'The claim procedure is missing its actionable filename error.'
+Require-Match $claimProc '\%\[\^0-9a-f\]\%' `
+    'The claim procedure must reject uppercase completed-file identities.'
+Require-Match $hashProc '\%\[\^0-9a-f\]\%' `
+    'The hash helper must reject uppercase completed-file identities.'
 Require-Order $claimProc 'Import_Ready' 'Import_Claimed' `
     'The claim procedure must derive ready identity before claimed identity.'
 Require-Match $claimProc 'MOVE "' `
@@ -140,8 +144,10 @@ Require-Order $coreProc 'HASH_KS4_IMPORT_ARCHIVE_FILE' 'BULK INSERT dbo.IMPORT_S
     'The import core must hash the claimed file before BULK INSERT.'
 Require-Match $coreProc 'detected claimed-file mutation across BULK INSERT' `
     'The import core is missing the post-bulk digest guard.'
-Require-Match $coreProc 'UPDATE dbo\.KS4_ImportFileClaim[\s\S]*SET LastError = @PersistedError' `
-    'The import core must persist the exact SQL error after rolling back failed work.'
+Require-Match $coreProc '@ImportError \[nvarchar\]\(2000\) = NULL OUTPUT' `
+    'The import core must return exact nested error detail to transaction-owning callers.'
+Require-Match $coreProc 'SET @ImportError = @PersistedError[\s\S]*IF @EntryTranCount = 0' `
+    'The import core must not write nested errors inside a caller-owned transaction.'
 Require-Match $coreProc "ClaimStatus = N'imported'" `
     'The import core must commit the imported claim with the receipt.'
 
@@ -159,6 +165,19 @@ foreach ($entryPoint in @($publicProc, $updateAll, $updateAll2)) {
     Require-Order $entryPoint 'CLAIM_KS4_IMPORT_FILE' 'IMPORT_STAGING_PROC_CORE' `
         'A public import entry point does not claim before importing.'
 }
+
+foreach ($authoritativeEntryPoint in @($updateAll, $updateAll2)) {
+    if ($authoritativeEntryPoint -match '@CompletedFileName \[nvarchar\]\(260\)\s*=\s*NULL') {
+        $failures.Add('An authoritative update entry point still makes @CompletedFileName optional.')
+    }
+    Require-Match $authoritativeEntryPoint '@ImportError = @ImportError OUTPUT' `
+        'An authoritative update entry point does not receive the exact nested import error.'
+    Require-Match $authoritativeEntryPoint 'ROLLBACK;[\s\S]*SET LastError = @(?:OuterPersistedError|PersistedImportError)' `
+        'An authoritative update entry point must persist the import error only after its outer rollback.'
+}
+
+Require-Match $initializer '\^stats_\[0-9a-f\]\{32\}\\\.ready\\\.csv\$' `
+    'The rehearsal publisher must enforce lowercase completed-file identities.'
 
 foreach ($consumer in @($claimProc, $hashProc, $archiveProc, $coreProc)) {
     if ($consumer -match [regex]::Escape('C:\discord_file_downloader\downloads\stats.csv')) {

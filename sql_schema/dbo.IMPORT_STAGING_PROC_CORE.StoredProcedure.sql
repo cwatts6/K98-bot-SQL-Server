@@ -7,7 +7,8 @@ END
 ALTER PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE]
     @CompletedFileName [nvarchar](260),
     @ImportFileDigest [binary](32) = NULL OUTPUT,
-    @ArchivePath [nvarchar](4000) = NULL OUTPUT
+    @ArchivePath [nvarchar](4000) = NULL OUTPUT,
+    @ImportError [nvarchar](2000) = NULL OUTPUT
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -43,6 +44,7 @@ BEGIN
 
     SET @ImportFileDigest = NULL;
     SET @ArchivePath = NULL;
+    SET @ImportError = NULL;
 
     BEGIN TRY
             IF @EntryTranCount = 0
@@ -480,15 +482,30 @@ BEGIN
                     2000
                 );
 
+            SET @ImportError = @PersistedError;
+
             IF @StartedLocalTransaction = 1 AND XACT_STATE() <> 0
                 ROLLBACK TRANSACTION;
             ELSE IF @EntryTranCount > 0 AND XACT_STATE() = 1
                 ROLLBACK TRANSACTION IMPORT_STAGING_PROC_SAVEPOINT;
 
-            UPDATE dbo.KS4_ImportFileClaim
-            SET LastError = @PersistedError
-            WHERE CompletedFileName = @CompletedFileName
-              AND ClaimStatus = N'claimed';
+            -- A caller-owned transaction will be rolled back by UPDATE_ALL or
+            -- UPDATE_ALL2. Return the exact error through @ImportError so that
+            -- the owner persists it only after the outer rollback. A standalone
+            -- IMPORT_STAGING_PROC call is already back in autocommit here.
+            IF @EntryTranCount = 0
+            BEGIN
+                BEGIN TRY
+                    UPDATE dbo.KS4_ImportFileClaim
+                    SET LastError = @ImportError
+                    WHERE CompletedFileName = @CompletedFileName
+                      AND ClaimStatus = N'claimed';
+                END TRY
+                BEGIN CATCH
+                    -- Never replace the original import failure with a ledger
+                    -- persistence error.
+                END CATCH;
+            END;
 
             -- OPTIMIZATION: Enhanced error reporting
             PRINT 'Error occurred in procedure: ' + ISNULL(@ErrProc, 'Ad-hoc');

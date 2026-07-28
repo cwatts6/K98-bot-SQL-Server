@@ -20,6 +20,7 @@ BEGIN
 
     DECLARE @ReturnCode int;
     DECLARE @ClaimedPath nvarchar(4000);
+    DECLARE @ImportError nvarchar(2000);
 
     EXEC dbo.CLAIM_KS4_IMPORT_FILE
         @CompletedFileName = @CompletedFileName,
@@ -30,7 +31,8 @@ BEGIN
     EXEC @ReturnCode = dbo.IMPORT_STAGING_PROC_CORE
         @CompletedFileName = @CompletedFileName,
         @ImportFileDigest = @ImportFileDigest OUTPUT,
-        @ArchivePath = @ArchivePath OUTPUT;
+        @ArchivePath = @ArchivePath OUTPUT,
+        @ImportError = @ImportError OUTPUT;
 
     RETURN @ReturnCode;
 END

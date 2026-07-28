@@ -29,7 +29,7 @@ BEGIN
        OR LEFT(@CompletedFileName, 6) <> N'stats_'
        OR RIGHT(@CompletedFileName, 10) <> N'.ready.csv'
        OR SUBSTRING(@CompletedFileName, 7, 32)
-            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9A-Fa-f]%'
+            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9a-f]%'
        OR @ApprovedPath NOT IN
           (
               @ClaimedRoot + @CompletedFileName,

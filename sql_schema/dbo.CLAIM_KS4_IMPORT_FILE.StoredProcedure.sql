@@ -23,8 +23,8 @@ BEGIN
        OR LEFT(@CompletedFileName, 6) <> N'stats_'
        OR RIGHT(@CompletedFileName, 10) <> N'.ready.csv'
        OR SUBSTRING(@CompletedFileName, 7, 32)
-            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9A-Fa-f]%'
-        THROW 51875, 'CLAIM_KS4_IMPORT_FILE requires stats_<32 hex>.ready.csv.', 1;
+            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9a-f]%'
+        THROW 51875, 'CLAIM_KS4_IMPORT_FILE requires stats_<32 lowercase hex>.ready.csv.', 1;
 
     DECLARE @ReadyPath nvarchar(4000) =
         N'C:\discord_file_downloader\downloads\Import_Ready\' + @CompletedFileName;

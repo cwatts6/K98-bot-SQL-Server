@@ -3,7 +3,7 @@ param(
     [string]$BotRoot = 'C:\discord_file_downloader',
     [string]$TestRoot = 'C:\discord_file_downloader\downloads_test_phase5_rehearsal',
     [string]$FixturePath,
-    [ValidatePattern('^stats_[0-9A-Fa-f]{32}\.ready\.csv$')]
+    [ValidatePattern('^stats_[0-9a-f]{32}\.ready\.csv$')]
     [string]$CompletedFileName = 'stats_00000000000000000000000000000001.ready.csv'
 )
 
@@ -54,4 +54,3 @@ $digest = (Get-FileHash -LiteralPath $readyPath -Algorithm SHA256).Hash
     ReadyPath = $readyPath
     Sha256 = $digest
 }
-

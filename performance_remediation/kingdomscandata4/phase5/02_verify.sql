@@ -36,6 +36,22 @@ IF EXISTS
 )
     THROW 52381, 'Phase 5.0 verification found an incomplete filename contract.', 1;
 
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.parameters
+    WHERE object_id = OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P')
+      AND name = N'@ImportError'
+      AND system_type_id = TYPE_ID(N'nvarchar')
+      AND max_length = 4000
+      AND is_output = 1
+)
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL', N'P'))
+        LIKE N'%@CompletedFileName [nvarchar](260) = NULL%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL2', N'P'))
+        LIKE N'%@CompletedFileName [nvarchar](260) = NULL%'
+    THROW 52389, 'Phase 5.0 verification found an optional filename or incomplete error-handoff contract.', 1;
+
 IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P'))
        LIKE N'%downloads\stats.csv%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.HASH_KS4_IMPORT_ARCHIVE_FILE', N'P'))
@@ -45,13 +61,17 @@ IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P'))
     THROW 52382, 'Phase 5.0 verification found the mutable legacy pathname.', 1;
 
 IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
-       NOT LIKE N'%stats_<32 hex>.ready.csv%'
+       NOT LIKE N'%stats_<32 lowercase hex>.ready.csv%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
        NOT LIKE N'%Import_Ready%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
        NOT LIKE N'%Import_Claimed%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P'))
        NOT LIKE N'%detected claimed-file mutation across BULK INSERT%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL', N'P'))
+       NOT LIKE N'%SET LastError = @OuterPersistedError%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL2', N'P'))
+       NOT LIKE N'%SET LastError = @PersistedImportError%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.ARCHIVE_IMPORT_STAGING_FILE', N'P'))
        NOT LIKE N'%archive destination rehash changed%'
     THROW 52383, 'Phase 5.0 verification found a missing identity or rehash guard.', 1;
@@ -102,4 +122,3 @@ SELECT
         ),
         2
     ) AS ImportCoreDefinitionSha256;
-

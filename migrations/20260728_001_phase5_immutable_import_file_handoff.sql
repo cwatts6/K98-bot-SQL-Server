@@ -30,7 +30,7 @@ Data safety and deployment plan:
     - Create an additive claim ledger, then replace only the five import
       routines that carry file identity plus UPDATE_ALL and UPDATE_ALL2.
     - The bot remains stopped until its matching Phase 5.1 revision atomically
-      publishes stats_<32 hex>.ready.csv and passes that leaf name to SQL.
+      publishes stats_<32 lowercase hex>.ready.csv and passes that leaf name to SQL.
     - Rollback restores the exact Phase 4-era routine definitions. Archived
       claim evidence is retained if the new protocol was exercised.
 */
@@ -318,7 +318,7 @@ BEGIN
        OR LEFT(@CompletedFileName, 6) <> N'stats_'
        OR RIGHT(@CompletedFileName, 10) <> N'.ready.csv'
        OR SUBSTRING(@CompletedFileName, 7, 32)
-            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9A-Fa-f]%'
+            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9a-f]%'
        OR @ApprovedPath NOT IN
           (
               @ClaimedRoot + @CompletedFileName,
@@ -607,8 +607,8 @@ BEGIN
        OR LEFT(@CompletedFileName, 6) <> N'stats_'
        OR RIGHT(@CompletedFileName, 10) <> N'.ready.csv'
        OR SUBSTRING(@CompletedFileName, 7, 32)
-            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9A-Fa-f]%'
-        THROW 51875, 'CLAIM_KS4_IMPORT_FILE requires stats_<32 hex>.ready.csv.', 1;
+            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9a-f]%'
+        THROW 51875, 'CLAIM_KS4_IMPORT_FILE requires stats_<32 lowercase hex>.ready.csv.', 1;
 
     DECLARE @ReadyPath nvarchar(4000) =
         N'C:\discord_file_downloader\downloads\Import_Ready\' + @CompletedFileName;
@@ -820,7 +820,8 @@ GO
 ALTER PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE]
     @CompletedFileName [nvarchar](260),
     @ImportFileDigest [binary](32) = NULL OUTPUT,
-    @ArchivePath [nvarchar](4000) = NULL OUTPUT
+    @ArchivePath [nvarchar](4000) = NULL OUTPUT,
+    @ImportError [nvarchar](2000) = NULL OUTPUT
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -856,6 +857,7 @@ BEGIN
 
     SET @ImportFileDigest = NULL;
     SET @ArchivePath = NULL;
+    SET @ImportError = NULL;
 
     BEGIN TRY
             IF @EntryTranCount = 0
@@ -1293,15 +1295,30 @@ BEGIN
                     2000
                 );
 
+            SET @ImportError = @PersistedError;
+
             IF @StartedLocalTransaction = 1 AND XACT_STATE() <> 0
                 ROLLBACK TRANSACTION;
             ELSE IF @EntryTranCount > 0 AND XACT_STATE() = 1
                 ROLLBACK TRANSACTION IMPORT_STAGING_PROC_SAVEPOINT;
 
-            UPDATE dbo.KS4_ImportFileClaim
-            SET LastError = @PersistedError
-            WHERE CompletedFileName = @CompletedFileName
-              AND ClaimStatus = N'claimed';
+            -- A caller-owned transaction will be rolled back by UPDATE_ALL or
+            -- UPDATE_ALL2. Return the exact error through @ImportError so that
+            -- the owner persists it only after the outer rollback. A standalone
+            -- IMPORT_STAGING_PROC call is already back in autocommit here.
+            IF @EntryTranCount = 0
+            BEGIN
+                BEGIN TRY
+                    UPDATE dbo.KS4_ImportFileClaim
+                    SET LastError = @ImportError
+                    WHERE CompletedFileName = @CompletedFileName
+                      AND ClaimStatus = N'claimed';
+                END TRY
+                BEGIN CATCH
+                    -- Never replace the original import failure with a ledger
+                    -- persistence error.
+                END CATCH;
+            END;
 
             -- OPTIMIZATION: Enhanced error reporting
             PRINT 'Error occurred in procedure: ' + ISNULL(@ErrProc, 'Ad-hoc');
@@ -1338,6 +1355,7 @@ BEGIN
 
     DECLARE @ReturnCode int;
     DECLARE @ClaimedPath nvarchar(4000);
+    DECLARE @ImportError nvarchar(2000);
 
     EXEC dbo.CLAIM_KS4_IMPORT_FILE
         @CompletedFileName = @CompletedFileName,
@@ -1348,7 +1366,8 @@ BEGIN
     EXEC @ReturnCode = dbo.IMPORT_STAGING_PROC_CORE
         @CompletedFileName = @CompletedFileName,
         @ImportFileDigest = @ImportFileDigest OUTPUT,
-        @ArchivePath = @ArchivePath OUTPUT;
+        @ArchivePath = @ArchivePath OUTPUT,
+        @ImportError = @ImportError OUTPUT;
 
     RETURN @ReturnCode;
 END
@@ -1365,7 +1384,7 @@ GO
 ALTER PROCEDURE [dbo].[UPDATE_ALL]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL,
-    @CompletedFileName [nvarchar](260) = NULL
+    @CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -1381,6 +1400,7 @@ BEGIN
         DECLARE @ImportFileDigest BINARY(32);
         DECLARE @ImportClaimedPath NVARCHAR(4000);
         DECLARE @ImportArchivePath NVARCHAR(4000);
+        DECLARE @ImportError NVARCHAR(2000);
 
         EXEC dbo.CLAIM_KS4_IMPORT_FILE
             @CompletedFileName = @CompletedFileName,
@@ -1430,10 +1450,17 @@ BEGIN
         EXEC @ImportReturnCode = dbo.IMPORT_STAGING_PROC_CORE
             @CompletedFileName = @CompletedFileName,
             @ImportFileDigest = @ImportFileDigest OUTPUT,
-            @ArchivePath = @ImportArchivePath OUTPUT;
+            @ArchivePath = @ImportArchivePath OUTPUT,
+            @ImportError = @ImportError OUTPUT;
 
         IF @ImportReturnCode <> 0
-            THROW 51821, 'UPDATE_ALL stopped because IMPORT_STAGING_PROC failed.', 1;
+        BEGIN
+            SET @ImportError = COALESCE(
+                @ImportError,
+                N'UPDATE_ALL stopped because IMPORT_STAGING_PROC failed without returning error detail.'
+            );
+            THROW 51821, @ImportError, 1;
+        END;
 
         SELECT
             @AllocatedScanOrder = MIN(SCANORDER),
@@ -2033,7 +2060,7 @@ SET ANSI_WARNINGS ON;
             @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
-            THROW 51827, 'UPDATE_ALL committed its database work but the stats.csv archive handoff did not complete.', 1;
+            THROW 51827, 'UPDATE_ALL committed its database work but the immutable-file archive handoff did not complete.', 1;
 
 		INSERT INTO Update_ALL_Complete (CompletionTime)
 		VALUES (GETDATE());
@@ -2041,8 +2068,37 @@ SET ANSI_WARNINGS ON;
 
     END TRY
     BEGIN CATCH
+        DECLARE @OuterPersistedError nvarchar(2000) =
+            LEFT(
+                COALESCE(
+                    @ImportError,
+                    CONCAT(
+                        N'Error ',
+                        ERROR_NUMBER(),
+                        N' in ',
+                        COALESCE(ERROR_PROCEDURE(), N'UPDATE_ALL'),
+                        N' line ',
+                        ERROR_LINE(),
+                        N': ',
+                        COALESCE(ERROR_MESSAGE(), N'(no message)')
+                    )
+                ),
+                2000
+            );
+
         IF XACT_STATE() <> 0
             ROLLBACK;
+
+        BEGIN TRY
+            UPDATE dbo.KS4_ImportFileClaim
+            SET LastError = @OuterPersistedError
+            WHERE CompletedFileName = @CompletedFileName
+              AND ClaimStatus = N'claimed';
+        END TRY
+        BEGIN CATCH
+            -- Never mask the original UPDATE_ALL failure.
+        END CATCH;
+
         SET ANSI_WARNINGS ON;
         THROW;
     END CATCH
@@ -2060,7 +2116,7 @@ GO
 ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL,
-    @CompletedFileName [nvarchar](260) = NULL
+    @CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -2086,6 +2142,7 @@ BEGIN
     DECLARE @ImportFileDigest BINARY(32);
     DECLARE @ImportClaimedPath NVARCHAR(4000);
     DECLARE @ImportArchivePath NVARCHAR(4000);
+    DECLARE @ImportError NVARCHAR(2000);
     DECLARE @ArchiveReturnCode INT;
     DECLARE @CurrentAuditPhase NVARCHAR(64) = N'update_all2_start';
     DECLARE @UpdateAll2PhaseAudit TABLE (
@@ -2141,10 +2198,15 @@ BEGIN
         EXEC @rc = dbo.IMPORT_STAGING_PROC_CORE
             @CompletedFileName = @CompletedFileName,
             @ImportFileDigest = @ImportFileDigest OUTPUT,
-            @ArchivePath = @ImportArchivePath OUTPUT;
+            @ArchivePath = @ImportArchivePath OUTPUT,
+            @ImportError = @ImportError OUTPUT;
         IF @rc <> 0
         BEGIN
-            RAISERROR('IMPORT_STAGING_PROC failed (rc=%d).', 16, 1, @rc);
+            SET @ImportError = COALESCE(
+                @ImportError,
+                N'UPDATE_ALL2 stopped because IMPORT_STAGING_PROC failed without returning error detail.'
+            );
+            THROW 51819, @ImportError, 1;
         END
 
         SELECT
@@ -2369,7 +2431,7 @@ BEGIN
             @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
-            THROW 51817, 'UPDATE_ALL2 committed Phase A but the stats.csv archive handoff did not complete.', 1;
+            THROW 51817, 'UPDATE_ALL2 committed Phase A but the immutable-file archive handoff did not complete.', 1;
 
         -- Return / Log Phase A summary values
         SELECT
@@ -2977,6 +3039,23 @@ BEGIN
 		DECLARE @ErrMsg  NVARCHAR(MAX) = ERROR_MESSAGE();
 		DECLARE @ErrLine INT = ERROR_LINE();
 		DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
+        DECLARE @PersistedImportError NVARCHAR(2000) =
+            LEFT(
+                COALESCE(
+                    @ImportError,
+                    CONCAT(
+                        N'Error ',
+                        ERROR_NUMBER(),
+                        N' in ',
+                        COALESCE(ERROR_PROCEDURE(), N'UPDATE_ALL2'),
+                        N' line ',
+                        ERROR_LINE(),
+                        N': ',
+                        COALESCE(ERROR_MESSAGE(), N'(no message)')
+                    )
+                ),
+                2000
+            );
 
 		-- ✅ capture transaction state before doing anything
 		DECLARE @XState INT = XACT_STATE();
@@ -2984,6 +3063,16 @@ BEGIN
 		-- ✅ if a transaction exists, you MUST rollback first (especially if @XState = -1)
 		IF @XState <> 0
 			ROLLBACK;
+
+        BEGIN TRY
+            UPDATE dbo.KS4_ImportFileClaim
+            SET LastError = @PersistedImportError
+            WHERE CompletedFileName = @CompletedFileName
+              AND ClaimStatus = N'claimed';
+        END TRY
+        BEGIN CATCH
+            -- Never mask the original UPDATE_ALL2 failure.
+        END CATCH;
 
 		-- ✅ now you're in autocommit, logging is allowed
 		BEGIN TRY
@@ -3045,6 +3134,22 @@ IF EXISTS
 )
     THROW 52321, 'Phase 5.0 did not propagate the immutable filename contract through every SQL entry point.', 1;
 
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.parameters
+    WHERE object_id = OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P')
+      AND name = N'@ImportError'
+      AND system_type_id = TYPE_ID(N'nvarchar')
+      AND max_length = 4000
+      AND is_output = 1
+)
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL', N'P'))
+        LIKE N'%@CompletedFileName [nvarchar](260) = NULL%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL2', N'P'))
+        LIKE N'%@CompletedFileName [nvarchar](260) = NULL%'
+    THROW 52325, 'Phase 5.0 left an optional filename or incomplete error-handoff contract.', 1;
+
 IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P'))
        LIKE N'%downloads\stats.csv%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.HASH_KS4_IMPORT_ARCHIVE_FILE', N'P'))
@@ -3054,11 +3159,17 @@ IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P'))
     THROW 52322, 'Phase 5.0 left the reusable stats.csv pathname in the immutable consumer chain.', 1;
 
 IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+       NOT LIKE N'%stats_<32 lowercase hex>.ready.csv%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
        NOT LIKE N'%Import_Ready%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
        NOT LIKE N'%Import_Claimed%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.IMPORT_STAGING_PROC_CORE', N'P'))
        NOT LIKE N'%detected claimed-file mutation across BULK INSERT%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL', N'P'))
+       NOT LIKE N'%SET LastError = @OuterPersistedError%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.UPDATE_ALL2', N'P'))
+       NOT LIKE N'%SET LastError = @PersistedImportError%'
    OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.ARCHIVE_IMPORT_STAGING_FILE', N'P'))
        NOT LIKE N'%archive destination rehash changed%'
     THROW 52323, 'Phase 5.0 is missing a claim, post-bulk rehash, or post-archive rehash guard.', 1;
