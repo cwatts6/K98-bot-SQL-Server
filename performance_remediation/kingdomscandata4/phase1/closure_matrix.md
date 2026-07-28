@@ -7,7 +7,9 @@ implementation/rehearsal plan on 2026-07-25. Representative-copy forward, drift-
 rollback, recovery, workload and irreversible-finalization rehearsals and the final SQL Changes
 security review are complete. The self-contained delivery-history retryability gap and its final
 61-file Changes review are also closed. Phase 3 implementation, ordered representative-copy
-forward/rollback/reapply rehearsal and final Changes review are complete. Phase 4 is next.
+forward/rollback/reapply rehearsal and final Changes review are complete. Phase 4 isolated
+forward/rollback/reapply, equivalence, benchmark, actual-plan, mapped consumer, repository, and
+final Changes gates passed on 2026-07-27. Phase 4 is closed.
 Production execution remains separately gated.
 
 | Object / path | Classification | Required resolution | Phase | Status |
@@ -59,19 +61,20 @@ Production execution remains separately gated.
 | `dbo.STAGING_STATS` | Downstream staging table | Align remaining float metrics and joins | 3 | Complete: three directly written contracts converted with exact 2,371/9/411 verification |
 | `dbo.EXCEL_FOR_DASHBOARD` | Downstream output table | Prove bigint alignment and row/value equivalence | 3 | Complete: existing `Gov_ID bigint` contract retained and dependent modules compiled |
 | `dbo.STATS_FOR_UPLOAD` | Downstream output table | Prove bigint alignment and export contract | 3, 5 | Phase 3 complete: existing `Gov_ID bigint` contract retained; Phase 5 export smoke remains mandatory |
-| `dbo.v_Active_Players` | Direct view | Remove obsolete cast only after contract proof | 4, 5 | Static reference found |
-| `dbo.v_GovernorNames` | Direct view | Align ID/string semantics and consumers | 4, 5 | Static reference found |
-| `dbo.v_KVK_Under50_Last3_WithLatest` | Direct view | Align types and prove range/latest output | 4, 5 | Static reference found |
-| `dbo.v_MGE_SignupReview` | Direct view | Align types and prove latest output | 4, 5 | Static reference found |
-| `dbo.v_PlayerLatestStats` | Direct view | Align types and prove latest output | 4, 5 | Five-run complete-materialization baseline stable; consumer mapping pending |
-| `dbo.vDaily_Helps` | Direct view | Align types and prove daily boundaries | 4, 5 | Five-run materialization baseline stable; after equivalence pending |
-| `dbo.vDaily_PlayerExport` | Direct view | Align output contract and exports | 4, 5 | Phase 2 isolated after-run stable at 603.284 ms median for 223,386 rows and exact digest; Phase 4 cleanup and export consumer verification remain pending |
-| `dbo.vDaily_RSSAssisted` | Direct view | Align types and prove daily boundaries | 4, 5 | Five-run materialization baseline stable; after equivalence pending |
-| `dbo.vDaily_RSSGathered` | Direct view | Align types and prove daily boundaries | 4, 5 | Five-run materialization baseline stable; after equivalence pending |
-| `dbo.vWTD_Helps` | Direct view | Align types and prove week boundaries | 4, 5 | Five-run materialization baseline stable; after equivalence pending |
-| `dbo.vWTD_RSSAssisted` | Direct view | Align types and prove week boundaries | 4, 5 | Five-run materialization baseline stable; after equivalence pending |
-| `dbo.vWTD_RSSGathered` | Direct view | Align types and prove week boundaries | 4, 5 | Five-run materialization baseline stable; after equivalence pending |
-| `dbo.vw_Governor_KVK_Summary_GlobalLatest` | Direct view | Align latest-scan contract and consumers | 4, 5 | Five-run 411-row materialization baseline stable; consumer mapping pending |
+| `dbo.v_Active_Players` | Direct view | Remove obsolete cast only after contract proof | 4, 5 | Phase 4 rehearsal passed 411-row value/metadata equivalence and stable five-run materialization; result-side cast retained because it preserves nullable metadata |
+| `dbo.v_GovernorNames` | Direct view | Align ID/string semantics and consumers | 4, 5 | Definition retained; 2,371-row stable five-run materialization and mapped consumers passed |
+| `dbo.v_KVK_Under50_Last3_WithLatest` | Direct view | Align types and prove range/latest output | 4, 5 | Definition retained; 19-row stable five-run materialization passed with latest/range semantics unchanged |
+| `dbo.v_MGE_SignupReview` | Direct view | Align types and prove latest output | 4, 5 | Direct-bigint join cleanup passed 56-row forward/rollback/reapply value/metadata equivalence and stable five-run materialization |
+| `dbo.v_PlayerLatestStats` | Direct view | Align types and prove latest output | 4, 5 | Definition retained; 2,371-row stable materialization plus profile/account consumers passed |
+| `dbo.vDaily_Helps` | Direct view | Align types and prove daily boundaries | 4, 5 | Definition retained; 184-row stable five-run materialization and mapped stats-alert consumer tests passed |
+| `dbo.vDaily_PlayerExport` | Direct view | Align output contract and exports | 4, 5 | 223,386-row forward/rollback/reapply equivalence, stable five-run materialization, 56-column export, and 30-day stats-window evidence passed; baseline level-1 hash spill recorded |
+| `dbo.vDaily_RSSAssisted` | Direct view | Align types and prove daily boundaries | 4, 5 | Definition retained; 10-row stable five-run materialization and mapped stats-alert consumer tests passed |
+| `dbo.vDaily_RSSGathered` | Direct view | Align types and prove daily boundaries | 4, 5 | Definition retained; 203-row stable five-run materialization and mapped stats-alert consumer tests passed |
+| `dbo.vWTD_Helps` | Direct view | Align types and prove week boundaries | 4, 5 | Definition retained; 197-row stable five-run materialization and mapped stats-alert consumer tests passed |
+| `dbo.vWTD_RSSAssisted` | Direct view | Align types and prove week boundaries | 4, 5 | Definition retained; one-row stable five-run materialization and mapped stats-alert consumer tests passed |
+| `dbo.vWTD_RSSGathered` | Direct view | Align types and prove week boundaries | 4, 5 | Definition retained; 224-row stable five-run materialization and mapped stats-alert consumer tests passed |
+| `dbo.vw_Governor_KVK_Summary_GlobalLatest` | Direct view | Align latest-scan contract and consumers | 4, 5 | Join-side bigint cleanup passed 411-row forward/rollback/reapply value/metadata equivalence and stable five-run materialization; result-side nullable-metadata cast retained |
+| `dbo.vAllianceActivity_WeeklyCumulative` | Invalid unused legacy view | Retire only after SQL, repository and bot dependency proof | 4 | Operator-approved deferred cleanup passed zero-consumer/security-metadata proof and guarded isolated retirement; object remains absent after rollback/reapply and is never recreated |
 | `embed_offseason_stats.py` | Bot direct reader | Map parameters/types/output and move SQL if touched | 5 | Contract map complete; coordinated implementation will extract the touched SQL to a stats-alert DAL, remove redundant Power casts and preserve summary/leaderboard outputs with focused tests |
 | `weekly_activity_importer.py` | Bot direct reader/import consumer | Prove overlay/import behavior and types | 5 | Contract map complete; coordinated implementation will use direct bigint IDs and remove obsolete alliance-width conversion while preserving blank/date/cohort/completion semantics and mapped smokes |
 | `kvk_state.py` | Bot direct reader | Prove scan-order mapping and move SQL if touched | 5 | Complete: all transitive consumers, max-scan/latest-KVK/ProcConfig result contracts and state smoke retained |
@@ -124,6 +127,24 @@ The final Phase 3 reviewed snapshot is
 `codex-security-snapshot/v1:sha256:98d3c2f01c061c4a3557b5d2f43d0080b47cab9c9863279c8162f3dbb9d653a8`.
 The two findings share one immutable, uniquely named file-handoff remediation spanning the bot
 producer and SQL consumer. They block the combined release but do not block Phase 4 view work.
+
+## Phase 4 gate summary
+
+| Gate | Status |
+| --- | --- |
+| Inventory and obsolete-view decision | Complete: 13 retained mandatory views, 21 retained transitive SQL targets, mapped external consumers, and zero executable consumer/security metadata for the invalid weekly-cumulative view |
+| Forward/rollback/reapply | Complete on `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`: 8 s / 7 s / 7 s with exact 411 / 56 / 223,386 / 411 changed-view rows |
+| Value and metadata equivalence | Complete: row counts, bidirectional `EXCEPT`, aliases, ordinals, types, lengths, precision/scale, collation, and nullability passed in both directions |
+| Full retained materialization | Complete: all 13 views and 21 retained transitive SQL targets refreshed, compiled, and materialized; 269 metadata rows captured |
+| Performance stability | Complete: 78 executions (one warm-up plus five measured for each view), stable rows, and one normalized digest per view |
+| Actual-plan evidence | Complete: five workloads materialized; exact grants, two coordinate-conversion warnings, two excessive-grant warnings, and the daily-export level-1 hash spill are recorded in `phase4/rehearsal_report.md` |
+| Mapped consumer smokes | Complete: SQL/export/report materialization plus 164 focused offline bot/DAL tests passed |
+| Repository validation | Complete: Phase 4 and inherited regression contract tests, SQL repository validation, and `git diff --check` passed |
+| Final SQL Changes review | Complete: scan `e6ce0a1d-7aba-428a-b40a-61001c924143`, snapshot `codex-security-snapshot/v1:sha256:a00ac727cab59a0ed585b7e6f615a3391fc792d95a1165c624c0328e978a909b`, Deep off, 13/13 source-like worklist rows, zero deferrals, zero findings |
+
+Production remained untouched. Phase 4 is closed. The post-scan changes are
+limited to non-executable status and receipt documentation and do not change
+the reviewed SQL or validation contracts.
 
 ## 2026-07-26 security follow-up
 

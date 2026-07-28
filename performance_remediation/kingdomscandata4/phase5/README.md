@@ -1,9 +1,9 @@
 # KingdomScanData4 Phase 5 — bot, DAL and immutable file handoff
 
-Status: planned; starts after the final Phase 3/4 SQL contracts are available. Bot implementation
-belongs to the separate repository at `C:\discord_file_downloader`. The immutable-file protocol
-also requires a narrowly scoped companion SQL migration and canonical definition update in this
-repository.
+Status: ready; Phase 4 is closed and the final Phase 3/4 SQL contracts are available. Phase 5 is
+the next implementation phase. Bot implementation belongs to the separate repository at
+`C:\discord_file_downloader`. The immutable-file protocol also requires a narrowly scoped
+companion SQL migration and canonical definition update in this repository.
 
 ## Objective
 
