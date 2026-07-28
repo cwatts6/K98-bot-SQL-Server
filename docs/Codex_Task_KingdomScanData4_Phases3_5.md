@@ -1,22 +1,44 @@
 # KingdomScanData4 Phases 3–5 delivery plan
 
-Status updated 2026-07-26. Phase 1 is closed. Phase 2 is closed on the representative-copy
-evidence boundary; production execution is not authorized. This plan replaces task-list ordering
-that mixed Phase 2 acceptance with later coordinated-release work.
+Status updated 2026-07-27. Phases 1 and 2 are closed on the representative-copy evidence
+boundary. Phase 3 implementation and representative-copy rehearsal are complete and frozen on
+`codex/kingdomscandata4-phase3`; production execution is not authorized. Phase 4 is the next
+implementation phase. This plan replaces task-list ordering that mixed Phase 2 acceptance with
+later coordinated-release work.
 
 ## Authoritative order
 
 | Order | Workstream | Entry condition | Exit condition |
 | ---: | --- | --- | --- |
-| 1 | Phase 3: procedures, import concurrency and downstream tables | Phase 2 package and rollback are stable | SQL mutex, atomic scan allocation, duplicate prevention, type alignment, equivalence, performance and rollback all pass |
-| 2 | Phase 4: views and consumers | Phase 3 SQL contracts are stable | Every changed view and transitive consumer is value- and metadata-equivalent and rollback passes |
-| 3 | Phase 5: bot and DAL alignment | Final Phase 3/4 SQL contracts are available | Four approved bot paths and all source-unchanged smokes pass in the separate bot repository |
+| 1 | Phase 3: procedures, import concurrency and downstream tables | Phase 2 package and rollback are stable | **Complete:** SQL mutex, atomic scan allocation, duplicate prevention, type alignment, equivalence, performance, rollback and final Changes review passed |
+| 2 | Phase 4: views and consumers | **Ready:** frozen Phase 3 SQL contracts are available | Every changed view and transitive consumer is value- and metadata-equivalent and rollback passes |
+| 3 | Phase 5: bot, DAL and immutable import-file handoff | Final Phase 3/4 SQL contracts are available | Four approved bot paths, the cross-repository immutable-file protocol, all source-unchanged smokes and both repository-specific Changes reviews pass |
 | 4 | Combined release gate | Phases 2–5 are closed with exact commits | Fresh-restore coordinated forward, rollback, finalizer, workload and end-to-end bot rehearsal pass |
 | 5 | Production go/no-go | Reviewed SQL and bot PRs plus combined receipts exist | Operator gives separate explicit execution approval after fresh production preflight |
 
 The combined release gate is not Phase 6. It packages and proves the already approved
 implementation phases. Phase 2 retained originals must remain available until this gate accepts
-the exact Phase 3/4 definitions and commits.
+the exact Phase 3/4/5 SQL definitions and SQL/bot commits.
+
+## Phase 3 closure receipt
+
+- Branch: `codex/kingdomscandata4-phase3`.
+- Migration:
+  `20260726_001_phase3_import_concurrency_and_direct_type_alignment`.
+- Representative database:
+  `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`.
+- Ordered proof: Phase 2 forward, Phase 3 forward, Phase 3 rollback, and clean Phase 3 reapply all
+  passed without touching production.
+- Final Codex Security Changes scan:
+  `7ccf1007-269d-4470-94f0-638222312c5a`.
+- Reviewed working-tree snapshot:
+  `codex-security-snapshot/v1:sha256:98d3c2f01c061c4a3557b5d2f43d0080b47cab9c9863279c8162f3dbb9d653a8`.
+- Result: two Low/P3 mutable-path TOCTOU findings. Both require one immutable, uniquely named
+  producer-to-consumer handoff protocol and remain Phase 5/combined-release blockers.
+- Post-scan closure edits are status/receipt/sequencing documentation plus mechanical trailing
+  whitespace and final-newline cleanup in the generated Phase 3 SQL package. They do not alter
+  SQL tokens, executable behavior, tooling, configuration, permissions, deployment behavior or
+  runtime contracts and therefore use a documented security-review skip.
 
 ## Phase 3 delivery slices
 
@@ -48,7 +70,9 @@ the exact Phase 3/4 definitions and commits.
 
 ## Phase 5 delivery slices
 
-Work in `C:\discord_file_downloader` on its own branch and PR.
+Work primarily in `C:\discord_file_downloader` on its own branch and PR. The immutable-file
+handoff also requires a narrowly scoped companion SQL migration and canonical definition update
+in this repository. The repositories retain separate Git histories, tests and Changes reviews.
 
 1. Change `player_self_service/accounts_dal.py`.
 2. Change `player_self_service/governor_dashboard_dal.py`.
@@ -59,8 +83,14 @@ Work in `C:\discord_file_downloader` on its own branch and PR.
 6. Run focused tests for each changed path plus the four source-unchanged contract smokes.
 7. Run the bot repository's architecture, deferred-item, test-selection, smoke-import,
    command-registration, security-routing, pre-commit and full pytest gates.
-8. Close Phase 5 only after a separate bot Changes security review passes against the exact
-   commit selected for the combined rehearsal.
+8. Replace the reusable mutable `stats.csv` handoff with an atomically published, uniquely named
+   completed file that the SQL side claims, hashes, imports, receipts and archives as one
+   immutable object. Enforce claim-directory ACL assumptions and retain destination rehashing as
+   defense in depth.
+9. Prove stopped-writer deployment compatibility, duplicate retry, failure recovery and rollback
+   for the companion SQL migration and bot producer.
+10. Close Phase 5 only after separate SQL and bot Changes security reviews pass against the exact
+    commits selected for the combined rehearsal and both Low/P3 findings are closed.
 
 ## Task-wide controls
 

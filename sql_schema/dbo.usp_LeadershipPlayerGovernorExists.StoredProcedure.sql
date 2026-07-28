@@ -19,8 +19,7 @@ BEGIN
         (
             SELECT 1
             FROM dbo.KingdomScanData4 AS source
-            WHERE source.GovernorID = CONVERT(float, @GovernorID)
-              AND TRY_CONVERT(bigint, source.GovernorID) = @GovernorID
+            WHERE source.GovernorID = @GovernorID
         )
         THEN 1 ELSE 0 END) AS ExistsInDatabase;
 END

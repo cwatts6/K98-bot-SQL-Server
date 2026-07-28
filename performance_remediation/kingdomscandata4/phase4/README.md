@@ -1,7 +1,8 @@
 # KingdomScanData4 Phase 4 — views and view consumers
 
-Status: planned; starts only after Phase 3 SQL contracts and rollback definitions are stable.
-Production execution is not authorized.
+Status: ready to start from the frozen Phase 3 package on
+`codex/kingdomscandata4-phase3`. Phase 3 SQL contracts, migration, rollback and representative
+rehearsal are stable. Production execution is not authorized.
 
 ## Objective
 
@@ -12,15 +13,27 @@ compensation, and prove that all consumer-facing values and metadata remain unch
 
 ### 4.1 Lock the view and consumer inventory
 
-Start from `phase1/closure_matrix.md` and rediscover direct/transitive dependencies after Phase 3.
-The mandatory set includes:
+Start from the final Phase 3 definitions, `phase1/closure_matrix.md`,
+`phase1/bot_dal_contract_map.md`, and the frozen Phase 3 affected-module contract. Rediscover
+direct/transitive dependencies before editing. The mandatory 13-view set is:
 
-- `dbo.v_Active_Players`, `dbo.v_GovernorNames`,
-  `dbo.v_KVK_Under50_Last3_WithLatest`, `dbo.v_MGE_SignupReview` and
-  `dbo.v_PlayerLatestStats`;
-- every related `dbo.vDaily_*` and `dbo.vWTD_*` view;
-- `dbo.vw_Governor_KVK_Summary_GlobalLatest`; and
-- every SQL, export, report and DAL consumer found transitively.
+1. `dbo.v_Active_Players`
+2. `dbo.v_GovernorNames`
+3. `dbo.v_KVK_Under50_Last3_WithLatest`
+4. `dbo.v_MGE_SignupReview`
+5. `dbo.v_PlayerLatestStats`
+6. `dbo.vDaily_Helps`
+7. `dbo.vDaily_PlayerExport`
+8. `dbo.vDaily_RSSAssisted`
+9. `dbo.vDaily_RSSGathered`
+10. `dbo.vWTD_Helps`
+11. `dbo.vWTD_RSSAssisted`
+12. `dbo.vWTD_RSSGathered`
+13. `dbo.vw_Governor_KVK_Summary_GlobalLatest`
+
+The worklist also includes every SQL function, procedure, dependent view, export, report and bot
+DAL consumer found transitively. New discoveries must be classified before implementation rather
+than silently added or ignored.
 
 Record exact baseline parameters, rows, normalized digests, result metadata and ordering
 assumptions before each definition changes.
@@ -35,11 +48,27 @@ assumptions before each definition changes.
 
 ### 4.3 Package and rollback
 
-- Author ordered Phase 4 migrations after the Phase 3 migrations.
+- Author ordered Phase 4 migrations after
+  `20260726_001_phase3_import_concurrency_and_direct_type_alignment`.
 - Update the canonical `sql_schema` view definitions.
 - Provide exact prior definitions for early rollback.
 - Restore Phase 4 views first, then Phase 3 routines, then Phase 2 tables when the combined
   pre-restart rollback branch is selected.
+
+### 4.4 Required delivery artifacts
+
+Create and retain under this directory:
+
+- `view_consumer_inventory.md`
+- `baseline_contracts.md`
+- ordered forward and rollback SQL under the repository migration paths
+- `01_preflight.sql` and `02_verify.sql`
+- `Test-Phase4Contracts.ps1`
+- `rehearsal_report.md`
+
+The exact filenames may be extended when split-session or other focused proof requires it, but
+the inventory, baseline, forward, rollback, verification, repository contract test and rehearsal
+receipt are mandatory.
 
 ## Required validation
 
@@ -55,6 +84,18 @@ assumptions before each definition changes.
   regression policy.
 - Run repository validation, `git diff --check` and a SQL Changes security review for the final
   Phase 4 diff.
+- Keep the scan type `Changes`, Deep scan off, and review only the Phase 4 Git diff plus directly
+  supporting code. Do not broaden to a codebase or Deep scan without explicit authorization.
+
+## Rehearsal and scope boundary
+
+- Rehearse on a fresh isolated database carrying the accepted Phase 2 and frozen Phase 3
+  definitions. Production remains untouched.
+- The two final Phase 3 Low/P3 mutable-file findings are not Phase 4 view work. Preserve them as
+  Phase 5/combined-release blockers and do not mix their cross-repository remediation into this
+  phase.
+- Continue refining migration IDs, stop/start controls, receipts, rollback commands and operator
+  checkpoints in `../release/README.md`, but do not authorize deployment.
 
 ## Exit gate
 

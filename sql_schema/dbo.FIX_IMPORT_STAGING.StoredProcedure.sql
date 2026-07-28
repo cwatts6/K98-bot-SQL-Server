@@ -8,9 +8,27 @@ ALTER PROCEDURE [dbo].[FIX_IMPORT_STAGING]
 WITH EXECUTE AS CALLER
 AS
 BEGIN
-    -- SQL statements go here
+    SET NOCOUNT ON;
 
-DECLARE @DT DATETIME
+IF @@TRANCOUNT <> 0
+    THROW 51833, 'FIX_IMPORT_STAGING refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
+
+SET XACT_ABORT ON;
+
+DECLARE @DT DATETIME;
+DECLARE @ImportLockResult INT;
+DECLARE @CurrentMaxScanOrder INT;
+DECLARE @NextScanOrder INT;
+
+BEGIN TRY
+    BEGIN TRANSACTION;
+
+    EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
+        @LockTimeout = 60000,
+        @LockResult = @ImportLockResult OUTPUT;
+
+    IF @ImportLockResult < 0
+        THROW 51830, 'FIX_IMPORT_STAGING could not acquire the KingdomScanData4 import mutex within 60000 ms; staging was not changed.', 1;
 
 -- Set the variable using SELECT
 SELECT @DT = CONVERT(DATETIME, 
@@ -39,9 +57,39 @@ JOIN #Killsum AS KS ON  IMPORT_STAGING.[Governor ID] = KS.[Governor ID]
 DROP TABLE #killsum
 
 
-UPDATE IMPORT_STAGING -- SET SCANORDER TO BE NEXT NUMBER
---SET SCANORDER = '148'
-SET SCANORDER = (SELECT MAX(SCANORDER) +1 FROM KingdomScanData4) 
+SELECT @CurrentMaxScanOrder = ISNULL(MAX(scan_max.ScanOrder), 0)
+FROM
+(
+    SELECT MAX(SCANORDER) AS ScanOrder
+    FROM dbo.KingdomScanData4 WITH (UPDLOCK, HOLDLOCK)
+
+    UNION ALL
+
+    SELECT MAX(SCANORDER)
+    FROM dbo.KingdomScanData5 WITH (UPDLOCK, HOLDLOCK)
+
+    UNION ALL
+
+    SELECT MAX(ScanOrder)
+    FROM dbo.KS4_ImportFileReceipt WITH (UPDLOCK, HOLDLOCK)
+) AS scan_max;
+
+IF @CurrentMaxScanOrder = 2147483647
+    THROW 51831, 'Import SCANORDER exhausted the int range; allocation refused.', 1;
+
+SET @NextScanOrder = @CurrentMaxScanOrder + 1;
+
+UPDATE IMPORT_STAGING
+SET SCANORDER = @NextScanOrder;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.IMPORT_STAGING
+    GROUP BY SCANORDER, [Governor ID]
+    HAVING COUNT_BIG(*) > 1
+)
+    THROW 51832, 'FIX_IMPORT_STAGING rejected duplicate (SCANORDER, Governor ID) keys.', 1;
 
 
 UPDATE IMPORT_STAGING -- FIX ALLIANCE SCAN NAME
@@ -80,5 +128,12 @@ SET
 FROM IMPORT_STAGING AS I
 JOIN LatestScan AS K ON I.[Governor ID] = K.GovernorID;
 
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0
+        ROLLBACK TRANSACTION;
 
-	END;
+    THROW;
+END CATCH;
+END;

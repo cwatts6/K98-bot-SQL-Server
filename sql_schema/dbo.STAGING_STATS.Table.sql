@@ -3,8 +3,8 @@ SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[STAGING_STATS]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[STAGING_STATS](
-	[GovernorID] [float] NOT NULL,
-	[PowerRank] [float] NOT NULL,
+	[GovernorID] [bigint] NOT NULL,
+	[PowerRank] [int] NOT NULL,
 	[Power] [float] NOT NULL,
 	[Power_Delta] [float] NULL,
 	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,

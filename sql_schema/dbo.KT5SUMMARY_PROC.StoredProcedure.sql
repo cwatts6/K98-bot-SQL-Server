@@ -11,8 +11,8 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE @MetricName NVARCHAR(100) = N'T5Kills';
-    DECLARE @LastProcessed FLOAT = 0;
-    DECLARE @MaxScan FLOAT = 0;
+    DECLARE @LastProcessed INT = 0;
+    DECLARE @MaxScan INT = 0;
 
     DECLARE @UseSharedTemps BIT = CASE
         WHEN OBJECT_ID('tempdb..#AffectedGovs') IS NOT NULL
@@ -47,12 +47,10 @@ BEGIN
         );
 
         INSERT INTO #AffectedGovs (GovernorID)
-        SELECT DISTINCT conv.GovernorID
+        SELECT DISTINCT ks4.GovernorID
         FROM dbo.KingdomScanData4 ks4
-        CROSS APPLY (SELECT TRY_CONVERT(BIGINT, ks4.GovernorID) AS GovernorID) conv
         WHERE ks4.ScanOrder > @LastProcessed
-          AND conv.GovernorID IS NOT NULL
-          AND conv.GovernorID <> 0;
+          AND ks4.GovernorID <> 0;
 
         IF NOT EXISTS (SELECT 1 FROM #AffectedGovs)
         BEGIN
@@ -67,7 +65,7 @@ BEGIN
 
         IF OBJECT_ID('tempdb..#GovScan') IS NOT NULL DROP TABLE #GovScan;
         SELECT
-            conv.GovernorID AS GovernorID,
+            ks4.GovernorID,
             ks4.GovernorName,
             ks4.PowerRank,
             ks4.ScanOrder,
@@ -75,8 +73,7 @@ BEGIN
             ks4.[T5_KILLS]
         INTO #GovScan
         FROM dbo.KingdomScanData4 ks4
-        CROSS APPLY (SELECT TRY_CONVERT(BIGINT, ks4.GovernorID) AS GovernorID) conv
-        INNER JOIN #AffectedGovs a ON a.GovernorID = conv.GovernorID;
+        INNER JOIN #AffectedGovs a ON a.GovernorID = ks4.GovernorID;
 
         CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
         CREATE NONCLUSTERED INDEX IX_GovScan_ScanDate_GovernorID ON #GovScan (ScanDate, GovernorID) INCLUDE (ScanOrder);

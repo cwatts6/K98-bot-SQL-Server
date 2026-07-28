@@ -6,10 +6,10 @@ EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[Refresh_PlayerScan
 END
 ALTER PROCEDURE [dbo].[Refresh_PlayerScanMeta]
 	@FullRebuild [bit] = 0,
-	@MinScanOrder [float] = NULL,
+	@MinScanOrder [int] = NULL,
 	@FromScanDate [date] = NULL,
 	@BatchSize [int] = NULL,
-	@StartingGovernorID [float] = NULL
+	@StartingGovernorID [bigint] = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -142,14 +142,14 @@ BEGIN
     END
 
     DECLARE @Continue bit = 1;
-    DECLARE @LastGovernorID float = ISNULL(@StartingGovernorID, 0);
+    DECLARE @LastGovernorID bigint = ISNULL(@StartingGovernorID, 0);
 
     WHILE @Continue = 1
     BEGIN
         IF OBJECT_ID('tempdb..#Governors') IS NOT NULL
             DROP TABLE #Governors;
 
-        CREATE TABLE #Governors (GovernorID float NOT NULL PRIMARY KEY);
+        CREATE TABLE #Governors (GovernorID bigint NOT NULL PRIMARY KEY);
 
         INSERT INTO #Governors (GovernorID)
         SELECT TOP (CASE WHEN @BatchSize IS NULL OR @BatchSize <= 0 THEN 2147483647 ELSE @BatchSize END)
