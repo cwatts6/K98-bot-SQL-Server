@@ -1,10 +1,8 @@
 ﻿SET ANSI_NULLS ON
-GO
 SET QUOTED_IDENTIFIER ON
-GO
-
-CREATE OR ALTER VIEW [KVK].[vw_Player_Overall_KVK_Rank]
-AS
+IF NOT EXISTS (SELECT * FROM sys.views WHERE object_id = OBJECT_ID(N'[KVK].[vw_Player_Overall_KVK_Rank]'))
+EXECUTE dbo.sp_executesql N'
+CREATE VIEW [KVK].[vw_Player_Overall_KVK_Rank]  AS 
 WITH RankedPlayers AS
 (
     SELECT
@@ -25,7 +23,7 @@ WITH RankedPlayers AS
         p.last_scan_id,
         p.computed_at_utc
     FROM KVK.KVK_Player_Windowed AS p
-    WHERE p.WindowName = N'Full'
+    WHERE p.WindowName = N''Full''
 )
 SELECT
     KVK_NO,
@@ -47,4 +45,6 @@ SELECT
     last_scan_id,
     computed_at_utc
 FROM RankedPlayers;
-GO
+
+
+'

@@ -1,8 +1,12 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerIdentityHistory
-    @GovernorIDs dbo.IntList READONLY,
-    @HistoryDays smallint = 720
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetLeadershipPlayerIdentityHistory]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetLeadershipPlayerIdentityHistory] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_GetLeadershipPlayerIdentityHistory]
+	@GovernorIDs [dbo].[IntList] READONLY,
+	@HistoryDays [smallint] = 720
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -30,6 +34,7 @@ BEGIN
                MAX(history_rows.SeenScanCount) AS SeenScanCount
         FROM dbo.GovernorNameHistory AS history_rows
         JOIN @GovernorIDs AS requested ON requested.ID = history_rows.GovernorID
+        
         GROUP BY history_rows.GovernorID,
                  dbo.fn_NormalizeGovernorNameKey(history_rows.GovernorName)
     )
@@ -131,3 +136,4 @@ BEGIN
     FROM Episodes
     ORDER BY GovernorID, EpisodeSequence;
 END;
+
