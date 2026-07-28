@@ -5,8 +5,10 @@ BEGIN
 EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE] AS'
 END
 ALTER PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE]
+    @CompletedFileName [nvarchar](260),
     @ImportFileDigest [binary](32) = NULL OUTPUT,
-    @ArchivePath [nvarchar](4000) = NULL OUTPUT
+    @ArchivePath [nvarchar](4000) = NULL OUTPUT,
+    @ImportError [nvarchar](2000) = NULL OUTPUT
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -15,15 +17,15 @@ BEGIN
 
     ----------------------------------------------------------------
     -- This procedure:
-    -- 1) loads stats.csv into dbo.IMPORT_STAGING_CSV_RAW via BULK INSERT
+    -- 1) loads one digest-bound claimed file into dbo.IMPORT_STAGING_CSV_RAW
     -- 2) converts raw text into typed dbo.IMPORT_STAGING_CSV
     -- 3) maps CSV columns into canonical dbo.IMPORT_STAGING
     -- 4) applies a few cleanup fixes, computes deltas against last scan,
-    -- 5) archives the CSV file and returns summary info.
+    -- 5) records the committed immutable identity for post-commit archive.
     --
     -- Assumptions:
     -- - dbo.IMPORT_STAGING_CSV physical column order and names match the CSV header.
-    -- - SQL Server service account has read access to the CSV path.
+    -- - SQL Server service account has exclusive mutation rights in Import_Claimed.
     ----------------------------------------------------------------
 
     DECLARE @FileExists INT;
@@ -31,8 +33,10 @@ BEGIN
     DECLARE @CurrentMaxScanOrder INT;
     DECLARE @InsertedRows INT = 0;
     DECLARE @LatestDate DATETIME;
-    DECLARE @FormattedDate VARCHAR(50);
-    DECLARE @CsvPath NVARCHAR(4000) = N'C:\discord_file_downloader\downloads\stats.csv';
+    DECLARE @CsvPath NVARCHAR(4000);
+    DECLARE @ClaimStatus NVARCHAR(24);
+    DECLARE @ClaimDigest BINARY(32);
+    DECLARE @CurrentFileDigest BINARY(32);
     DECLARE @EntryTranCount INT = @@TRANCOUNT;
     DECLARE @StartedLocalTransaction BIT = 0;
     DECLARE @ImportLockResult INT;
@@ -40,6 +44,7 @@ BEGIN
 
     SET @ImportFileDigest = NULL;
     SET @ArchivePath = NULL;
+    SET @ImportError = NULL;
 
     BEGIN TRY
             IF @EntryTranCount = 0
@@ -59,21 +64,39 @@ BEGIN
             IF @ImportLockResult < 0
                 THROW 51800, 'IMPORT_STAGING_PROC could not acquire the KingdomScanData4 import mutex within 60000 ms; no import work was performed.', 1;
 
-            -- File presence is checked only after the database mutex is held so
-            -- concurrent callers cannot race the shared staging file.
+            SELECT
+                @CsvPath = ClaimedPath,
+                @ArchivePath = ArchivePath,
+                @ClaimStatus = ClaimStatus,
+                @ClaimDigest = FileDigest
+            FROM dbo.KS4_ImportFileClaim WITH (UPDLOCK, HOLDLOCK)
+            WHERE CompletedFileName = @CompletedFileName;
+
+            IF @CsvPath IS NULL
+               OR @ClaimStatus <> N'claimed'
+               OR @ClaimDigest IS NULL
+               OR @CsvPath <>
+                    N'C:\discord_file_downloader\downloads\Import_Claimed\' + @CompletedFileName
+               OR @ArchivePath <>
+                    N'C:\discord_file_downloader\downloads\Import_Archive\' + @CompletedFileName
+                THROW 51801, 'IMPORT_STAGING_PROC did not find the expected digest-bound claimed file.', 1;
+
+            SET @ImportFileDigest = @ClaimDigest;
+
+            -- File presence and digest are checked only after the database mutex
+            -- is held. The producer cannot mutate the SQL-owned claimed path.
             EXEC master.dbo.xp_fileexist @CsvPath, @FileExists OUTPUT;
 
             IF @FileExists <> 1
-                THROW 51801, 'IMPORT_STAGING_PROC did not find the shared stats.csv after acquiring the import mutex; import was skipped.', 1;
+                THROW 51801, 'IMPORT_STAGING_PROC did not find the claimed file after acquiring the import mutex.', 1;
 
-            SELECT @ImportFileDigest = HASHBYTES('SHA2_256', BulkColumn)
-            FROM OPENROWSET(
-                BULK 'C:\discord_file_downloader\downloads\stats.csv',
-                SINGLE_BLOB
-            ) AS source_file;
+            EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE
+                @ApprovedPath = @CsvPath,
+                @FileDigest = @CurrentFileDigest OUTPUT;
 
-            IF @ImportFileDigest IS NULL
-                THROW 51802, 'IMPORT_STAGING_PROC could not calculate the shared stats.csv SHA-256 digest.', 1;
+            IF @CurrentFileDigest IS NULL
+               OR @CurrentFileDigest <> @ImportFileDigest
+                THROW 51802, 'IMPORT_STAGING_PROC refused claimed bytes that differ from the durable claim digest.', 1;
 
             IF EXISTS
             (
@@ -84,8 +107,10 @@ BEGIN
             BEGIN
                 DECLARE @DuplicateFileMessage nvarchar(2048) =
                     CONCAT(
-                        N'IMPORT_STAGING_PROC refused a file that already has a committed receipt. ',
-                        N'Retry the archive handoff for digest 0x',
+                        N'IMPORT_STAGING_PROC refused claimed bytes that already have a committed receipt. ',
+                        N'Reconcile claim ',
+                        @CompletedFileName,
+                        N' for digest 0x',
                         CONVERT(varchar(64), @ImportFileDigest, 2),
                         N' instead of allocating another scan.'
                     );
@@ -117,6 +142,16 @@ BEGIN
                 );';
 
             EXEC sp_executesql @bulksql;
+
+            SET @CurrentFileDigest = NULL;
+
+            EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE
+                @ApprovedPath = @CsvPath,
+                @FileDigest = @CurrentFileDigest OUTPUT;
+
+            IF @CurrentFileDigest IS NULL
+               OR @CurrentFileDigest <> @ImportFileDigest
+                THROW 51808, 'IMPORT_STAGING_PROC detected claimed-file mutation across BULK INSERT.', 1;
 
             ----------------------------------------------------------------
             -- Step 3: Convert raw text staging into typed CSV staging.
@@ -360,14 +395,6 @@ BEGIN
             IF @LatestDate IS NULL
                 SET @LatestDate = GETDATE();
 
-            SET @FormattedDate = FORMAT(@LatestDate, 'yyyyMMdd_HHmm');
-            SET @ArchivePath =
-                N'C:\discord_file_downloader\downloads\Import_Archive\Stats_'
-                + @FormattedDate
-                + N'_S'
-                + CONVERT(nvarchar(20), @NextScanOrder)
-                + N'.csv';
-
             INSERT dbo.KS4_ImportFileReceipt
             (
                 FileDigest,
@@ -395,6 +422,19 @@ BEGIN
                 NULL
             );
 
+            UPDATE dbo.KS4_ImportFileClaim
+            SET ClaimStatus = N'imported',
+                ImportCommittedAtUtc = SYSUTCDATETIME(),
+                LastError = NULL
+            WHERE CompletedFileName = @CompletedFileName
+              AND FileDigest = @ImportFileDigest
+              AND ClaimedPath = @CsvPath
+              AND ArchivePath = @ArchivePath
+              AND ClaimStatus = N'claimed';
+
+            IF @@ROWCOUNT <> 1
+                THROW 51809, 'IMPORT_STAGING_PROC could not advance exactly one claim to imported.', 1;
+
             ----------------------------------------------------------------
             -- Step 9: Output summary & cleanup
             ----------------------------------------------------------------
@@ -408,7 +448,7 @@ BEGIN
                 COMMIT TRANSACTION;
 
                 EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
-                    @FileDigest = @ImportFileDigest;
+                    @CompletedFileName = @CompletedFileName;
 
                 IF @ArchiveReturnCode <> 0
                     THROW 51806, 'IMPORT_STAGING_PROC committed staging but the archive handoff did not complete.', 1;
@@ -423,18 +463,54 @@ BEGIN
             RETURN 0; -- Success
     END TRY
     BEGIN CATCH
+            DECLARE @ErrNumber INT = ERROR_NUMBER();
             DECLARE @ErrMsg NVARCHAR(4000) = ERROR_MESSAGE();
             DECLARE @ErrLine INT = ERROR_LINE();
             DECLARE @ErrProc NVARCHAR(128) = ERROR_PROCEDURE();
+            DECLARE @PersistedError NVARCHAR(2000) =
+                LEFT(
+                    CONCAT(
+                        N'Error ',
+                        ERROR_NUMBER(),
+                        N' in ',
+                        COALESCE(ERROR_PROCEDURE(), N'Ad-hoc'),
+                        N' line ',
+                        ERROR_LINE(),
+                        N': ',
+                        COALESCE(ERROR_MESSAGE(), N'(no message)')
+                    ),
+                    2000
+                );
+
+            SET @ImportError = @PersistedError;
 
             IF @StartedLocalTransaction = 1 AND XACT_STATE() <> 0
                 ROLLBACK TRANSACTION;
             ELSE IF @EntryTranCount > 0 AND XACT_STATE() = 1
                 ROLLBACK TRANSACTION IMPORT_STAGING_PROC_SAVEPOINT;
 
+            -- A caller-owned transaction will be rolled back by UPDATE_ALL or
+            -- UPDATE_ALL2. Return the exact error through @ImportError so that
+            -- the owner persists it only after the outer rollback. A standalone
+            -- IMPORT_STAGING_PROC call is already back in autocommit here.
+            IF @EntryTranCount = 0
+            BEGIN
+                BEGIN TRY
+                    UPDATE dbo.KS4_ImportFileClaim
+                    SET LastError = @ImportError
+                    WHERE CompletedFileName = @CompletedFileName
+                      AND ClaimStatus = N'claimed';
+                END TRY
+                BEGIN CATCH
+                    -- Never replace the original import failure with a ledger
+                    -- persistence error.
+                END CATCH;
+            END;
+
             -- OPTIMIZATION: Enhanced error reporting
             PRINT 'Error occurred in procedure: ' + ISNULL(@ErrProc, 'Ad-hoc');
             PRINT 'Error line: ' + CAST(@ErrLine AS VARCHAR(10));
+            PRINT 'Error number: ' + CAST(@ErrNumber AS VARCHAR(10));
             PRINT 'Error message: ' + COALESCE(@ErrMsg, N'(no message)');
 
             RETURN 1; -- Failure

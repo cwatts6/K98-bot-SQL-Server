@@ -6,7 +6,8 @@ EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL2] AS'
 END
 ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
-	@param2 [nvarchar](100) = NULL
+	@param2 [nvarchar](100) = NULL,
+    @CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -30,7 +31,9 @@ BEGIN
     DECLARE @AllocatedScanOrder INT;
     DECLARE @StagedRows INT;
     DECLARE @ImportFileDigest BINARY(32);
+    DECLARE @ImportClaimedPath NVARCHAR(4000);
     DECLARE @ImportArchivePath NVARCHAR(4000);
+    DECLARE @ImportError NVARCHAR(2000);
     DECLARE @ArchiveReturnCode INT;
     DECLARE @CurrentAuditPhase NVARCHAR(64) = N'update_all2_start';
     DECLARE @UpdateAll2PhaseAudit TABLE (
@@ -48,6 +51,12 @@ BEGIN
     );
 
     BEGIN TRY
+        EXEC dbo.CLAIM_KS4_IMPORT_FILE
+            @CompletedFileName = @CompletedFileName,
+            @FileDigest = @ImportFileDigest OUTPUT,
+            @ClaimedPath = @ImportClaimedPath OUTPUT,
+            @ArchivePath = @ImportArchivePath OUTPUT;
+
         ----------------------------------------------------------------
         -- Phase A: Import → KS5 → (maybe) KS4  [commit early]
         ----------------------------------------------------------------
@@ -78,11 +87,17 @@ BEGIN
 
         -- 1) Refresh latest data
         EXEC @rc = dbo.IMPORT_STAGING_PROC_CORE
+            @CompletedFileName = @CompletedFileName,
             @ImportFileDigest = @ImportFileDigest OUTPUT,
-            @ArchivePath = @ImportArchivePath OUTPUT;
+            @ArchivePath = @ImportArchivePath OUTPUT,
+            @ImportError = @ImportError OUTPUT;
         IF @rc <> 0
         BEGIN
-            RAISERROR('IMPORT_STAGING_PROC failed (rc=%d).', 16, 1, @rc);
+            SET @ImportError = COALESCE(
+                @ImportError,
+                N'UPDATE_ALL2 stopped because IMPORT_STAGING_PROC failed without returning error detail.'
+            );
+            THROW 51819, @ImportError, 1;
         END
 
         SELECT
@@ -304,10 +319,10 @@ BEGIN
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
         EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
-            @FileDigest = @ImportFileDigest;
+            @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
-            THROW 51817, 'UPDATE_ALL2 committed Phase A but the stats.csv archive handoff did not complete.', 1;
+            THROW 51817, 'UPDATE_ALL2 committed Phase A but the immutable-file archive handoff did not complete.', 1;
 
         -- Return / Log Phase A summary values
         SELECT
@@ -915,6 +930,23 @@ BEGIN
 		DECLARE @ErrMsg  NVARCHAR(MAX) = ERROR_MESSAGE();
 		DECLARE @ErrLine INT = ERROR_LINE();
 		DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
+        DECLARE @PersistedImportError NVARCHAR(2000) =
+            LEFT(
+                COALESCE(
+                    @ImportError,
+                    CONCAT(
+                        N'Error ',
+                        ERROR_NUMBER(),
+                        N' in ',
+                        COALESCE(ERROR_PROCEDURE(), N'UPDATE_ALL2'),
+                        N' line ',
+                        ERROR_LINE(),
+                        N': ',
+                        COALESCE(ERROR_MESSAGE(), N'(no message)')
+                    )
+                ),
+                2000
+            );
 
 		-- ✅ capture transaction state before doing anything
 		DECLARE @XState INT = XACT_STATE();
@@ -922,6 +954,16 @@ BEGIN
 		-- ✅ if a transaction exists, you MUST rollback first (especially if @XState = -1)
 		IF @XState <> 0
 			ROLLBACK;
+
+        BEGIN TRY
+            UPDATE dbo.KS4_ImportFileClaim
+            SET LastError = @PersistedImportError
+            WHERE CompletedFileName = @CompletedFileName
+              AND ClaimStatus = N'claimed';
+        END TRY
+        BEGIN CATCH
+            -- Never mask the original UPDATE_ALL2 failure.
+        END CATCH;
 
 		-- ✅ now you're in autocommit, logging is allowed
 		BEGIN TRY

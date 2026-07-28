@@ -13,23 +13,28 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    IF @ApprovedPath IS NULL
-       OR
-       (
-           @ApprovedPath <> N'C:\discord_file_downloader\downloads\stats.csv'
-           AND @ApprovedPath NOT LIKE N'C:\discord_file_downloader\downloads\Import[_]Archive\Stats[_]%'
-       )
-       OR CHARINDEX(N'''', @ApprovedPath) > 0
-       OR CHARINDEX(N'"', @ApprovedPath) > 0
-       OR CHARINDEX(NCHAR(10), @ApprovedPath) > 0
-       OR CHARINDEX(NCHAR(13), @ApprovedPath) > 0
-       OR CHARINDEX(N'&', @ApprovedPath) > 0
-       OR CHARINDEX(N'|', @ApprovedPath) > 0
-       OR CHARINDEX(N'<', @ApprovedPath) > 0
-       OR CHARINDEX(N'>', @ApprovedPath) > 0
-       OR CHARINDEX(N'^', @ApprovedPath) > 0
-       OR CHARINDEX(N'%', @ApprovedPath) > 0
-       OR CHARINDEX(N'!', @ApprovedPath) > 0
+    DECLARE @ClaimedRoot nvarchar(4000) =
+        N'C:\discord_file_downloader\downloads\Import_Claimed\';
+    DECLARE @ArchiveRoot nvarchar(4000) =
+        N'C:\discord_file_downloader\downloads\Import_Archive\';
+    DECLARE @CompletedFileName nvarchar(260);
+
+    IF LEFT(@ApprovedPath, LEN(@ClaimedRoot)) = @ClaimedRoot
+        SET @CompletedFileName = SUBSTRING(@ApprovedPath, LEN(@ClaimedRoot) + 1, 260);
+    ELSE IF LEFT(@ApprovedPath, LEN(@ArchiveRoot)) = @ArchiveRoot
+        SET @CompletedFileName = SUBSTRING(@ApprovedPath, LEN(@ArchiveRoot) + 1, 260);
+
+    IF @CompletedFileName IS NULL
+       OR DATALENGTH(@CompletedFileName) <> 96
+       OR LEFT(@CompletedFileName, 6) <> N'stats_'
+       OR RIGHT(@CompletedFileName, 10) <> N'.ready.csv'
+       OR SUBSTRING(@CompletedFileName, 7, 32)
+            COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9a-f]%'
+       OR @ApprovedPath NOT IN
+          (
+              @ClaimedRoot + @CompletedFileName,
+              @ArchiveRoot + @CompletedFileName
+          )
         THROW 51872, 'HASH_KS4_IMPORT_ARCHIVE_FILE refused an unexpected file path.', 1;
 
     DECLARE @HashCommand nvarchar(4000) =

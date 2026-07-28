@@ -15,9 +15,14 @@ At the end of this task, no issue causally related to the `KingdomScanData4` rem
 Phases 1 through 4 are complete and closed on representative-copy evidence. Phase 4 passed its
 guarded obsolete-view retirement, view-contract alignment, forward/rollback/reapply,
 value/metadata equivalence, full materialization, benchmark, mapped-consumer, repository, and
-zero-finding final SQL Changes gates. Phase 5 is the next implementation phase and belongs
-primarily to the separate bot repository, with its narrowly scoped companion SQL migration kept
-in this repository. Production execution remains separately gated.
+zero-finding final SQL Changes gates. Phase 5.0 SQL is also closed after its isolated
+forward/protocol/rollback/reapply rehearsal, repository gates, and final Changes scan
+`099379cd-119b-4402-8ecb-cf2e1c105f40` passed with zero reportable findings. Phase 5.1 is the next
+implementation slice and belongs primarily to the separate bot repository; it consumes the frozen
+SQL contract and owns the real-token claimed-directory ACL proof. Production execution remains
+separately gated.
+Use `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md` as the standalone
+implementation task pack for that next slice.
 
 The operator approved the exact Phase 2 implementation and representative-copy rehearsal plan on
 2026-07-25 in

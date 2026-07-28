@@ -1,9 +1,32 @@
 # KingdomScanData4 Phase 5 — bot, DAL and immutable file handoff
 
-Status: ready; Phase 4 is closed and the final Phase 3/4 SQL contracts are available. Phase 5 is
-the next implementation phase. Bot implementation belongs to the separate repository at
-`C:\discord_file_downloader`. The immutable-file protocol also requires a narrowly scoped
-companion SQL migration and canonical definition update in this repository.
+Status updated 2026-07-28. Phase 4 is merged at `74bd8b1`. Phase 5.0 is closed on the SQL
+repository boundary: the package passes offline contract/repository gates, the pinned isolated
+rehearsal completed forward migration, protocol smokes, exact rollback, clean reapply and final
+verification, and final Changes scan `099379cd-119b-4402-8ecb-cf2e1c105f40` has zero reportable
+findings. The real-token claimed-directory ACL proof remains assigned to Phase 5.1. Nothing in
+this package has been deployed to production.
+Phase 5.1 bot/DAL implementation belongs to the separate repository at
+`C:\discord_file_downloader`.
+The implementation-ready Phase 5.1 task pack is
+`docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`.
+
+## Delivery slices
+
+The operator-facing `5.0`, `5.1`, and `5.2` labels are slices inside the existing five-phase plan;
+they do not create Phase 6:
+
+1. **Phase 5.0 — SQL companion:** immutable claim ledger, exact completed-name claim, digest-bound
+   import/receipt/archive, migration/rollback, and representative SQL rehearsal.
+2. **Phase 5.1 — bot and DAL:** atomic unique-name publication, Ready/Claimed/Archive ACL
+   enforcement, four approved DAL cleanups, unchanged-path smokes, and bot Changes review.
+3. **Phase 5.2 — combined release gate:** bind exact SQL and bot commits, rehearse Phases 2–5 from
+   a fresh restore, then request a separate production go/no-go. This is a promotion/release
+   slice, not another implementation phase and not production authorization.
+
+Phase 5.0 was accepted after its representative-copy forward, verification, protocol smokes,
+rollback, clean reapply, repository gates and SQL Changes review passed. This SQL acceptance does
+not close the cross-repository ACL proof assigned to Phase 5.1.
 
 ## Objective
 
@@ -51,7 +74,12 @@ contracts remain unchanged. Their exact smokes remain mandatory.
 
 ## Immutable file-handoff remediation
 
-The following two findings are one root-cause family and must close together:
+The following two findings are one root-cause family and must close together across Phase 5.0 and
+Phase 5.1:
+
+- Start from
+  `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`; it records the exact
+  bot/SQL boundaries, skills, security routing, ACL proof, tests and acceptance gates.
 
 - `csf_1a1c440452b02cdb787fa7c3`: source hash and `BULK INSERT` can observe different bytes.
 - `csf_3cb54318733d3a216dd91e9b`: source hash and archive `MOVE` can observe different bytes.
@@ -70,6 +98,103 @@ The approved design requirements are:
 7. The SQL companion migration is backward/forward ordered for a stopped-writer maintenance
    window and has an exact rollback definition.
 
+The SQL-only slice cannot prove the NTFS boundary. The findings remain open until Phase 5.1
+retains effective `icacls` output and proves, under the real bot token, that overwrite and
+in-place modification of a claimed file are denied while the SQL identity can still hash and
+move it.
+
+## Phase 5.0 package
+
+- Forward migration:
+  `migrations/20260728_001_phase5_immutable_import_file_handoff.sql`.
+- Early rollback:
+  `migrations/rollback/20260728_001_phase5_immutable_import_file_handoff_rollback.sql`.
+- Canonical claim objects:
+  `dbo.KS4_ImportFileClaim` and `dbo.CLAIM_KS4_IMPORT_FILE`.
+- Updated consumers:
+  `dbo.IMPORT_STAGING_PROC`, `dbo.IMPORT_STAGING_PROC_CORE`, `dbo.UPDATE_ALL`,
+  `dbo.UPDATE_ALL2`, `dbo.ARCHIVE_IMPORT_STAGING_FILE`, and
+  `dbo.HASH_KS4_IMPORT_ARCHIVE_FILE`.
+- Offline/rehearsal assets:
+  `01_preflight.sql`, `02_verify.sql`, `03_apply_test_path_override.sql`,
+  `04_run_protocol_smokes.sql`, `Initialize-Phase5RehearsalFile.ps1`,
+  `Invoke-Phase5Rehearsal.ps1`, `Reset-Phase5FailedRehearsal.ps1`, fixtures,
+  and `Test-Phase5Contracts.ps1`.
+- Concurrency hardening: a losing same-name claim attempt cannot downgrade a valid `claimed`,
+  imported, duplicate, or archived state.
+
+### One-command representative rehearsal
+
+Run the orchestrator locally on `MINI_AMD` under the approved Windows/SQL administrator identity.
+It is pinned to `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`, refuses production, requires an
+unoccupied target and empty rehearsal work directories, and never deletes stale evidence:
+
+```powershell
+Set-Location C:\K98-bot-SQL-Server
+
+.\performance_remediation\kingdomscandata4\phase5\Invoke-Phase5Rehearsal.ps1 `
+  -ConfirmIsolatedTarget `
+  -ConfirmWritersStopped
+```
+
+The runner first writes hash-recorded test-root-bound copies of the canonical preflight, forward
+migration and rollback into the run evidence directory. It proves the production filesystem root
+is absent from those executable copies, then performs preflight, forward migration, verification,
+test-path binding verification, fixture publication, normal/duplicate/recovery protocol smokes,
+rollback, rollback preflight, clean reapply and final verification. A timestamped transcript,
+derived SQL copies and `phase5-rehearsal/v1` JSON receipt are written below:
+
+`C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\<run-id>`
+
+If the run stops, retain the evidence directory and inspect the reported step. Reconcile any
+Ready, Claimed or Archive files manually; do not delete them merely to make a retry pass.
+
+The 2026-07-28 failed smoke exposed a fixture-only defect: both fixture files contained an extra
+final LF, which SQL Server treated as an empty CSV record. The corrected fixtures contain exactly
+one header, one data record and one final LF. To recover only that exact failed-attempt shape,
+quarantine its three files under the existing evidence receipt, remove its single uncommitted test
+claim and apply the reviewed rollback:
+
+```powershell
+.\performance_remediation\kingdomscandata4\phase5\Reset-Phase5FailedRehearsal.ps1 `
+  -ConfirmDiscardFailedAttempt `
+  -ConfirmWritersStopped
+```
+
+The reset refuses every other database or filesystem shape and emits
+`failed_work_files\reset_receipt.json`. It can also resume the exact zero-claim, quarantined state
+left when a reviewed rollback guard fails transactionally. After it passes, rerun the one-command
+rehearsal above.
+The import core now also persists its exact SQL exception on the claim after rollback so future
+smoke failures surface the underlying cause directly.
+
+### Phase 5.0 closure receipt
+
+- Branch: `codex/kingdomscandata4-phase5-sql`.
+- Base revision: `74bd8b1860b1b28138e4b470ded123c14a73256d`.
+- Representative database:
+  `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`.
+- Successful rehearsal:
+  `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_0_20260728T160735090Z`.
+- Machine-readable receipt:
+  `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_0_20260728T160735090Z\receipt.json`.
+- Ordered proof: target guard, test-bound SQL materialization, preflight, forward migration,
+  verification, normal/duplicate/recovery protocol smokes, rollback, rollback preflight, clean
+  reapply and final verification all passed. Final state retained three claims and two committed
+  receipts on the isolated database.
+- Exact failed-attempt recovery also passed and retained:
+  `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_0_20260728T153326225Z\failed_work_files\reset_receipt.json`.
+- Final Codex Security Changes scan:
+  `099379cd-119b-4402-8ecb-cf2e1c105f40`.
+- Reviewed working-tree snapshot:
+  `codex-security-snapshot/v1:sha256:cd7a6574c63a297d18f0748470292ed486fd3c7976d7c816d37ee20843bcd207`.
+- Result: 18/18 executable worklist rows closed, zero reportable findings, and one explicit
+  Phase 5.1 follow-up for effective `icacls` plus real-bot-token mutation denial.
+- Post-scan edits are status and receipt documentation only. They do not alter SQL tokens,
+  executable behavior, tooling, configuration, permissions, deployment behavior or runtime
+  contracts and therefore use a documented security-review skip.
+- Production was untouched.
+
 ## Required tests
 
 - Update `tests/test_player_self_service_accounts_dal.py`.
@@ -87,7 +212,8 @@ The approved design requirements are:
 
 ## Exit gate
 
-Phase 5 closes only when the four approved paths are implemented, every changed and
+Phase 5.0 is closed on its SQL repository boundary. Formal Phase 5 closes only when the four
+approved bot paths are implemented, every changed and
 source-unchanged contract smoke passes, the full bot suite is clean, both repository-specific
 security reviews are complete, both mutable-path findings are closed, and the exact SQL and bot
 commits are ready for the combined release rehearsal.
