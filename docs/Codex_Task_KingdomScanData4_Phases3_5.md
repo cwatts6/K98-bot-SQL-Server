@@ -1,17 +1,22 @@
 # KingdomScanData4 Phases 3–5 delivery plan
 
-Status updated 2026-07-27. Phases 1 and 2 are closed on the representative-copy evidence
-boundary. Phase 3 implementation and representative-copy rehearsal are complete and frozen on
-`codex/kingdomscandata4-phase3`; production execution is not authorized. Phase 4 is the next
-implementation phase. This plan replaces task-list ordering that mixed Phase 2 acceptance with
-later coordinated-release work.
+Status updated 2026-07-28. Phases 1 and 2 are closed on the representative-copy evidence
+boundary. Phase 3 implementation and representative-copy rehearsal are complete and frozen at
+`62cb739`. The Phase 4 implementation package is authored on
+`codex/kingdomscandata4-phase4`; its isolated forward/rollback/reapply,
+equivalence, benchmark, actual-plan, mapped consumer, repository, and final
+Changes gates passed on 2026-07-27. Phase 4 is closed and Phase 5 is the next
+implementation phase.
+Production execution is not
+authorized. This plan replaces task-list ordering that mixed Phase 2
+acceptance with later coordinated-release work.
 
 ## Authoritative order
 
 | Order | Workstream | Entry condition | Exit condition |
 | ---: | --- | --- | --- |
 | 1 | Phase 3: procedures, import concurrency and downstream tables | Phase 2 package and rollback are stable | **Complete:** SQL mutex, atomic scan allocation, duplicate prevention, type alignment, equivalence, performance, rollback and final Changes review passed |
-| 2 | Phase 4: views and consumers | **Ready:** frozen Phase 3 SQL contracts are available | Every changed view and transitive consumer is value- and metadata-equivalent and rollback passes |
+| 2 | Phase 4: views and consumers | **Complete:** frozen Phase 3 SQL contracts consumed | **Complete:** every changed view and transitive consumer is value- and metadata-equivalent, rollback and performance gates pass, and the final Changes review has zero findings |
 | 3 | Phase 5: bot, DAL and immutable import-file handoff | Final Phase 3/4 SQL contracts are available | Four approved bot paths, the cross-repository immutable-file protocol, all source-unchanged smokes and both repository-specific Changes reviews pass |
 | 4 | Combined release gate | Phases 2–5 are closed with exact commits | Fresh-restore coordinated forward, rollback, finalizer, workload and end-to-end bot rehearsal pass |
 | 5 | Production go/no-go | Reviewed SQL and bot PRs plus combined receipts exist | Operator gives separate explicit execution approval after fresh production preflight |
@@ -60,13 +65,33 @@ the exact Phase 3/4/5 SQL definitions and SQL/bot commits.
 
 1. Rediscover every direct and transitive view dependency after Phase 3.
 2. Record old definitions, result metadata, rows, digests, parameters and ordering assumptions.
-3. Remove only obsolete type compensation; preserve deliberate trimming, date, null, aggregate,
+3. Retire only the separately approved invalid/unused
+   `dbo.vAllianceActivity_WeeklyCumulative` object after dependency proof.
+4. Remove only obsolete type compensation; preserve deliberate trimming, date, null, aggregate,
    display and overflow semantics.
-4. Rehearse ordered forward and rollback view definitions.
-5. Rerun latest, daily, WTD, global-latest, export and mapped consumer scenarios with one warm-up
+5. Rehearse ordered forward and rollback view definitions.
+6. Rerun latest, daily, WTD, global-latest, export and mapped consumer scenarios with one warm-up
    and five measured executions.
-6. Close Phase 4 only after bidirectional value/metadata equivalence, refreshed dependencies,
+7. Close Phase 4 only after bidirectional value/metadata equivalence, refreshed dependencies,
    stable performance, repository validation and a SQL Changes security review pass.
+
+## Phase 4 closure receipt
+
+- Branch: `codex/kingdomscandata4-phase4`.
+- Representative database:
+  `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`.
+- Ordered proof: guarded obsolete-view retirement, Phase 4 forward, exact
+  rollback, and clean reapply passed without touching production.
+- Final Codex Security Changes scan:
+  `e6ce0a1d-7aba-428a-b40a-61001c924143`.
+- Reviewed working-tree snapshot:
+  `codex-security-snapshot/v1:sha256:a00ac727cab59a0ed585b7e6f615a3391fc792d95a1165c624c0328e978a909b`.
+- Result: Deep off, 13/13 completed source-like worklist rows, no deferrals, and
+  zero reportable findings.
+- Post-scan closure edits are status and receipt documentation only. They do not
+  alter SQL tokens, executable behavior, tooling, configuration, permissions,
+  deployment behavior, or runtime contracts and therefore use a documented
+  security-review skip.
 
 ## Phase 5 delivery slices
 

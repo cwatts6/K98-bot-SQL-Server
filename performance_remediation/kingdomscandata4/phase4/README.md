@@ -1,13 +1,16 @@
 # KingdomScanData4 Phase 4 — views and view consumers
 
-Status: ready to start from the frozen Phase 3 package on
-`codex/kingdomscandata4-phase3`. Phase 3 SQL contracts, migration, rollback and representative
-rehearsal are stable. Production execution is not authorized.
+Status: closed on 2026-07-27 on `codex/kingdomscandata4-phase4`, based on the
+frozen Phase 3 commit `62cb739`. The isolated forward/rollback/reapply,
+equivalence, benchmark, actual-plan, mapped consumer, repository, and final SQL
+Changes gates passed. Production execution is not authorized.
 
 ## Objective
 
-Align every direct and transitive view with the Phase 2/3 types, remove only obsolete conversion
-compensation, and prove that all consumer-facing values and metadata remain unchanged.
+Align every retained direct and transitive view with the Phase 2/3 types,
+remove only obsolete conversion compensation, retire the separately approved
+invalid/unused weekly-cumulative view, and prove that all retained
+consumer-facing values and metadata remain unchanged.
 
 ## Work packages
 
@@ -40,7 +43,12 @@ assumptions before each definition changes.
 
 ### 4.2 Apply contract-preserving cleanup
 
+- Retire `dbo.vAllianceActivity_WeeklyCumulative` only after repository, bot,
+  and SQL Server dependency evidence proves no executable consumer.
 - Remove casts/conversions used only to compensate for the old base types.
+- Retain the two result-side `GovernorID` casts whose removal changes the
+  established nullable result metadata; remove obsolete join-side compensation
+  without moving an implicit conversion to the opposite operand.
 - Retain trimming that implements blank-to-null, display, key or target-width semantics.
 - Preserve date boundaries, null behavior, aggregation/window semantics, aliases and output types.
 - Ensure type alignment does not merely move an implicit conversion to the other join operand.
@@ -50,8 +58,12 @@ assumptions before each definition changes.
 
 - Author ordered Phase 4 migrations after
   `20260726_001_phase3_import_concurrency_and_direct_type_alignment`.
+- Run the guarded obsolete-view retirement migration before the alignment
+  migration.
 - Update the canonical `sql_schema` view definitions.
 - Provide exact prior definitions for early rollback.
+- Treat the approved invalid-view retirement as forward-fix-only. Do not
+  recreate a known-invalid object during rollback.
 - Restore Phase 4 views first, then Phase 3 routines, then Phase 2 tables when the combined
   pre-restart rollback branch is selected.
 
@@ -69,6 +81,39 @@ Create and retain under this directory:
 The exact filenames may be extended when split-session or other focused proof requires it, but
 the inventory, baseline, forward, rollback, verification, repository contract test and rehearsal
 receipt are mandatory.
+
+Current package:
+
+- `migrations/20260727_000_retire_vAllianceActivity_WeeklyCumulative.sql`;
+- `migrations/20260727_001_phase4_view_type_alignment.sql`;
+- `migrations/rollback/20260727_001_phase4_view_type_alignment_rollback.sql`;
+- `view_consumer_inventory.md` and `baseline_contracts.md`;
+- `01_preflight.sql` and `02_verify.sql`;
+- `03_run_view_benchmarks.sql` and `04_capture_plan_evidence.sql`; and
+- `Test-Phase4Contracts.ps1`.
+
+One invalid unused definition is retired. Four retained definitions change:
+`dbo.v_Active_Players`,
+`dbo.v_MGE_SignupReview`, `dbo.vDaily_PlayerExport`, and
+`dbo.vw_Governor_KVK_Summary_GlobalLatest`. The other nine mandatory
+definitions remain validation-only. Forward and rollback both hold the
+migration/import mutexes, materialize every changed result, compare row counts
+and bidirectional `EXCEPT`, compare exact result metadata, and refresh the
+complete transitive SQL consumer set before commit. Every forward, rollback,
+preflight and verification refresh path refuses signed modules before calling
+`sys.sp_refreshsqlmodule`; signature preservation or re-signing requires a
+separate explicit review.
+
+The retirement migration refuses definition drift, SQL module dependencies,
+explicit grants, signatures, and extended properties. The alignment migration
+refuses to start until the retired object is absent.
+
+The isolated rehearsal established that the result-side casts on
+`dbo.v_Active_Players.GovernorID` and
+`dbo.vw_Governor_KVK_Summary_GlobalLatest.GovernorId` preserve the existing
+nullable metadata contract. They remain by design. The obsolete MGE and
+global-latest join-side compensation and the redundant daily-export numeric
+casts are removed.
 
 ## Required validation
 
@@ -102,3 +147,10 @@ receipt are mandatory.
 Phase 4 closes only when every changed view and transitive consumer is value- and
 metadata-equivalent, the required workloads are stable, rollback definitions are rehearsed and the
 closure matrix contains exact receipts.
+
+Closed: all conditions passed. Final SQL Changes scan
+`e6ce0a1d-7aba-428a-b40a-61001c924143` reviewed
+`codex-security-snapshot/v1:sha256:a00ac727cab59a0ed585b7e6f615a3391fc792d95a1165c624c0328e978a909b`
+with Deep off, 13/13 completed source-like worklist rows, no deferrals, and no
+reportable findings. The only post-scan edits are non-executable status and
+receipt documentation.

@@ -10,13 +10,18 @@ The attached `KingdomScanData4_Analysis_Report.md` is the starting evidence, not
 
 At the end of this task, no issue causally related to the `KingdomScanData4` remediation may be left as a TODO, follow-up ticket, deferred migration, compatibility shim to remove later, or undocumented manual action.
 
-## Execution status — 2026-07-25
+## Execution status — 2026-07-28
 
-Phase 1 evidence collection, restored-copy functional testing and all five formal gate items are
-complete. The formal Phase 1 gate is closed. The operator approved the exact Phase 2
-implementation and representative-copy rehearsal plan on 2026-07-25 in
-`performance_remediation/kingdomscandata4/phase1/phase2_approval_checkpoint.md`. Production
-execution remains separately gated.
+Phases 1 through 4 are complete and closed on representative-copy evidence. Phase 4 passed its
+guarded obsolete-view retirement, view-contract alignment, forward/rollback/reapply,
+value/metadata equivalence, full materialization, benchmark, mapped-consumer, repository, and
+zero-finding final SQL Changes gates. Phase 5 is the next implementation phase and belongs
+primarily to the separate bot repository, with its narrowly scoped companion SQL migration kept
+in this repository. Production execution remains separately gated.
+
+The operator approved the exact Phase 2 implementation and representative-copy rehearsal plan on
+2026-07-25 in
+`performance_remediation/kingdomscandata4/phase1/phase2_approval_checkpoint.md`.
 
 Completed evidence includes:
 

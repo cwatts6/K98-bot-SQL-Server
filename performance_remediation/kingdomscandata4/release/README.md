@@ -13,6 +13,12 @@ does not authorize production execution.
 - Stable findings `csf_1a1c440452b02cdb787fa7c3` and
   `csf_3cb54318733d3a216dd91e9b` are closed by the reviewed immutable-file protocol.
 
+The closed Phase 4 SQL artifact is bound to final Changes scan
+`e6ce0a1d-7aba-428a-b40a-61001c924143` and reviewed snapshot
+`codex-security-snapshot/v1:sha256:a00ac727cab59a0ed585b7e6f615a3391fc792d95a1165c624c0328e978a909b`.
+That scan completed all 13 source-like worklist rows with no deferrals or
+reportable findings. This receipt does not authorize production execution.
+
 ## Combined rehearsal order
 
 1. Restore the approved representative seed without a database snapshot.
@@ -22,7 +28,10 @@ does not authorize production execution.
 4. Run the Phase 2 production-shaped preflight.
 5. Apply Phase 2 forward migration and run its table/module/DBCC verification.
 6. Apply Phase 3 migrations and run procedure/import/concurrency/equivalence validation.
-7. Apply Phase 4 migrations and run view/consumer/equivalence validation.
+7. Apply
+   `20260727_000_retire_vAllianceActivity_WeeklyCumulative`, then
+   `20260727_001_phase4_view_type_alignment`, and run the Phase 4
+   view/consumer/equivalence validation.
 8. Apply the Phase 5 SQL companion migration for the immutable claimed-file protocol while all
    writers remain stopped, then run its file-identity, failure and rollback smokes.
 9. Run the complete committed-import, workload, Query Store and bot/DAL smoke matrix against the
@@ -43,7 +52,8 @@ If any gate fails before finalization or application restart:
 
 1. keep every write entry point stopped;
 2. roll back the Phase 5 SQL companion file-protocol migration;
-3. restore the exact Phase 4 prior view definitions;
+3. restore the exact four retained Phase 4 prior view definitions; leave the
+   approved invalid/unused weekly-cumulative view retired;
 4. restore the exact Phase 3 prior procedure/function definitions;
 5. run the Phase 2 metadata-swap rollback;
 6. verify that `SchemaMigrationHistory` leaves the Phase 2 migration retryable;
@@ -52,6 +62,12 @@ If any gate fails before finalization or application restart:
 
 After finalization or any post-cutover write, metadata-swap rollback is forbidden. Use a reviewed
 forward fix or the documented backup/log recovery branch.
+
+The exact Phase 4 early rollback is
+`migrations/rollback/20260727_001_phase4_view_type_alignment_rollback.sql`.
+It holds both KS4 mutexes, restores the four frozen Phase 3 definitions, and
+must complete before the Phase 3 rollback starts. The preceding obsolete-view
+retirement is explicitly forward-fix-only and is not reversed.
 
 ## Git and promotion order
 
