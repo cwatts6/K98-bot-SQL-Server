@@ -1,6 +1,6 @@
 /*
 MigrationId: 20260816_001_phase5_1_claim_acl_hardening
-Purpose: Reset each claimed KS4 import file to the Claimed directory ACL and transfer ownership before the first digest
+Purpose: Transfer ownership of each claimed KS4 import file, reset it to the Claimed directory ACL, and verify before the first digest
 Author: cwatts
 CreatedUtc: 2026-08-16
 RequiresBackup: Yes
@@ -23,7 +23,7 @@ Deployment safety:
     - Configure and verify the Ready, Claimed and Archive directory ACLs before this migration.
     - Require no in-flight or failed claim. Archived history may remain.
     - The SQL/xp_cmdshell identity must inherit Full Control on files created in Ready so it can
-      reset the DACL and transfer ownership after the same-volume move.
+      transfer ownership and then perform the final DACL reset after the same-volume move.
     - The Claimed directory must grant the bot read-only access at most and the SQL identity Full
       Control. The migration never weakens a directory ACL.
     - Rollback is an early rollback only and refuses after any claim records ACL-hardening evidence.
@@ -285,16 +285,6 @@ BEGIN
         SET @AclCommand =
             N'ICACLS "'
             + @ClaimedPath
-            + N'" /RESET /Q';
-
-        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
-
-        IF ISNULL(@AclExitCode, 1) <> 0
-            THROW 51887, 'CLAIM_KS4_IMPORT_FILE could not reset the claimed file to the Claimed directory ACL.', 1;
-
-        SET @AclCommand =
-            N'ICACLS "'
-            + @ClaimedPath
             + N'" /SETOWNER "'
             + @AclOwnerIdentity
             + N'" /Q';
@@ -302,7 +292,17 @@ BEGIN
         EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
 
         IF ISNULL(@AclExitCode, 1) <> 0
-            THROW 51888, 'CLAIM_KS4_IMPORT_FILE could not transfer claimed-file ownership to the xp_cmdshell identity.', 1;
+            THROW 51887, 'CLAIM_KS4_IMPORT_FILE could not transfer claimed-file ownership to the xp_cmdshell identity.', 1;
+
+        SET @AclCommand =
+            N'ICACLS "'
+            + @ClaimedPath
+            + N'" /RESET /Q';
+
+        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
+
+        IF ISNULL(@AclExitCode, 1) <> 0
+            THROW 51888, 'CLAIM_KS4_IMPORT_FILE could not reset the claimed file to the Claimed directory ACL.', 1;
 
         SET @AclCommand =
             N'ICACLS "'
@@ -345,8 +345,8 @@ BEGIN
         SET FileDigest = @FileDigest,
             ClaimStatus = CASE WHEN @Duplicate = 1 THEN N'duplicate' ELSE N'claimed' END,
             ClaimedAtUtc = COALESCE(ClaimedAtUtc, SYSUTCDATETIME()),
-            AclHardenedAtUtc = @AclHardenedAtUtc,
-            AclOwnerIdentity = @AclOwnerIdentity,
+            AclHardenedAtUtc = COALESCE(AclHardenedAtUtc, @AclHardenedAtUtc),
+            AclOwnerIdentity = COALESCE(AclOwnerIdentity, @AclOwnerIdentity),
             LastError = NULL
         WHERE CompletedFileName = @CompletedFileName
           AND ClaimStatus IN (N'claiming', N'claimed', N'failed', N'duplicate');
@@ -404,13 +404,22 @@ IF COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclHardenedAtUtc') IS NULL
     THROW 52517, 'Phase 5.1 ACL migration post-validation failed.', 1;
 
 IF CHARINDEX(
+       N'/SETOWNER "',
+       OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+   ) >= CHARINDEX(
+       N'/RESET /Q',
+       OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+   )
+    THROW 52518, 'Phase 5.1 ACL migration did not transfer ownership before the final DACL reset.', 1;
+
+IF CHARINDEX(
        N'/RESET /Q',
        OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
    ) >= CHARINDEX(
        N'EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE',
        OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
    )
-    THROW 52518, 'Phase 5.1 ACL migration did not harden the file before the first digest.', 1;
+    THROW 52519, 'Phase 5.1 ACL migration did not harden the file before the first digest.', 1;
 
 EXEC sys.sp_refreshsqlmodule N'dbo.CLAIM_KS4_IMPORT_FILE';
 

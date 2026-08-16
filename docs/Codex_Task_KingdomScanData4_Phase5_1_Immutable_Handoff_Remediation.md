@@ -31,8 +31,8 @@ recovered only through the reviewed isolated reset.
 - Add paired ACL-hardening evidence columns to `dbo.KS4_ImportFileClaim`.
 - Update `dbo.CLAIM_KS4_IMPORT_FILE` so every fresh or recovered claimed file:
   1. resolves the real xp_cmdshell identity;
-  2. resets to the inherited Claimed-directory DACL;
-  3. transfers ownership to the xp_cmdshell identity;
+  2. transfers ownership to the xp_cmdshell identity, removing the bot owner's DACL control;
+  3. performs the final reset to the inherited Claimed-directory DACL;
   4. verifies the DACL;
   5. hashes only after those steps succeed;
   6. persists the hardening timestamp and owner with the claim.
@@ -66,7 +66,7 @@ A standard or deep codebase scan is not authorized or required.
   broad mutable principal.
 - The real-token evidence receipt records:
   - bot publication to Ready;
-  - SQL DACL reset and ownership transfer before digest;
+  - SQL ownership transfer followed by the final DACL reset before digest;
   - overwrite, replacement, rename, delete and in-place modification all denied;
   - matching Ready, claim and archive digests;
   - paired ACL evidence in the claim;

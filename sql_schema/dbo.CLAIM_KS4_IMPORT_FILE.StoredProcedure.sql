@@ -183,16 +183,6 @@ BEGIN
         SET @AclCommand =
             N'ICACLS "'
             + @ClaimedPath
-            + N'" /RESET /Q';
-
-        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
-
-        IF ISNULL(@AclExitCode, 1) <> 0
-            THROW 51887, 'CLAIM_KS4_IMPORT_FILE could not reset the claimed file to the Claimed directory ACL.', 1;
-
-        SET @AclCommand =
-            N'ICACLS "'
-            + @ClaimedPath
             + N'" /SETOWNER "'
             + @AclOwnerIdentity
             + N'" /Q';
@@ -200,7 +190,17 @@ BEGIN
         EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
 
         IF ISNULL(@AclExitCode, 1) <> 0
-            THROW 51888, 'CLAIM_KS4_IMPORT_FILE could not transfer claimed-file ownership to the xp_cmdshell identity.', 1;
+            THROW 51887, 'CLAIM_KS4_IMPORT_FILE could not transfer claimed-file ownership to the xp_cmdshell identity.', 1;
+
+        SET @AclCommand =
+            N'ICACLS "'
+            + @ClaimedPath
+            + N'" /RESET /Q';
+
+        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
+
+        IF ISNULL(@AclExitCode, 1) <> 0
+            THROW 51888, 'CLAIM_KS4_IMPORT_FILE could not reset the claimed file to the Claimed directory ACL.', 1;
 
         SET @AclCommand =
             N'ICACLS "'
@@ -243,8 +243,8 @@ BEGIN
         SET FileDigest = @FileDigest,
             ClaimStatus = CASE WHEN @Duplicate = 1 THEN N'duplicate' ELSE N'claimed' END,
             ClaimedAtUtc = COALESCE(ClaimedAtUtc, SYSUTCDATETIME()),
-            AclHardenedAtUtc = @AclHardenedAtUtc,
-            AclOwnerIdentity = @AclOwnerIdentity,
+            AclHardenedAtUtc = COALESCE(AclHardenedAtUtc, @AclHardenedAtUtc),
+            AclOwnerIdentity = COALESCE(AclOwnerIdentity, @AclOwnerIdentity),
             LastError = NULL
         WHERE CompletedFileName = @CompletedFileName
           AND ClaimStatus IN (N'claiming', N'claimed', N'failed', N'duplicate');

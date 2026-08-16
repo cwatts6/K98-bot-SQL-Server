@@ -21,8 +21,8 @@ renames it to the completed leaf in the same directory. It passes only that
 leaf name to `dbo.UPDATE_ALL2 @CompletedFileName`.
 
 SQL validates the fixed filename shape, atomically moves the ready file into
-`Import_Claimed`, resets that exact file to the inherited Claimed-directory DACL,
-transfers file ownership to the xp_cmdshell identity, verifies the resulting ACL,
+`Import_Claimed`, transfers file ownership to the xp_cmdshell identity, performs the final reset of
+that exact file to the inherited Claimed-directory DACL, and verifies the resulting ACL,
 then hashes the claimed path and records the ACL timestamp and owner with the claim. The bulk
 load reads only the claimed path. SQL rehashes after `BULK INSERT`, commits the
 receipt and claim together, moves the same claimed identity to its derived
@@ -47,8 +47,9 @@ archive path, and rehashes the destination before either status advances.
   receives Read/Execute at most; broad `Users`, `Authenticated Users`, and
   `Everyone` mutation grants are absent.
 - Because a same-volume move retains the source security descriptor, every fresh
-  or recovered claimed file is explicitly reset and ownership-transferred before
-  the first digest. Directory ACLs alone are not sufficient.
+  or recovered claimed file is ownership-transferred before its final DACL reset and
+  the first digest. Directory ACLs alone are not sufficient; the former bot owner
+  must lose owner-level DACL control before the final inherited policy is applied.
 
 The combined-release preflight must retain the effective `icacls` output for
 all three directories and a probe proving the bot cannot mutate a claimed

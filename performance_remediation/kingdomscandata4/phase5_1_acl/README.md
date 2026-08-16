@@ -11,9 +11,10 @@ This package changes the SQL claim boundary and bot operational evidence togethe
    the real bot and SQL identities.
 2. Ready grants the bot Modify and the SQL identity Full Control on inherited files.
 3. Claimed and Archive grant the bot Read/Execute at most and the SQL identity Full Control.
-4. SQL moves the exact completed file, resolves the real xp_cmdshell identity, resets that exact
-   file to the inherited Claimed-directory DACL, transfers ownership to the xp_cmdshell identity,
-   verifies the DACL, and only then calculates the first digest.
+4. SQL moves the exact completed file, resolves the real xp_cmdshell identity, transfers ownership
+   to that identity, performs the final reset to the inherited Claimed-directory DACL, verifies the
+   DACL, and only then calculates the first digest. Ownership moves first so the former bot owner
+   cannot race the final reset by rewriting the DACL.
 5. SQL persists the hardening timestamp and owner identity with the durable claim.
 6. The bot evidence runner treats only an access-denied exception as denial, stops after the first
    successful mutation, and always writes a failure receipt.

@@ -30,13 +30,19 @@ IF @Definition IS NULL
    OR @Definition NOT LIKE N'%/RESET /Q%'
    OR @Definition NOT LIKE N'%/SETOWNER "%'
    OR @Definition NOT LIKE N'%/VERIFY /Q%'
-   OR @Definition NOT LIKE N'%AclHardenedAtUtc = @AclHardenedAtUtc%'
-   OR @Definition NOT LIKE N'%AclOwnerIdentity = @AclOwnerIdentity%'
+   OR @Definition NOT LIKE N'%AclHardenedAtUtc = COALESCE(AclHardenedAtUtc, @AclHardenedAtUtc)%'
+   OR @Definition NOT LIKE N'%AclOwnerIdentity = COALESCE(AclOwnerIdentity, @AclOwnerIdentity)%'
     THROW 52522, 'Phase 5.1 ACL verification found claim-procedure definition drift.', 1;
 
-IF CHARINDEX(N'/RESET /Q', @Definition) >=
+IF CHARINDEX(N'/SETOWNER "', @Definition) >= CHARINDEX(N'/RESET /Q', @Definition)
+    THROW 52523, 'Phase 5.1 ACL verification found the final DACL reset before ownership transfer.', 1;
+
+IF CHARINDEX(N'/RESET /Q', @Definition) >= CHARINDEX(N'/VERIFY /Q', @Definition)
+    THROW 52524, 'Phase 5.1 ACL verification found DACL verification before the final reset.', 1;
+
+IF CHARINDEX(N'/VERIFY /Q', @Definition) >=
    CHARINDEX(N'EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE', @Definition)
-    THROW 52523, 'Phase 5.1 ACL verification found hashing before ACL hardening.', 1;
+    THROW 52525, 'Phase 5.1 ACL verification found hashing before ACL hardening.', 1;
 
 SELECT DB_NAME() AS DatabaseName,
        OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P') AS ClaimProcedureObjectId,

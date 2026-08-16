@@ -55,16 +55,16 @@ Require-Match $claim '\%\[\^0-9A-Za-z \._\\\$-\]\%' 'Claim procedure must allowl
 Require-Match $claim '/RESET /Q' 'Claim procedure must reset the moved file to the Claimed ACL.'
 Require-Match $claim '/SETOWNER "' 'Claim procedure must transfer file ownership to the SQL identity.'
 Require-Match $claim '/VERIFY /Q' 'Claim procedure must verify the resulting DACL.'
-Require-Order $claim 'MOVE "' '/RESET /Q' 'Claim procedure must move before resetting the claimed ACL.'
-Require-Order $claim '/RESET /Q' '/SETOWNER "' 'Claim procedure must reset the DACL before transferring ownership.'
-Require-Order $claim '/SETOWNER "' '/VERIFY /Q' 'Claim procedure must transfer ownership before ACL verification.'
+Require-Order $claim 'MOVE "' '/SETOWNER "' 'Claim procedure must move before transferring ownership.'
+Require-Order $claim '/SETOWNER "' '/RESET /Q' 'Claim procedure must transfer ownership before the final DACL reset.'
+Require-Order $claim '/RESET /Q' '/VERIFY /Q' 'Claim procedure must reset the DACL before ACL verification.'
 Require-Order $claim '/VERIFY /Q' 'EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE' 'Claim procedure must finish ACL hardening before hashing.'
-Require-Match $claim 'AclHardenedAtUtc = @AclHardenedAtUtc' 'Claim procedure must persist the hardening timestamp.'
-Require-Match $claim 'AclOwnerIdentity = @AclOwnerIdentity' 'Claim procedure must persist the hardened owner.'
+Require-Match $claim 'AclHardenedAtUtc = COALESCE\(AclHardenedAtUtc, @AclHardenedAtUtc\)' 'Claim procedure must preserve the first hardening timestamp.'
+Require-Match $claim 'AclOwnerIdentity = COALESCE\(AclOwnerIdentity, @AclOwnerIdentity\)' 'Claim procedure must preserve the first hardened owner.'
 Require-Match $preflight 'ClaimStatus NOT IN \(N''archived'', N''duplicate_archived''\)' 'ACL preflight must refuse nonterminal claims.'
 Require-Match $verify 'is_not_trusted = 0' 'ACL verification must require a trusted evidence constraint.'
-Require-Match $protocol 'resets that exact file to the inherited Claimed-directory DACL' 'Immutable protocol does not document the runtime DACL transition.'
 Require-Match $protocol 'transfers file ownership to the xp_cmdshell identity' 'Immutable protocol does not document the owner transition.'
+Require-Match $protocol 'final reset of\s+that exact file to the inherited Claimed-directory DACL' 'Immutable protocol does not document the final runtime DACL transition.'
 
 if ($failures.Count -ne 0) {
     foreach ($failure in $failures) {

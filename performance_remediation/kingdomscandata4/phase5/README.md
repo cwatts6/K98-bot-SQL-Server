@@ -15,8 +15,8 @@ The first Phase 5.1 real-token evidence run failed and is retained. It proved th
 Phase 5.0 move did not itself change the file security descriptor: the real bot token replaced and
 renamed the claimed rehearsal file. Phase 5.1 therefore remains open. The separately authorized
 remediation package is under `performance_remediation/kingdomscandata4/phase5_1_acl/` and migration
-`20260816_001_phase5_1_claim_acl_hardening`. It adds an explicit DACL reset and ownership transfer
-before the first claimed digest. Production PR #539 remains unmergeable until the corrected
+`20260816_001_phase5_1_claim_acl_hardening`. It transfers ownership away from the bot before the
+final DACL reset and first claimed digest. Production PR #539 remains unmergeable until the corrected
 real-token receipt and both repository Changes reviews pass.
 
 ## Delivery slices
