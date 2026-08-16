@@ -19,18 +19,19 @@
 
 ## 2. Required Reading
 
-Read these bot-repository instructions before implementation:
+Read these bot-repository instructions before implementation. The names below are resolved in the
+bot repository, not as paths in this SQL repository:
 
 1. `AGENTS.md`
 2. `README-DEV.md`
-3. `docs/reference/README.md`
-4. `docs/reference/K98 Bot - Project Engineering Standards.md`
-5. `docs/reference/K98 Bot - Coding Execution Guidelines.md`
-6. `docs/reference/K98 Bot - Testing Standards.md`
-7. `docs/reference/K98 Bot - Skills & Refactor Triggers.md`
-8. `docs/reference/K98 Bot - Deferred Optimisation Framework.md`
-9. `docs/reference/weekly_activity_importer.md`
-10. `docs/reference/Promotion Guide.md`
+3. reference-documentation `README.md`
+4. `K98 Bot - Project Engineering Standards.md`
+5. `K98 Bot - Coding Execution Guidelines.md`
+6. `K98 Bot - Testing Standards.md`
+7. `K98 Bot - Skills & Refactor Triggers.md`
+8. `K98 Bot - Deferred Optimisation Framework.md`
+9. `weekly_activity_importer.md`
+10. `Promotion Guide.md`
 
 Read these SQL-repository handoff documents:
 
