@@ -14,7 +14,8 @@
 
 ## 1. Operator Request and Document Boundary
 
-The operator requested a Phase 5.2 task pack after successful Phase 5.1 testing. This document
+The operator requested a Phase 5.2 task pack after the initial Phase 5.1 functional testing. The
+subsequent real-token ACL evidence failed and triggered a separately authorized remediation. This document
 defines the next task. References listed below supply engineering and operational constraints; they
 do not independently authorize a merge, production promotion, SQL deployment, bot restart, data
 change, or rollback.
@@ -30,12 +31,13 @@ Record and revalidate these values at task start; do not silently substitute new
 
 | Item | Current value | Gate state |
 |---|---|---|
-| SQL accepted commit | `2e0f228f399bcc7b8bd3d6a758b059466c0474ac` | merged to SQL `main`; production deployment not assumed |
-| Phase 5.1 bot PR | `K98-bot-mirror#232` | open and mergeable when checked on 2026-08-16 |
+| SQL accepted Phase 5.0 base | `2e0f228f399bcc7b8bd3d6a758b059466c0474ac` | merged to SQL `main`; insufficient without the separately reviewed ACL remediation |
+| Phase 5.1 bot PR | `K98-bot-mirror#232` | open; remediation commits and review are pending |
 | Bot base commit | `46e5a9cd58a4f475557904226656b2b8cc39dbb2` | frozen review base |
-| Bot candidate head | `48e5f7f98e022d6b21217cf0fd110917576633b4` | current Phase 5.1 head |
-| Phase 5.1 runtime test | operator reported successful on 2026-08-16 | retain machine evidence before merge |
-| Phase 5.1 ACL/protocol receipt | expected under `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_1_*` | not observed in the expected server directory at pack creation |
+| Bot pre-remediation head | `a02bb531481b3799a23fe638d50a6b897b0e1c69` | PR #232 head before ACL remediation |
+| Production PR | `K98-bot#539`, head `412294bde86761fa810ad0100596d6ccb418a80d` | open; temporarily exercised on MINI_AMD and not accepted |
+| Phase 5.1 ACL/protocol evidence | failed run retained under `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_1_20260816T173604288Z` | bot replaced and renamed the claimed file; no PASS receipt |
+| Bot-machine branch state | PR #539 code was restarted for testing | must return to merged private `K98-bot/main` and be gracefully restarted before Phase 5.2 |
 | Stable finding `csf_1a1c440452b02cdb787fa7c3` | source hash versus `BULK INSERT` mutation window | pending final receipt-backed disposition |
 | Stable finding `csf_3cb54318733d3a216dd91e9b` | source hash versus archive `MOVE` mutation window | pending final receipt-backed disposition |
 | Production SQL and bot | must be probed at go/no time | no change authorized by this pack |
@@ -49,6 +51,7 @@ head-bound review and test required by Phase 5.1 before freezing the replacement
 
 - `docs/Codex_Task_KingdomScanData4_Phases3_5.md`
 - `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`
+- `docs/Codex_Task_KingdomScanData4_Phase5_1_Immutable_Handoff_Remediation.md`
 - `performance_remediation/kingdomscandata4/README.md`
 - `performance_remediation/kingdomscandata4/phase2/README.md`
 - `performance_remediation/kingdomscandata4/phase3/README.md`
@@ -95,6 +98,8 @@ Produce one combined, machine-readable acceptance receipt proving that:
 Do not begin the combined fresh-restore rehearsal until every item is satisfied.
 
 - [ ] Phase 2, Phase 3, Phase 4, and Phase 5.0 closure receipts remain accepted.
+- [ ] The separately authorized Phase 5.1 SQL ACL-remediation migration, rollback, preflight,
+      verification, tests and Changes review are accepted at one exact SQL head.
 - [ ] PR #232 still targets bot mirror `main` from the intended Phase 5.1 branch.
 - [ ] The PR head is the exact tested commit; otherwise tests and review are refreshed.
 - [ ] The real-token Phase 5.1 runner produced a retained `receipt.json` and transcript.
@@ -111,6 +116,11 @@ Do not begin the combined fresh-restore rehearsal until every item is satisfied.
 - [ ] The accepted source head is recorded; record the mirror merge commit later when the standard
       promotion sequence creates it.
 - [ ] SQL and bot working trees are clean and all required commits exist on their expected remotes.
+- [ ] Production PR #539 contains the accepted content-equivalent remediation or has been replaced
+      by an explicitly recorded production PR.
+- [ ] MINI_AMD is checked out to private production `main`, contains the merged production commit,
+      passes deployment validation, and has completed a clean graceful restart. A PR branch or
+      mirror branch on the bot machine blocks Phase 5.2.
 
 ### Checkpoint A — Phase 5.1 close and freeze
 
@@ -386,8 +396,12 @@ artifact hashes. It must fail closed when required evidence is missing or revisi
       config, and runtime plan ready.
 - [ ] Production bot patch is based on `production/main` and content-equivalent to the accepted
       mirror revision.
+- [ ] MINI_AMD has been restored from the temporary PR #539 test deployment to the merged private
+      production `main` revision and its running PID/lock/startup evidence matches that commit.
 - [ ] Combined evidence index and machine receipts are retained outside Git.
-- [ ] Production remains untouched and `docs/SQL_DELIVERY_LOG.md` remains unchanged.
+- [ ] Production repository `main`, production SQL data/schema and `docs/SQL_DELIVERY_LOG.md`
+      remain untouched by this release-gate rehearsal; the temporary bot-machine PR test has been
+      explicitly unwound to private production `main` before entry.
 - [ ] A separate, explicit production go/no-go request is presented to the operator.
 
 ## 16. Required Delivery Output
