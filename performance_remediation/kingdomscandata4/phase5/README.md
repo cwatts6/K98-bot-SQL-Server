@@ -1,6 +1,6 @@
 # KingdomScanData4 Phase 5 — bot, DAL and immutable file handoff
 
-Status updated 2026-07-28. Phase 4 is merged at `74bd8b1`. Phase 5.0 is closed on the SQL
+Status updated 2026-08-16. Phase 4 is merged at `74bd8b1`. Phase 5.0 is closed on the SQL
 repository boundary: the package passes offline contract/repository gates, the pinned isolated
 rehearsal completed forward migration, protocol smokes, exact rollback, clean reapply and final
 verification, and final Changes scan `099379cd-119b-4402-8ecb-cf2e1c105f40` has zero reportable
@@ -10,6 +10,14 @@ Phase 5.1 bot/DAL implementation belongs to the separate repository at
 `C:\discord_file_downloader`.
 The implementation-ready Phase 5.1 task pack is
 `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`.
+
+The first Phase 5.1 real-token evidence run failed and is retained. It proved that the accepted
+Phase 5.0 move did not itself change the file security descriptor: the real bot token replaced and
+renamed the claimed rehearsal file. Phase 5.1 therefore remains open. The separately authorized
+remediation package is under `performance_remediation/kingdomscandata4/phase5_1_acl/` and migration
+`20260816_001_phase5_1_claim_acl_hardening`. It adds an explicit DACL reset and ownership transfer
+before the first claimed digest. Production PR #539 remains unmergeable until the corrected
+real-token receipt and both repository Changes reviews pass.
 
 ## Delivery slices
 

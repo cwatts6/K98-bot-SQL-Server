@@ -11,6 +11,8 @@ CREATE TABLE [dbo].[KS4_ImportFileClaim](
     [ClaimStatus] [nvarchar](24) NOT NULL,
     [ClaimRequestedAtUtc] [datetime2](3) NOT NULL,
     [ClaimedAtUtc] [datetime2](3) NULL,
+    [AclHardenedAtUtc] [datetime2](3) NULL,
+    [AclOwnerIdentity] [nvarchar](256) NULL,
     [ImportCommittedAtUtc] [datetime2](3) NULL,
     [ArchivedAtUtc] [datetime2](3) NULL,
     [LastError] [nvarchar](2000) NULL,
@@ -31,7 +33,10 @@ CREATE TABLE [dbo].[KS4_ImportFileClaim](
     [ArchivePath] ASC
 )WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, IGNORE_DUP_KEY = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY],
  CONSTRAINT [CK_KS4_ImportFileClaim_Status] CHECK ([ClaimStatus] IN
-    (N'claiming', N'claimed', N'imported', N'archived', N'duplicate', N'duplicate_archived', N'failed'))
+    (N'claiming', N'claimed', N'imported', N'archived', N'duplicate', N'duplicate_archived', N'failed')),
+ CONSTRAINT [CK_KS4_ImportFileClaim_AclEvidence] CHECK
+    (([AclHardenedAtUtc] IS NULL AND [AclOwnerIdentity] IS NULL)
+      OR ([AclHardenedAtUtc] IS NOT NULL AND [AclOwnerIdentity] IS NOT NULL))
 ) ON [PRIMARY]
 END
 

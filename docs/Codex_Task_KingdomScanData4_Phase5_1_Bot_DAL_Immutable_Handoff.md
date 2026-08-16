@@ -1,5 +1,11 @@
 # Codex Task Pack — KingdomScanData4 Phase 5.1 Bot, DAL and Immutable Handoff
 
+> 2026-08-16 status: the real-token ACL evidence failed after proving that the bot could replace
+> and rename the claimed file. The SQL stop rule in this pack was triggered. The operator then
+> separately authorized the SQL and bot remediation in
+> `Codex_Task_KingdomScanData4_Phase5_1_Immutable_Handoff_Remediation.md`. Phase 5.1 and production
+> PR #539 remain open until that remediation passes.
+
 ## 1. Task Header
 
 - Task name: `KingdomScanData4 Phase 5.1 — bot, DAL and immutable file handoff`

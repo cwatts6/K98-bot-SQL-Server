@@ -1,3 +1,68 @@
+/*
+RollbackForMigrationId: 20260816_001_phase5_1_claim_acl_hardening
+Purpose: Restore the accepted Phase 5.0 claim procedure and remove unused ACL evidence columns
+Author: cwatts
+CreatedUtc: 2026-08-16
+RiskLevel: High
+DataLossRisk: None when the early-rollback guards pass
+RollbackType: Full
+RequiresBackup: Yes
+PreRollbackValidation: Bot and direct writers stopped; no row has ACL-hardening evidence; no nonterminal claim exists
+PostRollbackValidation: ACL evidence columns absent and the Phase 5.0 claim procedure restored
+RelatedSQLPR:
+*/
+
+/*
+Early rollback only:
+    - This rollback deliberately refuses after any claim has used the hardened contract.
+    - If AclHardenedAtUtc is populated, retain the evidence and use a reviewed forward fix.
+    - Directory ACL rollback is not performed here. Do not weaken filesystem ACLs automatically.
+*/
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+SET LOCK_TIMEOUT 60000;
+
+BEGIN TRANSACTION;
+
+DECLARE @MigrationLockResult int;
+EXEC @MigrationLockResult = sys.sp_getapplock
+    @Resource = N'K98:KingdomScanData4:Migration',
+    @LockMode = N'Exclusive',
+    @LockOwner = N'Transaction',
+    @LockTimeout = 60000,
+    @DbPrincipal = N'public';
+
+IF @MigrationLockResult < 0
+    THROW 52530, 'Phase 5.1 ACL rollback could not acquire the migration mutex.', 1;
+
+DECLARE @ImportLockResult int;
+EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
+    @LockTimeout = 60000,
+    @LockResult = @ImportLockResult OUTPUT;
+
+IF @ImportLockResult < 0
+    THROW 52531, 'Phase 5.1 ACL rollback could not acquire the import mutex.', 1;
+
+IF COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclHardenedAtUtc') IS NULL
+   OR COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclOwnerIdentity') IS NULL
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) NOT LIKE N'%ICACLS%'
+    THROW 52532, 'Phase 5.1 ACL rollback refused a missing or drifted deployment.', 1;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.KS4_ImportFileClaim
+    WHERE AclHardenedAtUtc IS NOT NULL
+       OR AclOwnerIdentity IS NOT NULL
+       OR ClaimStatus NOT IN (N'archived', N'duplicate_archived')
+)
+    THROW 52533, 'Phase 5.1 ACL rollback refuses used ACL evidence or a nonterminal claim; use a forward fix.', 1;
+GO
+
+-- Restores the exact accepted Phase 5.0 procedure from SQL commit 2e0f228f.
 SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CLAIM_KS4_IMPORT_FILE]') AND type in (N'P', N'PC'))
@@ -38,10 +103,6 @@ BEGIN
     DECLARE @ArchiveExists int;
     DECLARE @MoveCommand nvarchar(4000);
     DECLARE @MoveExitCode int;
-    DECLARE @AclCommand nvarchar(4000);
-    DECLARE @AclExitCode int;
-    DECLARE @AclOwnerIdentity nvarchar(256);
-    DECLARE @AclHardenedAtUtc datetime2(3);
     DECLARE @ImportLockResult int;
     DECLARE @Duplicate bit = 0;
 
@@ -79,8 +140,6 @@ BEGIN
                 ClaimStatus,
                 ClaimRequestedAtUtc,
                 ClaimedAtUtc,
-                AclHardenedAtUtc,
-                AclOwnerIdentity,
                 ImportCommittedAtUtc,
                 ArchivedAtUtc,
                 LastError
@@ -94,8 +153,6 @@ BEGIN
                 NULL,
                 N'claiming',
                 SYSUTCDATETIME(),
-                NULL,
-                NULL,
                 NULL,
                 NULL,
                 NULL,
@@ -160,64 +217,6 @@ BEGIN
                 THROW 51883, 'CLAIM_KS4_IMPORT_FILE could not verify the ready-to-claimed move.', 1;
         END;
 
-        CREATE TABLE #XpCmdShellIdentity
-        (
-            OutputLine nvarchar(4000) NULL
-        );
-
-        INSERT #XpCmdShellIdentity (OutputLine)
-        EXEC @AclExitCode = master.dbo.xp_cmdshell N'WHOAMI';
-
-        SELECT TOP (1)
-            @AclOwnerIdentity = LOWER(LTRIM(RTRIM(OutputLine)))
-        FROM #XpCmdShellIdentity
-        WHERE NULLIF(LTRIM(RTRIM(OutputLine)), N'') IS NOT NULL;
-
-        DROP TABLE #XpCmdShellIdentity;
-
-        IF ISNULL(@AclExitCode, 1) <> 0
-           OR @AclOwnerIdentity IS NULL
-           OR @AclOwnerIdentity COLLATE Latin1_General_100_BIN2 LIKE N'%[^0-9A-Za-z ._\$-]%'
-            THROW 51886, 'CLAIM_KS4_IMPORT_FILE could not resolve a safe xp_cmdshell owner identity.', 1;
-
-        SET @AclCommand =
-            N'ICACLS "'
-            + @ClaimedPath
-            + N'" /RESET /Q';
-
-        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
-
-        IF ISNULL(@AclExitCode, 1) <> 0
-            THROW 51887, 'CLAIM_KS4_IMPORT_FILE could not reset the claimed file to the Claimed directory ACL.', 1;
-
-        SET @AclCommand =
-            N'ICACLS "'
-            + @ClaimedPath
-            + N'" /SETOWNER "'
-            + @AclOwnerIdentity
-            + N'" /Q';
-
-        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
-
-        IF ISNULL(@AclExitCode, 1) <> 0
-            THROW 51888, 'CLAIM_KS4_IMPORT_FILE could not transfer claimed-file ownership to the xp_cmdshell identity.', 1;
-
-        SET @AclCommand =
-            N'ICACLS "'
-            + @ClaimedPath
-            + N'" /VERIFY /Q';
-
-        EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
-
-        SET @ClaimedExists = 0;
-        EXEC master.dbo.xp_fileexist @ClaimedPath, @ClaimedExists OUTPUT;
-
-        IF ISNULL(@AclExitCode, 1) <> 0
-           OR ISNULL(@ClaimedExists, 0) <> 1
-            THROW 51889, 'CLAIM_KS4_IMPORT_FILE could not verify the hardened claimed file.', 1;
-
-        SET @AclHardenedAtUtc = SYSUTCDATETIME();
-
         EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE
             @ApprovedPath = @ClaimedPath,
             @FileDigest = @FileDigest OUTPUT;
@@ -243,8 +242,6 @@ BEGIN
         SET FileDigest = @FileDigest,
             ClaimStatus = CASE WHEN @Duplicate = 1 THEN N'duplicate' ELSE N'claimed' END,
             ClaimedAtUtc = COALESCE(ClaimedAtUtc, SYSUTCDATETIME()),
-            AclHardenedAtUtc = @AclHardenedAtUtc,
-            AclOwnerIdentity = @AclOwnerIdentity,
             LastError = NULL
         WHERE CompletedFileName = @CompletedFileName
           AND ClaimStatus IN (N'claiming', N'claimed', N'failed', N'duplicate');
@@ -291,3 +288,20 @@ BEGIN
         THROW;
     END CATCH;
 END
+GO
+
+ALTER TABLE dbo.KS4_ImportFileClaim
+DROP CONSTRAINT CK_KS4_ImportFileClaim_AclEvidence;
+
+ALTER TABLE dbo.KS4_ImportFileClaim
+DROP COLUMN AclHardenedAtUtc, AclOwnerIdentity;
+
+IF COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclHardenedAtUtc') IS NOT NULL
+   OR COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclOwnerIdentity') IS NOT NULL
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) LIKE N'%ICACLS%'
+    THROW 52534, 'Phase 5.1 ACL rollback post-validation failed.', 1;
+
+EXEC sys.sp_refreshsqlmodule N'dbo.CLAIM_KS4_IMPORT_FILE';
+
+COMMIT TRANSACTION;
+GO
