@@ -40,7 +40,7 @@ Record and revalidate these values at task start; do not silently substitute new
 | Bot-machine branch state | PR #539 code was restarted for testing | must return to merged private `K98-bot/main` and be gracefully restarted before Phase 5.2 |
 | Stable finding `csf_1a1c440452b02cdb787fa7c3` | source hash versus `BULK INSERT` mutation window | pending final receipt-backed disposition |
 | Stable finding `csf_3cb54318733d3a216dd91e9b` | source hash versus archive `MOVE` mutation window | pending final receipt-backed disposition |
-| Production SQL and bot | must be probed at go/no time | no change authorized by this pack |
+| Production SQL and bot | must be probed at go/no-go time | no change authorized by this pack |
 
 The current values are planning inputs, not acceptance claims. If PR #232 changes, rerun every
 head-bound review and test required by Phase 5.1 before freezing the replacement head.
@@ -264,23 +264,39 @@ pre-finalization receipt.
 
 ## 11. Mandatory Early Rollback and Clean Reapply
 
-Before finalization or any post-cutover write, prove this exact failure path while all writers stay
-stopped:
+The complete forward rehearsal in section 10 deliberately creates durable import receipts. Those
+receipts make the Phase 3 and Phase 5.1 early rollback guards ineligible on that database. Preserve
+its receipt and transcript, then restore the approved receipt-free seed into a newly named isolated
+rollback database. Do not delete committed receipts or weaken rollback guards to reuse the forward
+database.
 
-1. roll back the Phase 5 SQL companion file-protocol migration;
-2. restore the four retained Phase 4 prior view definitions using
+On the fresh rollback database, keep all writers stopped and apply the accepted Phase 2–5.1
+migrations without running committed imports, file claims, receipt-producing protocol smokes, or
+other post-cutover writes. Prove this exact early failure path:
+
+1. confirm that no Phase 3 import receipt and no Phase 5.1 ACL-hardening evidence exists;
+2. roll back the Phase 5.1 ACL-hardening migration and the Phase 5.0 SQL companion file-protocol
+   migration in their documented reverse order;
+3. restore the four retained Phase 4 prior view definitions using
    `migrations/rollback/20260727_001_phase4_view_type_alignment_rollback.sql`;
-3. leave the approved retired weekly-cumulative view retired because that migration is
+4. leave the approved retired weekly-cumulative view retired because that migration is
    forward-fix-only;
-4. restore the exact Phase 3 prior procedure/function definitions;
-5. run the Phase 2 metadata-swap rollback;
-6. confirm `dbo.SchemaMigrationHistory` leaves Phase 2 retryable;
+5. restore the exact Phase 3 prior procedure/function definitions;
+6. run the Phase 2 metadata-swap rollback;
 7. rerun original-schema, module, digest, DBCC, session, and application compatibility smokes;
-8. prove that only the old bot revision would be eligible to start.
+8. prove that only the old bot revision would be eligible to start;
+9. record the rolled-back object state and every affected `dbo.SchemaMigrationHistory` row.
 
-Then restore or cleanly reapply from the documented baseline and repeat the complete forward path.
-The finalizer must consume the fresh combined receipt while retaining the exact run-ID, time, lock,
-table-digest, and no-drift controls. Never bypass or hand-edit the finalizer evidence.
+The Phase 3, Phase 4, Phase 5.0, and Phase 5.1 rollback scripts do not mark their deployment-history
+rows as unapplied. Therefore `Deploy-SqlMigration.ps1` must not be used to reapply on this rolled-back
+database: it would skip migrations whose history rows still say `Applied`. Preserve the rollback
+evidence, restore the approved seed again into a third newly named isolated reapply database, and
+repeat the complete section 10 forward path there. Do not hand-edit or delete migration-history
+rows as a substitute for the fresh restore.
+
+The finalizer must consume only the fresh combined receipt from that clean reapply while retaining
+the exact run-ID, time, lock, table-digest, and no-drift controls. Never bypass or hand-edit the
+finalizer evidence.
 
 After finalization or any post-cutover write, metadata-swap rollback is forbidden. The only
 permitted plans are a separately reviewed forward fix or the documented backup/log recovery
@@ -288,8 +304,9 @@ decision.
 
 ### Checkpoint D — rollback, reapply, and finalizer accepted
 
-Record both runs, their hashes, and every stop condition. Continue only if rollback was faithful,
-reapply was clean, and finalization used the accepted combined receipt.
+Record the forward, rollback, and clean-reapply database identities, their hashes, and every stop
+condition. Continue only if rollback was faithful, reapply began from a fresh receipt-free restore,
+and finalization used the accepted combined receipt.
 
 ## 12. Bot and Immutable-Handoff Rehearsal
 
