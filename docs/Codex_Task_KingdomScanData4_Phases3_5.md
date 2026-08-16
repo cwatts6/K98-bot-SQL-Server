@@ -162,7 +162,8 @@ histories, tests and Changes reviews.
 
 ### Phase 5.2 — combined release
 
-Use `performance_remediation/kingdomscandata4/release/README.md`. Freeze one SQL commit and one bot
+Use `docs/Codex_Task_KingdomScanData4_Phase5_2_Combined_Release_Gate.md` with
+`performance_remediation/kingdomscandata4/release/README.md`. Freeze one SQL commit and one bot
 commit, rehearse Phases 2–5 from a fresh restore, and produce the combined acceptance receipt.
 Do not update `docs/SQL_DELIVERY_LOG.md` or execute production deployment until the separate
 production go/no-go is explicitly approved.
