@@ -51,7 +51,8 @@ head-bound review and test required by Phase 5.1 before freezing the replacement
 
 - `docs/Codex_Task_KingdomScanData4_Phases3_5.md`
 - `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`
-- `docs/Codex_Task_KingdomScanData4_Phase5_1_Immutable_Handoff_Remediation.md`
+- Phase 5.1 immutable-handoff remediation pack from SQL PR #65; require its merged SQL `main`
+  revision before this Phase 5.2 gate begins
 - `performance_remediation/kingdomscandata4/README.md`
 - `performance_remediation/kingdomscandata4/phase2/README.md`
 - `performance_remediation/kingdomscandata4/phase3/README.md`
@@ -66,17 +67,19 @@ head-bound review and test required by Phase 5.1 before freezing the replacement
 
 ### Bot engineering and promotion controls
 
+The names below are resolved in the bot repository, not as paths in this SQL repository:
+
 - `AGENTS.md`
 - `README-DEV.md`
-- `docs/reference/README.md`
-- `docs/reference/K98 Bot - Project Engineering Standards.md`
-- `docs/reference/K98 Bot - Coding Execution Guidelines.md`
-- `docs/reference/K98 Bot - Testing Standards.md`
-- `docs/reference/K98 Bot - Skills & Refactor Triggers.md`
-- `docs/reference/K98 Bot - Deferred Optimisation Framework.md`
+- reference-documentation `README.md`
+- `K98 Bot - Project Engineering Standards.md`
+- `K98 Bot - Coding Execution Guidelines.md`
+- `K98 Bot - Testing Standards.md`
+- `K98 Bot - Skills & Refactor Triggers.md`
+- `K98 Bot - Deferred Optimisation Framework.md`
 - `SECURITY.md`
-- `docs/reference/runbook_devops.md`
-- `docs/reference/Promotion Guide.md`
+- `runbook_devops.md`
+- `Promotion Guide.md`
 
 ## 4. Objective
 
@@ -317,8 +320,8 @@ record an evidence-based skip where the repository standards allow one.
 
 ## 13. Promotion Rehearsal
 
-Use `docs/reference/Promotion Guide.md` for the bot mirror-to-production path and the SQL promotion
-documents for SQL. The coordinated order is:
+Use the bot repository's `Promotion Guide.md` for the mirror-to-production path and the SQL
+promotion documents for SQL. The coordinated order is:
 
 1. complete Phase 5.2 rehearsal and obtain both final PR-review verdicts;
 2. if Phase 5.2 needs the guarded finalizer adapter or another executable SQL change, merge that
