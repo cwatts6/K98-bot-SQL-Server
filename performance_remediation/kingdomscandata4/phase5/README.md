@@ -18,8 +18,11 @@ remediation package is under `performance_remediation/kingdomscandata4/phase5_1_
 `20260816_001_phase5_1_claim_acl_hardening`. It transfers ownership away from the bot before the
 final DACL reset and first claimed digest. The replacement run
 `phase5_1_20260817T155508137Z` passed and supplies the accepted receipt-backed closure evidence.
-Production PR #539 remains open and frozen; its failed GitHub scan is a Phase 5.2 Checkpoint A gate
-and no merge or deployment is authorized.
+Checkpoint A then remediated pre-existing protected Archive descendants and rejected reparse-point
+or hard-link indirection before privileged ACL/owner changes. Bot PR #232 is frozen at
+`f95ead9d348bdf45726fb9ce1e73f6ed2a20483a`; production PR #539 is frozen at
+`53eaeb66b99538778ad7cd95a974dcd0bc8ccd55`, with quality and scan checks passing. No merge or
+deployment is authorized.
 
 ## Delivery slices
 
@@ -113,7 +116,7 @@ outside Git and proved, under the real bot token, that overwrite, replacement, r
 in-place modification of a claimed file are denied while the SQL identity can still hash, import,
 and move it. Both stable findings now have receipt-backed closure evidence.
 
-### Phase 5.1 closure receipt
+### Historical Phase 5.1 closure receipt
 
 - Closed for Phase 5.2 entry review: 2026-08-17.
 - SQL commit: `368292fe1f291ff20765f3ecb6702a119fb78a20`; migration
@@ -139,6 +142,26 @@ and move it. Both stable findings now have receipt-backed closure evidence.
   to be demonstrated at Checkpoint A or replaced by one final Changes scan with Deep off.
 - Earlier failed/interrupted evidence is retained; raw ACL output and operator evidence remain
   outside Git.
+
+### Phase 5.2 Checkpoint A correction — 2026-08-17
+
+- Mirror PR #232 now freezes exact range
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..f95ead9d348bdf45726fb9ce1e73f6ed2a20483a`
+  with 29 changed files.
+- The two added commits normalize every pre-existing Archive descendant, reject reparse points and
+  NTFS hard links, preserve a stable descendant-path digest, and verify inherited ACL/SQL-owner
+  state.
+- Full pytest passed `2823 passed, 2 skipped`; pre-commit, focused tests, PowerShell parsing, K98
+  architecture/deferred/security-routing/command validators, and disposable NTFS positive and
+  negative probes passed.
+- Changes scan `02d8e353-4eec-40e9-bafa-4fd4c53ac860` reported Low finding
+  `csf_38e8134cbe97537f0652c431`; exact closure scan
+  `0ecf75bf-359c-4503-a6c8-3fcbed84c98e` reported zero findings after the hard-link fix.
+- Patch-based production candidate `53eaeb66b99538778ad7cd95a974dcd0bc8ccd55` is based on
+  production `main` `caabd2c7dc77aec67f2748a1b9b66fdf53a4aa02`; all 29 promoted file objects
+  match mirror head and PR #539 quality/scan checks pass.
+- The accepted Phase 5.1 receipt remains historical evidence for its recorded executable heads;
+  the combined Phase 5.2 rehearsal must use the replacement frozen heads above.
 
 ## Phase 5.0 package
 

@@ -172,8 +172,16 @@ procedures, or mutate data.
   `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724` matched. Stable findings
   `csf_1a1c440452b02cdb787fa7c3` and `csf_3cb54318733d3a216dd91e9b` therefore have
   receipt-backed closure evidence. Bot PR #232 and production PR #539 remain open and frozen;
-  production is untouched and exact final-range Changes coverage remains a Phase 5.2 Checkpoint A
-  revalidation gate.
+  production is untouched.
+- Phase 5.2 Checkpoint A bot correction: mirror PR #232 is now frozen at
+  `f95ead9d348bdf45726fb9ce1e73f6ed2a20483a`. Exact contiguous Changes scans
+  `c6761a00-3670-48f5-965f-43fe3228e675`, `02d8e353-4eec-40e9-bafa-4fd4c53ac860`, and
+  `0ecf75bf-359c-4503-a6c8-3fcbed84c98e` cover the base through that head. The middle scan found
+  archive hard-link finding `csf_38e8134cbe97537f0652c431`; the final commit and zero-finding
+  closure scan reject that indirection. Full pytest passed `2823 passed, 2 skipped`.
+  Patch-based production PR #539 head `53eaeb66b99538778ad7cd95a974dcd0bc8ccd55` is based on
+  production `main` `caabd2c7dc77aec67f2748a1b9b66fdf53a4aa02`, is content-equivalent across
+  all 29 promoted files, and has passing quality and scan checks.
 - Raw `.rpt` outputs and `kingdomscandata4_sample.csv` are operator-held local evidence. They
   contain player-identifying values and an operator login and must not be committed without
   anonymisation/redaction.
