@@ -123,15 +123,17 @@ once, requires the operator-frozen receipt SHA-256 and exact SQL/bot commits, an
   combined gates;
 - the exact six ordered Phase 2-5.1 migration IDs and repository file SHA-256 values;
 - the exact Phase 2 run ID, row counts and six baseline/forward table digests;
-- frozen module, changed-file and validation-manifest digests plus at least one exact SQL Changes
+- concrete retained module, changed-file and validation-manifest paths below the evidence root,
+  each re-read and checked against its receipt-bound digest, plus at least one exact SQL Changes
   scan ID;
 - the reviewed Phase 2 finalizer path and SHA-256;
 - for live validation, a fresh eligible `VERIFIED` state row and six matching `Applied`
   migration-history rows; and
-- for execution, a clean SQL repository at the exact receipt-bound commit.
+- for live validation and execution, a clean SQL repository at the exact receipt-bound commit.
 
 `-OfflineValidationOnly` validates the external receipt and repository inputs without SQL access.
-`-LiveValidationOnly` adds read-only SQL state/history validation but does not finalize. Execution
+`-LiveValidationOnly` adds read-only SQL state/history and receipt-freshness validation but does
+not finalize. Execution
 requires separate `-ConfirmReceiptAccepted`, `-ConfirmWritersStopped` and
 `-ConfirmIrreversibleFinalize` switches. `ROK_TRACKER` additionally requires
 `-ConfirmProductionTarget` and a production-purpose receipt. After all checks, the adapter changes

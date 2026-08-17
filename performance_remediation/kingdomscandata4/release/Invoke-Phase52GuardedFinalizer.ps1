@@ -128,6 +128,7 @@ function Assert-Sha256 {
 function Assert-JsonInteger {
     param(
         [Parameter(Mandatory)]
+        [AllowNull()]
         [object]$Value,
 
         [Parameter(Mandatory)]
@@ -138,7 +139,7 @@ function Assert-JsonInteger {
         [sbyte], [byte], [int16], [uint16], [int32], [uint32],
         [int64], [uint64]
     )
-    if ($Value.GetType() -notin $integerTypes) {
+    if ($null -eq $Value -or $Value.GetType() -notin $integerTypes) {
         throw "$Context must be a JSON integer."
     }
 }
@@ -201,6 +202,7 @@ function Assert-PathIsContainedAndNotReparse {
     if (($pathItem.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
         throw "Evidence path contains a reparse point: $($pathItem.FullName)"
     }
+    $reachedRoot = $false
     $current = $pathItem.Directory
     while ($null -ne $current) {
         if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
@@ -210,27 +212,69 @@ function Assert-PathIsContainedAndNotReparse {
                 $rootFull,
                 [StringComparison]::OrdinalIgnoreCase
             )) {
-            return [pscustomobject]@{
-                Root = $rootFull
-                Path = $pathFull
-            }
+            $reachedRoot = $true
         }
         $current = $current.Parent
     }
 
-    throw 'Could not establish the EvidenceRoot trust boundary.'
+    if (-not $reachedRoot) {
+        throw 'Could not establish the EvidenceRoot trust boundary.'
+    }
+
+    return [pscustomobject]@{
+        Root = $rootFull
+        Path = $pathFull
+    }
+}
+
+function Resolve-TrustedEvidenceArtifact {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Root,
+
+        [Parameter(Mandatory)]
+        [string]$RelativePath,
+
+        [Parameter(Mandatory)]
+        [string]$Context
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RelativePath) -or
+        [IO.Path]::IsPathRooted($RelativePath) -or
+        $RelativePath -cnotmatch '^[A-Za-z0-9][A-Za-z0-9._\\/\-]*$' -or
+        @($RelativePath -split '[\\/]' | Where-Object {
+                $_ -in @('', '.', '..')
+            }).Count -gt 0) {
+        throw "$Context.RelativePath must be a safe relative evidence path."
+    }
+
+    $candidatePath = Join-Path $Root $RelativePath
+    return Assert-PathIsContainedAndNotReparse -Root $Root -Path $candidatePath
+}
+
+function ConvertFrom-StrictUtf8Bytes {
+    param(
+        [Parameter(Mandatory)]
+        [byte[]]$Bytes,
+
+        [Parameter(Mandatory)]
+        [string]$Context
+    )
+
+    $utf8 = [Text.UTF8Encoding]::new($false, $true)
+    try {
+        return $utf8.GetString($Bytes)
+    }
+    catch {
+        throw "$Context is not valid UTF-8."
+    }
 }
 
 function ConvertTo-StrictReceipt {
     param([Parameter(Mandatory)][byte[]]$Bytes)
 
-    $utf8 = [Text.UTF8Encoding]::new($false, $true)
-    try {
-        $text = $utf8.GetString($Bytes)
-    }
-    catch {
-        throw 'The combined receipt is not valid UTF-8.'
-    }
+    $text = ConvertFrom-StrictUtf8Bytes -Bytes $Bytes `
+        -Context 'The combined receipt'
 
     try {
         return $text | ConvertFrom-Json -ErrorAction Stop
@@ -246,7 +290,10 @@ function Assert-ReceiptContract {
         [object]$Receipt,
 
         [Parameter(Mandatory)]
-        [string]$ResolvedEvidenceRoot
+        [string]$ResolvedEvidenceRoot,
+
+        [Parameter(Mandatory)]
+        [string]$ActualFinalizerSha256
     )
 
     Assert-ExactProperties -InputObject $Receipt -Context 'Receipt' -Expected @(
@@ -409,8 +456,21 @@ function Assert-ReceiptContract {
         'SqlModulesSha256', 'ChangedFilesSha256', 'ValidationEvidenceSha256'
     )
     foreach ($digestProperty in $Receipt.ManifestDigests.PSObject.Properties.Name) {
-        Assert-Sha256 -Value ([string]$Receipt.ManifestDigests.$digestProperty) `
-            -Context "ManifestDigests.$digestProperty"
+        $manifestArtifact = $Receipt.ManifestDigests.$digestProperty
+        $manifestContext = "ManifestDigests.$digestProperty"
+        Assert-ExactProperties -InputObject $manifestArtifact `
+            -Context $manifestContext -Expected @('RelativePath', 'Sha256')
+        Assert-Sha256 -Value ([string]$manifestArtifact.Sha256) `
+            -Context "$manifestContext.Sha256"
+        $trustedManifest = Resolve-TrustedEvidenceArtifact `
+            -Root $ResolvedEvidenceRoot `
+            -RelativePath ([string]$manifestArtifact.RelativePath) `
+            -Context $manifestContext
+        $manifestBytes = [IO.File]::ReadAllBytes($trustedManifest.Path)
+        $actualManifestSha256 = Get-Sha256ForBytes -Bytes $manifestBytes
+        if ($actualManifestSha256 -cne $manifestArtifact.Sha256) {
+            throw "$manifestContext evidence digest drift."
+        }
     }
 
     Assert-ExactProperties -InputObject $Receipt.Gates -Context 'Gates' `
@@ -444,17 +504,14 @@ function Assert-ReceiptContract {
     }
     Assert-Sha256 -Value ([string]$Receipt.Finalizer.ScriptSha256) `
         -Context 'Finalizer.ScriptSha256'
-    $actualFinalizerSha256 = (
-        Get-FileHash -LiteralPath $finalizerPath -Algorithm SHA256
-    ).Hash
-    if ($actualFinalizerSha256 -cne $Receipt.Finalizer.ScriptSha256) {
+    if ($ActualFinalizerSha256 -cne $Receipt.Finalizer.ScriptSha256) {
         throw 'The Phase 2 finalizer digest does not match the receipt.'
     }
 
     return [pscustomobject]@{
         CapturedAtUtc = $capturedAtUtc
         Phase2RunId = $phase2RunId
-        FinalizerSha256 = $actualFinalizerSha256
+        FinalizerSha256 = $ActualFinalizerSha256
     }
 }
 
@@ -576,6 +633,10 @@ if ($PSCmdlet.ParameterSetName -eq 'Execute') {
 
 $trustedPath = Assert-PathIsContainedAndNotReparse `
     -Root $EvidenceRoot -Path $ReceiptPath
+$finalizerBytes = [IO.File]::ReadAllBytes($finalizerPath)
+$finalizerSha256 = Get-Sha256ForBytes -Bytes $finalizerBytes
+$finalizerSource = ConvertFrom-StrictUtf8Bytes -Bytes $finalizerBytes `
+    -Context 'The Phase 2 finalizer'
 $receiptBytes = [IO.File]::ReadAllBytes($trustedPath.Path)
 $receiptSha256 = Get-Sha256ForBytes -Bytes $receiptBytes
 if ($receiptSha256 -cne $ExpectedReceiptSha256.ToUpperInvariant()) {
@@ -583,7 +644,8 @@ if ($receiptSha256 -cne $ExpectedReceiptSha256.ToUpperInvariant()) {
 }
 $receipt = ConvertTo-StrictReceipt -Bytes $receiptBytes
 $validated = Assert-ReceiptContract -Receipt $receipt `
-    -ResolvedEvidenceRoot $trustedPath.Root
+    -ResolvedEvidenceRoot $trustedPath.Root `
+    -ActualFinalizerSha256 $finalizerSha256
 
 if ($OfflineValidationOnly.IsPresent) {
     [pscustomobject]@{
@@ -635,7 +697,6 @@ if ($LiveValidationOnly.IsPresent) {
     return
 }
 
-$finalizerSource = Get-Content -Raw -LiteralPath $finalizerPath
 $runDeclaration = 'DECLARE @ConfirmRunId uniqueidentifier = NULL;'
 $confirmationDeclaration = 'DECLARE @ConfirmIrreversibleFinalize bit = 0;'
 $runDeclarationIndex = $finalizerSource.IndexOf(
