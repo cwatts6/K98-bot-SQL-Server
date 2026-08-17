@@ -1,6 +1,6 @@
 # KingdomScanData4 Phases 3–5 delivery plan
 
-Status updated 2026-08-16. Phases 1 and 2 are closed on the representative-copy evidence
+Status updated 2026-08-17. Phases 1 and 2 are closed on the representative-copy evidence
 boundary. Phase 3 implementation and representative-copy rehearsal are complete and frozen at
 `62cb739`. The Phase 4 implementation package is authored on
 `codex/kingdomscandata4-phase4`; its isolated forward/rollback/reapply,
@@ -15,10 +15,11 @@ acceptance with later coordinated-release work.
 The first Phase 5.1 real-token ACL run failed: the bot replaced and renamed a claimed rehearsal
 file because the same-volume move retained its writable Ready ACL. The original Phase 5.1 SQL stop
 rule fired. The operator separately authorized migration
-`20260816_001_phase5_1_claim_acl_hardening` and the matching bot remediation. Phase 5.1 and
-production PR #539 remain open; Phase 5.2 is blocked until corrected receipt-backed evidence and
-both repository Changes reviews pass. MINI_AMD must then return to private production `main`
-before Phase 5.2 begins.
+`20260816_001_phase5_1_claim_acl_hardening` and the matching bot remediation. The replacement
+evidence run `phase5_1_20260817T155508137Z` passed and its receipt-backed stable-finding closure is
+accepted. Phase 5.1 implementation/evidence is closed for Phase 5.2 entry review. Bot PR #232 and
+production PR #539 remain open and frozen; MINI_AMD return-to-main, exact scan coverage, PR checks,
+and all other live entry facts remain mandatory Checkpoint A gates.
 
 ## Authoritative order
 
@@ -27,7 +28,7 @@ before Phase 5.2 begins.
 | 1 | Phase 3: procedures, import concurrency and downstream tables | Phase 2 package and rollback are stable | **Complete:** SQL mutex, atomic scan allocation, duplicate prevention, type alignment, equivalence, performance, rollback and final Changes review passed |
 | 2 | Phase 4: views and consumers | **Complete:** frozen Phase 3 SQL contracts consumed | **Complete:** every changed view and transitive consumer is value- and metadata-equivalent, rollback and performance gates pass, and the final Changes review has zero findings |
 | 3 | Phase 5.0: SQL immutable-file companion | Final Phase 3/4 SQL contracts are available | **Complete:** SQL migration/rollback, exact claim identity, digest-bound import/archive, representative rehearsal and SQL Changes review passed |
-| 4 | Phase 5.1: bot/DAL producer and consumers | Accepted Phase 5.0 SQL contract is frozen | Four approved bot paths, atomic unique publication, ACL proof, source-unchanged smokes and bot Changes review pass |
+| 4 | Phase 5.1: bot/DAL producer and consumers | Accepted Phase 5.0 SQL contract is frozen | **Closed for Phase 5.2 entry review:** four approved bot paths, atomic unique publication, retained real-token ACL proof, source-unchanged smokes and receipt-backed stable-finding closure are accepted; exact final scan coverage is revalidated at Checkpoint A |
 | 5 | Phase 5.2: combined release gate | Phases 2–5.1 are closed with exact commits | Fresh-restore coordinated forward, rollback, finalizer, workload and end-to-end bot rehearsal pass |
 | 6 | Production go/no-go | Reviewed SQL and bot PRs plus combined receipts exist | Operator gives separate explicit execution approval after fresh production preflight |
 
@@ -160,9 +161,35 @@ histories, tests and Changes reviews.
 10. Close Phase 5 only after separate SQL and bot Changes security reviews pass against the exact
     commits selected for the combined rehearsal and both Low/P3 findings are closed.
 
+#### Phase 5.1 closure receipt
+
+- Date: 2026-08-17.
+- SQL candidate: `368292fe1f291ff20765f3ecb6702a119fb78a20`; ACL migration
+  `20260816_001_phase5_1_claim_acl_hardening`.
+- Bot mirror PR #232 frozen range:
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`.
+- Production PR #539 frozen candidate:
+  `237eaa585be29b68d8ca0678f5f9b14e54327950`; its failed GitHub scan remains a Checkpoint A gate.
+- Accepted run: `phase5_1_20260817T155508137Z`, evidence version 2, status PASS.
+- Receipt SHA-256:
+  `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`.
+- Transcript SHA-256:
+  `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C`.
+- Canonical completed-file Ready/claim/archive SHA-256:
+  `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724`.
+- The bot token was denied overwrite, replacement, rename, delete, and in-place modification;
+  SQL retained the claim/archive capability and both stable finding IDs have receipt-backed
+  closure evidence.
+- Delta Changes scans `9bcfac4d-37de-4b93-b314-0af15fb42023` and
+  `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` reported no findings. Checkpoint A must prove combined
+  coverage of the exact final range or run one final exact-range bot Changes scan with Deep off.
+- This closes neither PR, authorizes no merge/deployment/restart, and does not permit production
+  SQL execution or a `docs/SQL_DELIVERY_LOG.md` update.
+
 ### Phase 5.2 — combined release
 
-Use `performance_remediation/kingdomscandata4/release/README.md`. Freeze one SQL commit and one bot
+Use `docs/Codex_Task_KingdomScanData4_Phase5_2_Combined_Release_Gate.md` with
+`performance_remediation/kingdomscandata4/release/README.md`. Freeze one SQL commit and one bot
 commit, rehearse Phases 2–5 from a fresh restore, and produce the combined acceptance receipt.
 Do not update `docs/SQL_DELIVERY_LOG.md` or execute production deployment until the separate
 production go/no-go is explicitly approved.

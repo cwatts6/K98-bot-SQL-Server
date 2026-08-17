@@ -7,9 +7,9 @@ Phase 1 collectors are read-only. The `phase2`, `phase3`, and `phase4` packages 
 migration/rollback scripts are representative-copy validated but are not authorized for
 production execution. Phase 4 is closed. Phase 5.0 SQL is closed after its isolated
 forward/protocol/rollback/reapply rehearsal, repository gates and zero-finding final Changes
-review passed. Phase 5.1 bot/DAL now consumes that frozen SQL contract and owns the real-token ACL
-proof. Phase 5.2 is the combined rehearsal/promotion gate and remains distinct from production
-go/no-go.
+review passed. Phase 5.1 bot/DAL implementation and the replacement real-token ACL evidence are
+closed for Phase 5.2 entry review as of 2026-08-17. Phase 5.2 is the combined rehearsal/promotion
+gate and remains distinct from production go/no-go; its rehearsal has not started.
 The Phase 5.1 implementation task pack is
 `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`.
 
@@ -46,8 +46,9 @@ Production execution remains separately gated.
    retired, four retained views are contract-aligned, and bidirectional result/metadata
    equivalence is proven.
 5. **Phase 5 — bot, DAL and immutable import-file handoff:** Phase 5.0 SQL is closed on its
-   repository boundary; Phase 5.1 implements the four approved bot paths and proves all
-   changed/source-unchanged consumer and ACL contracts.
+   repository boundary; Phase 5.1 implementation and retained receipt-backed ACL proof are closed
+   for Phase 5.2 entry review. Frozen PR state, exact scan coverage, and MINI_AMD return-to-main
+   remain live Checkpoint A gates.
 6. **Phase 5.2 combined release gate:** rehearse the exact SQL and bot commits from a fresh restore, complete
    separate diff-focused security reviews, merge through the documented PR paths, and request
    explicit production execution approval.
@@ -159,7 +160,20 @@ procedures, or mutate data.
   static contracts and protocol rehearsal assets passed offline validation and the full isolated
   forward/protocol/rollback/reapply run. Final Changes scan
   `099379cd-119b-4402-8ecb-cf2e1c105f40` closed 18/18 executable rows with zero reportable
-  findings. Real-token ACL evidence remains assigned to Phase 5.1; production is untouched.
+  findings. At Phase 5.0 closure, real-token ACL evidence was assigned to Phase 5.1; production
+  was untouched.
+- Phase 5.1 bot/DAL and immutable-handoff closure: accepted run
+  `phase5_1_20260817T155508137Z` passed on MINI_AMD against SQL commit
+  `368292fe1f291ff20765f3ecb6702a119fb78a20`. Receipt SHA-256 is
+  `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`; transcript SHA-256 is
+  `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C`. All five bot-token
+  claimed-file mutation attempts were denied, SQL completed the claim/import/archive path, and
+  Ready/claim/archive digest
+  `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724` matched. Stable findings
+  `csf_1a1c440452b02cdb787fa7c3` and `csf_3cb54318733d3a216dd91e9b` therefore have
+  receipt-backed closure evidence. Bot PR #232 and production PR #539 remain open and frozen;
+  production is untouched and exact final-range Changes coverage remains a Phase 5.2 Checkpoint A
+  revalidation gate.
 - Raw `.rpt` outputs and `kingdomscandata4_sample.csv` are operator-held local evidence. They
   contain player-identifying values and an operator login and must not be committed without
   anonymisation/redaction.

@@ -3,8 +3,11 @@
 This is a release gate after Phases 2 through 5. It is not a sixth implementation phase and it
 does not authorize production execution.
 
-Current status 2026-07-28: the Phase 5.0 SQL entry component is closed. Phase 5.1 bot/DAL,
-real-token ACL evidence, exact commit freezing, and this combined rehearsal remain pending.
+Current status 2026-08-17: the Phase 5.0 SQL entry component and Phase 5.1 bot/DAL plus
+receipt-backed real-token ACL evidence are closed for Phase 5.2 entry review. SQL PR #64 is being
+refreshed onto SQL `origin/main` `368292fe1f291ff20765f3ecb6702a119fb78a20`. Exact live PR,
+security-coverage, SQL-history, retained-original, and MINI_AMD return-to-main facts remain
+Checkpoint A gates. The combined rehearsal has not started.
 
 ## Entry criteria
 
@@ -16,6 +19,28 @@ real-token ACL evidence, exact commit freezing, and this combined rehearsal rema
 - Stable findings `csf_1a1c440452b02cdb787fa7c3` and
   `csf_3cb54318733d3a216dd91e9b` are closed by the reviewed immutable-file protocol and retained
   real-token ACL evidence.
+
+Accepted Phase 5.1 handoff evidence:
+
+- bot mirror PR #232 frozen range
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`;
+- production PR #539 candidate `237eaa585be29b68d8ca0678f5f9b14e54327950`;
+- run `phase5_1_20260817T155508137Z`, evidence version 2, status PASS;
+- receipt SHA-256
+  `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`;
+- transcript SHA-256
+  `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C`;
+- Ready/claim/archive SHA-256
+  `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724`;
+- overwrite, replacement, rename, delete, and in-place modification all denied to the bot token;
+  SQL claim/import/archive completed and both finding IDs have receipt-backed closure evidence.
+
+The remediation-delta Changes scans
+`9bcfac4d-37de-4b93-b314-0af15fb42023` and
+`7bf41033-74d7-41ab-9726-6daa2f4a1ee7` reported no findings. Checkpoint A must prove the original
+full-branch scan plus these deltas cover the exact final PR #232 range, or run one final exact-range
+bot Changes scan with Deep off. PR #539's failed GitHub scan also remains a blocking inspection
+gate. No Codebase or Deep scan is authorized.
 
 The closed Phase 4 SQL artifact is bound to final Changes scan
 `e6ce0a1d-7aba-428a-b40a-61001c924143` and reviewed snapshot
@@ -32,26 +57,57 @@ production execution.
 
 ## Combined rehearsal order
 
-1. Restore the approved representative seed without a database snapshot.
-2. Confirm repository validation, clean committed revisions, backup readiness and available
-   capacity.
-3. Stop all bot/import/scheduler/admin write entry points.
-4. Run the Phase 2 production-shaped preflight.
-5. Apply Phase 2 forward migration and run its table/module/DBCC verification.
-6. Apply Phase 3 migrations and run procedure/import/concurrency/equivalence validation.
-7. Apply
-   `20260727_000_retire_vAllianceActivity_WeeklyCumulative`, then
-   `20260727_001_phase4_view_type_alignment`, and run the Phase 4
-   view/consumer/equivalence validation.
-8. Apply the Phase 5 SQL companion migration for the immutable claimed-file protocol while all
-   writers remain stopped, then run its file-identity, failure and rollback smokes.
-9. Run the complete committed-import, workload, Query Store and bot/DAL smoke matrix against the
-   matching stopped bot revision and SQL contracts.
-10. Create a fresh combined-release acceptance receipt bound to the exact Phase 2 run ID, final
-   Phase 3/4/5 SQL module hashes, SQL commit, bot commit and completed validation receipts.
-11. Finalize the retained Phase 2 tables only from that fresh combined receipt.
-12. Deploy/start the matching bot revision and rerun the end-to-end bot and immutable-file import
-    smoke suite.
+Use three newly named databases restored independently from the same approved representative seed.
+Do not reuse the existing Phase 5.1 rehearsal database.
+
+### Forward database
+
+1. Restore the approved representative seed to the newly named forward database without using a
+   database snapshot.
+2. Confirm repository validation, clean committed revisions, backup readiness, capacity, version,
+   compatibility, sessions, grants, source-backup identity, and isolated filesystem roots.
+3. Stop or exclude all bot/import/scheduler/admin/ad-hoc write entry points to that isolated
+   database.
+4. Run the Phase 2 production-shaped preflight, apply Phase 2, and run table/module/digest/DBCC,
+   history, and retryability verification.
+5. Apply the Phase 3 migrations in documented order and run procedure/import/concurrency,
+   authorization, archive-reconciliation, ambient-transaction, equivalence, and workload checks.
+6. Apply `20260727_000_retire_vAllianceActivity_WeeklyCumulative`, then
+   `20260727_001_phase4_view_type_alignment`; run the Phase 4 view, consumer, plan, benchmark, and
+   equivalence checks.
+7. Apply `20260728_001_phase5_immutable_import_file_handoff`, then
+   `20260816_001_phase5_1_claim_acl_hardening`, while writers remain stopped; run the immutable
+   file identity, claim, ACL, failure, retry, duplicate, receipt, archive, and digest smokes.
+8. Run the complete committed-import, source-unchanged, workload, Query Store, and matching bot/DAL
+   matrix. Preserve its receipt and transcript. Durable receipts make early rollback ineligible on
+   this database.
+9. Create the combined pre-finalization receipt bound to the exact Phase 2 run ID, retained-table
+   digests, final module hashes, migration history, SQL commit, bot commits, and validation
+   receipts. Do not finalize this forward database.
+
+### Rollback database
+
+10. Restore the same approved receipt-free seed to a second newly named rollback database. Apply
+    Phases 2–5.1 without committed imports, file claims, receipt-producing protocol smokes, or
+    other post-cutover writes.
+11. Prove no Phase 3 import receipt or Phase 5.1 ACL-hardening evidence exists. Roll back Phase 5.1
+    ACL hardening and Phase 5.0 file protocol in reverse order; restore the four Phase 4 prior view
+    definitions while leaving the approved retired weekly-cumulative view retired; restore Phase
+    3 definitions; then run the Phase 2 metadata-swap rollback.
+12. Verify the original schema/modules/digests, DBCC, sessions, application compatibility, Phase 2
+    retryability, and the exact remaining migration-history rows. Preserve this database and its
+    receipt. Do not edit or delete migration-history rows and do not use
+    `Deploy-SqlMigration.ps1` to reapply rolled-back definitions whose rows still say `Applied`.
+
+### Clean-reapply database
+
+13. Restore the same approved receipt-free seed to a third newly named reapply database and repeat
+    the complete forward path.
+14. Create a new combined receipt for this reapply only. The guarded finalizer may consume only
+    that exact receipt while retaining run-ID, time, lock, table-digest, and no-drift controls.
+15. After finalization, run the matching isolated bot immutable-handoff, restart, failure,
+    duplicate, cancellation, workload, source-unchanged, and operational smoke matrix. Preserve
+    the complete evidence package outside Git.
 
 The Phase 2 finalizer must not be weakened or manually bypassed. Before the combined rehearsal,
 add a guarded adapter or finalizer extension that consumes the combined receipt while retaining
@@ -59,17 +115,23 @@ the exact run-ID, time, lock, table-digest and no-drift controls.
 
 ## Pre-restart rollback order
 
-If any gate fails before finalization or application restart:
+If any gate fails before finalization or application restart on an eligible receipt-free target:
 
 1. keep every write entry point stopped;
-2. roll back the Phase 5 SQL companion file-protocol migration;
+2. roll back the Phase 5.1 ACL-hardening migration, then the Phase 5.0 SQL companion file-protocol
+   migration;
 3. restore the exact four retained Phase 4 prior view definitions; leave the
    approved invalid/unused weekly-cumulative view retired;
 4. restore the exact Phase 3 prior procedure/function definitions;
 5. run the Phase 2 metadata-swap rollback;
-6. verify that `SchemaMigrationHistory` leaves the Phase 2 migration retryable;
+6. verify that `SchemaMigrationHistory` leaves the Phase 2 migration retryable and records the
+   Phase 3/4/5 rows that remain `Applied` despite definition rollback;
 7. rerun original-schema/module/digest/DBCC smokes; and
 8. start only the old bot revision.
+
+Retain the rolled-back database as evidence. Reapply only from the third fresh restore because the
+Phase 3/4/5 rollback scripts do not mark their migration-history rows unapplied. Do not hand-edit
+history or weaken rollback guards.
 
 After finalization or any post-cutover write, metadata-swap rollback is forbidden. Use a reviewed
 forward fix or the documented backup/log recovery branch.
