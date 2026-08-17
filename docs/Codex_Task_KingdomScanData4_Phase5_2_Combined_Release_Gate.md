@@ -2,6 +2,8 @@
 
 **Prepared:** 2026-08-16
 
+**Status refreshed:** 2026-08-17
+
 **SQL repository:** `C:\K98-bot-SQL-Server`
 
 **Bot mirror repository:** `C:\discord_file_downloader` / `K98-bot-mirror`
@@ -15,10 +17,11 @@
 ## 1. Operator Request and Document Boundary
 
 The operator requested a Phase 5.2 task pack after the initial Phase 5.1 functional testing. The
-subsequent real-token ACL evidence failed and triggered a separately authorized remediation. This document
-defines the next task. References listed below supply engineering and operational constraints; they
-do not independently authorize a merge, production promotion, SQL deployment, bot restart, data
-change, or rollback.
+first real-token ACL evidence failed and triggered a separately authorized remediation. That
+failure remains historical evidence. The replacement 2026-08-17 run passed and is the accepted
+Phase 5.1 evidence input recorded below. This document defines the next task. References listed
+below supply engineering and operational constraints; they do not independently authorize a
+merge, production promotion, SQL deployment, bot restart, data change, or rollback.
 
 Phase 5.2 is a combined release gate, not a sixth implementation phase. Its purpose is to bind the
 accepted SQL and bot revisions, rehearse the complete Phases 2–5.1 release from a fresh restore,
@@ -31,19 +34,31 @@ Record and revalidate these values at task start; do not silently substitute new
 
 | Item | Current value | Gate state |
 |---|---|---|
-| SQL accepted Phase 5.0 base | `2e0f228f399bcc7b8bd3d6a758b059466c0474ac` | merged to SQL `main`; insufficient without the separately reviewed ACL remediation |
-| Phase 5.1 bot PR | `K98-bot-mirror#232` | open; remediation commits and review are pending |
+| SQL Phase 5.2 candidate | `368292fe1f291ff20765f3ecb6702a119fb78a20` | current SQL `origin/main`; includes the accepted Phase 5.1 ACL remediation and subsequent reviewed fixes; revalidate at Checkpoint A |
+| Phase 5.1 ACL migration | `20260816_001_phase5_1_claim_acl_hardening` | merged; the successful rehearsal history recorded introducing commit `4d9312a530f2`; pending-migration count was zero and must be revalidated |
+| Phase 5.1 bot PR | `K98-bot-mirror#232`, `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438` | open and frozen at handoff; 29 changed files, clean/mergeable, no unresolved review threads, and no GitHub checks reported; revalidate at Checkpoint A |
 | Bot base commit | `46e5a9cd58a4f475557904226656b2b8cc39dbb2` | frozen review base |
-| Bot pre-remediation head | `a02bb531481b3799a23fe638d50a6b897b0e1c69` | PR #232 head before ACL remediation |
-| Production PR | `K98-bot#539`, head `412294bde86761fa810ad0100596d6ccb418a80d` | open; temporarily exercised on MINI_AMD and not accepted |
-| Phase 5.1 ACL/protocol evidence | failed run retained under `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_1_20260816T173604288Z` | bot replaced and renamed the claimed file; no PASS receipt |
-| Bot-machine branch state | PR #539 code was restarted for testing | must return to merged private `K98-bot/main` and be gracefully restarted before Phase 5.2 |
-| Stable finding `csf_1a1c440452b02cdb787fa7c3` | source hash versus `BULK INSERT` mutation window | pending final receipt-backed disposition |
-| Stable finding `csf_3cb54318733d3a216dd91e9b` | source hash versus archive `MOVE` mutation window | pending final receipt-backed disposition |
+| Production PR | `K98-bot#539`, branch `prod/kingdomscandata4-phase5-1-bot`, head `237eaa585be29b68d8ca0678f5f9b14e54327950` | open and frozen; quality passed, GitHub scan failed; the failed scan is a Checkpoint A gate and must not be dismissed without evidence |
+| Phase 5.1 ACL/protocol evidence | `phase5_1_20260817T155508137Z` under the retained operator evidence root | accepted PASS, evidence version 2; receipt SHA-256 `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`; transcript SHA-256 `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C` |
+| Completed immutable file | `stats_2ba4db28b3a2425e8032f5102ce4a79d.ready.csv` | Ready, claim, and archive SHA-256 all equal `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724`; claim and receipt are archived |
+| Bot-machine branch state | PR #539 was temporarily run on MINI_AMD for evidence collection | unverified entry gate: MINI_AMD must be back on clean private `K98-bot/main`, equal to its `origin/main`, validated, and gracefully restarted before rehearsal |
+| Stable finding `csf_1a1c440452b02cdb787fa7c3` | source hash versus `BULK INSERT` mutation window | receipt-backed closure accepted: the bot token was denied every claimed-file mutation and the source/claim/archive digests match |
+| Stable finding `csf_3cb54318733d3a216dd91e9b` | source hash versus archive `MOVE` mutation window | receipt-backed closure accepted: SQL retained ownership and completed the digest-bound archive transition |
+| Bot Changes evidence | remediation-delta scans `9bcfac4d-37de-4b93-b314-0af15fb42023` and `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` | both reported no findings; retain and verify the original full-branch scan plus these deltas cover the exact final range, or run one final exact-range Changes scan with Deep off |
 | Production SQL and bot | must be probed at go/no-go time | no change authorized by this pack |
 
-The current values are planning inputs, not acceptance claims. If PR #232 changes, rerun every
-head-bound review and test required by Phase 5.1 before freezing the replacement head.
+The current values are accepted handoff inputs where stated, not substitutes for live Checkpoint A
+revalidation. If PR #232 changes, rerun every head-bound review and test required by Phase 5.1
+before freezing the replacement head.
+
+### 2026-08-17 documentation refresh record
+
+SQL PR #64 was rebased from stale base `2e0f228f399bcc7b8bd3d6a758b059466c0474ac` onto SQL
+`origin/main` `368292fe1f291ff20765f3ecb6702a119fb78a20`. The refresh is limited to the six
+status documents named by the operator. It changes no executable SQL, migration, rollback,
+deployment script, bot code, bot test, runtime configuration, permission, data-access,
+dependency, input, network, filesystem, or persistence behavior. Codex Security is therefore
+skipped for this documentation-only diff. `docs/SQL_DELIVERY_LOG.md` remains unchanged.
 
 ## 3. Required Reading
 
@@ -51,8 +66,8 @@ head-bound review and test required by Phase 5.1 before freezing the replacement
 
 - `docs/Codex_Task_KingdomScanData4_Phases3_5.md`
 - `docs/Codex_Task_KingdomScanData4_Phase5_1_Bot_DAL_Immutable_Handoff.md`
-- Phase 5.1 immutable-handoff remediation pack from SQL PR #65; require its merged SQL `main`
-  revision before this Phase 5.2 gate begins
+- `docs/Codex_Task_KingdomScanData4_Phase5_1_Immutable_Handoff_Remediation.md`; merged through SQL
+  PR #65 and included in current SQL `main`, subject to Checkpoint A revision/history validation
 - `performance_remediation/kingdomscandata4/README.md`
 - `performance_remediation/kingdomscandata4/phase2/README.md`
 - `performance_remediation/kingdomscandata4/phase3/README.md`
@@ -109,9 +124,11 @@ Do not begin the combined fresh-restore rehearsal until every item is satisfied.
 - [ ] Receipt evidence proves bot-negative and SQL-positive access on the isolated Ready, Claimed,
       and Archive paths, all on one NTFS volume.
 - [ ] Source/archive digests and claim/receipt identities match for the canonical completed name.
-- [ ] Final bot Codex Security review is **Changes**, Deep off, exact
-      `46e5a9cd58a4f475557904226656b2b8cc39dbb2..48e5f7f98e022d6b21217cf0fd110917576633b4`
-      or the explicitly refreshed base/head.
+- [ ] The retained original full-branch bot Changes review plus remediation-delta scans
+      `9bcfac4d-37de-4b93-b314-0af15fb42023` and
+      `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` demonstrably cover exact range
+      `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`.
+      If they do not, run one final bot **Changes** review for that exact range with Deep off.
 - [ ] Both stable finding IDs have explicit receipt-backed final dispositions.
 - [ ] Final `k98-pr-review` reports no merge blocker.
 - [ ] All actionable PR review threads are answered and resolved.
@@ -462,13 +479,19 @@ under pressure.
 
 ## 18. Immediate Start Sequence
 
-1. Obtain the exact Phase 5.1 `receipt.json` and transcript from the isolated server run.
-2. Validate the receipt against the real-token ACL, identity, digest, claim, import, receipt, and
-   archive requirements.
-3. Run the final bot Changes review at the exact tested PR #232 base/head and disposition both
-   stable finding IDs.
-4. Run final `k98-pr-review`; if it reports no blocker, mark PR #232 ready but keep it unchanged and
-   open through the patch-promotion and bot-machine-test steps in the standard Promotion Guide.
-5. Freeze the SQL and bot inputs and present Checkpoint B before beginning the combined rehearsal.
-6. After the separate production go/no-go, merge the unchanged mirror PR first, then follow the
-   coordinated SQL-first and bot-second production sequence in this pack.
+1. Refresh SQL PR #64 onto current SQL `origin/main`, update the six operator-named status
+   documents, validate the documentation-only diff, update the PR, and stop for operator approval
+   before merging it.
+2. After separate approval and merge of PR #64, perform Checkpoint A only: revalidate every Phase
+   5.1 entry gate, exact PR heads/comments/checks, MINI_AMD production-main state, retained original
+   receipt/hashes, SQL migration/rollback/history state, test evidence, and security coverage.
+3. Stop at Checkpoint A and report every blocker before creating or modifying a rehearsal
+   database.
+4. After operator approval, prepare Checkpoint B: propose the external evidence root and three
+   newly named fresh-restore databases, identify the approved backup without restoring it, collect
+   prerequisites, and present the exact freeze manifest, execution order, tests, security routing,
+   stop conditions, and recovery paths.
+5. Stop at Checkpoint B for separate operator approval before any restore or rehearsal-environment
+   mutation.
+6. After the eventual separate production go/no-go, follow the coordinated SQL-first and bot-second
+   production sequence in this pack. No earlier checkpoint implies production authorization.

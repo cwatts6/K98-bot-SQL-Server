@@ -1,10 +1,14 @@
 # Codex Task Pack — KingdomScanData4 Phase 5.1 Bot, DAL and Immutable Handoff
 
-> 2026-08-16 status: the real-token ACL evidence failed after proving that the bot could replace
+> Historical 2026-08-16 status: the real-token ACL evidence failed after proving that the bot could replace
 > and rename the claimed file. The SQL stop rule in this pack was triggered. The operator then
 > separately authorized the SQL and bot remediation in
-> `Codex_Task_KingdomScanData4_Phase5_1_Immutable_Handoff_Remediation.md`. Phase 5.1 and production
-> PR #539 remain open until that remediation passes.
+> `Codex_Task_KingdomScanData4_Phase5_1_Immutable_Handoff_Remediation.md`.
+
+> Closure 2026-08-17: the replacement evidence run passed and the operator accepted the
+> receipt-backed Phase 5.1 handoff. The historical scope and stop-rule record below are preserved.
+> Bot PR #232 and production PR #539 remain open and frozen; this closure is not authorization to
+> merge, deploy, restart production, change production SQL, or begin Phase 5.2 fresh restores.
 
 ## 1. Task Header
 
@@ -424,3 +428,49 @@ workflow until the ACL and combined protocol proof is accepted.
 Phase 5.1 completion is not production authorization. Phase 5.2 must freeze the exact accepted SQL
 and bot commits, run the combined fresh-restore rehearsal for Phases 2 through 5.1, validate
 promotion order and rollback, then request a separate production go/no-go.
+
+## 17. Dated Closure Record — 2026-08-17
+
+Phase 5.1 implementation and immutable-handoff evidence are closed for entry into the Phase 5.2
+Checkpoint A review, subject to live revalidation of the frozen PRs, bot machine, retained original
+artifacts, and exact Changes-scan coverage.
+
+- SQL evidence commit: `368292fe1f291ff20765f3ecb6702a119fb78a20`.
+- ACL migration: `20260816_001_phase5_1_claim_acl_hardening`; the rehearsal history recorded its
+  introducing commit as `4d9312a530f2`, and the successful rehearsal database reported zero
+  pending migrations.
+- Bot mirror PR #232 frozen range:
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`
+  with 29 changed files.
+- Production PR #539 frozen candidate: branch `prod/kingdomscandata4-phase5-1-bot`, commit
+  `237eaa585be29b68d8ca0678f5f9b14e54327950`. Its quality check passed; its GitHub scan check
+  failed and remains a Phase 5.2 Checkpoint A gate.
+- Successful evidence root:
+  `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_1_20260817T155508137Z`.
+- Run ID: `phase5_1_20260817T155508137Z`; evidence version 2; status `PASS`; machine `MINI_AMD`;
+  isolated database `ROK_TRACKER_BACKUP_TEST_KS4_PHASE3_REHEARSAL`; filesystem NTFS.
+- Receipt SHA-256:
+  `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`.
+- Transcript SHA-256:
+  `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C`.
+- Completed file: `stats_2ba4db28b3a2425e8032f5102ce4a79d.ready.csv`; Ready, claim, and archive
+  SHA-256:
+  `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724`.
+- Bot identity `MINI_AMD\cwatt` and SQL/xp_cmdshell identity `NT SERVICE\MSSQLSERVER` were
+  recorded. ACL hardening time and SQL owner identity were persisted without committing raw ACL
+  output or operator evidence to Git.
+- All five bot-token mutation attempts were denied: overwrite, replacement, rename, delete, and
+  in-place modification. The transcript `TerminatingError` lines are the expected evidence of
+  those deliberate denials, not run failures.
+- SQL claim and receipt finished `archived`; Ready, claim, and archive digests matched;
+  `UPDATE_ALL2` completed in 11,584 ms; the bounded archive digest completed in 126 ms.
+- Stable findings `csf_1a1c440452b02cdb787fa7c3` and
+  `csf_3cb54318733d3a216dd91e9b` have receipt-backed closure evidence.
+- Remediation-delta Changes scans `9bcfac4d-37de-4b93-b314-0af15fb42023` and
+  `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` reported no findings. Checkpoint A must prove the
+  retained original full-branch scan plus these deltas cover the exact final PR #232 range, or run
+  one final exact-range bot Changes scan with Deep off.
+
+All earlier failed or interrupted evidence directories remain part of the audit trail and must not
+be deleted or reset. MINI_AMD's return to clean private production `main` is a separate mandatory
+Phase 5.2 entry gate and is not asserted by this closure record.

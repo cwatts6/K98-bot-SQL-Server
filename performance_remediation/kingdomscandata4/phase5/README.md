@@ -1,11 +1,11 @@
 # KingdomScanData4 Phase 5 — bot, DAL and immutable file handoff
 
-Status updated 2026-08-16. Phase 4 is merged at `74bd8b1`. Phase 5.0 is closed on the SQL
+Status updated 2026-08-17. Phase 4 is merged at `74bd8b1`. Phase 5.0 is closed on the SQL
 repository boundary: the package passes offline contract/repository gates, the pinned isolated
 rehearsal completed forward migration, protocol smokes, exact rollback, clean reapply and final
 verification, and final Changes scan `099379cd-119b-4402-8ecb-cf2e1c105f40` has zero reportable
-findings. The real-token claimed-directory ACL proof remains assigned to Phase 5.1. Nothing in
-this package has been deployed to production.
+findings. Phase 5.1 bot/DAL implementation and its replacement real-token claimed-file ACL proof
+are closed for Phase 5.2 entry review. Nothing in this package has been deployed to production.
 Phase 5.1 bot/DAL implementation belongs to the separate repository at
 `C:\discord_file_downloader`.
 The implementation-ready Phase 5.1 task pack is
@@ -13,11 +13,13 @@ The implementation-ready Phase 5.1 task pack is
 
 The first Phase 5.1 real-token evidence run failed and is retained. It proved that the accepted
 Phase 5.0 move did not itself change the file security descriptor: the real bot token replaced and
-renamed the claimed rehearsal file. Phase 5.1 therefore remains open. The separately authorized
+renamed the claimed rehearsal file. The separately authorized
 remediation package is under `performance_remediation/kingdomscandata4/phase5_1_acl/` and migration
 `20260816_001_phase5_1_claim_acl_hardening`. It transfers ownership away from the bot before the
-final DACL reset and first claimed digest. Production PR #539 remains unmergeable until the corrected
-real-token receipt and both repository Changes reviews pass.
+final DACL reset and first claimed digest. The replacement run
+`phase5_1_20260817T155508137Z` passed and supplies the accepted receipt-backed closure evidence.
+Production PR #539 remains open and frozen; its failed GitHub scan is a Phase 5.2 Checkpoint A gate
+and no merge or deployment is authorized.
 
 ## Delivery slices
 
@@ -106,10 +108,37 @@ The approved design requirements are:
 7. The SQL companion migration is backward/forward ordered for a stopped-writer maintenance
    window and has an exact rollback definition.
 
-The SQL-only slice cannot prove the NTFS boundary. The findings remain open until Phase 5.1
-retains effective `icacls` output and proves, under the real bot token, that overwrite and
-in-place modification of a claimed file are denied while the SQL identity can still hash and
-move it.
+The SQL-only slice could not prove the NTFS boundary. Phase 5.1 retained the required evidence
+outside Git and proved, under the real bot token, that overwrite, replacement, rename, delete, and
+in-place modification of a claimed file are denied while the SQL identity can still hash, import,
+and move it. Both stable findings now have receipt-backed closure evidence.
+
+### Phase 5.1 closure receipt
+
+- Closed for Phase 5.2 entry review: 2026-08-17.
+- SQL commit: `368292fe1f291ff20765f3ecb6702a119fb78a20`; migration
+  `20260816_001_phase5_1_claim_acl_hardening`.
+- Bot mirror PR #232 exact frozen range:
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`.
+- Production candidate: PR #539, branch `prod/kingdomscandata4-phase5-1-bot`, commit
+  `237eaa585be29b68d8ca0678f5f9b14e54327950`.
+- Successful evidence root:
+  `C:\discord_file_downloader\downloads_test_phase5_rehearsal\evidence\phase5_1_20260817T155508137Z`.
+- Receipt SHA-256:
+  `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`.
+- Transcript SHA-256:
+  `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C`.
+- Ready/claim/archive SHA-256:
+  `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724`.
+- Claim and receipt status were `archived`; `UPDATE_ALL2` completed in 11,584 ms and the bounded
+  archive digest in 126 ms.
+- Stable findings `csf_1a1c440452b02cdb787fa7c3` and
+  `csf_3cb54318733d3a216dd91e9b` have receipt-backed closure evidence.
+- Delta Changes scans `9bcfac4d-37de-4b93-b314-0af15fb42023` and
+  `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` reported no findings. Exact final-range coverage remains
+  to be demonstrated at Checkpoint A or replaced by one final Changes scan with Deep off.
+- Earlier failed/interrupted evidence is retained; raw ACL output and operator evidence remain
+  outside Git.
 
 ## Phase 5.0 package
 
@@ -220,8 +249,8 @@ smoke failures surface the underlying cause directly.
 
 ## Exit gate
 
-Phase 5.0 is closed on its SQL repository boundary. Formal Phase 5 closes only when the four
-approved bot paths are implemented, every changed and
-source-unchanged contract smoke passes, the full bot suite is clean, both repository-specific
-security reviews are complete, both mutable-path findings are closed, and the exact SQL and bot
-commits are ready for the combined release rehearsal.
+Phase 5.0 is closed on its SQL repository boundary. Phase 5.1 implementation/evidence is closed for
+Phase 5.2 entry review: the four approved bot paths, changed/source-unchanged contracts, full bot
+validation, and receipt-backed mutable-path finding closure are accepted at the frozen handoff.
+Phase 5.2 must still revalidate exact PR state, final-range security coverage, SQL history, retained
+original evidence, and MINI_AMD production-main state before any combined rehearsal begins.
