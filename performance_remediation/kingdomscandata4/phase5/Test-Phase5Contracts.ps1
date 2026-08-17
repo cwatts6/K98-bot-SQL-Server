@@ -195,6 +195,10 @@ Require-Match $verify 'claimed-file mutation across BULK INSERT' `
 Require-Match $override 'refuses production ROK_TRACKER' 'The test-path override must refuse production.'
 Require-Match $override 'ELSE IF @Definition NOT LIKE N''%'' \+ @TestRoot' `
     'The test-path override must accept only canonical or already test-bound definitions.'
+Require-Match $override "LEFT\(@Definition, LEN\(N'CREATE PROCEDURE'\)\) = N'CREATE PROCEDURE'[\s\S]*STUFF\([\s\S]*N'ALTER PROCEDURE'" `
+    'The test-path override must normalize a retrieved CREATE PROCEDURE before reapplying it.'
+Require-Match $override "THROW 52393, 'Phase 5\.0 test-path override found an unexpected module declaration\.'" `
+    'The test-path override must reject an unexpected dynamic module declaration.'
 Require-Match $smokes 'duplicate_archived' 'The protocol smokes are missing duplicate convergence.'
 Require-Match $smokes 'controlled archive failure' 'The protocol smokes are missing recovery coverage.'
 Require-Match $smokes 'SELECT LastError[\s\S]*WHERE CompletedFileName = @FirstName' `

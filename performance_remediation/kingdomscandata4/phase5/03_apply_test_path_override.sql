@@ -42,6 +42,35 @@ BEGIN
     IF @Definition LIKE N'%' + @ProductionRoot + N'%'
     BEGIN
         SET @Definition = REPLACE(@Definition, @ProductionRoot, @TestRoot);
+
+        /*
+        OBJECT_DEFINITION preserves the module's original CREATE/ALTER verb.
+        Reapplying an override after a migration can therefore return CREATE
+        for an existing procedure. Normalize only that expected leading verb;
+        reject every other definition shape before executing dynamic DDL.
+        */
+        IF LEFT(@Definition, LEN(N'CREATE PROCEDURE')) = N'CREATE PROCEDURE'
+            SET @Definition = STUFF(
+                @Definition,
+                1,
+                LEN(N'CREATE PROCEDURE'),
+                N'ALTER PROCEDURE'
+            );
+        ELSE IF LEFT(@Definition, LEN(N'CREATE PROC')) = N'CREATE PROC'
+            SET @Definition = STUFF(
+                @Definition,
+                1,
+                LEN(N'CREATE PROC'),
+                N'ALTER PROC'
+            );
+        ELSE IF LEFT(@Definition, LEN(N'ALTER PROCEDURE')) <> N'ALTER PROCEDURE'
+            AND LEFT(@Definition, LEN(N'ALTER PROC')) <> N'ALTER PROC'
+            AND LEFT(@Definition, LEN(N'CREATE OR ALTER PROCEDURE'))
+                <> N'CREATE OR ALTER PROCEDURE'
+            AND LEFT(@Definition, LEN(N'CREATE OR ALTER PROC'))
+                <> N'CREATE OR ALTER PROC'
+            THROW 52393, 'Phase 5.0 test-path override found an unexpected module declaration.', 1;
+
         EXEC sys.sp_executesql @Definition;
         EXEC sys.sp_refreshsqlmodule @ObjectName;
     END
