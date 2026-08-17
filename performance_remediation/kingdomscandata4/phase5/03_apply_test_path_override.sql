@@ -16,6 +16,7 @@ DECLARE @TestRoot nvarchar(4000) =
     N'C:\discord_file_downloader\downloads_test_phase5_rehearsal\';
 DECLARE @ObjectName sysname;
 DECLARE @Definition nvarchar(max);
+DECLARE @DeclarationOffset int;
 
 DECLARE override_cursor CURSOR LOCAL FAST_FORWARD FOR
     SELECT ObjectName
@@ -46,28 +47,61 @@ BEGIN
         /*
         OBJECT_DEFINITION preserves the module's original CREATE/ALTER verb.
         Reapplying an override after a migration can therefore return CREATE
-        for an existing procedure. Normalize only that expected leading verb;
+        for an existing procedure. A stored definition can retain leading line
+        breaks or a Unicode BOM, so locate the first non-whitespace character,
+        normalize only the expected leading verb at that exact offset, and
         reject every other definition shape before executing dynamic DDL.
         */
-        IF LEFT(@Definition, LEN(N'CREATE PROCEDURE')) = N'CREATE PROCEDURE'
+        SET @DeclarationOffset = 1;
+
+        WHILE @DeclarationOffset <= LEN(@Definition)
+          AND UNICODE(SUBSTRING(@Definition, @DeclarationOffset, 1))
+                IN (9, 10, 13, 32, 65279)
+            SET @DeclarationOffset += 1;
+
+        IF SUBSTRING(
+                @Definition,
+                @DeclarationOffset,
+                LEN(N'CREATE PROCEDURE')
+            ) = N'CREATE PROCEDURE'
             SET @Definition = STUFF(
                 @Definition,
-                1,
+                @DeclarationOffset,
                 LEN(N'CREATE PROCEDURE'),
                 N'ALTER PROCEDURE'
             );
-        ELSE IF LEFT(@Definition, LEN(N'CREATE PROC')) = N'CREATE PROC'
+        ELSE IF SUBSTRING(
+                @Definition,
+                @DeclarationOffset,
+                LEN(N'CREATE PROC')
+            ) = N'CREATE PROC'
             SET @Definition = STUFF(
                 @Definition,
-                1,
+                @DeclarationOffset,
                 LEN(N'CREATE PROC'),
                 N'ALTER PROC'
             );
-        ELSE IF LEFT(@Definition, LEN(N'ALTER PROCEDURE')) <> N'ALTER PROCEDURE'
-            AND LEFT(@Definition, LEN(N'ALTER PROC')) <> N'ALTER PROC'
-            AND LEFT(@Definition, LEN(N'CREATE OR ALTER PROCEDURE'))
+        ELSE IF SUBSTRING(
+                @Definition,
+                @DeclarationOffset,
+                LEN(N'ALTER PROCEDURE')
+            ) <> N'ALTER PROCEDURE'
+            AND SUBSTRING(
+                @Definition,
+                @DeclarationOffset,
+                LEN(N'ALTER PROC')
+            ) <> N'ALTER PROC'
+            AND SUBSTRING(
+                @Definition,
+                @DeclarationOffset,
+                LEN(N'CREATE OR ALTER PROCEDURE')
+            )
                 <> N'CREATE OR ALTER PROCEDURE'
-            AND LEFT(@Definition, LEN(N'CREATE OR ALTER PROC'))
+            AND SUBSTRING(
+                @Definition,
+                @DeclarationOffset,
+                LEN(N'CREATE OR ALTER PROC')
+            )
                 <> N'CREATE OR ALTER PROC'
             THROW 52393, 'Phase 5.0 test-path override found an unexpected module declaration.', 1;
 
