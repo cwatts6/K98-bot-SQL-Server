@@ -45,7 +45,7 @@ $protocol = Read-RequiredFile 'performance_remediation\kingdomscandata4\phase5\i
 
 Require-Match $migration 'MigrationId:\s*20260816_001_phase5_1_claim_acl_hardening' 'ACL migration ID is missing or incorrect.'
 Require-Match $migration 'Rollback:\s*Included' 'ACL migration must include the guarded early rollback.'
-Require-Match $migration '(?s)ADD AclHardenedAtUtc datetime2\(3\) NULL,\s*AclOwnerIdentity nvarchar\(256\) NULL;\s*GO\s*ALTER TABLE dbo\.KS4_ImportFileClaim WITH CHECK\s*ADD CONSTRAINT CK_KS4_ImportFileClaim_AclEvidence' 'ACL migration must separate the column add from the evidence constraint with a batch boundary.'
+Require-Match $migration '(?s)ALTER TABLE dbo\.KS4_ImportFileClaim\s*ADD\s+AclHardenedAtUtc datetime2\(3\) NULL,\s*AclOwnerIdentity nvarchar\(256\) NULL;\s*\r?\n\s*GO\s*\r?\n\s*ALTER TABLE dbo\.KS4_ImportFileClaim WITH CHECK\s*ADD CONSTRAINT CK_KS4_ImportFileClaim_AclEvidence' 'ACL migration must separate the column add from the evidence constraint with a batch boundary.'
 Require-Match $rollback 'RollbackForMigrationId:\s*20260816_001_phase5_1_claim_acl_hardening' 'ACL rollback targets the wrong migration.'
 Require-Match $rollback 'AclHardenedAtUtc IS NOT NULL' 'ACL rollback must refuse after the hardened contract was used.'
 Require-Match $table 'AclHardenedAtUtc' 'Claim table source is missing the ACL timestamp.'
