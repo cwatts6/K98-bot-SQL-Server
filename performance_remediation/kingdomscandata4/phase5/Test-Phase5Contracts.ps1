@@ -195,7 +195,9 @@ Require-Match $verify 'claimed-file mutation across BULK INSERT' `
 Require-Match $override 'refuses production ROK_TRACKER' 'The test-path override must refuse production.'
 Require-Match $override 'ELSE IF @Definition NOT LIKE N''%'' \+ @TestRoot' `
     'The test-path override must accept only canonical or already test-bound definitions.'
-Require-Match $override "LEFT\(@Definition, LEN\(N'CREATE PROCEDURE'\)\) = N'CREATE PROCEDURE'[\s\S]*STUFF\([\s\S]*N'ALTER PROCEDURE'" `
+Require-Match $override 'UNICODE\(SUBSTRING\(@Definition, @DeclarationOffset, 1\)\)[\s\S]*IN \(9, 10, 13, 32, 65279\)' `
+    'The test-path override must allow only whitespace or a Unicode BOM before a module declaration.'
+Require-Match $override "SUBSTRING\([\s\S]*@DeclarationOffset,[\s\S]*LEN\(N'CREATE PROCEDURE'\)[\s\S]*\) = N'CREATE PROCEDURE'[\s\S]*STUFF\([\s\S]*@DeclarationOffset,[\s\S]*N'ALTER PROCEDURE'" `
     'The test-path override must normalize a retrieved CREATE PROCEDURE before reapplying it.'
 Require-Match $override "THROW 52393, 'Phase 5\.0 test-path override found an unexpected module declaration\.'" `
     'The test-path override must reject an unexpected dynamic module declaration.'
