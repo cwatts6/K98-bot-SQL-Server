@@ -113,9 +113,47 @@ Do not reuse the existing Phase 5.1 rehearsal database.
     duplicate, cancellation, workload, source-unchanged, and operational smoke matrix. Preserve
     the complete evidence package outside Git.
 
-The Phase 2 finalizer must not be weakened or manually bypassed. Before the combined rehearsal,
-add a guarded adapter or finalizer extension that consumes the combined receipt while retaining
-the exact run-ID, time, lock, table-digest and no-drift controls.
+The Phase 2 finalizer must not be weakened or manually bypassed. The release package supplies
+`Invoke-Phase52GuardedFinalizer.ps1` and `combined_receipt.schema.json` as the guarded adapter and
+receipt contract. The adapter leaves `phase2/03_finalize.sql` refusal-by-default and unchanged. It
+requires an external receipt below a non-reparse evidence root, reads and hashes the receipt bytes
+once, requires the operator-frozen receipt SHA-256 and exact SQL/bot commits, and validates:
+
+- the clean-reapply stage, PASS status, backup checksum/`RESTORE VERIFYONLY` evidence and all nine
+  combined gates;
+- the exact six ordered Phase 2-5.1 migration IDs and repository file SHA-256 values;
+- the exact Phase 2 run ID, row counts and six baseline/forward table digests;
+- concrete retained module, changed-file and validation-manifest paths below the evidence root,
+  each re-read and checked against its receipt-bound digest, plus at least one exact SQL Changes
+  scan ID;
+- the reviewed Phase 2 finalizer path and SHA-256;
+- for live validation, a fresh eligible `VERIFIED` state row and six matching `Applied`
+  migration-history rows; and
+- for live validation and execution, a clean SQL repository at the exact receipt-bound commit.
+
+`-OfflineValidationOnly` validates the external receipt and repository inputs without SQL access.
+`-LiveValidationOnly` adds read-only SQL state/history and receipt-freshness validation but does
+not finalize. Execution
+requires separate `-ConfirmReceiptAccepted`, `-ConfirmWritersStopped` and
+`-ConfirmIrreversibleFinalize` switches. `ROK_TRACKER` additionally requires
+`-ConfirmProductionTarget` and a production-purpose receipt. After all checks, the adapter changes
+only the two confirmation declarations in an in-memory copy of the reviewed finalizer. It creates
+randomly named authorized-SQL and execution-receipt files without overwrite, verifies each open
+handle's final Windows path, and retains both exclusive handles throughout execution so a local
+link swap cannot redirect later privileged content writes. It then executes the exact in-memory
+text and requires durable `FINALIZED` state plus a finalization receipt. The existing finalizer still
+rechecks receipt freshness, sessions, application lock, exclusive table locks, row counts and all
+six data digests inside its transaction before it drops a retained table.
+
+Run the deterministic refusal/contract suite before any live use:
+
+```powershell
+.\performance_remediation\kingdomscandata4\release\Test-Phase52GuardedFinalizer.ps1
+```
+
+Never use execution mode at Checkpoint B. Use offline/live validation to prepare evidence, then
+execute only after Checkpoint C accepts the exact combined receipt. Production use still requires
+the separate production go/no-go.
 
 ## Pre-restart rollback order
 
