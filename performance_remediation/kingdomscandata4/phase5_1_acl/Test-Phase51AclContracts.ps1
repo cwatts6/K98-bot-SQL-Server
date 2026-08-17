@@ -42,6 +42,7 @@ $claim = Read-RequiredFile 'sql_schema\dbo.CLAIM_KS4_IMPORT_FILE.StoredProcedure
 $preflight = Read-RequiredFile 'performance_remediation\kingdomscandata4\phase5_1_acl\01_preflight.sql'
 $verify = Read-RequiredFile 'performance_remediation\kingdomscandata4\phase5_1_acl\02_verify.sql'
 $protocol = Read-RequiredFile 'performance_remediation\kingdomscandata4\phase5\immutable_file_protocol.md'
+$readme = Read-RequiredFile 'performance_remediation\kingdomscandata4\phase5_1_acl\README.md'
 
 Require-Match $migration 'MigrationId:\s*20260816_001_phase5_1_claim_acl_hardening' 'ACL migration ID is missing or incorrect.'
 Require-Match $migration 'Rollback:\s*Included' 'ACL migration must include the guarded early rollback.'
@@ -67,6 +68,9 @@ Require-Match $preflight 'ClaimStatus NOT IN \(N''archived'', N''duplicate_archi
 Require-Match $verify 'is_not_trusted = 0' 'ACL verification must require a trusted evidence constraint.'
 Require-Match $protocol 'transfers file ownership to the xp_cmdshell identity' 'Immutable protocol does not document the owner transition.'
 Require-Match $protocol 'final reset of\s+that exact file to the inherited Claimed-directory DACL' 'Immutable protocol does not document the final runtime DACL transition.'
+Require-Match $readme 'phase5/03_apply_test_path_override\.sql' 'Phase 5.1 runbook must reapply the isolated test-path override after migration.'
+Require-Order $readme 'deploy the ACL migration' 'phase5/03_apply_test_path_override.sql' 'Phase 5.1 runbook must apply the test-path override after migration deployment.'
+Require-Order $readme 'phase5/03_apply_test_path_override.sql' 'Run the real-token evidence' 'Phase 5.1 runbook must apply the test-path override before real-token evidence.'
 
 if ($failures.Count -ne 0) {
     foreach ($failure in $failures) {

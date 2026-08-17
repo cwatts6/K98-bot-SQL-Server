@@ -38,16 +38,19 @@ This package changes the SQL claim boundary and bot operational evidence togethe
 2. Use the reviewed failed-evidence reset against only the pinned isolated database and identity.
 3. Stop the bot writer.
 4. Configure the isolated directory ACLs and retain the JSON receipt.
-5. Run `01_preflight.sql`, deploy the ACL migration, and run `02_verify.sql`.
-6. Deploy the corrected bot mirror revision to the test machine.
-7. Start the bot through `StartDLBotAfterSQL` and resolve its published PID.
-8. Run the real-token evidence using exact expected SQL and bot commits.
-9. Require `receipt.json`, five denied mutation attempts, matching digests, persisted ACL evidence,
+5. Run `01_preflight.sql` and deploy the ACL migration.
+6. Because that migration redeploys `CLAIM_KS4_IMPORT_FILE`, reapply the reviewed isolated-database
+   `phase5/03_apply_test_path_override.sql`; it must refuse `ROK_TRACKER` and prove all four
+   filesystem-owning procedures contain only the rehearsal root. Then run `02_verify.sql`.
+7. Deploy the corrected bot mirror revision to the test machine.
+8. Start the bot through `StartDLBotAfterSQL` and resolve its published PID.
+9. Run the real-token evidence using exact expected SQL and bot commits.
+10. Require `receipt.json`, five denied mutation attempts, matching digests, persisted ACL evidence,
    and an archived SQL receipt.
-10. Run separate Changes security reviews for the SQL and bot diffs.
-11. Update production PR #539 through the patch-based promotion flow; do not merge it before the
+11. Run separate Changes security reviews for the SQL and bot diffs.
+12. Update production PR #539 through the patch-based promotion flow; do not merge it before the
     evidence and review gates pass.
-12. After the corrected production PR is merged, switch MINI_AMD back to `K98-bot/main`, pull,
+13. After the corrected production PR is merged, switch MINI_AMD back to `K98-bot/main`, pull,
     validate, and gracefully restart. Phase 5.2 must not begin while the machine is on a PR branch.
 
 The rollback is deliberately early-only. It refuses once a claim records ACL-hardening evidence.
