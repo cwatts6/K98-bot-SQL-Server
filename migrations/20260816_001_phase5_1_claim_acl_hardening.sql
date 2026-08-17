@@ -1,3 +1,105 @@
+/*
+MigrationId: 20260816_001_phase5_1_claim_acl_hardening
+Purpose: Transfer ownership of each claimed KS4 import file, reset it to the Claimed directory ACL, and verify before the first digest
+Author: cwatts
+CreatedUtc: 2026-08-16
+RequiresBackup: Yes
+RiskLevel: High
+Rollback: Included
+RollbackScript: migrations/rollback/20260816_001_phase5_1_claim_acl_hardening_rollback.sql
+TransactionMode: Required
+DataChange: No
+DataSafetyPlan: Included
+EstimatedRowsAffected: 0 data rows; adds two nullable ACL evidence columns
+PreValidationQuery: Run performance_remediation/kingdomscandata4/phase5_1_acl/01_preflight.sql
+PostValidationQuery: Run performance_remediation/kingdomscandata4/phase5_1_acl/02_verify.sql
+RelatedBotPR: cwatts6/K98-bot-mirror#232
+RelatedSQLPR:
+*/
+
+/*
+Deployment safety:
+    - Stop the bot writer and all direct import callers.
+    - Configure and verify the Ready, Claimed and Archive directory ACLs before this migration.
+    - Require no in-flight or failed claim. Archived history may remain.
+    - The SQL/xp_cmdshell identity must inherit Full Control on files created in Ready so it can
+      transfer ownership and then perform the final DACL reset after the same-volume move.
+    - The Claimed directory must grant the bot read-only access at most and the SQL identity Full
+      Control. The migration never weakens a directory ACL.
+    - Rollback is an early rollback only and refuses after any claim records ACL-hardening evidence.
+*/
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET ANSI_WARNINGS ON;
+SET ARITHABORT ON;
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+SET LOCK_TIMEOUT 60000;
+
+BEGIN TRANSACTION;
+
+DECLARE @MigrationLockResult int;
+EXEC @MigrationLockResult = sys.sp_getapplock
+    @Resource = N'K98:KingdomScanData4:Migration',
+    @LockMode = N'Exclusive',
+    @LockOwner = N'Transaction',
+    @LockTimeout = 60000,
+    @DbPrincipal = N'public';
+
+IF @MigrationLockResult < 0
+    THROW 52510, 'Phase 5.1 ACL migration could not acquire the migration mutex.', 1;
+
+DECLARE @ImportLockResult int;
+EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
+    @LockTimeout = 60000,
+    @LockResult = @ImportLockResult OUTPUT;
+
+IF @ImportLockResult < 0
+    THROW 52511, 'Phase 5.1 ACL migration could not acquire the import mutex.', 1;
+
+IF OBJECT_ID(N'dbo.KS4_ImportFileClaim', N'U') IS NULL
+   OR OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P') IS NULL
+    THROW 52512, 'Phase 5.1 ACL migration requires the deployed Phase 5.0 claim contract.', 1;
+
+IF COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclHardenedAtUtc') IS NOT NULL
+   OR COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclOwnerIdentity') IS NOT NULL
+    THROW 52513, 'Phase 5.1 ACL migration refused a partial or previously applied schema.', 1;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM dbo.KS4_ImportFileClaim
+    WHERE ClaimStatus NOT IN (N'archived', N'duplicate_archived')
+)
+    THROW 52514, 'Phase 5.1 ACL migration requires every existing claim to be terminal.', 1;
+
+IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) LIKE N'%ICACLS%'
+    THROW 52515, 'Phase 5.1 ACL migration refused an already-hardened or drifted claim procedure.', 1;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.crypt_properties
+    WHERE class_desc = N'OBJECT_OR_COLUMN'
+      AND major_id = OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE')
+)
+    THROW 52516, 'Phase 5.1 ACL migration found a signed claim procedure; preserve its signature explicitly.', 1;
+
+ALTER TABLE dbo.KS4_ImportFileClaim
+ADD AclHardenedAtUtc datetime2(3) NULL,
+    AclOwnerIdentity nvarchar(256) NULL;
+
+ALTER TABLE dbo.KS4_ImportFileClaim WITH CHECK
+ADD CONSTRAINT CK_KS4_ImportFileClaim_AclEvidence
+CHECK
+(
+    (AclHardenedAtUtc IS NULL AND AclOwnerIdentity IS NULL)
+    OR (AclHardenedAtUtc IS NOT NULL AND AclOwnerIdentity IS NOT NULL)
+);
+GO
+
+-- Source: sql_schema\dbo.CLAIM_KS4_IMPORT_FILE.StoredProcedure.sql
 SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CLAIM_KS4_IMPORT_FILE]') AND type in (N'P', N'PC'))
@@ -291,3 +393,35 @@ BEGIN
         THROW;
     END CATCH;
 END
+GO
+
+IF COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclHardenedAtUtc') IS NULL
+   OR COL_LENGTH(N'dbo.KS4_ImportFileClaim', N'AclOwnerIdentity') IS NULL
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) NOT LIKE N'%ICACLS%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) NOT LIKE N'%/RESET /Q%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) NOT LIKE N'%/SETOWNER "%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P')) NOT LIKE N'%/VERIFY /Q%'
+    THROW 52517, 'Phase 5.1 ACL migration post-validation failed.', 1;
+
+IF CHARINDEX(
+       N'/SETOWNER "',
+       OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+   ) >= CHARINDEX(
+       N'/RESET /Q',
+       OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+   )
+    THROW 52518, 'Phase 5.1 ACL migration did not transfer ownership before the final DACL reset.', 1;
+
+IF CHARINDEX(
+       N'/RESET /Q',
+       OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+   ) >= CHARINDEX(
+       N'EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE',
+       OBJECT_DEFINITION(OBJECT_ID(N'dbo.CLAIM_KS4_IMPORT_FILE', N'P'))
+   )
+    THROW 52519, 'Phase 5.1 ACL migration did not harden the file before the first digest.', 1;
+
+EXEC sys.sp_refreshsqlmodule N'dbo.CLAIM_KS4_IMPORT_FILE';
+
+COMMIT TRANSACTION;
+GO

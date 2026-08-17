@@ -1,6 +1,6 @@
 # KingdomScanData4 Phases 3–5 delivery plan
 
-Status updated 2026-07-28. Phases 1 and 2 are closed on the representative-copy evidence
+Status updated 2026-08-16. Phases 1 and 2 are closed on the representative-copy evidence
 boundary. Phase 3 implementation and representative-copy rehearsal are complete and frozen at
 `62cb739`. The Phase 4 implementation package is authored on
 `codex/kingdomscandata4-phase4`; its isolated forward/rollback/reapply,
@@ -11,6 +11,14 @@ operator-facing 5.0 SQL, 5.1 bot/DAL, and 5.2 combined-release slices described 
 Production execution is not
 authorized. This plan replaces task-list ordering that mixed Phase 2
 acceptance with later coordinated-release work.
+
+The first Phase 5.1 real-token ACL run failed: the bot replaced and renamed a claimed rehearsal
+file because the same-volume move retained its writable Ready ACL. The original Phase 5.1 SQL stop
+rule fired. The operator separately authorized migration
+`20260816_001_phase5_1_claim_acl_hardening` and the matching bot remediation. Phase 5.1 and
+production PR #539 remain open; Phase 5.2 is blocked until corrected receipt-backed evidence and
+both repository Changes reviews pass. MINI_AMD must then return to private production `main`
+before Phase 5.2 begins.
 
 ## Authoritative order
 
