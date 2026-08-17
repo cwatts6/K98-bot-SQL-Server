@@ -89,6 +89,7 @@ IF EXISTS
 ALTER TABLE dbo.KS4_ImportFileClaim
 ADD AclHardenedAtUtc datetime2(3) NULL,
     AclOwnerIdentity nvarchar(256) NULL;
+GO
 
 ALTER TABLE dbo.KS4_ImportFileClaim WITH CHECK
 ADD CONSTRAINT CK_KS4_ImportFileClaim_AclEvidence
