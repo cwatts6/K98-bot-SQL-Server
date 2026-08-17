@@ -107,6 +107,8 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CL
 BEGIN
 EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[CLAIM_KS4_IMPORT_FILE] AS'
 END
+GO
+
 ALTER PROCEDURE [dbo].[CLAIM_KS4_IMPORT_FILE]
     @CompletedFileName [nvarchar](260),
     @FileDigest [binary](32) OUTPUT,
