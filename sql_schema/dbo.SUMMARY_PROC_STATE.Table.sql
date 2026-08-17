@@ -4,7 +4,7 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SU
 BEGIN
 CREATE TABLE [dbo].[SUMMARY_PROC_STATE](
 	[MetricName] [nvarchar](100) COLLATE Latin1_General_CI_AS NOT NULL,
-	[LastScanOrder] [int] NULL,
+	[LastScanOrder] [float] NULL,
 	[LastRunTime] [datetime] NULL,
 PRIMARY KEY CLUSTERED 
 (
