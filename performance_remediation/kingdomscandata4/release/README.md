@@ -4,10 +4,12 @@ This is a release gate after Phases 2 through 5. It is not a sixth implementatio
 does not authorize production execution.
 
 Current status 2026-08-17: the Phase 5.0 SQL entry component and Phase 5.1 bot/DAL plus
-receipt-backed real-token ACL evidence are closed for Phase 5.2 entry review. SQL PR #64 is being
-refreshed onto SQL `origin/main` `368292fe1f291ff20765f3ecb6702a119fb78a20`. Exact live PR,
-security-coverage, SQL-history, retained-original, and MINI_AMD return-to-main facts remain
-Checkpoint A gates. The combined rehearsal has not started.
+receipt-backed real-token ACL evidence are closed for Phase 5.2 entry review. SQL PR #64 merged as
+clean SQL `main`/`origin/main` `3a6162d981a48f4bcebc6e31c45db4e61614393f`; executable evidence
+remains bound to `368292fe1f291ff20765f3ecb6702a119fb78a20`. Checkpoint A refreshed bot
+PR #232 to `f95ead9d348bdf45726fb9ce1e73f6ed2a20483a` and production PR #539 to
+`53eaeb66b99538778ad7cd95a974dcd0bc8ccd55`. SQL-history, retained-original, and MINI_AMD
+return-to-main facts remain blocking live gates. The combined rehearsal has not started.
 
 ## Entry criteria
 
@@ -23,8 +25,9 @@ Checkpoint A gates. The combined rehearsal has not started.
 Accepted Phase 5.1 handoff evidence:
 
 - bot mirror PR #232 frozen range
-  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`;
-- production PR #539 candidate `237eaa585be29b68d8ca0678f5f9b14e54327950`;
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..f95ead9d348bdf45726fb9ce1e73f6ed2a20483a`;
+- production PR #539 candidate `53eaeb66b99538778ad7cd95a974dcd0bc8ccd55`, based on production
+  `main` `caabd2c7dc77aec67f2748a1b9b66fdf53a4aa02`;
 - run `phase5_1_20260817T155508137Z`, evidence version 2, status PASS;
 - receipt SHA-256
   `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`;
@@ -35,12 +38,13 @@ Accepted Phase 5.1 handoff evidence:
 - overwrite, replacement, rename, delete, and in-place modification all denied to the bot token;
   SQL claim/import/archive completed and both finding IDs have receipt-backed closure evidence.
 
-The remediation-delta Changes scans
-`9bcfac4d-37de-4b93-b314-0af15fb42023` and
-`7bf41033-74d7-41ab-9726-6daa2f4a1ee7` reported no findings. Checkpoint A must prove the original
-full-branch scan plus these deltas cover the exact final PR #232 range, or run one final exact-range
-bot Changes scan with Deep off. PR #539's failed GitHub scan also remains a blocking inspection
-gate. No Codebase or Deep scan is authorized.
+Exact contiguous bot Changes coverage is retained through scan
+`c6761a00-3670-48f5-965f-43fe3228e675` for the original full range, scan
+`02d8e353-4eec-40e9-bafa-4fd4c53ac860` for the archive-descendant ACL remediation, and closure
+scan `0ecf75bf-359c-4503-a6c8-3fcbed84c98e` for the hard-link rejection delta. Finding
+`csf_38e8134cbe97537f0652c431` is closed by the final commit, disposable NTFS negative probe,
+repository gates, and zero-finding closure scan. PR #539's quality and scan checks now pass. No
+Codebase or Deep scan was run or authorized.
 
 The closed Phase 4 SQL artifact is bound to final Changes scan
 `e6ce0a1d-7aba-428a-b40a-61001c924143` and reviewed snapshot

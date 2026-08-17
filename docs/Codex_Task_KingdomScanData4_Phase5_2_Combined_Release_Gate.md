@@ -34,17 +34,18 @@ Record and revalidate these values at task start; do not silently substitute new
 
 | Item | Current value | Gate state |
 |---|---|---|
-| SQL Phase 5.2 candidate | `368292fe1f291ff20765f3ecb6702a119fb78a20` | current SQL `origin/main`; includes the accepted Phase 5.1 ACL remediation and subsequent reviewed fixes; revalidate at Checkpoint A |
+| SQL Phase 5.2 repository head | `3a6162d981a48f4bcebc6e31c45db4e61614393f` | current clean SQL `main`/`origin/main`; executable Phase 5.1 evidence remains bound to `368292fe1f291ff20765f3ecb6702a119fb78a20` |
 | Phase 5.1 ACL migration | `20260816_001_phase5_1_claim_acl_hardening` | merged; the successful rehearsal history recorded introducing commit `4d9312a530f2`; pending-migration count was zero and must be revalidated |
-| Phase 5.1 bot PR | `K98-bot-mirror#232`, `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438` | open and frozen at handoff; 29 changed files, clean/mergeable, no unresolved review threads, and no GitHub checks reported; revalidate at Checkpoint A |
+| Phase 5.1 bot PR | `K98-bot-mirror#232`, `46e5a9cd58a4f475557904226656b2b8cc39dbb2..f95ead9d348bdf45726fb9ce1e73f6ed2a20483a` | open, 29 changed files, clean/mergeable, no unresolved review threads; GitHub reports a workflow run with no jobs |
 | Bot base commit | `46e5a9cd58a4f475557904226656b2b8cc39dbb2` | frozen review base |
-| Production PR | `K98-bot#539`, branch `prod/kingdomscandata4-phase5-1-bot`, head `237eaa585be29b68d8ca0678f5f9b14e54327950` | open and frozen; quality passed, GitHub scan failed; the failed scan is a Checkpoint A gate and must not be dismissed without evidence |
+| Production PR | `K98-bot#539`, branch `prod/kingdomscandata4-phase5-1-bot`, head `53eaeb66b99538778ad7cd95a974dcd0bc8ccd55` | open; based on production `main` `caabd2c7dc77aec67f2748a1b9b66fdf53a4aa02`; quality and scan checks pass; 29 promoted file objects match mirror head `f95ead9d...` |
 | Phase 5.1 ACL/protocol evidence | `phase5_1_20260817T155508137Z` under the retained operator evidence root | accepted PASS, evidence version 2; receipt SHA-256 `C9319B9980AE270C0F7C8D2891012E538951D052D206114C9F9828851279EDCF`; transcript SHA-256 `91A6C281230B441B1111417366D79D1A532B8296E10017BB38BE63B288236B4C` |
 | Completed immutable file | `stats_2ba4db28b3a2425e8032f5102ce4a79d.ready.csv` | Ready, claim, and archive SHA-256 all equal `B4355635986F5BF365AEADD3E7DA91F5A0ED5D65D33A976A726FFB125100A724`; claim and receipt are archived |
 | Bot-machine branch state | PR #539 was temporarily run on MINI_AMD for evidence collection | unverified entry gate: MINI_AMD must be back on clean private `K98-bot/main`, equal to its `origin/main`, validated, and gracefully restarted before rehearsal |
 | Stable finding `csf_1a1c440452b02cdb787fa7c3` | source hash versus `BULK INSERT` mutation window | receipt-backed closure accepted: the bot token was denied every claimed-file mutation and the source/claim/archive digests match |
 | Stable finding `csf_3cb54318733d3a216dd91e9b` | source hash versus archive `MOVE` mutation window | receipt-backed closure accepted: SQL retained ownership and completed the digest-bound archive transition |
-| Bot Changes evidence | remediation-delta scans `9bcfac4d-37de-4b93-b314-0af15fb42023` and `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` | both reported no findings; retain and verify the original full-branch scan plus these deltas cover the exact final range, or run one final exact-range Changes scan with Deep off |
+| Stable finding `csf_38e8134cbe97537f0652c431` | archive hard links could redirect privileged ACL/owner changes outside the approved root | fixed by rejecting `LinkType=HardLink` before each privileged sink; disposable NTFS negative probe, repository gates, full pytest, and exact closure scan passed |
+| Bot Changes evidence | `c6761a00-3670-48f5-965f-43fe3228e675`, `02d8e353-4eec-40e9-bafa-4fd4c53ac860`, and `0ecf75bf-359c-4503-a6c8-3fcbed84c98e` | exact contiguous coverage from `46e5a9c...` through `f95ead9d...`; the middle scan reported the hard-link finding and the final delta closed it with zero findings; Deep off throughout |
 | Production SQL and bot | must be probed at go/no-go time | no change authorized by this pack |
 
 The current values are accepted handoff inputs where stated, not substitutes for live Checkpoint A
@@ -59,6 +60,12 @@ status documents named by the operator. It changes no executable SQL, migration,
 deployment script, bot code, bot test, runtime configuration, permission, data-access,
 dependency, input, network, filesystem, or persistence behavior. Codex Security is therefore
 skipped for this documentation-only diff. `docs/SQL_DELIVERY_LOG.md` remains unchanged.
+
+PR #64 subsequently merged as SQL commit `3a6162d981a48f4bcebc6e31c45db4e61614393f`.
+Checkpoint A found and remediated one bot ACL-descendant issue, refreshing PRs #232 and #539 to
+the exact heads recorded above. This follow-up changes only the same six status documents,
+records a documentation-only security-review skip for the same reason, and still leaves
+`docs/SQL_DELIVERY_LOG.md` unchanged.
 
 ## 3. Required Reading
 
@@ -124,12 +131,16 @@ Do not begin the combined fresh-restore rehearsal until every item is satisfied.
 - [ ] Receipt evidence proves bot-negative and SQL-positive access on the isolated Ready, Claimed,
       and Archive paths, all on one NTFS volume.
 - [ ] Source/archive digests and claim/receipt identities match for the canonical completed name.
-- [ ] The retained original full-branch bot Changes review plus remediation-delta scans
-      `9bcfac4d-37de-4b93-b314-0af15fb42023` and
-      `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` demonstrably cover exact range
-      `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`.
-      If they do not, run one final bot **Changes** review for that exact range with Deep off.
-- [ ] Both stable finding IDs have explicit receipt-backed final dispositions.
+- [ ] Exact contiguous bot Changes evidence is retained: scan
+      `c6761a00-3670-48f5-965f-43fe3228e675` covers
+      `46e5a9cd58a4f475557904226656b2b8cc39dbb2..03ea272a9480bbc2cc360bfd574e3b5c9205f438`,
+      scan `02d8e353-4eec-40e9-bafa-4fd4c53ac860` covers
+      `03ea272a9480bbc2cc360bfd574e3b5c9205f438..b4d87f19eff76619c3a5ada471679e345bd0d96d`,
+      and closure scan `0ecf75bf-359c-4503-a6c8-3fcbed84c98e` covers
+      `b4d87f19eff76619c3a5ada471679e345bd0d96d..f95ead9d348bdf45726fb9ce1e73f6ed2a20483a`;
+      all used Changes mode with Deep off.
+- [ ] Both original stable finding IDs have receipt-backed final dispositions, and
+      `csf_38e8134cbe97537f0652c431` has exact-delta code/test/scan closure evidence.
 - [ ] Final `k98-pr-review` reports no merge blocker.
 - [ ] All actionable PR review threads are answered and resolved.
 - [ ] PR #232 is accepted as ready to merge at the exact reviewed head and remains unchanged.

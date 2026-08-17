@@ -18,8 +18,9 @@ rule fired. The operator separately authorized migration
 `20260816_001_phase5_1_claim_acl_hardening` and the matching bot remediation. The replacement
 evidence run `phase5_1_20260817T155508137Z` passed and its receipt-backed stable-finding closure is
 accepted. Phase 5.1 implementation/evidence is closed for Phase 5.2 entry review. Bot PR #232 and
-production PR #539 remain open and frozen; MINI_AMD return-to-main, exact scan coverage, PR checks,
-and all other live entry facts remain mandatory Checkpoint A gates.
+production PR #539 remain open and frozen. Exact final-range scan coverage and PR checks were
+refreshed after the Checkpoint A ACL-descendant correction; MINI_AMD return-to-main, retained
+originals, live SQL history, and all other live entry facts remain mandatory gates.
 
 ## Authoritative order
 
@@ -183,6 +184,20 @@ histories, tests and Changes reviews.
 - Delta Changes scans `9bcfac4d-37de-4b93-b314-0af15fb42023` and
   `7bf41033-74d7-41ab-9726-6daa2f4a1ee7` reported no findings. Checkpoint A must prove combined
   coverage of the exact final range or run one final exact-range bot Changes scan with Deep off.
+
+#### Phase 5.2 Checkpoint A correction — 2026-08-17
+
+- Bot PR #232 replacement range:
+  `46e5a9cd58a4f475557904226656b2b8cc39dbb2..f95ead9d348bdf45726fb9ce1e73f6ed2a20483a`.
+- Original exact-range Changes scan `c6761a00-3670-48f5-965f-43fe3228e675` closed the base through
+  `03ea272a...`. Scan `02d8e353-4eec-40e9-bafa-4fd4c53ac860` reported archive hard-link finding
+  `csf_38e8134cbe97537f0652c431`; closure scan
+  `0ecf75bf-359c-4503-a6c8-3fcbed84c98e` reported zero findings through `f95ead9d...`.
+- Full pytest passed `2823 passed, 2 skipped`; pre-commit, focused tests, K98 validators,
+  PowerShell parsing, and disposable NTFS descendant/reparse/hard-link probes passed.
+- Production PR #539 replacement head `53eaeb66b99538778ad7cd95a974dcd0bc8ccd55` is a 29-file
+  object-for-object patch promotion from production `main`
+  `caabd2c7dc77aec67f2748a1b9b66fdf53a4aa02`; quality and scan checks pass.
 - This closes neither PR, authorizes no merge/deployment/restart, and does not permit production
   SQL execution or a `docs/SQL_DELIVERY_LOG.md` update.
 
