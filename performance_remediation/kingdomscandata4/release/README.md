@@ -137,9 +137,11 @@ not finalize. Execution
 requires separate `-ConfirmReceiptAccepted`, `-ConfirmWritersStopped` and
 `-ConfirmIrreversibleFinalize` switches. `ROK_TRACKER` additionally requires
 `-ConfirmProductionTarget` and a production-purpose receipt. After all checks, the adapter changes
-only the two confirmation declarations in an in-memory copy of the reviewed finalizer, retains an
-authorized SQL copy and execution receipt outside Git, executes the exact in-memory text, and
-requires durable `FINALIZED` state plus a finalization receipt. The existing finalizer still
+only the two confirmation declarations in an in-memory copy of the reviewed finalizer. It creates
+randomly named authorized-SQL and execution-receipt files without overwrite, verifies each open
+handle's final Windows path, and retains both exclusive handles throughout execution so a local
+link swap cannot redirect later privileged content writes. It then executes the exact in-memory
+text and requires durable `FINALIZED` state plus a finalization receipt. The existing finalizer still
 rechecks receipt freshness, sessions, application lock, exclusive table locks, row counts and all
 six data digests inside its transaction before it drops a retained table.
 

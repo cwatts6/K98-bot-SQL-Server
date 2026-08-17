@@ -164,13 +164,111 @@ function Test-DatabaseNull {
     return $null -eq $Value -or [Convert]::IsDBNull($Value)
 }
 
+function Initialize-K98FinalPathNative {
+    if ($null -ne ('K98Phase52FinalPathNative' -as [type])) {
+        return
+    }
+
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+using Microsoft.Win32.SafeHandles;
+
+public static class K98Phase52FinalPathNative
+{
+    [DllImport("kernel32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
+    public static extern uint GetFinalPathNameByHandle(
+        SafeFileHandle handle,
+        StringBuilder path,
+        uint pathLength,
+        uint flags);
+}
+'@ | Out-Null
+}
+
+function Get-K98FinalPathForStream {
+    param(
+        [Parameter(Mandatory)]
+        [IO.FileStream]$Stream
+    )
+
+    Initialize-K98FinalPathNative
+    $buffer = [Text.StringBuilder]::new(32768)
+    $length = [K98Phase52FinalPathNative]::GetFinalPathNameByHandle(
+        $Stream.SafeFileHandle,
+        $buffer,
+        [uint32]$buffer.Capacity,
+        0
+    )
+    if ($length -eq 0) {
+        $errorCode = [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+        throw [ComponentModel.Win32Exception]::new(
+            $errorCode,
+            'Could not resolve the final evidence file path.'
+        )
+    }
+    if ($length -ge $buffer.Capacity) {
+        throw 'The resolved evidence file path exceeded the supported length.'
+    }
+
+    $resolvedPath = $buffer.ToString()
+    if ($resolvedPath.StartsWith('\\?\UNC\', [StringComparison]::OrdinalIgnoreCase)) {
+        $resolvedPath = '\\' + $resolvedPath.Substring(8)
+    }
+    elseif ($resolvedPath.StartsWith('\\?\', [StringComparison]::OrdinalIgnoreCase)) {
+        $resolvedPath = $resolvedPath.Substring(4)
+    }
+    return [IO.Path]::GetFullPath($resolvedPath)
+}
+
+function New-K98BoundEvidenceStream {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $expectedPath = [IO.Path]::GetFullPath($Path)
+    $stream = [IO.FileStream]::new(
+        $expectedPath,
+        [IO.FileMode]::CreateNew,
+        [IO.FileAccess]::Write,
+        [IO.FileShare]::None,
+        4096,
+        [IO.FileOptions]::WriteThrough
+    )
+    try {
+        $resolvedPath = Get-K98FinalPathForStream -Stream $stream
+        if (-not $resolvedPath.Equals(
+                $expectedPath,
+                [StringComparison]::OrdinalIgnoreCase
+            )) {
+            throw (
+                'The evidence file handle resolved outside the intended ' +
+                "evidence path. Expected: $expectedPath; resolved: $resolvedPath"
+            )
+        }
+        return [pscustomobject]@{
+            Path = $expectedPath
+            Stream = $stream
+        }
+    }
+    catch {
+        $stream.Dispose()
+        throw
+    }
+}
+
 function Assert-PathIsContainedAndNotReparse {
     param(
         [Parameter(Mandatory)]
         [string]$Root,
 
         [Parameter(Mandatory)]
-        [string]$Path
+        [string]$Path,
+
+        [ValidateSet('File', 'Directory')]
+        [string]$PathType = 'File'
     )
 
     $rootItem = Get-Item -LiteralPath $Root -Force -ErrorAction Stop
@@ -178,8 +276,11 @@ function Assert-PathIsContainedAndNotReparse {
     if (-not $rootItem.PSIsContainer) {
         throw "EvidenceRoot is not a directory: $Root"
     }
-    if ($pathItem.PSIsContainer) {
+    if ($PathType -ceq 'File' -and $pathItem.PSIsContainer) {
         throw "ReceiptPath is not a file: $Path"
+    }
+    if ($PathType -ceq 'Directory' -and -not $pathItem.PSIsContainer) {
+        throw "Evidence path is not a directory: $Path"
     }
 
     $rootFull = [IO.Path]::GetFullPath($rootItem.FullName).TrimEnd('\')
@@ -203,7 +304,12 @@ function Assert-PathIsContainedAndNotReparse {
         throw "Evidence path contains a reparse point: $($pathItem.FullName)"
     }
     $reachedRoot = $false
-    $current = $pathItem.Directory
+    $current = if ($pathItem.PSIsContainer) {
+        [IO.DirectoryInfo]$pathItem
+    }
+    else {
+        $pathItem.Directory
+    }
     while ($null -ne $current) {
         if (($current.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0) {
             throw "Evidence path contains a reparse point: $($current.FullName)"
@@ -750,19 +856,38 @@ if (Test-Path -LiteralPath $executionRoot) {
     throw "Finalizer evidence directory already exists: $executionRoot"
 }
 New-Item -ItemType Directory -Path $executionRoot | Out-Null
-$authorizedPath = Join-Path $executionRoot '03_finalize.authorized.sql'
-[IO.File]::WriteAllBytes($authorizedPath, $authorizedBytes)
-
-$startedAtUtc = [DateTime]::UtcNow
-$executionStatus = 'FAIL'
-$executionError = $null
+$trustedExecutionRoot = Assert-PathIsContainedAndNotReparse `
+    -Root $trustedPath.Root -Path $executionRoot -PathType Directory
+$outputToken = [Guid]::NewGuid().ToString('N')
+$authorizedPath = Join-Path $trustedExecutionRoot.Path (
+    "03_finalize.authorized_$outputToken.sql"
+)
+$executionReceiptPath = Join-Path $trustedExecutionRoot.Path (
+    "receipt_$outputToken.json"
+)
+$authorizedOutput = $null
+$executionReceiptOutput = $null
 try {
-    [void](
-        Invoke-K98SqlQuery -ServerName $ServerName -DatabaseName $DatabaseName `
-            -Query $authorizedSql -QueryTimeout 0
+    $authorizedOutput = New-K98BoundEvidenceStream -Path $authorizedPath
+    $executionReceiptOutput = New-K98BoundEvidenceStream `
+        -Path $executionReceiptPath
+    $authorizedOutput.Stream.Write(
+        $authorizedBytes,
+        0,
+        $authorizedBytes.Length
     )
+    $authorizedOutput.Stream.Flush($true)
 
-    $postQuery = @"
+    $startedAtUtc = [DateTime]::UtcNow
+    $executionStatus = 'FAIL'
+    $executionError = $null
+    try {
+        [void](
+            Invoke-K98SqlQuery -ServerName $ServerName -DatabaseName $DatabaseName `
+                -Query $authorizedSql -QueryTimeout 0
+        )
+
+        $postQuery = @"
 SELECT RunId, Status, FinalizedAtUtc,
        FinalizeReceiptCount =
        (
@@ -775,46 +900,58 @@ FROM dbo.KS4_Phase2_PreflightState AS state_info
 WHERE RunId = CONVERT(uniqueidentifier,
     $(ConvertTo-K98SqlLiteral -Value $validated.Phase2RunId.ToString()));
 "@
-    $postRows = @(
-        Invoke-K98SqlQuery -ServerName $ServerName -DatabaseName $DatabaseName `
-            -Query $postQuery -QueryTimeout 120
-    )
-    if ($postRows.Count -ne 1 -or
-        [string]$postRows[0].Status -cne 'FINALIZED' -or
-        (Test-DatabaseNull -Value $postRows[0].FinalizedAtUtc) -or
-        [int]$postRows[0].FinalizeReceiptCount -lt 1) {
-        throw 'Post-finalization state/receipt verification failed.'
+        $postRows = @(
+            Invoke-K98SqlQuery -ServerName $ServerName -DatabaseName $DatabaseName `
+                -Query $postQuery -QueryTimeout 120
+        )
+        if ($postRows.Count -ne 1 -or
+            [string]$postRows[0].Status -cne 'FINALIZED' -or
+            (Test-DatabaseNull -Value $postRows[0].FinalizedAtUtc) -or
+            [int]$postRows[0].FinalizeReceiptCount -lt 1) {
+            throw 'Post-finalization state/receipt verification failed.'
+        }
+        $executionStatus = 'PASS'
     }
-    $executionStatus = 'PASS'
-}
-catch {
-    $executionError = $_.Exception.Message
-    throw
+    catch {
+        $executionError = $_.Exception.Message
+        throw
+    }
+    finally {
+        $completedAtUtc = [DateTime]::UtcNow
+        $executionReceipt = [ordered]@{
+            EvidenceVersion = 1
+            ReceiptType = 'KingdomScanData4Phase52FinalizerExecution'
+            RunId = $receipt.RunId
+            Phase2RunId = $validated.Phase2RunId.ToString()
+            ServerName = $ServerName
+            DatabaseName = $DatabaseName
+            SqlCommit = $ExpectedSqlCommit
+            CombinedReceiptSha256 = $receiptSha256
+            ReviewedFinalizerSha256 = $validated.FinalizerSha256
+            AuthorizedFinalizerSha256 = $authorizedSha256
+            StartedAtUtc = $startedAtUtc.ToString('o')
+            CompletedAtUtc = $completedAtUtc.ToString('o')
+            Status = $executionStatus
+            Error = $executionError
+        }
+        $executionReceiptBytes = [Text.UTF8Encoding]::new($false).GetBytes(
+            (($executionReceipt | ConvertTo-Json -Depth 5) + "`n")
+        )
+        $executionReceiptOutput.Stream.Write(
+            $executionReceiptBytes,
+            0,
+            $executionReceiptBytes.Length
+        )
+        $executionReceiptOutput.Stream.Flush($true)
+    }
 }
 finally {
-    $completedAtUtc = [DateTime]::UtcNow
-    $executionReceipt = [ordered]@{
-        EvidenceVersion = 1
-        ReceiptType = 'KingdomScanData4Phase52FinalizerExecution'
-        RunId = $receipt.RunId
-        Phase2RunId = $validated.Phase2RunId.ToString()
-        ServerName = $ServerName
-        DatabaseName = $DatabaseName
-        SqlCommit = $ExpectedSqlCommit
-        CombinedReceiptSha256 = $receiptSha256
-        ReviewedFinalizerSha256 = $validated.FinalizerSha256
-        AuthorizedFinalizerSha256 = $authorizedSha256
-        StartedAtUtc = $startedAtUtc.ToString('o')
-        CompletedAtUtc = $completedAtUtc.ToString('o')
-        Status = $executionStatus
-        Error = $executionError
+    if ($null -ne $executionReceiptOutput) {
+        $executionReceiptOutput.Stream.Dispose()
     }
-    $executionReceiptPath = Join-Path $executionRoot 'receipt.json'
-    [IO.File]::WriteAllText(
-        $executionReceiptPath,
-        (($executionReceipt | ConvertTo-Json -Depth 5) + "`n"),
-        [Text.UTF8Encoding]::new($false)
-    )
+    if ($null -ne $authorizedOutput) {
+        $authorizedOutput.Stream.Dispose()
+    }
 }
 
 [pscustomobject]@{
@@ -823,4 +960,6 @@ finally {
     ReceiptSha256 = $receiptSha256
     AuthorizedFinalizerSha256 = $authorizedSha256
     EvidenceRoot = $executionRoot
+    AuthorizedSqlPath = $authorizedPath
+    ExecutionReceiptPath = $executionReceiptPath
 }

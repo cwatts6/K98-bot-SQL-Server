@@ -78,6 +78,16 @@ Assert-Contains -Pattern 'Invoke-K98SqlQuery[\s\S]*-Query\s+\$authorizedSql' `
     -Message 'The exact in-memory authorized finalizer must be executed.'
 Assert-Contains -Pattern "Status\s+-cne\s+'FINALIZED'" `
     -Message 'The adapter must verify the durable finalized state.'
+Assert-Contains -Pattern 'GetFinalPathNameByHandle' `
+    -Message 'Evidence output handles must be resolved to their final paths.'
+Assert-Contains -Pattern '\[IO\.FileMode\]::CreateNew' `
+    -Message 'Evidence outputs must never overwrite an existing path.'
+Assert-Contains -Pattern '\[IO\.FileShare\]::None' `
+    -Message 'Evidence output handles must remain exclusively bound.'
+Assert-Contains -Pattern '\$authorizedOutput\.Stream\.Write' `
+    -Message 'Authorized SQL must be written through its validated handle.'
+Assert-Contains -Pattern '\$executionReceiptOutput\.Stream\.Write' `
+    -Message 'The execution receipt must be written through its validated handle.'
 
 if ($adapterSource -match '(?i)Invoke-Expression|\biex\b') {
     throw 'The guarded finalizer must not use expression evaluation.'
@@ -87,6 +97,39 @@ if ($adapterSource -match '(?im)^\s*(Remove-Item|rm|del)\b') {
 }
 if ($adapterSource -match 'Get-Content\s+-Raw\s+-LiteralPath\s+\$finalizerPath') {
     throw 'The guarded finalizer must not independently re-read reviewed SQL.'
+}
+if ($adapterSource -match '\[IO\.File\]::Write(AllBytes|AllText)\(\$(authorizedPath|executionReceiptPath)') {
+    throw 'Finalizer evidence must not be written through mutable path lookups.'
+}
+
+$adapterTokens = $null
+$adapterParseErrors = $null
+$adapterAst = [Management.Automation.Language.Parser]::ParseFile(
+    $adapterPath,
+    [ref]$adapterTokens,
+    [ref]$adapterParseErrors
+)
+if ($adapterParseErrors.Count -ne 0) {
+    throw 'The guarded finalizer did not parse for helper regression tests.'
+}
+$requiredHelperNames = @(
+    'Initialize-K98FinalPathNative',
+    'Get-K98FinalPathForStream',
+    'New-K98BoundEvidenceStream'
+)
+foreach ($helperName in $requiredHelperNames) {
+    $helperNode = $adapterAst.Find(
+        {
+            param($node)
+            $node -is [Management.Automation.Language.FunctionDefinitionAst] -and
+                $node.Name -ceq $helperName
+        },
+        $true
+    )
+    if ($null -eq $helperNode) {
+        throw "Missing finalizer evidence helper: $helperName"
+    }
+    . ([scriptblock]::Create($helperNode.Extent.Text))
 }
 
 $tempBase = [IO.Path]::GetFullPath([IO.Path]::GetTempPath()).TrimEnd('\')
@@ -98,10 +141,43 @@ $outsideRoot = Join-Path $tempBase (
 )
 $junctionTargetRoot = Join-Path $tempRoot 'junction_target'
 $junctionLinkRoot = Join-Path $tempRoot 'junction_link'
+$writeJunctionLinkRoot = Join-Path $tempRoot 'write_junction'
 New-Item -ItemType Directory -Path $tempRoot | Out-Null
 New-Item -ItemType Directory -Path $outsideRoot | Out-Null
 
 try {
+    $normalBoundPath = Join-Path $tempRoot (
+        'bound_' + [Guid]::NewGuid().ToString('N') + '.bin'
+    )
+    $normalBoundOutput = New-K98BoundEvidenceStream -Path $normalBoundPath
+    try {
+        $probeBytes = [Text.UTF8Encoding]::new($false).GetBytes('probe')
+        $normalBoundOutput.Stream.Write($probeBytes, 0, $probeBytes.Length)
+        $normalBoundOutput.Stream.Flush($true)
+    }
+    finally {
+        $normalBoundOutput.Stream.Dispose()
+    }
+    if ([Text.Encoding]::UTF8.GetString(
+            [IO.File]::ReadAllBytes($normalBoundPath)
+        ) -cne 'probe') {
+        throw 'A valid bound evidence stream did not persist exact bytes.'
+    }
+
+    New-Item -ItemType Junction -Path $writeJunctionLinkRoot `
+        -Target $outsideRoot | Out-Null
+    $escapedLeaf = 'escaped_' + [Guid]::NewGuid().ToString('N') + '.bin'
+    $escapedPath = Join-Path $writeJunctionLinkRoot $escapedLeaf
+    Assert-Throws -ExpectedMessage 'resolved outside the intended evidence path' -Action {
+        New-K98BoundEvidenceStream -Path $escapedPath
+    }
+    $escapedPhysicalPath = Join-Path $outsideRoot $escapedLeaf
+    if (-not (Test-Path -LiteralPath $escapedPhysicalPath -PathType Leaf) -or
+        (Get-Item -LiteralPath $escapedPhysicalPath).Length -ne 0) {
+        throw 'A rejected link-swapped evidence path received content.'
+    }
+    Remove-Item -LiteralPath $writeJunctionLinkRoot -Force
+
     $sqlCommit = 'a' * 40 -join ''
     $botMirrorCommit = 'b' * 40 -join ''
     $productionBotCommit = 'c' * 40 -join ''
@@ -400,6 +476,9 @@ try {
     }
 }
 finally {
+    if (Test-Path -LiteralPath $writeJunctionLinkRoot) {
+        Remove-Item -LiteralPath $writeJunctionLinkRoot -Force
+    }
     if (Test-Path -LiteralPath $junctionLinkRoot) {
         Remove-Item -LiteralPath $junctionLinkRoot -Force
     }
@@ -419,7 +498,7 @@ finally {
 
 [pscustomobject]@{
     Test = 'Phase52GuardedFinalizer'
-    OfflinePositiveCases = 1
-    OfflineNegativeCases = 9
+    OfflinePositiveCases = 2
+    OfflineNegativeCases = 10
     Result = 'PASS'
 }
