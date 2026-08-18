@@ -23,7 +23,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -98,7 +98,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -173,7 +173,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -248,7 +248,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -323,7 +323,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -398,7 +398,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -473,7 +473,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -548,7 +548,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -623,7 +623,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -698,7 +698,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -773,7 +773,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -848,7 +848,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],
@@ -923,7 +923,7 @@ SELECT
     [AOOAvgKill],
     [AOOAvgDead],
     [AOOAvgHeal],
-    [Conduct],
+    [Conduct] AS [Conduct],
 
     [Starting_T4&T5_KILLS],
     [T4_KILLS],

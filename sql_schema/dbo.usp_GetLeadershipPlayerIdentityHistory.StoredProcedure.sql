@@ -1,8 +1,12 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerIdentityHistory
-    @GovernorIDs dbo.IntList READONLY,
-    @HistoryDays smallint = 720
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetLeadershipPlayerIdentityHistory]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetLeadershipPlayerIdentityHistory] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_GetLeadershipPlayerIdentityHistory]
+	@GovernorIDs [dbo].[IntList] READONLY,
+	@HistoryDays [smallint] = 720
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -30,6 +34,7 @@ BEGIN
                MAX(history_rows.SeenScanCount) AS SeenScanCount
         FROM dbo.GovernorNameHistory AS history_rows
         JOIN @GovernorIDs AS requested ON requested.ID = history_rows.GovernorID
+        
         GROUP BY history_rows.GovernorID,
                  dbo.fn_NormalizeGovernorNameKey(history_rows.GovernorName)
     )
@@ -54,10 +59,10 @@ BEGIN
         ScanOrdinal int NULL
     );
     INSERT INTO #IdentityScans (ScanOrder, AsOfDate)
-    SELECT SCANORDER, MAX(AsOfDate)
+    SELECT TRY_CONVERT(bigint, SCANORDER), MAX(AsOfDate)
     FROM dbo.KingdomScanData4
     WHERE AsOfDate BETWEEN @StartDate AND @AnchorDate
-    GROUP BY SCANORDER;
+    GROUP BY TRY_CONVERT(bigint, SCANORDER);
     ;WITH Ordered AS
     (
         SELECT ScanOrder, ROW_NUMBER() OVER (ORDER BY ScanOrder) AS ScanOrdinal
@@ -70,20 +75,20 @@ BEGIN
     /* Result set 2: consecutive complete-scan alliance episodes. */
     ;WITH RankedRows AS
     (
-        SELECT source.GovernorID AS GovernorID,
+        SELECT TRY_CONVERT(bigint, source.GovernorID) AS GovernorID,
                scans.ScanOrder, scans.ScanOrdinal, scans.AsOfDate,
                COALESCE(NULLIF(LEFT(LTRIM(RTRIM(CONVERT(nvarchar(255), source.Alliance))), 100), N''),
                         N'Unallied') AS AllianceDisplay,
                LOWER(COALESCE(NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), source.Alliance))), N''),
                               N'Unallied')) AS AllianceKey,
                ROW_NUMBER() OVER
-               (PARTITION BY source.GovernorID, scans.ScanOrder
+               (PARTITION BY TRY_CONVERT(bigint, source.GovernorID), scans.ScanOrder
                 ORDER BY source.ScanDate DESC, source.SCAN_UNO DESC) AS RowNumber
         FROM dbo.KingdomScanData4 AS source
         JOIN #IdentityScans AS scans
-          ON scans.ScanOrder = source.SCANORDER
+          ON scans.ScanOrder = TRY_CONVERT(bigint, source.SCANORDER)
         JOIN @GovernorIDs AS requested
-          ON requested.ID = source.GovernorID
+          ON requested.ID = TRY_CONVERT(bigint, source.GovernorID)
     ),
     SelectedRows AS
     (
@@ -131,3 +136,4 @@ BEGIN
     FROM Episodes
     ORDER BY GovernorID, EpisodeSequence;
 END;
+

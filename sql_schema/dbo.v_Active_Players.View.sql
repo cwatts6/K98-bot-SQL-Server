@@ -6,7 +6,7 @@ CREATE VIEW [dbo].[v_Active_Players]  AS
 SELECT
         KS4.[PowerRank],
         KS4.[GovernorName],
-        CAST(KS4.[GovernorID] AS bigint) AS [GovernorID],
+        CAST(KS4.[GovernorID] AS bigint) AS [GovernorID],  -- ✅ integer, no decimals
         KS4.[Alliance],
         KS4.[Power],
         KS4.[KillPoints],
