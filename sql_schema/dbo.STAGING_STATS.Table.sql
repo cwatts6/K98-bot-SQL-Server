@@ -3,8 +3,8 @@ SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[STAGING_STATS]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[STAGING_STATS](
-	[GovernorID] [bigint] NOT NULL,
-	[PowerRank] [int] NOT NULL,
+	[GovernorID] [float] NOT NULL,
+	[PowerRank] [float] NOT NULL,
 	[Power] [float] NOT NULL,
 	[Power_Delta] [float] NULL,
 	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
@@ -39,7 +39,6 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
 	[KillPointsDelta] [bigint] NULL,
 	[KillPoints] [bigint] NULL,
 	[HealedTroopsDelta] [bigint] NULL,
@@ -50,7 +49,8 @@ CREATE TABLE [dbo].[STAGING_STATS](
 	[PreKvkRank] [bigint] NULL,
 	[HonorRank] [bigint] NULL,
 	[RangedPointsDelta] [bigint] NULL,
-	[AutarchTimes] [bigint] NULL
+	[AutarchTimes] [bigint] NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF_STAGING_STATS_RangedPointsDelta]') AND type = 'D')

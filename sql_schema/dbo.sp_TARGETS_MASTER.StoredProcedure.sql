@@ -33,10 +33,10 @@ BEGIN
         END;
 
         DECLARE @Now DATETIME = GETDATE()
-              , @ConfiguredScan INT
-              , @DraftScan INT
-              , @MaxAvailableScan INT
-              , @Scan INT;
+              , @ConfiguredScan FLOAT
+              , @DraftScan FLOAT
+              , @MaxAvailableScan FLOAT
+              , @Scan FLOAT;
 
         -- Build the KVK list from ANY of the two keys so we don't miss ones with only DRAFTSCAN
         -- Filter by @KVK parameter if provided
@@ -63,16 +63,16 @@ BEGIN
             -- Pull config values
             SELECT @ConfiguredScan = NULL, @DraftScan = NULL;
 
-            SELECT @ConfiguredScan = TRY_CONVERT(INT, pc.ConfigValue)
+            SELECT @ConfiguredScan = CONVERT(FLOAT, pc.ConfigValue)
             FROM dbo.ProcConfig pc
             WHERE pc.KVKVersion = @KVK AND pc.ConfigKey = 'MATCHMAKING_SCAN';
 
-            SELECT @DraftScan = TRY_CONVERT(INT, pc.ConfigValue)
+            SELECT @DraftScan = CONVERT(FLOAT, pc.ConfigValue)
             FROM dbo.ProcConfig pc
             WHERE pc.KVKVersion = @KVK AND pc.ConfigKey = 'DRAFTSCAN';
 
             -- Current data ceiling
-            SELECT @MaxAvailableScan = MAX(ScanOrder)
+            SELECT @MaxAvailableScan = MAX(CONVERT(FLOAT, ScanOrder))
             FROM dbo.KingdomScanData4;
 
             IF @MaxAvailableScan IS NULL

@@ -13,7 +13,7 @@ BEGIN
     
     DECLARE @StartTime DATETIME2 = SYSUTCDATETIME();
     DECLARE @RowsProcessed INT = 0;
-    DECLARE @NewMaxScan INT = 0;
+    DECLARE @NewMaxScan FLOAT = 0;
     
     -- For low-volume processing (500-2000/day), run maintenance weekly
     DECLARE @MaintenanceRowThreshold INT = 5000;
@@ -22,7 +22,7 @@ BEGIN
     ----------------------------------------------------------------
     -- Step 1: Determine what's already been processed
     ----------------------------------------------------------------
-    DECLARE @LastProcessedScan INT;
+    DECLARE @LastProcessedScan FLOAT;
     
     PRINT '----------------------------------------';
     PRINT 'Starting delta processing at ' + CONVERT(VARCHAR(30), @StartTime, 120);

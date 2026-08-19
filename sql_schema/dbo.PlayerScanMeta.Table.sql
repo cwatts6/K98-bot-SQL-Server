@@ -3,11 +3,11 @@ SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[PlayerScanMeta]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[PlayerScanMeta](
-	[GovernorID] [bigint] NOT NULL,
+	[GovernorID] [float] NOT NULL,
 	[FirstScanDate] [date] NOT NULL,
 	[LastScanDate] [date] NOT NULL,
-	[FirstScanOrder] [int] NULL,
-	[LastScanOrder] [int] NULL,
+	[FirstScanOrder] [float] NULL,
+	[LastScanOrder] [float] NULL,
 	[OfflineDaysOver30] [int] NOT NULL,
 	[LastRefreshedUTC] [datetime2](0) NOT NULL,
  CONSTRAINT [PK_PlayerScanMeta] PRIMARY KEY CLUSTERED 
