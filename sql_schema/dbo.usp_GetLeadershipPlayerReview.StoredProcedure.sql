@@ -1,9 +1,13 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_GetLeadershipPlayerReview
-    @GovernorID bigint,
-    @PeriodDays smallint = 90,
-    @NowUtc datetime2(0) = NULL
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetLeadershipPlayerReview]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetLeadershipPlayerReview] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_GetLeadershipPlayerReview]
+	@GovernorID [bigint],
+	@PeriodDays [smallint] = 90,
+	@NowUtc [datetime2](0) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -23,13 +27,13 @@ BEGIN
     DECLARE @PreviousEnd date = DATEADD(DAY, -1, @CurrentStart);
     DECLARE @PreviousStart date = DATEADD(DAY, 1 - @PeriodDays, @PreviousEnd);
     DECLARE @LatestScanOrder bigint =
-        (SELECT MAX(SCANORDER)
+        (SELECT MAX(TRY_CONVERT(bigint, SCANORDER))
          FROM dbo.KingdomScanData4 WHERE AsOfDate = @AnchorDate);
     DECLARE @LatestScanAtUtc datetime2(0) =
         (SELECT MAX(TRY_CONVERT(datetime2(0), ScanDate))
          FROM dbo.KingdomScanData4 WHERE SCANORDER = @LatestScanOrder);
     DECLARE @BaselineScanOrder bigint =
-        (SELECT TOP (1) SCANORDER
+        (SELECT TOP (1) TRY_CONVERT(bigint, SCANORDER)
          FROM dbo.KingdomScanData4
          WHERE AsOfDate < @PreviousStart
          ORDER BY SCANORDER DESC);
@@ -43,13 +47,13 @@ BEGIN
     );
 
     INSERT INTO #Scans (ScanOrder, ScanDateUtc, AsOfDate)
-    SELECT SCANORDER,
+    SELECT TRY_CONVERT(bigint, SCANORDER),
            MAX(TRY_CONVERT(datetime2(0), ScanDate)),
            MAX(AsOfDate)
     FROM dbo.KingdomScanData4
     WHERE (@AnchorDate IS NOT NULL AND AsOfDate BETWEEN @PreviousStart AND @AnchorDate)
        OR SCANORDER = @BaselineScanOrder
-    GROUP BY SCANORDER;
+    GROUP BY TRY_CONVERT(bigint, SCANORDER);
 
     ;WITH Ordered AS
     (
@@ -69,13 +73,13 @@ BEGIN
     );
 
     INSERT INTO #Population (GovernorID, IsCurrentCohort, IsCurrentlyAllied)
-    SELECT GovernorID, 1,
+    SELECT TRY_CONVERT(bigint, GovernorID), 1,
            CONVERT(bit, MAX(CASE WHEN NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), N'')
                                       IS NOT NULL THEN 1 ELSE 0 END))
     FROM dbo.KingdomScanData4
     WHERE SCANORDER = @LatestScanOrder
-      AND GovernorID > 0
-    GROUP BY GovernorID;
+      AND TRY_CONVERT(bigint, GovernorID) > 0
+    GROUP BY TRY_CONVERT(bigint, GovernorID);
 
     IF NOT EXISTS (SELECT 1 FROM #Population WHERE GovernorID = @GovernorID)
         INSERT INTO #Population (GovernorID, IsCurrentCohort, IsCurrentlyAllied)
@@ -100,7 +104,7 @@ BEGIN
     ;WITH RankedRows AS
     (
         SELECT
-            source.GovernorID AS GovernorID,
+            TRY_CONVERT(bigint, source.GovernorID) AS GovernorID,
             scans.ScanOrder,
             scans.ScanOrdinal,
             scans.AsOfDate,
@@ -113,13 +117,13 @@ BEGIN
             TRY_CONVERT(decimal(38,0), source.RSS_Gathered) AS RSSValue,
             ROW_NUMBER() OVER
             (
-                PARTITION BY source.GovernorID, scans.ScanOrder
+                PARTITION BY TRY_CONVERT(bigint, source.GovernorID), scans.ScanOrder
                 ORDER BY source.ScanDate DESC, source.SCAN_UNO DESC
             ) AS RowNumber
         FROM dbo.KingdomScanData4 AS source
-        JOIN #Scans AS scans ON scans.ScanOrder = source.SCANORDER
+        JOIN #Scans AS scans ON scans.ScanOrder = TRY_CONVERT(bigint, source.SCANORDER)
         JOIN #Population AS population
-          ON population.GovernorID = source.GovernorID
+          ON population.GovernorID = TRY_CONVERT(bigint, source.GovernorID)
     )
     INSERT INTO #StatsRows
         (GovernorID, ScanOrder, ScanOrdinal, AsOfDate, ScanDateUtc,
@@ -511,7 +515,7 @@ BEGIN
     FROM RankedIndex;
 
     DECLARE @TargetLatestScanOrder bigint =
-        (SELECT MAX(SCANORDER)
+        (SELECT MAX(TRY_CONVERT(bigint, SCANORDER))
          FROM dbo.KingdomScanData4 WHERE GovernorID = @GovernorID);
     DECLARE @TargetFirstObservedDate date =
         (SELECT MIN(AsOfDate) FROM dbo.KingdomScanData4
@@ -556,7 +560,7 @@ BEGIN
             LEFT(LTRIM(RTRIM(CONVERT(nvarchar(255), GovernorName))), 100) AS GovernorName,
             LEFT(NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), N''), 100) AS Alliance,
             TRY_CONVERT(decimal(38,0), Power) AS PowerValue,
-            PowerRank AS PowerRank,
+            TRY_CONVERT(int, PowerRank) AS PowerRank,
             TRY_CONVERT(int, [City Hall]) AS CityHall,
             TRY_CONVERT(datetime2(0), ScanDate) AS ScanDateUtc
         FROM dbo.KingdomScanData4
@@ -751,10 +755,10 @@ BEGIN
 
     ;WITH StatsScans AS
     (
-        SELECT SCANORDER AS ScanOrder, MAX(AsOfDate) AS AsOfDate
+        SELECT TRY_CONVERT(bigint, SCANORDER) AS ScanOrder, MAX(AsOfDate) AS AsOfDate
         FROM dbo.KingdomScanData4
         WHERE AsOfDate BETWEEN @HistoryReadStart AND @AnchorDate
-        GROUP BY SCANORDER
+        GROUP BY TRY_CONVERT(bigint, SCANORDER)
     )
     INSERT INTO #HistoryDepth
     SELECT N'KINGDOM_SCANS', N'COMPLETE_SCANORDERS', MIN(AsOfDate), MAX(AsOfDate), COUNT(*),
@@ -864,3 +868,4 @@ BEGIN
              WHEN N'RALLY' THEN 3 WHEN N'ALIASES' THEN 4
              WHEN N'LOCATION' THEN 5 ELSE 6 END;
 END;
+
