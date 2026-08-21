@@ -11,8 +11,8 @@ BEGIN
     SET NOCOUNT ON;
 
     DECLARE @MetricName NVARCHAR(100) = N'HealedTroops';
-    DECLARE @LastProcessed INT = 0;
-    DECLARE @MaxScan INT = 0;
+    DECLARE @LastProcessed FLOAT = 0;
+    DECLARE @MaxScan FLOAT = 0;
 
     SELECT @LastProcessed = LastScanOrder
     FROM dbo.SUMMARY_PROC_STATE
@@ -39,10 +39,12 @@ BEGIN
         );
 
         INSERT INTO #AffectedGovs (GovernorID)
-        SELECT DISTINCT ks4.GovernorID
+        SELECT DISTINCT conv.GovernorID
         FROM dbo.KingdomScanData4 ks4
+        CROSS APPLY (SELECT TRY_CONVERT(BIGINT, ks4.GovernorID) AS GovernorID) conv
         WHERE ks4.ScanOrder > @LastProcessed
-          AND ks4.GovernorID <> 0;
+          AND conv.GovernorID IS NOT NULL
+          AND conv.GovernorID <> 0;
 
         IF NOT EXISTS (SELECT 1 FROM #AffectedGovs)
         BEGIN
@@ -69,21 +71,22 @@ BEGIN
             GovernorID   BIGINT       NOT NULL,
             GovernorName NVARCHAR(400) NULL,
             PowerRank    INT           NULL,
-            ScanOrder    INT           NOT NULL,
+            ScanOrder    FLOAT         NOT NULL,
             ScanDate     DATETIME      NULL,
             HealedTroops BIGINT        NULL
         );
 
         INSERT INTO #GovScan (GovernorID, GovernorName, PowerRank, ScanOrder, ScanDate, HealedTroops)
         SELECT
-            ks4.GovernorID,
+            conv.GovernorID,
             CONVERT(NVARCHAR(400), ks4.GovernorName) AS GovernorName,
-            ks4.PowerRank,
+            TRY_CONVERT(INT, ks4.PowerRank) AS PowerRank,
             ks4.ScanOrder,
             ks4.ScanDate,
             ks4.HealedTroops
         FROM dbo.KingdomScanData4 ks4
-        INNER JOIN #AffectedGovs a ON a.GovernorID = ks4.GovernorID;
+        CROSS APPLY (SELECT TRY_CONVERT(BIGINT, ks4.GovernorID) AS GovernorID) conv
+        INNER JOIN #AffectedGovs a ON a.GovernorID = conv.GovernorID;
 
         CREATE CLUSTERED INDEX IX_GovScan_GovernorID_ScanOrder ON #GovScan (GovernorID, ScanOrder);
         CREATE NONCLUSTERED INDEX IX_GovScan_ScanDate_GovernorID ON #GovScan (ScanDate, GovernorID) INCLUDE (ScanOrder);
