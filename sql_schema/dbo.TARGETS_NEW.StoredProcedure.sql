@@ -18,7 +18,7 @@ BEGIN
             DEALLOCATE kvk_cursor;
         END;
 
-        DECLARE @KVK INT, @ScanOrder INT, @SQL NVARCHAR(MAX);
+        DECLARE @KVK INT, @ScanOrder FLOAT, @SQL NVARCHAR(MAX);
 
         DECLARE kvk_cursor CURSOR FOR
             SELECT DISTINCT KVKVersion
@@ -173,7 +173,7 @@ FROM ' + @OutputTable + '
 ORDER BY RANK2 ASC;
 ';
 
-    DECLARE @Params NVARCHAR(MAX) = N'@Scan INT';
+    DECLARE @Params NVARCHAR(MAX) = N'@Scan FLOAT';
 	PRINT @SQL
 EXEC sp_executesql @SQL, @Params, @Scan = @ScanOrder;
             FETCH NEXT FROM kvk_cursor INTO @KVK;

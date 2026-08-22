@@ -1,4 +1,4 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL2]') AND type in (N'P', N'PC'))
 BEGIN
@@ -6,8 +6,7 @@ EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL2] AS'
 END
 ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
-	@param2 [nvarchar](100) = NULL,
-    @CompletedFileName [nvarchar](260)
+	@param2 [nvarchar](100) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -20,21 +19,9 @@ BEGIN
     SET CONCAT_NULL_YIELDS_NULL ON;
     SET QUOTED_IDENTIFIER ON;
     SET NUMERIC_ROUNDABORT OFF;
-
-    IF @@TRANCOUNT <> 0
-        THROW 51818, 'UPDATE_ALL2 refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
-
     SET XACT_ABORT ON;
 
     DECLARE @rc INT, @rowsKS5 INT, @rowsKS4 INT = 0;
-    DECLARE @ImportLockResult INT;
-    DECLARE @AllocatedScanOrder INT;
-    DECLARE @StagedRows INT;
-    DECLARE @ImportFileDigest BINARY(32);
-    DECLARE @ImportClaimedPath NVARCHAR(4000);
-    DECLARE @ImportArchivePath NVARCHAR(4000);
-    DECLARE @ImportError NVARCHAR(2000);
-    DECLARE @ArchiveReturnCode INT;
     DECLARE @CurrentAuditPhase NVARCHAR(64) = N'update_all2_start';
     DECLARE @UpdateAll2PhaseAudit TABLE (
         SequenceNo INT IDENTITY(1,1) NOT NULL,
@@ -51,23 +38,10 @@ BEGIN
     );
 
     BEGIN TRY
-        EXEC dbo.CLAIM_KS4_IMPORT_FILE
-            @CompletedFileName = @CompletedFileName,
-            @FileDigest = @ImportFileDigest OUTPUT,
-            @ClaimedPath = @ImportClaimedPath OUTPUT,
-            @ArchivePath = @ImportArchivePath OUTPUT;
-
         ----------------------------------------------------------------
         -- Phase A: Import → KS5 → (maybe) KS4  [commit early]
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
-
-        EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK
-            @LockTimeout = 60000,
-            @LockResult = @ImportLockResult OUTPUT;
-
-        IF @ImportLockResult < 0
-            THROW 51810, 'UPDATE_ALL2 could not acquire the KingdomScanData4 import mutex within 60000 ms; Phase A was not started.', 1;
 
         -- Get deterministic defaults from KS. Choose "latest" row by [Last Update] if present.
         DECLARE @actual_param1 FLOAT = NULL,
@@ -86,37 +60,11 @@ BEGIN
         DECLARE @StartTime DATETIME = GETDATE();
 
         -- 1) Refresh latest data
-        EXEC @rc = dbo.IMPORT_STAGING_PROC_CORE
-            @CompletedFileName = @CompletedFileName,
-            @ImportFileDigest = @ImportFileDigest OUTPUT,
-            @ArchivePath = @ImportArchivePath OUTPUT,
-            @ImportError = @ImportError OUTPUT;
+        EXEC @rc = dbo.IMPORT_STAGING_PROC;
         IF @rc <> 0
         BEGIN
-            SET @ImportError = COALESCE(
-                @ImportError,
-                N'UPDATE_ALL2 stopped because IMPORT_STAGING_PROC failed without returning error detail.'
-            );
-            THROW 51819, @ImportError, 1;
+            RAISERROR('IMPORT_STAGING_PROC failed (rc=%d).', 16, 1, @rc);
         END
-
-        SELECT
-            @AllocatedScanOrder = MIN(SCANORDER),
-            @StagedRows = COUNT(*)
-        FROM dbo.IMPORT_STAGING;
-
-        IF @AllocatedScanOrder IS NULL
-           OR @AllocatedScanOrder <> (SELECT MAX(SCANORDER) FROM dbo.IMPORT_STAGING)
-           OR @StagedRows <> (SELECT COUNT(DISTINCT [Governor ID]) FROM dbo.IMPORT_STAGING)
-            THROW 51811, 'UPDATE_ALL2 rejected empty, mixed-scan, or duplicate-governor canonical staging.', 1;
-
-        IF EXISTS
-        (
-            SELECT 1
-            FROM dbo.KingdomScanData5
-            WHERE SCANORDER = @AllocatedScanOrder
-        )
-            THROW 51812, 'UPDATE_ALL2 refused to reuse an existing KingdomScanData5 SCANORDER.', 1;
 
         -- 2) Insert into KingdomScanData5
         INSERT INTO dbo.KingdomScanData5 (
@@ -157,17 +105,6 @@ BEGIN
             RAISERROR('No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).', 16, 1);
         END
 
-        IF @rowsKS5 <> @StagedRows
-           OR EXISTS
-              (
-                  SELECT 1
-                  FROM dbo.KingdomScanData5
-                  WHERE SCANORDER = @AllocatedScanOrder
-                  GROUP BY SCANORDER, GovernorID
-                  HAVING COUNT_BIG(*) > 1
-              )
-            THROW 51813, 'UPDATE_ALL2 KingdomScanData5 row-count or duplicate-key validation failed.', 1;
-
         -- SMART INDEX MAINTENANCE: Only update stats for KS5 (lightweight)
         -- Full index rebuild happens nightly via maintenance job
         PRINT 'Updating statistics for KingdomScanData5 (quick sample)...';
@@ -175,23 +112,12 @@ BEGIN
         PRINT 'KingdomScanData5 statistics refreshed.';
 
         -- Cache MAX(SCANORDER) values to avoid repeated scans
-        DECLARE @MaxScanOrder5 INT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData5 ORDER BY SCANORDER DESC);
-        DECLARE @MaxScanOrder4 INT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC);
-
-        IF @MaxScanOrder5 <> @AllocatedScanOrder
-            THROW 51814, 'UPDATE_ALL2 allocated scan does not match the latest KingdomScanData5 scan.', 1;
+        DECLARE @MaxScanOrder5 BIGINT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData5 ORDER BY SCANORDER DESC);
+        DECLARE @MaxScanOrder4 BIGINT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC);
 
         -- 3) Promote to KS4 if newer
         IF @MaxScanOrder5 > @MaxScanOrder4
         BEGIN
-            IF EXISTS
-            (
-                SELECT 1
-                FROM dbo.KingdomScanData4
-                WHERE SCANORDER = @AllocatedScanOrder
-            )
-                THROW 51815, 'UPDATE_ALL2 refused to reuse an existing KingdomScanData4 SCANORDER.', 1;
-
             INSERT INTO dbo.KingdomScanData4 (
                   PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
@@ -213,17 +139,6 @@ BEGIN
             WHERE SCANORDER = @MaxScanOrder5
 
             SET @rowsKS4 = @@ROWCOUNT;
-
-            IF @rowsKS4 <> @rowsKS5
-               OR EXISTS
-                  (
-                      SELECT 1
-                      FROM dbo.KingdomScanData4
-                      WHERE SCANORDER = @AllocatedScanOrder
-                      GROUP BY SCANORDER, GovernorID
-                      HAVING COUNT_BIG(*) > 1
-                  )
-                THROW 51816, 'UPDATE_ALL2 KingdomScanData4 row-count or duplicate-key validation failed.', 1;
 
             ----------------------------------------------------------------
             -- SMART INDEX MAINTENANCE for KS4: Check fragmentation first
@@ -318,20 +233,13 @@ BEGIN
 
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
-        EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
-            @CompletedFileName = @CompletedFileName;
-
-        IF @ArchiveReturnCode <> 0
-            THROW 51817, 'UPDATE_ALL2 committed Phase A but the immutable-file archive handoff did not complete.', 1;
-
         -- Return / Log Phase A summary values
         SELECT
             @MaxScanOrder5    AS Ks5_MaxScanOrder,
             @rowsKS5          AS Ks5_RowsInserted,
             @rowsKS4          AS Ks4_RowsInserted,
             (SELECT COUNT(*) FROM dbo.IMPORT_STAGING) AS ImportStaging_RowsAfterPhaseA,
-            (SELECT COUNT(*) FROM dbo.KingdomScanData4 WHERE SCANORDER = @MaxScanOrder4) AS Ks4_RowsInLatest,
-            @ImportArchivePath AS ArchivedFilePath;
+            (SELECT COUNT(*) FROM dbo.KingdomScanData4 WHERE SCANORDER = @MaxScanOrder4) AS Ks4_RowsInLatest;
 
         ----------------------------------------------------------------
         -- Phase B: Downstream builds (non-critical) - separate transaction
@@ -930,23 +838,6 @@ BEGIN
 		DECLARE @ErrMsg  NVARCHAR(MAX) = ERROR_MESSAGE();
 		DECLARE @ErrLine INT = ERROR_LINE();
 		DECLARE @ErrProc NVARCHAR(200) = ERROR_PROCEDURE();
-        DECLARE @PersistedImportError NVARCHAR(2000) =
-            LEFT(
-                COALESCE(
-                    @ImportError,
-                    CONCAT(
-                        N'Error ',
-                        ERROR_NUMBER(),
-                        N' in ',
-                        COALESCE(ERROR_PROCEDURE(), N'UPDATE_ALL2'),
-                        N' line ',
-                        ERROR_LINE(),
-                        N': ',
-                        COALESCE(ERROR_MESSAGE(), N'(no message)')
-                    )
-                ),
-                2000
-            );
 
 		-- ✅ capture transaction state before doing anything
 		DECLARE @XState INT = XACT_STATE();
@@ -954,16 +845,6 @@ BEGIN
 		-- ✅ if a transaction exists, you MUST rollback first (especially if @XState = -1)
 		IF @XState <> 0
 			ROLLBACK;
-
-        BEGIN TRY
-            UPDATE dbo.KS4_ImportFileClaim
-            SET LastError = @PersistedImportError
-            WHERE CompletedFileName = @CompletedFileName
-              AND ClaimStatus = N'claimed';
-        END TRY
-        BEGIN CATCH
-            -- Never mask the original UPDATE_ALL2 failure.
-        END CATCH;
 
 		-- ✅ now you're in autocommit, logging is allowed
 		BEGIN TRY
@@ -985,4 +866,6 @@ BEGIN
 		THROW;
 	END CATCH
 END
+
+
 

@@ -204,7 +204,7 @@ BEGIN
     WHERE ksd.ScanOrder = @LatestScanToUse;
 
 	CREATE TABLE #GovernorList (
-        GovernorID bigint NOT NULL PRIMARY KEY CLUSTERED
+        GovernorID int NOT NULL PRIMARY KEY CLUSTERED
     );
 
     INSERT INTO #GovernorList (GovernorID)
@@ -216,7 +216,7 @@ BEGIN
     -- 2. Consolidated Deads Delta (filtered to snapshot)
     -----------------------------------------------
     CREATE TABLE #Deads (
-        GovernorID        bigint  NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID        int     NOT NULL PRIMARY KEY CLUSTERED,
         DeadsDelta        bigint  NOT NULL,
         DeadsDeltaOutKVK  bigint  NOT NULL,
         P4DeadsDelta      bigint  NOT NULL,
@@ -243,7 +243,7 @@ BEGIN
     -- 3. Consolidated Kills Delta (T4&T5)
     -----------------------------------------------
     CREATE TABLE #Kills (
-        GovernorID      bigint  NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID      int     NOT NULL PRIMARY KEY CLUSTERED,
         T4T5KillsDelta  bigint  NOT NULL,
         KillsOutsideKVK bigint  NOT NULL,
         P4Kills         bigint  NOT NULL,
@@ -270,7 +270,7 @@ BEGIN
     -- 4. T4 / T5 splits
     -----------------------------------------------
     CREATE TABLE #KillsT4 (
-        GovernorID   bigint  NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID   int     NOT NULL PRIMARY KEY CLUSTERED,
         T4KillsDelta bigint  NOT NULL
     );
 
@@ -282,7 +282,7 @@ BEGIN
     GROUP BY t4.GovernorID;
 
     CREATE TABLE #KillsT5 (
-        GovernorID   bigint  NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID   int     NOT NULL PRIMARY KEY CLUSTERED,
         T5KillsDelta bigint  NOT NULL
     );
 
@@ -297,7 +297,7 @@ BEGIN
 	-- 5. KillPointsDelta aggregation (use same window as other deltas) 
 	----------------------------------------------- 
     CREATE TABLE #KillPoints (
-        GovernorID      bigint  NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID      int     NOT NULL PRIMARY KEY CLUSTERED,
         KillPointsDelta bigint  NOT NULL
     );
 
@@ -312,7 +312,7 @@ BEGIN
     -- 6. Other deltas (use @Scan as lower bound)
     -----------------------------------------------
     CREATE TABLE #Helps (
-        GovernorID bigint NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID int    NOT NULL PRIMARY KEY CLUSTERED,
         HelpsDelta bigint NOT NULL
     );
 
@@ -324,7 +324,7 @@ BEGIN
     GROUP BY h.GovernorID;
 
     CREATE TABLE #RSSAssist (
-        GovernorID     bigint NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID     int    NOT NULL PRIMARY KEY CLUSTERED,
         RSSAssistDelta bigint NOT NULL
     );
 
@@ -336,7 +336,7 @@ BEGIN
     GROUP BY ra.GovernorID;
 
     CREATE TABLE #RSSGathered (
-        GovernorID       bigint NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID       int    NOT NULL PRIMARY KEY CLUSTERED,
         RSSGatheredDelta bigint NOT NULL
     );
 
@@ -348,7 +348,7 @@ BEGIN
     GROUP BY rg.GovernorID;
 
     CREATE TABLE #Power (
-        GovernorID bigint NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID int    NOT NULL PRIMARY KEY CLUSTERED,
         PowerDelta bigint NOT NULL
     );
 
@@ -360,7 +360,7 @@ BEGIN
     GROUP BY p.GovernorID;
 
     CREATE TABLE #Healed (
-        GovernorID        bigint NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID        int    NOT NULL PRIMARY KEY CLUSTERED,
         HealedTroopsDelta bigint NOT NULL
     );
 
@@ -372,7 +372,7 @@ BEGIN
     GROUP BY ht.GovernorID;
 
     CREATE TABLE #Ranged (
-        GovernorID        bigint NOT NULL PRIMARY KEY CLUSTERED,
+        GovernorID        int    NOT NULL PRIMARY KEY CLUSTERED,
         RangedPointsDelta bigint NOT NULL
     );
 
@@ -535,9 +535,9 @@ BEGIN
 
     SET @sql += N'
     SELECT TOP (5000)
-        S.[PowerRank]                                                AS [Rank],
+        CAST(S.[PowerRank] AS int)                                   AS [Rank],
         CAST(ROW_NUMBER() OVER (ORDER BY D.[DKP_SCORE] DESC) AS int) AS [KVK_RANK],
-        S.[GovernorID]                                               AS [Gov_ID],
+        CAST(S.[GovernorID] AS bigint)                               AS [Gov_ID],
         CAST(S.[GovernorName] AS nvarchar(255))                      AS [Governor_Name],
 
         CAST(S.[Power] AS bigint)                                    AS [Starting Power],
@@ -672,10 +672,7 @@ BEGIN
     DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
-    EXEC dbo.usp_RecordKvkFinalReportCompletion
-        @KVKNo = @KVK,
-        @FinalScanOrder = @LatestScanToUse,
-        @FinalizationBasis = N'LIVE_OUTPUT';
+    EXEC dbo.usp_RecordKvkFinalReportCompletion @KVKNo = @KVK, @FinalScanOrder = @LatestScanToUse, @FinalizationBasis = N'LIVE_OUTPUT';
 
 	        COMMIT TRANSACTION;
     END TRY
