@@ -515,15 +515,31 @@ function Assert-ReceiptContract {
     if ($migrations.Count -ne $requiredMigrationIds.Count) {
         throw 'The receipt must contain exactly six Phase 2-5.1 migrations.'
     }
+    $derivedAppliedMigrationCount = 0
     for ($index = 0; $index -lt $requiredMigrationIds.Count; $index++) {
         $migration = $migrations[$index]
         Assert-ExactProperties -InputObject $migration -Context "Migration[$index]" -Expected @(
-            'MigrationId', 'Sha256'
+            'MigrationId', 'Sha256', 'AppliedSha256'
         )
         if ($migration.MigrationId -cne $requiredMigrationIds[$index]) {
             throw "Migration[$index] is out of order or unexpected."
         }
         Assert-Sha256 -Value ([string]$migration.Sha256) -Context "Migration[$index].Sha256"
+        Assert-Sha256 -Value ([string]$migration.AppliedSha256) `
+            -Context "Migration[$index].AppliedSha256"
+
+        if ($migration.AppliedSha256 -cne $migration.Sha256) {
+            if ($Receipt.TargetPurpose -cne 'rehearsal' -or
+                $migration.MigrationId -cne
+                '20260728_001_phase5_immutable_import_file_handoff') {
+                throw (
+                    'An applied migration digest may differ from its canonical ' +
+                    'repository digest only for the Phase 5 migration on a ' +
+                    'rehearsal target.'
+                )
+            }
+            $derivedAppliedMigrationCount++
+        }
 
         $migrationPath = Join-Path $repoRoot (
             'migrations\' + $migration.MigrationId + '.sql'
@@ -618,6 +634,7 @@ function Assert-ReceiptContract {
         CapturedAtUtc = $capturedAtUtc
         Phase2RunId = $phase2RunId
         FinalizerSha256 = $ActualFinalizerSha256
+        DerivedAppliedMigrationCount = $derivedAppliedMigrationCount
     }
 }
 
@@ -719,7 +736,7 @@ ORDER BY MigrationId;
         if ($null -eq $historyRow -or
             [string]$historyRow.Status -cne 'Applied' -or
             [string]$historyRow.ChecksumSha256 -cne
-            ([string]$migration.Sha256).ToLowerInvariant()) {
+            ([string]$migration.AppliedSha256).ToLowerInvariant()) {
             throw "Live migration-history drift: $($migration.MigrationId)"
         }
     }
@@ -760,6 +777,7 @@ if ($OfflineValidationOnly.IsPresent) {
         ReceiptSha256 = $receiptSha256
         Phase2RunId = $validated.Phase2RunId
         SqlCommit = $receipt.SqlCommit
+        DerivedAppliedMigrationCount = $validated.DerivedAppliedMigrationCount
     }
     return
 }
@@ -799,6 +817,7 @@ if ($LiveValidationOnly.IsPresent) {
         ReceiptSha256 = $receiptSha256
         Phase2RunId = $validated.Phase2RunId
         SqlCommit = $receipt.SqlCommit
+        DerivedAppliedMigrationCount = $validated.DerivedAppliedMigrationCount
     }
     return
 }

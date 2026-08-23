@@ -179,10 +179,11 @@
     "migration": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["MigrationId", "Sha256"],
+      "required": ["MigrationId", "Sha256", "AppliedSha256"],
       "properties": {
         "MigrationId": { "type": "string" },
-        "Sha256": { "$ref": "#/$defs/sha256" }
+        "Sha256": { "$ref": "#/$defs/sha256" },
+        "AppliedSha256": { "$ref": "#/$defs/sha256" }
       }
     },
     "migrationPhase2": {

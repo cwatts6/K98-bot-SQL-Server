@@ -23,6 +23,9 @@ if ($schema.title -cne
     'KingdomScanData4 Phase 5.2 combined pre-finalization receipt') {
     throw 'The combined receipt schema identity is missing or unexpected.'
 }
+if ('AppliedSha256' -cnotin @($schema.'$defs'.migration.required)) {
+    throw 'The combined receipt schema does not require the applied migration digest.'
+}
 
 function Assert-Contains {
     param(
@@ -74,6 +77,8 @@ Assert-Contains -Pattern 'ConvertFrom-StrictUtf8Bytes\s+-Bytes\s+\$finalizerByte
     -Message 'The exact captured finalizer bytes must supply the executed source text.'
 Assert-Contains -Pattern 'Assert-LiveStateMatchesReceipt' `
     -Message 'The adapter must revalidate live Phase 2 state and migration history.'
+Assert-Contains -Pattern 'ChecksumSha256\s+-cne\s+\(\[string\]\$migration\.AppliedSha256\)' `
+    -Message 'Live migration history must bind the separately frozen applied digest.'
 Assert-Contains -Pattern 'Invoke-K98SqlQuery[\s\S]*-Query\s+\$authorizedSql' `
     -Message 'The exact in-memory authorized finalizer must be executed.'
 Assert-Contains -Pattern "Status\s+-cne\s+'FINALIZED'" `
@@ -231,6 +236,9 @@ try {
                 Sha256 = (
                     Get-FileHash -LiteralPath $migrationPath -Algorithm SHA256
                 ).Hash
+                AppliedSha256 = (
+                    Get-FileHash -LiteralPath $migrationPath -Algorithm SHA256
+                ).Hash
             }
         }
     )
@@ -335,6 +343,47 @@ try {
         $validResult.Mode -cne 'OfflineValidationOnly') {
         throw 'A valid combined receipt did not pass offline validation.'
     }
+
+    $phase5Migration = $receipt.Migrations[4]
+    $canonicalPhase5AppliedSha256 = $phase5Migration.AppliedSha256
+    $phase5Migration.AppliedSha256 = '0' * 64 -join ''
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $derivedRehearsalArguments = $commonArguments.Clone()
+    $derivedRehearsalArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+    $derivedRehearsalResult = & $adapterPath @derivedRehearsalArguments
+    if ($derivedRehearsalResult.Result -cne 'PASS' -or
+        $derivedRehearsalResult.DerivedAppliedMigrationCount -ne 1) {
+        throw 'A receipt-bound Phase 5 rehearsal derivation did not pass offline validation.'
+    }
+    $phase5Migration.AppliedSha256 = $canonicalPhase5AppliedSha256
+
+    $phase3Migration = $receipt.Migrations[1]
+    $canonicalPhase3AppliedSha256 = $phase3Migration.AppliedSha256
+    $phase3Migration.AppliedSha256 = '0' * 64 -join ''
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $unexpectedDerivedArguments = $commonArguments.Clone()
+    $unexpectedDerivedArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+    Assert-Throws -ExpectedMessage 'only for the Phase 5 migration' -Action {
+        & $adapterPath @unexpectedDerivedArguments
+    }
+    $phase3Migration.AppliedSha256 = $canonicalPhase3AppliedSha256
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
 
     [IO.File]::WriteAllText(
         $sqlModulesPath,
@@ -474,6 +523,21 @@ try {
     Assert-Throws -ExpectedMessage 'explicit production switch' -Action {
         & $adapterPath @productionArguments
     }
+
+    $receipt.Migrations[4].AppliedSha256 = '0' * 64 -join ''
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $productionDerivedArguments = $productionArguments.Clone()
+    $productionDerivedArguments.ConfirmProductionTarget = $true
+    $productionDerivedArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+    Assert-Throws -ExpectedMessage 'only for the Phase 5 migration on a rehearsal target' -Action {
+        & $adapterPath @productionDerivedArguments
+    }
 }
 finally {
     if (Test-Path -LiteralPath $writeJunctionLinkRoot) {
@@ -498,7 +562,7 @@ finally {
 
 [pscustomobject]@{
     Test = 'Phase52GuardedFinalizer'
-    OfflinePositiveCases = 2
-    OfflineNegativeCases = 10
+    OfflinePositiveCases = 3
+    OfflineNegativeCases = 12
     Result = 'PASS'
 }

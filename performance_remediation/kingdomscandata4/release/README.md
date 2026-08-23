@@ -122,6 +122,9 @@ once, requires the operator-frozen receipt SHA-256 and exact SQL/bot commits, an
 - the clean-reapply stage, PASS status, backup checksum/`RESTORE VERIFYONLY` evidence and all nine
   combined gates;
 - the exact six ordered Phase 2-5.1 migration IDs and repository file SHA-256 values;
+- a separately frozen applied SHA-256 for every migration; production receipts require it to
+  equal the canonical repository digest, while rehearsal receipts may bind a different applied
+  digest only for the Phase 5 test-root derivation;
 - the exact Phase 2 run ID, row counts and six baseline/forward table digests;
 - concrete retained module, changed-file and validation-manifest paths below the evidence root,
   each re-read and checked against its receipt-bound digest, plus at least one exact SQL Changes
