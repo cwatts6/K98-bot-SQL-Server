@@ -481,7 +481,7 @@ function Assert-ReceiptContract {
         }
     }
     elseif ($DatabaseName -cnotmatch
-        '^ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_[0-9]{8}$' -or
+        '^ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY(?:_R[1-9][0-9]*)?_[0-9]{8}$' -or
         $Receipt.TargetPurpose -cne 'rehearsal') {
         throw 'Non-production finalization is pinned to a Phase 5.2 reapply database.'
     }

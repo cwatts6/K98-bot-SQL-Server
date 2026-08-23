@@ -344,6 +344,55 @@ try {
         throw 'A valid combined receipt did not pass offline validation.'
     }
 
+    $receipt.DatabaseName =
+        'ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_R2_20260821'
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $r2Arguments = $commonArguments.Clone()
+    $r2Arguments.DatabaseName = $receipt.DatabaseName
+    $r2Arguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+    $r2Result = & $adapterPath @r2Arguments
+    if ($r2Result.Result -cne 'PASS' -or
+        $r2Result.Mode -cne 'OfflineValidationOnly') {
+        throw 'A controlled R-number clean-reapply target did not pass offline validation.'
+    }
+
+    foreach ($invalidDatabaseName in @(
+            'ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_R0_20260821',
+            'ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_R_20260821',
+            'ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_ROLLBACK_R2_20260821'
+        )) {
+        $receipt.DatabaseName = $invalidDatabaseName
+        [IO.File]::WriteAllText(
+            $receiptPath,
+            (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+            [Text.UTF8Encoding]::new($false)
+        )
+        $invalidDatabaseArguments = $commonArguments.Clone()
+        $invalidDatabaseArguments.DatabaseName = $invalidDatabaseName
+        $invalidDatabaseArguments.ExpectedReceiptSha256 = (
+            Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+        ).Hash
+        Assert-Throws -ExpectedMessage 'pinned to a Phase 5.2 reapply database' -Action {
+            & $adapterPath @invalidDatabaseArguments
+        }
+    }
+
+    $receipt.DatabaseName = $databaseName
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $commonArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+
     $phase5Migration = $receipt.Migrations[4]
     $canonicalPhase5AppliedSha256 = $phase5Migration.AppliedSha256
     $phase5Migration.AppliedSha256 = '0' * 64 -join ''
@@ -562,7 +611,7 @@ finally {
 
 [pscustomobject]@{
     Test = 'Phase52GuardedFinalizer'
-    OfflinePositiveCases = 3
-    OfflineNegativeCases = 12
+    OfflinePositiveCases = 4
+    OfflineNegativeCases = 15
     Result = 'PASS'
 }

@@ -138,7 +138,10 @@ once, requires the operator-frozen receipt SHA-256 and exact SQL/bot commits, an
 `-LiveValidationOnly` adds read-only SQL state/history and receipt-freshness validation but does
 not finalize. Execution
 requires separate `-ConfirmReceiptAccepted`, `-ConfirmWritersStopped` and
-`-ConfirmIrreversibleFinalize` switches. `ROK_TRACKER` additionally requires
+`-ConfirmIrreversibleFinalize` switches. Non-production execution accepts only the controlled
+`ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_<YYYYMMDD>` or
+`ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_R<n>_<YYYYMMDD>` rehearsal naming forms, where
+`n` is a positive integer. `ROK_TRACKER` additionally requires
 `-ConfirmProductionTarget` and a production-purpose receipt. After all checks, the adapter changes
 only the two confirmation declarations in an in-memory copy of the reviewed finalizer. It creates
 randomly named authorized-SQL and execution-receipt files without overwrite, verifies each open
