@@ -231,8 +231,12 @@ Assert-Matches $archiveHashHelper `
     "master\.dbo\.xp_cmdshell\s+@HashCommand" `
     'The archive-hash helper must hash the exact archive destination.'
 Assert-Matches $archiveHashHelper `
-    'CHARINDEX\s*\(\s*N''"''\s*,\s*@ApprovedPath\s*\)\s*>\s*0' `
-    'The archive-hash helper must reject embedded double quotes before building CMD text.'
+    "(?s)DATALENGTH\(@CompletedFileName\)\s*<>\s*96.+LIKE\s+N'%\[\^0-9a-f\]%'.+@ApprovedPath\s+NOT\s+IN" `
+    'The archive-hash helper must enforce the exact completed-name and root allowlist.'
+Assert-Before $archiveHashHelper `
+    '@ApprovedPath NOT IN' `
+    'DECLARE @HashCommand' `
+    'The archive-hash helper must validate the exact path before building CMD text.'
 Assert-Matches $archiveReconciliationTest `
     'WrongObservedError\s*<>\s*51850' `
     'The archive reconciliation regression must assert the wrong-digest failure.'
@@ -255,7 +259,7 @@ Assert-NotMatches (
     'Concurrency fixtures must hash the exact downloads_test_phase3_rehearsal active path.'
 
 Assert-Before $importCore `
-    "HASHBYTES('SHA2_256'" `
+    'EXEC dbo.HASH_KS4_IMPORT_ARCHIVE_FILE' `
     'TRUNCATE TABLE dbo.IMPORT_STAGING_CSV_RAW' `
     'The source-file digest must be established before staging mutation.'
 foreach ($allocatorSource in @(
@@ -310,17 +314,17 @@ Assert-Matches $archiveHashHelper `
     "(?s)certutil\s+-hashfile.+SHA256.+TRY_CONVERT\(binary\(32\)" `
     'The private archive-hash helper must calculate and parse SHA-256 through its constrained command.'
 Assert-Matches $archiveHashHelper `
-    "(?s)@ApprovedPath\s*<>\s*N'C:\\discord_file_downloader\\downloads\\stats\.csv'.+Import\[_\]Archive" `
-    'The private archive-hash helper must permit only the active source or approved archive destination.'
+    "(?s)@ClaimedRoot.+Import_Claimed.+@ArchiveRoot.+Import_Archive.+@ApprovedPath\s+NOT\s+IN" `
+    'The private archive-hash helper must permit only the exact claimed or archive destination.'
 Assert-Matches $archiveHashHelper `
-    "CHARINDEX\(N'&',\s*@ApprovedPath\)" `
-    'The private archive-hash helper must reject command-shell metacharacters.'
+    "(?s)SUBSTRING\(@CompletedFileName,\s*7,\s*32\).+LIKE\s+N'%\[\^0-9a-f\]%'" `
+    'The private archive-hash helper must reject shell metacharacters through the canonical name allowlist.'
 Assert-Matches $archive `
-    "CHARINDEX\(N'&',\s*@ArchivePath\)" `
-    'The archive helper must reject command-shell metacharacters in its destination path.'
+    "(?s)@SourcePath\s*<>.+Import_Claimed.+@ArchivePath\s*<>.+Import_Archive" `
+    'The archive helper must bind source and destination to the exact claim roots.'
 Assert-Matches $archive `
-    'refused command-shell metacharacters in the archive path' `
-    'The archive helper must fail closed when its destination path is not shell-safe.'
+    'refused claim-path definition drift' `
+    'The archive helper must fail closed when its persisted paths are not canonical.'
 
 Assert-Matches $receipt `
     '\[FileDigest\]\s+\[binary\]\(32\)\s+NOT NULL' `

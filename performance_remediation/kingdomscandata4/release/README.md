@@ -85,9 +85,14 @@ Do not reuse the existing Phase 5.1 rehearsal database.
 8. Run the complete committed-import, source-unchanged, workload, Query Store, and matching bot/DAL
    matrix. Preserve its receipt and transcript. Durable receipts make early rollback ineligible on
    this database.
-9. Create the combined pre-finalization receipt bound to the exact Phase 2 run ID, retained-table
-   digests, final module hashes, migration history, SQL commit, bot commits, and validation
-   receipts. Do not finalize this forward database.
+9. Run `Verify-Phase52CombinedPostPhase51.sql` from an exact reviewed execution copy. This
+   non-production verifier reconciles the original Phase 2 module inventory with the exact 33
+   Phase 2 modules deliberately superseded by Phases 3-5.1, rechecks all six current/retained
+   table digests, later-phase SQL contracts, DBCC and critical reads, and only then refreshes the
+   exact Phase 2 `VerifiedAtUtc`. Create the combined pre-finalization receipt bound to that
+   verifier, the exact Phase 2 run ID, retained-table digests, final module hashes, migration
+   history, SQL commit, bot commits, and validation receipts. Do not finalize this forward
+   database.
 
 ### Rollback database
 
@@ -113,9 +118,61 @@ Do not reuse the existing Phase 5.1 rehearsal database.
     duplicate, cancellation, workload, source-unchanged, and operational smoke matrix. Preserve
     the complete evidence package outside Git.
 
-The Phase 2 finalizer must not be weakened or manually bypassed. Before the combined rehearsal,
-add a guarded adapter or finalizer extension that consumes the combined receipt while retaining
-the exact run-ID, time, lock, table-digest and no-drift controls.
+The Phase 2 verifier and finalizer must not be weakened or manually bypassed. The release package
+supplies `Verify-Phase52CombinedPostPhase51.sql`, `Invoke-Phase52GuardedFinalizer.ps1` and
+`combined_receipt.schema.json` as the post-Phase-5.1 verifier, guarded adapter and receipt contract.
+The combined verifier does not replace or modify `phase2/02_verify.sql`; it addresses the later
+migrations' intentional module supersession while preserving the original 52-module inventory.
+It refuses production, refuses by default, requires the exact controlled reapply target and
+non-zero Phase 2 run ID, and changes only the exact existing `VerifiedAtUtc` after every combined
+check passes. The adapter leaves `phase2/03_finalize.sql` refusal-by-default and unchanged. It
+requires an external version-2 receipt below a non-reparse evidence root, reads and hashes the
+receipt bytes once, requires the operator-frozen receipt SHA-256 and exact SQL/bot commits, and
+validates:
+
+- the clean-reapply stage, PASS status, backup checksum/`RESTORE VERIFYONLY` evidence and all nine
+  combined gates;
+- the exact six ordered Phase 2-5.1 migration IDs, repository file SHA-256 values, applied
+  SHA-256 values, 12-character runner commits and branch names;
+- a separately frozen applied SHA-256 for every migration; production receipts require it to
+  equal the canonical repository digest, while rehearsal receipts may bind a different applied
+  digest only for the Phase 5 test-root derivation;
+- the exact Phase 2 run ID, row counts and six baseline/forward table digests;
+- concrete combined-verification output, retained module, changed-file and validation-manifest
+  paths below the evidence root, each re-read and checked against its receipt-bound digest, plus
+  at least one exact SQL Changes scan ID;
+- the reviewed combined-verifier and Phase 2 finalizer paths and SHA-256 values;
+- for live validation, a fresh eligible `VERIFIED` state row and six matching `Applied`
+  migration-history rows; and
+- for live validation and execution, a clean SQL repository at the exact receipt-bound commit.
+
+`-OfflineValidationOnly` validates the external receipt and repository inputs without SQL access.
+`-LiveValidationOnly` adds read-only SQL state/history and receipt-freshness validation but does
+not finalize. Execution
+requires separate `-ConfirmReceiptAccepted`, `-ConfirmWritersStopped` and
+`-ConfirmIrreversibleFinalize` switches. Non-production execution accepts only the controlled
+`ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_<YYYYMMDD>` or
+`ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_R<n>_<YYYYMMDD>` rehearsal naming forms, where
+`n` is a positive integer. `ROK_TRACKER` additionally requires
+`-ConfirmProductionTarget` and a production-purpose receipt. After all checks, the adapter changes
+only the two confirmation declarations in an in-memory copy of the reviewed finalizer. It creates
+randomly named authorized-SQL and execution-receipt files without overwrite, verifies each open
+handle's final Windows path, and retains both exclusive handles throughout execution so a local
+link swap cannot redirect later privileged content writes. It then executes the exact in-memory
+text and requires durable `FINALIZED` state plus a finalization receipt. The existing finalizer still
+rechecks receipt freshness, sessions, application lock, exclusive table locks, row counts and all
+six data digests inside its transaction before it drops a retained table.
+
+Run the deterministic refusal/contract suite before any live use:
+
+```powershell
+.\performance_remediation\kingdomscandata4\release\Test-Phase52GuardedFinalizer.ps1
+.\performance_remediation\kingdomscandata4\release\Test-Phase52CombinedPostPhase51Verifier.ps1
+```
+
+Never use execution mode at Checkpoint B. Use offline/live validation to prepare evidence, then
+execute only after Checkpoint C accepts the exact combined receipt. Production use still requires
+the separate production go/no-go.
 
 ## Pre-restart rollback order
 
