@@ -53,12 +53,18 @@ $sqlCommonPath = Join-Path $repoRoot 'deploy\SqlDeploy.Common.ps1'
 $finalizerRelativePath =
     'performance_remediation\kingdomscandata4\phase2\03_finalize.sql'
 $finalizerPath = Join-Path $repoRoot $finalizerRelativePath
+$combinedVerifierRelativePath =
+    'performance_remediation\kingdomscandata4\release\Verify-Phase52CombinedPostPhase51.sql'
+$combinedVerifierPath = Join-Path $repoRoot $combinedVerifierRelativePath
 
 if (-not (Test-Path -LiteralPath $sqlCommonPath -PathType Leaf)) {
     throw "Missing SQL deployment helper: $sqlCommonPath"
 }
 if (-not (Test-Path -LiteralPath $finalizerPath -PathType Leaf)) {
     throw "Missing Phase 2 finalizer: $finalizerPath"
+}
+if (-not (Test-Path -LiteralPath $combinedVerifierPath -PathType Leaf)) {
+    throw "Missing Phase 5.2 combined verifier: $combinedVerifierPath"
 }
 
 . $sqlCommonPath
@@ -399,7 +405,10 @@ function Assert-ReceiptContract {
         [string]$ResolvedEvidenceRoot,
 
         [Parameter(Mandatory)]
-        [string]$ActualFinalizerSha256
+        [string]$ActualFinalizerSha256,
+
+        [Parameter(Mandatory)]
+        [string]$ActualCombinedVerifierSha256
     )
 
     Assert-ExactProperties -InputObject $Receipt -Context 'Receipt' -Expected @(
@@ -408,12 +417,12 @@ function Assert-ReceiptContract {
         'DatabaseName', 'Phase2RunId', 'SqlCommit', 'BotMirrorCommit',
         'ProductionBotCommit', 'SourceBackup', 'Migrations',
         'Phase2Digests', 'ManifestDigests', 'Gates', 'SecurityScanIds',
-        'Finalizer'
+        'CombinedVerifier', 'Finalizer'
     )
 
     Assert-JsonInteger -Value $Receipt.EvidenceVersion `
         -Context 'EvidenceVersion'
-    if ($Receipt.EvidenceVersion -ne 1) {
+    if ($Receipt.EvidenceVersion -ne 2) {
         throw 'Unsupported combined receipt EvidenceVersion.'
     }
     if ($Receipt.ReceiptType -cne 'KingdomScanData4Phase52Combined') {
@@ -519,7 +528,8 @@ function Assert-ReceiptContract {
     for ($index = 0; $index -lt $requiredMigrationIds.Count; $index++) {
         $migration = $migrations[$index]
         Assert-ExactProperties -InputObject $migration -Context "Migration[$index]" -Expected @(
-            'MigrationId', 'Sha256', 'AppliedSha256'
+            'MigrationId', 'Sha256', 'AppliedSha256', 'AppliedGitCommit',
+            'AppliedBranchName'
         )
         if ($migration.MigrationId -cne $requiredMigrationIds[$index]) {
             throw "Migration[$index] is out of order or unexpected."
@@ -527,6 +537,14 @@ function Assert-ReceiptContract {
         Assert-Sha256 -Value ([string]$migration.Sha256) -Context "Migration[$index].Sha256"
         Assert-Sha256 -Value ([string]$migration.AppliedSha256) `
             -Context "Migration[$index].AppliedSha256"
+        if ([string]$migration.AppliedGitCommit -cnotmatch '^[a-f0-9]{12}$') {
+            throw "Migration[$index].AppliedGitCommit is not an exact 12-character commit."
+        }
+        if ([string]::IsNullOrWhiteSpace(
+                [string]$migration.AppliedBranchName
+            )) {
+            throw "Migration[$index].AppliedBranchName is missing."
+        }
 
         if ($migration.AppliedSha256 -cne $migration.Sha256) {
             if ($Receipt.TargetPurpose -cne 'rehearsal' -or
@@ -575,7 +593,8 @@ function Assert-ReceiptContract {
     }
 
     Assert-ExactProperties -InputObject $Receipt.ManifestDigests -Context 'ManifestDigests' -Expected @(
-        'SqlModulesSha256', 'ChangedFilesSha256', 'ValidationEvidenceSha256'
+        'CombinedVerificationSha256', 'SqlModulesSha256',
+        'ChangedFilesSha256', 'ValidationEvidenceSha256'
     )
     foreach ($digestProperty in $Receipt.ManifestDigests.PSObject.Properties.Name) {
         $manifestArtifact = $Receipt.ManifestDigests.$digestProperty
@@ -618,6 +637,21 @@ function Assert-ReceiptContract {
         }
     }
 
+    Assert-ExactProperties -InputObject $Receipt.CombinedVerifier `
+        -Context 'CombinedVerifier' -Expected @(
+            'ScriptRelativePath', 'ScriptSha256'
+        )
+    if ($Receipt.CombinedVerifier.ScriptRelativePath -cne
+        $combinedVerifierRelativePath) {
+        throw 'Receipt points to an unexpected combined verifier script.'
+    }
+    Assert-Sha256 -Value ([string]$Receipt.CombinedVerifier.ScriptSha256) `
+        -Context 'CombinedVerifier.ScriptSha256'
+    if ($ActualCombinedVerifierSha256 -cne
+        $Receipt.CombinedVerifier.ScriptSha256) {
+        throw 'The Phase 5.2 combined verifier digest does not match the receipt.'
+    }
+
     Assert-ExactProperties -InputObject $Receipt.Finalizer -Context 'Finalizer' -Expected @(
         'ScriptRelativePath', 'ScriptSha256'
     )
@@ -633,6 +667,7 @@ function Assert-ReceiptContract {
     return [pscustomobject]@{
         CapturedAtUtc = $capturedAtUtc
         Phase2RunId = $phase2RunId
+        CombinedVerifierSha256 = $ActualCombinedVerifierSha256
         FinalizerSha256 = $ActualFinalizerSha256
         DerivedAppliedMigrationCount = $derivedAppliedMigrationCount
     }
@@ -715,7 +750,14 @@ WHERE RunId = CONVERT(uniqueidentifier, $runIdLiteral);
         }
     ) -join ', '
     $historyQuery = @"
-SELECT MigrationId, ChecksumSha256, Status
+SELECT
+    MigrationId,
+    ChecksumSha256,
+    Status,
+    GitCommit,
+    BranchName,
+    ErrorMessageIsNull = CONVERT(bit, CASE WHEN ErrorMessage IS NULL THEN 1 ELSE 0 END),
+    ErrorMessageLength = DATALENGTH(ErrorMessage)
 FROM dbo.SchemaMigrationHistory
 WHERE MigrationId IN ($migrationLiterals)
 ORDER BY MigrationId;
@@ -736,7 +778,13 @@ ORDER BY MigrationId;
         if ($null -eq $historyRow -or
             [string]$historyRow.Status -cne 'Applied' -or
             [string]$historyRow.ChecksumSha256 -cne
-            ([string]$migration.AppliedSha256).ToLowerInvariant()) {
+            ([string]$migration.AppliedSha256).ToLowerInvariant() -or
+            [string]$historyRow.GitCommit -cne
+            [string]$migration.AppliedGitCommit -or
+            [string]$historyRow.BranchName -cne
+            [string]$migration.AppliedBranchName -or
+            [bool]$historyRow.ErrorMessageIsNull -or
+            [long]$historyRow.ErrorMessageLength -ne 0) {
             throw "Live migration-history drift: $($migration.MigrationId)"
         }
     }
@@ -756,6 +804,8 @@ if ($PSCmdlet.ParameterSetName -eq 'Execute') {
 
 $trustedPath = Assert-PathIsContainedAndNotReparse `
     -Root $EvidenceRoot -Path $ReceiptPath
+$combinedVerifierBytes = [IO.File]::ReadAllBytes($combinedVerifierPath)
+$combinedVerifierSha256 = Get-Sha256ForBytes -Bytes $combinedVerifierBytes
 $finalizerBytes = [IO.File]::ReadAllBytes($finalizerPath)
 $finalizerSha256 = Get-Sha256ForBytes -Bytes $finalizerBytes
 $finalizerSource = ConvertFrom-StrictUtf8Bytes -Bytes $finalizerBytes `
@@ -768,7 +818,8 @@ if ($receiptSha256 -cne $ExpectedReceiptSha256.ToUpperInvariant()) {
 $receipt = ConvertTo-StrictReceipt -Bytes $receiptBytes
 $validated = Assert-ReceiptContract -Receipt $receipt `
     -ResolvedEvidenceRoot $trustedPath.Root `
-    -ActualFinalizerSha256 $finalizerSha256
+    -ActualFinalizerSha256 $finalizerSha256 `
+    -ActualCombinedVerifierSha256 $combinedVerifierSha256
 
 if ($OfflineValidationOnly.IsPresent) {
     [pscustomobject]@{

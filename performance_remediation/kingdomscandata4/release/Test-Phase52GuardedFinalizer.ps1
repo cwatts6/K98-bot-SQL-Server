@@ -10,8 +10,16 @@ $schemaPath = Join-Path $PSScriptRoot 'combined_receipt.schema.json'
 $finalizerRelativePath =
     'performance_remediation\kingdomscandata4\phase2\03_finalize.sql'
 $finalizerPath = Join-Path $repoRoot $finalizerRelativePath
+$combinedVerifierRelativePath =
+    'performance_remediation\kingdomscandata4\release\Verify-Phase52CombinedPostPhase51.sql'
+$combinedVerifierPath = Join-Path $repoRoot $combinedVerifierRelativePath
 
-foreach ($requiredPath in @($adapterPath, $schemaPath, $finalizerPath)) {
+foreach ($requiredPath in @(
+        $adapterPath,
+        $schemaPath,
+        $finalizerPath,
+        $combinedVerifierPath
+    )) {
     if (-not (Test-Path -LiteralPath $requiredPath -PathType Leaf)) {
         throw "Missing guarded-finalizer input: $requiredPath"
     }
@@ -25,6 +33,14 @@ if ($schema.title -cne
 }
 if ('AppliedSha256' -cnotin @($schema.'$defs'.migration.required)) {
     throw 'The combined receipt schema does not require the applied migration digest.'
+}
+if ($schema.properties.EvidenceVersion.const -ne 2 -or
+    'CombinedVerifier' -cnotin @($schema.required) -or
+    'CombinedVerificationSha256' -cnotin
+        @($schema.properties.ManifestDigests.required) -or
+    'AppliedGitCommit' -cnotin @($schema.'$defs'.migration.required) -or
+    'AppliedBranchName' -cnotin @($schema.'$defs'.migration.required)) {
+    throw 'The combined receipt schema does not bind the v2 verifier and exact applied history.'
 }
 
 function Assert-Contains {
@@ -73,6 +89,10 @@ Assert-Contains -Pattern 'ReadAllBytes\(\$finalizerPath\)' `
     -Message 'The reviewed finalizer must be captured through one immutable byte read.'
 Assert-Contains -Pattern 'Get-Sha256ForBytes\s+-Bytes\s+\$finalizerBytes' `
     -Message 'The exact captured finalizer bytes must supply the receipt digest check.'
+Assert-Contains -Pattern 'ReadAllBytes\(\$combinedVerifierPath\)' `
+    -Message 'The reviewed combined verifier must be captured through one immutable byte read.'
+Assert-Contains -Pattern 'Get-Sha256ForBytes\s+-Bytes\s+\$combinedVerifierBytes' `
+    -Message 'The exact captured combined-verifier bytes must supply the receipt digest check.'
 Assert-Contains -Pattern 'ConvertFrom-StrictUtf8Bytes\s+-Bytes\s+\$finalizerBytes' `
     -Message 'The exact captured finalizer bytes must supply the executed source text.'
 Assert-Contains -Pattern 'Assert-LiveStateMatchesReceipt' `
@@ -195,12 +215,17 @@ try {
     $manifestDirectory = Join-Path $tempRoot 'manifests'
     New-Item -ItemType Directory -Path $manifestDirectory | Out-Null
     $sqlModulesRelativePath = 'manifests\sql_modules.json'
+    $combinedVerificationRelativePath =
+        'manifests\combined_verification.log'
     $changedFilesRelativePath = 'manifests\changed_files.json'
     $validationEvidenceRelativePath = 'manifests\validation_evidence.json'
     $sqlModulesPath = Join-Path $tempRoot $sqlModulesRelativePath
+    $combinedVerificationPath =
+        Join-Path $tempRoot $combinedVerificationRelativePath
     $changedFilesPath = Join-Path $tempRoot $changedFilesRelativePath
     $validationEvidencePath = Join-Path $tempRoot $validationEvidenceRelativePath
     $sqlModulesContent = '{"modules":[]}'
+    $combinedVerificationContent = 'combined verification passed'
     $changedFilesContent = '{"files":[]}'
     $validationEvidenceContent = '{"validations":[]}'
     [IO.File]::WriteAllText(
@@ -208,6 +233,13 @@ try {
         $sqlModulesContent,
         [Text.UTF8Encoding]::new($false)
     )
+
+    [IO.File]::WriteAllText(
+        $combinedVerificationPath,
+        $combinedVerificationContent,
+        [Text.UTF8Encoding]::new($false)
+    )
+
     [IO.File]::WriteAllText(
         $changedFilesPath,
         $changedFilesContent,
@@ -239,13 +271,15 @@ try {
                 AppliedSha256 = (
                     Get-FileHash -LiteralPath $migrationPath -Algorithm SHA256
                 ).Hash
+                AppliedGitCommit = ('d' * 12 -join '')
+                AppliedBranchName = 'main'
             }
         }
     )
     $databaseName =
         'ROK_TRACKER_BACKUP_TEST_KS4_PHASE52_REAPPLY_20260817'
     $receipt = [ordered]@{
-        EvidenceVersion = 1
+        EvidenceVersion = 2
         ReceiptType = 'KingdomScanData4Phase52Combined'
         RunId = 'phase5_2_' + [DateTime]::UtcNow.ToString('yyyyMMddTHHmmssfffZ')
         Status = 'PASS'
@@ -279,6 +313,13 @@ try {
             ForwardStagingSha256 = $digestF
         }
         ManifestDigests = [ordered]@{
+            CombinedVerificationSha256 = [ordered]@{
+                RelativePath = $combinedVerificationRelativePath
+                Sha256 = (
+                    Get-FileHash -LiteralPath $combinedVerificationPath `
+                        -Algorithm SHA256
+                ).Hash
+            }
             SqlModulesSha256 = [ordered]@{
                 RelativePath = $sqlModulesRelativePath
                 Sha256 = (
@@ -310,6 +351,12 @@ try {
             Security = 'PASS'
         }
         SecurityScanIds = @([Guid]::NewGuid().ToString())
+        CombinedVerifier = [ordered]@{
+            ScriptRelativePath = $combinedVerifierRelativePath
+            ScriptSha256 = (
+                Get-FileHash -LiteralPath $combinedVerifierPath -Algorithm SHA256
+            ).Hash
+        }
         Finalizer = [ordered]@{
             ScriptRelativePath = $finalizerRelativePath
             ScriptSha256 = (
@@ -448,6 +495,48 @@ try {
         [Text.UTF8Encoding]::new($false)
     )
 
+    $canonicalCombinedVerifierSha256 =
+        $receipt.CombinedVerifier.ScriptSha256
+    $receipt.CombinedVerifier.ScriptSha256 = '0' * 64 -join ''
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $wrongVerifierArguments = $commonArguments.Clone()
+    $wrongVerifierArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+    Assert-Throws -ExpectedMessage 'combined verifier digest does not match' -Action {
+        & $adapterPath @wrongVerifierArguments
+    }
+    $receipt.CombinedVerifier.ScriptSha256 =
+        $canonicalCombinedVerifierSha256
+
+    $canonicalAppliedGitCommit = $receipt.Migrations[0].AppliedGitCommit
+    $receipt.Migrations[0].AppliedGitCommit = 'not-a-commit'
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $wrongAppliedCommitArguments = $commonArguments.Clone()
+    $wrongAppliedCommitArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+    Assert-Throws -ExpectedMessage 'not an exact 12-character commit' -Action {
+        & $adapterPath @wrongAppliedCommitArguments
+    }
+    $receipt.Migrations[0].AppliedGitCommit = $canonicalAppliedGitCommit
+    [IO.File]::WriteAllText(
+        $receiptPath,
+        (($receipt | ConvertTo-Json -Depth 10) + "`n"),
+        [Text.UTF8Encoding]::new($false)
+    )
+    $commonArguments.ExpectedReceiptSha256 = (
+        Get-FileHash -LiteralPath $receiptPath -Algorithm SHA256
+    ).Hash
+
     $wrongHashArguments = $commonArguments.Clone()
     $wrongHashArguments.ExpectedReceiptSha256 = '0' * 64 -join ''
     Assert-Throws -ExpectedMessage 'operator-frozen digest' -Action {
@@ -481,7 +570,7 @@ try {
     Assert-Throws -ExpectedMessage 'must be a JSON integer' -Action {
         & $adapterPath @nullTypeArguments
     }
-    $receipt.EvidenceVersion = 1
+    $receipt.EvidenceVersion = 2
 
     $receipt.Status = 'FAIL'
     [IO.File]::WriteAllText(
@@ -523,6 +612,11 @@ try {
         -Force | Out-Null
     Copy-Item -LiteralPath $sqlModulesPath `
         -Destination (Join-Path $junctionPhysicalEvidenceRoot $sqlModulesRelativePath)
+    Copy-Item -LiteralPath $combinedVerificationPath `
+        -Destination (
+            Join-Path $junctionPhysicalEvidenceRoot `
+                $combinedVerificationRelativePath
+        )
     Copy-Item -LiteralPath $changedFilesPath `
         -Destination (Join-Path $junctionPhysicalEvidenceRoot $changedFilesRelativePath)
     Copy-Item -LiteralPath $validationEvidencePath `
@@ -612,6 +706,6 @@ finally {
 [pscustomobject]@{
     Test = 'Phase52GuardedFinalizer'
     OfflinePositiveCases = 4
-    OfflineNegativeCases = 15
+    OfflineNegativeCases = 17
     Result = 'PASS'
 }

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://k98.local/schemas/kingdomscandata4-phase5-2-combined-receipt-v1.json",
+  "$id": "https://k98.local/schemas/kingdomscandata4-phase5-2-combined-receipt-v2.json",
   "title": "KingdomScanData4 Phase 5.2 combined pre-finalization receipt",
   "type": "object",
   "additionalProperties": false,
@@ -25,10 +25,11 @@
     "ManifestDigests",
     "Gates",
     "SecurityScanIds",
+    "CombinedVerifier",
     "Finalizer"
   ],
   "properties": {
-    "EvidenceVersion": { "type": "integer", "const": 1 },
+    "EvidenceVersion": { "type": "integer", "const": 2 },
     "ReceiptType": { "const": "KingdomScanData4Phase52Combined" },
     "RunId": {
       "type": "string",
@@ -107,11 +108,13 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
+        "CombinedVerificationSha256",
         "SqlModulesSha256",
         "ChangedFilesSha256",
         "ValidationEvidenceSha256"
       ],
       "properties": {
+        "CombinedVerificationSha256": { "$ref": "#/$defs/evidenceArtifact" },
         "SqlModulesSha256": { "$ref": "#/$defs/evidenceArtifact" },
         "ChangedFilesSha256": { "$ref": "#/$defs/evidenceArtifact" },
         "ValidationEvidenceSha256": { "$ref": "#/$defs/evidenceArtifact" }
@@ -149,6 +152,17 @@
       "uniqueItems": true,
       "items": { "type": "string", "format": "uuid" }
     },
+    "CombinedVerifier": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["ScriptRelativePath", "ScriptSha256"],
+      "properties": {
+        "ScriptRelativePath": {
+          "const": "performance_remediation\\kingdomscandata4\\release\\Verify-Phase52CombinedPostPhase51.sql"
+        },
+        "ScriptSha256": { "$ref": "#/$defs/sha256" }
+      }
+    },
     "Finalizer": {
       "type": "object",
       "additionalProperties": false,
@@ -179,11 +193,22 @@
     "migration": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["MigrationId", "Sha256", "AppliedSha256"],
+      "required": [
+        "MigrationId",
+        "Sha256",
+        "AppliedSha256",
+        "AppliedGitCommit",
+        "AppliedBranchName"
+      ],
       "properties": {
         "MigrationId": { "type": "string" },
         "Sha256": { "$ref": "#/$defs/sha256" },
-        "AppliedSha256": { "$ref": "#/$defs/sha256" }
+        "AppliedSha256": { "$ref": "#/$defs/sha256" },
+        "AppliedGitCommit": {
+          "type": "string",
+          "pattern": "^[a-f0-9]{12}$"
+        },
+        "AppliedBranchName": { "type": "string", "minLength": 1 }
       }
     },
     "migrationPhase2": {
