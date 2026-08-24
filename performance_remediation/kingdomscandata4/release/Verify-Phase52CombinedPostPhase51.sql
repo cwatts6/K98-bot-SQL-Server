@@ -658,7 +658,7 @@ DECLARE @Digests table
 (
     SequenceNo int NOT NULL PRIMARY KEY,
     LogicalName sysname NOT NULL,
-    RowCount bigint NOT NULL,
+    [RowCount] bigint NOT NULL,
     Digest varbinary(32) NOT NULL
 );
 
@@ -844,7 +844,7 @@ SELECT
 SELECT
     N'phase5_2_combined_digest' AS EvidenceSection,
     LogicalName,
-    RowCount,
+    [RowCount],
     CONVERT(char(64), Digest, 2) AS NormalizedDigestSha256
 FROM @Digests
 ORDER BY SequenceNo;
