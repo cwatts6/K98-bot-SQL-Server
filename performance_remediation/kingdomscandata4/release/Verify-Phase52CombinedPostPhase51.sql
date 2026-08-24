@@ -360,7 +360,8 @@ IF EXISTS
     ) AS expected(object_id, column_name, type_id)
     LEFT JOIN sys.columns AS actual
       ON actual.object_id = expected.object_id
-     AND actual.name = expected.column_name
+     AND actual.name COLLATE DATABASE_DEFAULT =
+         expected.column_name COLLATE DATABASE_DEFAULT
      AND actual.system_type_id = expected.type_id
      AND actual.user_type_id = expected.type_id
     WHERE actual.column_id IS NULL
@@ -729,13 +730,16 @@ BEGIN
     FROM sys.columns AS column_info
     LEFT JOIN @BigintMap AS bigint_map
       ON bigint_map.LogicalName = @MapName
-     AND bigint_map.ColumnName = column_info.name
+     AND bigint_map.ColumnName COLLATE DATABASE_DEFAULT =
+         column_info.name COLLATE DATABASE_DEFAULT
     LEFT JOIN @IntMap AS int_map
       ON int_map.LogicalName = @MapName
-     AND int_map.ColumnName = column_info.name
+     AND int_map.ColumnName COLLATE DATABASE_DEFAULT =
+         column_info.name COLLATE DATABASE_DEFAULT
     LEFT JOIN @StringMap AS string_map
       ON string_map.LogicalName = @MapName
-     AND string_map.ColumnName = column_info.name
+     AND string_map.ColumnName COLLATE DATABASE_DEFAULT =
+         column_info.name COLLATE DATABASE_DEFAULT
     WHERE column_info.object_id = OBJECT_ID(N'dbo.' + @PhysicalName);
 
     IF @Projection IS NULL

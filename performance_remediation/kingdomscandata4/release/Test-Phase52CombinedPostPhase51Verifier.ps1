@@ -114,6 +114,17 @@ Require-Match `
 Require-Match `
     -Pattern 'DBCC CHECKTABLE \(N''dbo\.IMPORT_STAGING_Phase2_Old''\)' `
     -Message 'The sixth current/retained Phase 2 table is not DBCC checked.'
+Require-Match `
+    -Pattern 'actual\.name\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*expected\.column_name\s+COLLATE\s+DATABASE_DEFAULT' `
+    -Message 'The Phase 3 catalog-column comparison is not collation-safe.'
+
+$digestCatalogJoins = [regex]::Matches(
+    $source,
+    '(?:bigint_map|int_map|string_map)\.ColumnName\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*column_info\.name\s+COLLATE\s+DATABASE_DEFAULT'
+)
+if ($digestCatalogJoins.Count -ne 3) {
+    throw 'The three digest catalog-column comparisons are not collation-safe.'
+}
 
 $historyStart = $source.IndexOf(
     'INSERT @ExpectedHistory',
