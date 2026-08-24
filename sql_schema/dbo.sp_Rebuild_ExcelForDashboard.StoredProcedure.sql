@@ -13,7 +13,7 @@ BEGIN
     DECLARE @sql NVARCHAR(MAX) = N'';
     DECLARE @unionSql NVARCHAR(MAX) = N'';
     DECLARE @KVK INT;
-    DECLARE @MaxScan INT;
+    DECLARE @MaxScan FLOAT;
     DECLARE @TableName SYSNAME;
 
     -- Determine latest scan order for eligibility checks
@@ -28,7 +28,7 @@ BEGIN
     SELECT DISTINCT KVKVersion
     FROM dbo.ProcConfig
     WHERE ConfigKey = 'MATCHMAKING_SCAN'
-      AND TRY_CAST(ConfigValue AS INT) < ISNULL(@MaxScan, 0)
+      AND TRY_CAST(ConfigValue AS FLOAT) < ISNULL(@MaxScan, 0)
     ORDER BY KVKVersion DESC;
 
     OPEN cur;

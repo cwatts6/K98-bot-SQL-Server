@@ -21,7 +21,6 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBOARD](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
 	[Starting_T4&T5_KILLS] [bigint] NULL,
 	[T4_KILLS] [bigint] NULL,
 	[T5_KILLS] [bigint] NULL,
@@ -63,6 +62,7 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBOARD](
 	[PreKvk_Rank] [bigint] NULL,
 	[Honor_Rank] [bigint] NULL,
 	[KVK_NO] [int] NULL,
-	[% of Dead_Target] [decimal](9, 2) NULL
+	[% of Dead_Target] [decimal](9, 2) NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END

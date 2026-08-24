@@ -136,7 +136,7 @@ FROM dbo.MGE_Signups s
 JOIN dbo.MGE_Events e
     ON e.EventId = s.EventId
 LEFT JOIN latest_scan ls
-    ON ls.GovernorID = s.GovernorId
+    ON CAST(ls.GovernorID AS BIGINT) = s.GovernorId
 LEFT JOIN kvk_latest
     ON kvk_latest.Gov_ID = s.GovernorId
 LEFT JOIN kvk_prev

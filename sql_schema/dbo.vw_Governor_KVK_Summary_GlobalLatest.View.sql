@@ -33,7 +33,7 @@ kvk_prev AS (
     WHERE rn = 2
 )
 SELECT
-    CAST(ls.GovernorID AS bigint)            AS [GovernorId],
+    CAST(ls.GovernorID AS BIGINT)            AS [GovernorId],         -- cast float -> bigint per your request
     ls.governorname AS [GovernorName],
     ls.Power,
     kvk_latest.KVK_RANK                     AS Latest_KVK_RANK,
@@ -44,9 +44,9 @@ SELECT
     kvk_prev.[% of Kill Target]             AS Last_Percent_of_Kill_Target
 FROM latest_scan ls
 LEFT JOIN kvk_latest
-    ON kvk_latest.Gov_ID = ls.GovernorID
+    ON kvk_latest.Gov_ID = CAST(ls.GovernorID AS BIGINT)
 LEFT JOIN kvk_prev
-    ON kvk_prev.Gov_ID   = ls.GovernorID;
+    ON kvk_prev.Gov_ID   = CAST(ls.GovernorID AS BIGINT);
 
 
 '
