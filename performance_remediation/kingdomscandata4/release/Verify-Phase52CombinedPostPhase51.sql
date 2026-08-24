@@ -120,8 +120,10 @@ SELECT
     @ForwardStagingDigest = ForwardStagingDigest
 FROM dbo.KS4_Phase2_PreflightState
 WHERE RunId = @ConfirmPhase2RunId
-  AND DatabaseName = DB_NAME()
-  AND ServerName = @@SERVERNAME
+  AND DatabaseName COLLATE DATABASE_DEFAULT =
+      DB_NAME() COLLATE DATABASE_DEFAULT
+  AND ServerName COLLATE DATABASE_DEFAULT =
+      CONVERT(sysname, @@SERVERNAME) COLLATE DATABASE_DEFAULT
   AND Status = 'VERIFIED'
   AND VerifiedAtUtc IS NOT NULL
   AND MigrationCompletedAtUtc IS NOT NULL
@@ -202,10 +204,12 @@ IF (SELECT COUNT(*) FROM @ExpectedHistory) <> 6
     SELECT 1
     FROM @ExpectedHistory AS expected
     LEFT JOIN dbo.SchemaMigrationHistory AS actual
-      ON actual.MigrationId = expected.MigrationId
+      ON actual.MigrationId COLLATE DATABASE_DEFAULT =
+         expected.MigrationId COLLATE DATABASE_DEFAULT
     WHERE actual.MigrationId IS NULL
        OR actual.Status <> N'Applied'
-       OR UPPER(actual.ChecksumSha256) <> expected.ChecksumSha256
+       OR UPPER(actual.ChecksumSha256) COLLATE DATABASE_DEFAULT <>
+          expected.ChecksumSha256 COLLATE DATABASE_DEFAULT
        OR actual.GitCommit IS NULL
        OR actual.GitCommit COLLATE Latin1_General_100_BIN2
             LIKE N'%[^0-9a-f]%'
@@ -216,7 +220,8 @@ IF (SELECT COUNT(*) FROM @ExpectedHistory) <> 6
 )
    OR (SELECT COUNT(*) FROM dbo.SchemaMigrationHistory AS actual
        JOIN @ExpectedHistory AS expected
-         ON expected.MigrationId = actual.MigrationId) <> 6
+         ON expected.MigrationId COLLATE DATABASE_DEFAULT =
+            actual.MigrationId COLLATE DATABASE_DEFAULT) <> 6
     THROW 52611, 'The exact six Applied migration-history contracts are not present.', 1;
 
 DECLARE @AllowedChangedModules table
@@ -267,10 +272,12 @@ IF (SELECT COUNT(*) FROM @AllowedChangedModules) <> 33
        WHERE RunId = @ConfirmPhase2RunId) <> 52
    OR EXISTS
 (
-    SELECT allowed.SchemaName, allowed.ObjectName
+    SELECT allowed.SchemaName COLLATE DATABASE_DEFAULT,
+           allowed.ObjectName COLLATE DATABASE_DEFAULT
     FROM @AllowedChangedModules AS allowed
     EXCEPT
-    SELECT inventory.SchemaName, inventory.ObjectName
+    SELECT inventory.SchemaName COLLATE DATABASE_DEFAULT,
+           inventory.ObjectName COLLATE DATABASE_DEFAULT
     FROM dbo.KS4_Phase2_ModuleInventory AS inventory
     WHERE inventory.RunId = @ConfirmPhase2RunId
 )
@@ -311,8 +318,10 @@ IF EXISTS
     SELECT 1
     FROM dbo.KS4_Phase2_ModuleInventory AS expected
     LEFT JOIN @AllowedChangedModules AS allowed
-      ON allowed.SchemaName = expected.SchemaName
-     AND allowed.ObjectName = expected.ObjectName
+      ON allowed.SchemaName COLLATE DATABASE_DEFAULT =
+         expected.SchemaName COLLATE DATABASE_DEFAULT
+     AND allowed.ObjectName COLLATE DATABASE_DEFAULT =
+         expected.ObjectName COLLATE DATABASE_DEFAULT
     LEFT JOIN sys.objects AS object_info
       ON object_info.object_id =
          OBJECT_ID(QUOTENAME(expected.SchemaName) + N'.' + QUOTENAME(expected.ObjectName))
@@ -322,7 +331,8 @@ IF EXISTS
       AND
       (
           actual.object_id IS NULL
-          OR object_info.type <> expected.ObjectType
+          OR object_info.type COLLATE DATABASE_DEFAULT <>
+             expected.ObjectType COLLATE DATABASE_DEFAULT
           OR
           (
               allowed.ObjectName IS NULL
@@ -820,8 +830,10 @@ IF @@TRANCOUNT <> 0
 UPDATE dbo.KS4_Phase2_PreflightState
 SET VerifiedAtUtc = SYSUTCDATETIME()
 WHERE RunId = @ConfirmPhase2RunId
-  AND DatabaseName = DB_NAME()
-  AND ServerName = @@SERVERNAME
+  AND DatabaseName COLLATE DATABASE_DEFAULT =
+      DB_NAME() COLLATE DATABASE_DEFAULT
+  AND ServerName COLLATE DATABASE_DEFAULT =
+      CONVERT(sysname, @@SERVERNAME) COLLATE DATABASE_DEFAULT
   AND Status = 'VERIFIED'
   AND VerifiedAtUtc = @PriorVerifiedAtUtc
   AND RollbackCompletedAtUtc IS NULL

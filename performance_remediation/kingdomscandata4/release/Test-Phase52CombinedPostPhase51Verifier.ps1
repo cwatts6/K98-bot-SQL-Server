@@ -125,6 +125,29 @@ $digestCatalogJoins = [regex]::Matches(
 if ($digestCatalogJoins.Count -ne 3) {
     throw 'The three digest catalog-column comparisons are not collation-safe.'
 }
+Require-Match `
+    -Pattern 'actual\.MigrationId\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*expected\.MigrationId\s+COLLATE\s+DATABASE_DEFAULT' `
+    -Message 'The migration-history identifier comparison is not collation-safe.'
+Require-Match `
+    -Pattern 'UPPER\(actual\.ChecksumSha256\)\s+COLLATE\s+DATABASE_DEFAULT\s*<>\s*expected\.ChecksumSha256\s+COLLATE\s+DATABASE_DEFAULT' `
+    -Message 'The migration-history checksum comparison is not collation-safe.'
+Require-Match `
+    -Pattern 'allowed\.SchemaName\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*expected\.SchemaName\s+COLLATE\s+DATABASE_DEFAULT' `
+    -Message 'The module-schema comparison is not collation-safe.'
+Require-Match `
+    -Pattern 'allowed\.ObjectName\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*expected\.ObjectName\s+COLLATE\s+DATABASE_DEFAULT' `
+    -Message 'The module-name comparison is not collation-safe.'
+Require-Match `
+    -Pattern 'object_info\.type\s+COLLATE\s+DATABASE_DEFAULT\s*<>\s*expected\.ObjectType\s+COLLATE\s+DATABASE_DEFAULT' `
+    -Message 'The module-type comparison is not collation-safe.'
+
+$databaseIdentityComparisons = [regex]::Matches(
+    $source,
+    'DatabaseName\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*DB_NAME\(\)\s+COLLATE\s+DATABASE_DEFAULT[\s\S]{0,160}ServerName\s+COLLATE\s+DATABASE_DEFAULT\s*=\s*CONVERT\(sysname,\s*@@SERVERNAME\)\s+COLLATE\s+DATABASE_DEFAULT'
+)
+if ($databaseIdentityComparisons.Count -ne 2) {
+    throw 'The initial and final database-identity comparisons are not collation-safe.'
+}
 
 $historyStart = $source.IndexOf(
     'INSERT @ExpectedHistory',
