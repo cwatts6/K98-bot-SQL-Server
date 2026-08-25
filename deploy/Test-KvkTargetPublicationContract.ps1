@@ -1,0 +1,128 @@
+[CmdletBinding()]
+param()
+
+$ErrorActionPreference = 'Stop'
+$repoRoot = Split-Path -Parent $PSScriptRoot
+$failures = [System.Collections.Generic.List[string]]::new()
+
+function Get-SqlSource {
+    param([Parameter(Mandatory)][string]$RelativePath)
+    return (Get-Content -Raw -LiteralPath (Join-Path $repoRoot $RelativePath)).Replace("`r`n", "`n")
+}
+
+function Assert-Contains {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Pattern,
+        [Parameter(Mandatory)][string]$Message
+    )
+    if ($Source -notmatch $Pattern) {
+        $failures.Add($Message)
+    }
+}
+
+function Assert-NotContains {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$Pattern,
+        [Parameter(Mandatory)][string]$Message
+    )
+    if ($Source -match $Pattern) {
+        $failures.Add($Message)
+    }
+}
+
+function Assert-Before {
+    param(
+        [Parameter(Mandatory)][string]$Source,
+        [Parameter(Mandatory)][string]$First,
+        [Parameter(Mandatory)][string]$Second,
+        [Parameter(Mandatory)][string]$Message
+    )
+    $firstIndex = $Source.IndexOf($First, [StringComparison]::Ordinal)
+    $secondIndex = $Source.IndexOf($Second, [StringComparison]::Ordinal)
+    if ($firstIndex -lt 0 -or $secondIndex -lt 0 -or $firstIndex -ge $secondIndex) {
+        $failures.Add($Message)
+    }
+}
+
+$header = Get-SqlSource 'sql_schema\dbo.KVK_Target_Publication.Table.sql'
+$rows = Get-SqlSource 'sql_schema\dbo.KVK_Target_Publication_Row.Table.sql'
+$view = Get-SqlSource 'sql_schema\dbo.v_KVK_TARGETS_FOR_BOT.View.sql'
+$master = Get-SqlSource 'sql_schema\dbo.sp_TARGETS_MASTER.StoredProcedure.sql'
+$migration = Get-SqlSource 'migrations\20260825_001_kvk_target_publication_provenance.sql'
+
+foreach ($column in @(
+    'PublicationState',
+    'SourceScanOrder',
+    'SourceScanType',
+    'ConfiguredDraftScan',
+    'ConfiguredMatchmakingScan',
+    'PublishedAtUtc',
+    'TargetRowCount',
+    'OutputObjectName',
+    'PublicationVersion',
+    'PublicationSignature'
+)) {
+    Assert-Contains $header ([regex]::Escape($column)) "Publication header must contain $column."
+    Assert-Contains $view ([regex]::Escape($column)) "Bot view must expose $column."
+}
+
+Assert-Contains $header 'UX_KVK_Target_Publication_Current' 'Publication header must enforce one current publication per KVK.'
+Assert-Contains $header "PublicationState\s*=\s*N'OFFICIAL'[\s\S]+SourceScanType\s*=\s*N'MATCHMAKING_SCAN'[\s\S]+SourceScanOrder\s*=\s*ConfiguredMatchmakingScan" 'Official metadata must prove the exact configured matchmaking scan.'
+Assert-Contains $header "OutputObjectName\s*=\s*[\s\r\n]*N'dbo\.EXCEL_EXPORT_KVK_TARGETS_'\s*\+\s*CONVERT\(nvarchar\(20\),\s*KVK_NO\)" 'Publication output identity must match its KVK.'
+Assert-Contains $rows 'FOREIGN KEY\s*\(PublicationId\)[\s\S]+REFERENCES dbo\.KVK_Target_Publication' 'Publication rows must be bound to a durable header.'
+Assert-Contains $rows 'PRIMARY KEY CLUSTERED\s*\(PublicationId, GovernorID\)' 'Publication rows must reject duplicate Governor IDs.'
+Assert-Contains $view 'WHERE p\.IsCurrent = 1' 'Bot view must expose current publications only.'
+Assert-NotContains $view 'v_TARGETS_FOR_UPLOAD' 'Bot view must not depend on the mutable legacy pointer.'
+Assert-NotContains $view 'ForcedRepublish|RepublishReason|PublishedBy' 'Bot view must not expose operator-only publication audit fields.'
+
+Assert-Contains $master '@ForceRepublish\s+\[bit\]\s*=\s*0' 'Force-republish must default off.'
+Assert-Contains $master '@RepublishReason\s+\[nvarchar\]\(400\)\s*=\s*NULL' 'Force-republish must carry an operator reason.'
+Assert-Contains $master '@ForceRepublish = 1 AND @RequestedKVK IS NULL' 'Force-republish must require one explicit KVK.'
+Assert-Contains $master '@ForceRepublish = 1 AND @MatchedKVKCount <> 1' 'Force-republish must fail if the requested KVK is not configured.'
+Assert-Contains $master "@ForceRepublish = 1[\s\S]+NOT EXISTS[\s\S]+FROM dbo\.ProcConfig[\s\S]+KVKVersion = @RequestedKVK" 'Invalid forced KVKs must fail before target helper processing.'
+Assert-Before $master 'could not resolve the requested KVK before force-republish processing' 'EXEC dbo.CREATE_DELTA_TABLES' 'Force-republish KVK validation must occur before shared helper work.'
+Assert-Contains $master '@CurrentKVK IS NULL OR @CurrentKVK <= 0' 'Full refresh must reject invalid configured KVK identities.'
+Assert-Contains $master 'sys\.sp_getapplock' 'Publication must use a cross-session KVK mutex.'
+Assert-Contains $master "SET @SourceScanType = N'MATCHMAKING_SCAN'" 'The master procedure must persist the matchmaking source branch.'
+Assert-Contains $master "SET @SourceScanType = N'DRAFTSCAN'" 'The master procedure must persist the draft source branch.'
+Assert-Contains $master 'WHERE ScanOrder = @Scan' 'The master procedure must validate the exact selected scan.'
+Assert-Before $master 'WHERE ScanOrder = @Scan' 'EXEC dbo.sp_Prep_TargetTable' 'Exact source rows must be proved before destructive target generation.'
+Assert-Contains $master "@CurrentPublicationState = N'OFFICIAL'[\s\S]+@ForceRepublish = 0" 'Routine processing must detect an existing Official publication.'
+Assert-Contains $master "Official targets already published[\s\S]+EXEC dbo\.sp_ExcelOutput_ByKVK[\s\S]+SET @ShouldProcess = 0" 'Routine processing must preserve combat output refreshes while skipping target publication.'
+Assert-Contains $master 'ISNULL\(@TargetRowCount, 0\) <= 0' 'Publication must reject an empty output.'
+Assert-Contains $master 'INSERT dbo\.KVK_Target_Publication_Row' 'Publication must copy immutable bot-facing rows.'
+Assert-Before $master 'INSERT dbo.KVK_Target_Publication_Row' 'SET IsCurrent = 1' 'Rows must be copied before a publication becomes current.'
+Assert-Contains $master 'CREATE OR ALTER VIEW dbo\.v_TARGETS_FOR_UPLOAD' 'The legacy pointer must be replaced without a drop/create gap.'
+Assert-NotContains $master 'DROP VIEW dbo\.v_TARGETS_FOR_UPLOAD' 'The master procedure must not drop the legacy pointer.'
+Assert-NotContains $master 'SELECT @LatestKVK = MAX' 'The legacy pointer must not be selected from the highest table suffix.'
+Assert-Contains $master 'dbo\.v_KVK_TARGETS_FOR_BOT[\s\S]+PublicationSignature = @PublicationSignature' 'The committed bot view must be validated against the new publication identity.'
+
+$procedureMarker = 'ALTER PROCEDURE'
+$procedureStart = $master.IndexOf($procedureMarker, [StringComparison]::Ordinal)
+if ($procedureStart -lt 0) {
+    $failures.Add('Canonical master procedure has no ALTER PROCEDURE marker.')
+}
+else {
+    $expectedMigrationProcedure = $master.Substring($procedureStart)
+    $expectedMigrationProcedure =
+        'CREATE OR ALTER PROCEDURE' + $expectedMigrationProcedure.Substring($procedureMarker.Length)
+    if (-not $migration.Contains($expectedMigrationProcedure)) {
+        $failures.Add('Migration copy of sp_TARGETS_MASTER is not identical to the canonical schema snapshot.')
+    }
+}
+
+Assert-Contains $migration 'Rollback:\s+Manual' 'Migration must retain the approved manual rollback posture.'
+Assert-Contains $migration 'DataChange:\s+No' 'Schema deployment must not silently publish or backfill a KVK.'
+Assert-Contains $migration 'BEGIN TRANSACTION' 'Migration must deploy the contract transactionally.'
+Assert-Contains $migration 'Current-KVK publication is a separate' 'Migration must document the SQL-first explicit publication step.'
+Assert-Contains $migration 'is_not_trusted = 0' 'Migration post-validation must prove its integrity constraints are trusted.'
+Assert-Contains $migration "COUNT\(\*\)[\s\S]+dbo\.v_KVK_TARGETS_FOR_BOT[\s\S]+<> 20" 'Migration post-validation must prove the exact bot-view column count.'
+
+if ($failures.Count -gt 0) {
+    $failures | ForEach-Object { Write-Error $_ }
+    exit 1
+}
+
+Write-Output 'KVK target publication contract checks passed.'
