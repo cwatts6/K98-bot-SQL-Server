@@ -9,12 +9,12 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
-    SET XACT_ABORT ON;  -- ✅ Ensures transaction rolls back on any error
-    
+    SET XACT_ABORT ON;  -- âœ… Ensures transaction rolls back on any error
+
     DECLARE @StartTime DATETIME2 = SYSUTCDATETIME();
     DECLARE @RowsProcessed INT = 0;
     DECLARE @NewMaxScan INT = 0;
-    
+
     -- For low-volume processing (500-2000/day), run maintenance weekly
     DECLARE @MaintenanceRowThreshold INT = 5000;
     DECLARE @MaintenanceHourThreshold INT = 168; -- 7 days
@@ -23,7 +23,7 @@ BEGIN
     -- Step 1: Determine what's already been processed
     ----------------------------------------------------------------
     DECLARE @LastProcessedScan INT;
-    
+
     PRINT '----------------------------------------';
     PRINT 'Starting delta processing at ' + CONVERT(VARCHAR(30), @StartTime, 120);
 
@@ -35,7 +35,7 @@ BEGIN
         RETURN;
     END
 
-    
+
     -- Find the highest scan order we've already processed across all delta tables
     SELECT @LastProcessedScan = ISNULL(MAX(MaxDelta), 0)
     FROM (
@@ -64,9 +64,9 @@ BEGIN
         SELECT MAX(DeltaOrder) FROM RangedPointsDelta
     ) AS AllDeltas;
 
-    -- ✅ Data integrity check: Verify all delta tables are in sync
+    -- âœ… Data integrity check: Verify all delta tables are in sync
     DECLARE @MinMaxDelta FLOAT, @MaxMaxDelta FLOAT;
-    SELECT 
+    SELECT
         @MinMaxDelta = MIN(MaxDelta),
         @MaxMaxDelta = MAX(MaxDelta)
     FROM (
@@ -94,25 +94,25 @@ BEGIN
         UNION ALL
         SELECT MAX(DeltaOrder) FROM RangedPointsDelta
     ) AS AllDeltas;
-    
+
     IF @MinMaxDelta <> @MaxMaxDelta
     BEGIN
-        PRINT '❌ ERROR: Delta tables are out of sync!';
+        PRINT 'âŒ ERROR: Delta tables are out of sync!';
         PRINT '   Minimum MaxDeltaOrder: ' + CAST(@MinMaxDelta AS VARCHAR(20));
         PRINT '   Maximum MaxDeltaOrder: ' + CAST(@MaxMaxDelta AS VARCHAR(20));
         PRINT '';
         PRINT 'Detailed breakdown:';
-        
-		SELECT 
-            'DeltaMetrics' AS TableName, 
-            MAX(DeltaOrder) AS MaxDeltaOrder, 
-            COUNT(*) AS TotalRows 
+
+		SELECT
+            'DeltaMetrics' AS TableName,
+            MAX(DeltaOrder) AS MaxDeltaOrder,
+            COUNT(*) AS TotalRows
         FROM dbo.DeltaMetrics
         UNION ALL
-        SELECT 
-            'T4T5KillDelta' AS TableName, 
-            MAX(DeltaOrder) AS MaxDeltaOrder, 
-            COUNT(*) AS TotalRows 
+        SELECT
+            'T4T5KillDelta' AS TableName,
+            MAX(DeltaOrder) AS MaxDeltaOrder,
+            COUNT(*) AS TotalRows
         FROM T4T5KillDelta
         UNION ALL
         SELECT 'T4KillDelta', MAX(DeltaOrder), COUNT(*) FROM T4KillDelta
@@ -135,19 +135,19 @@ BEGIN
         UNION ALL
         SELECT 'RangedPointsDelta', MAX(DeltaOrder), COUNT(*) FROM RangedPointsDelta
         ORDER BY MaxDeltaOrder DESC;
-        
+
         RAISERROR('Delta tables are out of sync. Please fix manually before proceeding.', 16, 1);
         RETURN;
     END
 
     IF @LastProcessedScan IS NULL SET @LastProcessedScan = 0;
-    
+
     PRINT 'Last processed scan order: ' + CAST(@LastProcessedScan AS VARCHAR(20));
 
     ----------------------------------------------------------------
     -- Step 2: Build base data for NEW scans only
     ----------------------------------------------------------------
-    SELECT 
+    SELECT
         GovernorID,
         SCANORDER,
         SUM(T4_Kills) AS T4_Kills,
@@ -189,7 +189,7 @@ BEGIN
 PRINT 'Calculating absolute values at last processed scan...';
 
 ;WITH LastAbsoluteValues AS (
-    SELECT 
+    SELECT
         GovernorID,
         SUM(T4KillsDelta) AS T4_Kills_Absolute,
         SUM(T5KillsDelta) AS T5_Kills_Absolute,
@@ -280,17 +280,17 @@ DeltaCalculations AS (
     LEFT JOIN #LastAbsoluteValues lav ON awl.GovernorID = lav.GovernorID
 )
 SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
-    
+
     ----------------------------------------------------------------
     -- Step 5: INSERT with TRANSACTION (all-or-nothing)
     ----------------------------------------------------------------
-    
+
     PRINT 'Inserting deltas into tables (transactional)...';
-    
+
     BEGIN TRANSACTION;
     BEGIN TRY
         DECLARE @InsertedRows INT;
-        
+
         INSERT INTO T4KillDelta (GovernorID, DeltaOrder, T4KILLSDelta)
         SELECT GovernorID, SCANORDER, T4_Delta FROM #DeltaCalculations;
         SET @InsertedRows = @@ROWCOUNT;
@@ -335,7 +335,7 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         INSERT INTO RangedPointsDelta (GovernorID, DeltaOrder, RangedPointsDelta)
         SELECT GovernorID, SCANORDER, RangedPoints_Delta FROM #DeltaCalculations;
         PRINT '  RangedPointsDelta: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
-				
+
         INSERT INTO dbo.DeltaMetrics (
             DeltaOrder,
             GovernorID,
@@ -373,24 +373,24 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
               AND dm.GovernorID = DC.GovernorID
         );
         PRINT '  DeltaMetrics: ' + CAST(@@ROWCOUNT AS VARCHAR(10)) + ' rows';
-        
+
         COMMIT TRANSACTION;
-        PRINT '✅ All delta inserts committed successfully.';
-        
+        PRINT 'âœ… All delta inserts committed successfully.';
+
     END TRY
     BEGIN CATCH
         ROLLBACK TRANSACTION;
-        
-        PRINT '❌ ERROR: Transaction rolled back!';
+
+        PRINT 'âŒ ERROR: Transaction rolled back!';
         PRINT 'Error Message: ' + ERROR_MESSAGE();
         PRINT 'Error Number: ' + CAST(ERROR_NUMBER() AS VARCHAR(10));
         PRINT 'Error Line: ' + CAST(ERROR_LINE() AS VARCHAR(10));
-        
+
         -- Cleanup
         DROP TABLE #NewScans;
         DROP TABLE #LastAbsoluteValues;
         DROP TABLE #DeltaCalculations;
-        
+
         RETURN;
     END CATCH
 
@@ -402,26 +402,26 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
     ----------------------------------------------------------------
     -- Step 6: LIGHTWEIGHT MAINTENANCE
     ----------------------------------------------------------------
-    
+
     DECLARE @ShouldRunMaintenance BIT = 0;
     DECLARE @LastMaintenanceTime DATETIME2;
     DECLARE @TotalRowsSinceLastMaintenance INT;
-    
+
     IF OBJECT_ID('dbo.DeltaProcessingLog', 'U') IS NOT NULL
     BEGIN
         SELECT TOP 1
             @LastMaintenanceTime = ExecutionTime,
-            @TotalRowsSinceLastMaintenance = 
-                (SELECT SUM(RowsProcessed) 
-                 FROM dbo.DeltaProcessingLog 
-                 WHERE ExecutionTime > ISNULL((SELECT TOP 1 ExecutionTime 
-                                               FROM dbo.DeltaProcessingLog 
-                                               WHERE MaintenanceRan = 1 
+            @TotalRowsSinceLastMaintenance =
+                (SELECT SUM(RowsProcessed)
+                 FROM dbo.DeltaProcessingLog
+                 WHERE ExecutionTime > ISNULL((SELECT TOP 1 ExecutionTime
+                                               FROM dbo.DeltaProcessingLog
+                                               WHERE MaintenanceRan = 1
                                                ORDER BY ExecutionTime DESC), '1900-01-01'))
         FROM dbo.DeltaProcessingLog
         WHERE MaintenanceRan = 1
         ORDER BY ExecutionTime DESC;
-        
+
         IF @LastMaintenanceTime IS NULL
             OR DATEDIFF(HOUR, @LastMaintenanceTime, SYSUTCDATETIME()) >= @MaintenanceHourThreshold
             OR @TotalRowsSinceLastMaintenance >= @MaintenanceRowThreshold
@@ -434,13 +434,13 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         IF @RowsProcessed >= @MaintenanceRowThreshold
             SET @ShouldRunMaintenance = 1;
     END
-    
+
     IF @ShouldRunMaintenance = 1
     BEGIN
         PRINT 'Running weekly maintenance...';
         PRINT 'Days since last maintenance: ' + CAST(DATEDIFF(DAY, ISNULL(@LastMaintenanceTime, '1900-01-01'), SYSUTCDATETIME()) AS VARCHAR(10));
         PRINT 'Rows since last maintenance: ' + CAST(ISNULL(@TotalRowsSinceLastMaintenance, @RowsProcessed) AS VARCHAR(10));
-        
+
         UPDATE STATISTICS T4KillDelta WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS T5KillDelta WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS T4T5KillDelta WITH SAMPLE 25 PERCENT;
@@ -454,9 +454,9 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         UPDATE STATISTICS RangedPointsDelta WITH SAMPLE 25 PERCENT;
 		UPDATE STATISTICS DeltaMetrics WITH SAMPLE 25 PERCENT;
         UPDATE STATISTICS dbo.kingdomscandata4 WITH SAMPLE 25 PERCENT;
-        
+
         PRINT 'Statistics updated (25% sample).';
-        
+
         -- Index maintenance code (same as before)
         DECLARE @TableName NVARCHAR(128);
         DECLARE @IndexName NVARCHAR(128);
@@ -464,16 +464,16 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         DECLARE @SQL NVARCHAR(MAX);
         DECLARE @IndexesChecked INT = 0;
         DECLARE @IndexesMaintained INT = 0;
-        
+
         CREATE TABLE #IndexFragmentation (
             TableName NVARCHAR(128),
             IndexName NVARCHAR(128),
             FragmentationPercent FLOAT,
             PageCount BIGINT
         );
-        
+
         INSERT INTO #IndexFragmentation
-        SELECT 
+        SELECT
             OBJECT_NAME(ips.object_id) AS TableName,
             i.name AS IndexName,
             ips.avg_fragmentation_in_percent AS FragmentationPercent,
@@ -481,25 +481,25 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
         FROM sys.dm_db_index_physical_stats(DB_ID(), NULL, NULL, NULL, 'LIMITED') ips
         INNER JOIN sys.indexes i ON ips.object_id = i.object_id AND ips.index_id = i.index_id
         WHERE OBJECT_NAME(ips.object_id) IN (
-            'T4KillDelta', 'T5KillDelta', 'T4T5KillDelta', 'POWERDelta', 
-            'KillPointsDelta', 'DeadsDelta', 'HelpsDelta', 'RSSASSISTDelta', 
+            'T4KillDelta', 'T5KillDelta', 'T4T5KillDelta', 'POWERDelta',
+            'KillPointsDelta', 'DeadsDelta', 'HelpsDelta', 'RSSASSISTDelta',
             'RSSGatheredDelta', 'HealedTroopsDelta', 'RangedPointsDelta',
 			'DeltaMetrics', 'kingdomscandata4'
         )
         AND i.name IS NOT NULL
         AND ips.page_count > 1000;
-        
+
         SELECT @IndexesChecked = COUNT(*) FROM #IndexFragmentation;
-        
+
         DECLARE index_cursor CURSOR FOR
         SELECT TableName, IndexName, FragmentationPercent
         FROM #IndexFragmentation
         WHERE FragmentationPercent > 15
         ORDER BY FragmentationPercent DESC;
-        
+
         OPEN index_cursor;
         FETCH NEXT FROM index_cursor INTO @TableName, @IndexName, @Fragmentation;
-        
+
         WHILE @@FETCH_STATUS = 0
         BEGIN
             IF @Fragmentation > 50
@@ -512,7 +512,7 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
                 SET @SQL = N'ALTER INDEX [' + @IndexName + N'] ON [dbo].[' + @TableName + N'] REORGANIZE;';
                 PRINT 'Reorganizing: ' + @IndexName + ' on ' + @TableName + ' (' + CAST(CAST(@Fragmentation AS DECIMAL(5,2)) AS VARCHAR(10)) + '% fragmented)';
             END
-            
+
             BEGIN TRY
                 EXEC sp_executesql @SQL;
                 SET @IndexesMaintained = @IndexesMaintained + 1;
@@ -520,22 +520,22 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
             BEGIN CATCH
                 PRINT 'Warning: Index maintenance failed for ' + @IndexName + ' - ' + ERROR_MESSAGE();
             END CATCH
-            
+
             FETCH NEXT FROM index_cursor INTO @TableName, @IndexName, @Fragmentation;
         END
-        
+
         CLOSE index_cursor;
         DEALLOCATE index_cursor;
         DROP TABLE #IndexFragmentation;
-        
+
         PRINT 'Index maintenance: ' + CAST(@IndexesMaintained AS VARCHAR(10)) + ' of ' + CAST(@IndexesChecked AS VARCHAR(10)) + ' indexes maintained.';
     END
     ELSE
     BEGIN
-        PRINT 'Skipping maintenance - next scheduled in ' + 
-              CAST(@MaintenanceHourThreshold - DATEDIFF(HOUR, ISNULL(@LastMaintenanceTime, SYSUTCDATETIME()), SYSUTCDATETIME()) AS VARCHAR(10)) + 
-              ' hours or after ' + 
-              CAST(@MaintenanceRowThreshold - ISNULL(@TotalRowsSinceLastMaintenance, 0) AS VARCHAR(10)) + 
+        PRINT 'Skipping maintenance - next scheduled in ' +
+              CAST(@MaintenanceHourThreshold - DATEDIFF(HOUR, ISNULL(@LastMaintenanceTime, SYSUTCDATETIME()), SYSUTCDATETIME()) AS VARCHAR(10)) +
+              ' hours or after ' +
+              CAST(@MaintenanceRowThreshold - ISNULL(@TotalRowsSinceLastMaintenance, 0) AS VARCHAR(10)) +
               ' more rows.';
     END
 
@@ -543,24 +543,24 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
     -- Step 7: Performance Logging
     ----------------------------------------------------------------
     DECLARE @ElapsedMS INT = DATEDIFF(MILLISECOND, @StartTime, SYSUTCDATETIME());
-    
+
     IF OBJECT_ID('dbo.DeltaProcessingLog', 'U') IS NOT NULL
     BEGIN
         INSERT INTO dbo.DeltaProcessingLog (RowsProcessed, LastScanProcessed, ElapsedMS, MaintenanceRan, Notes)
         VALUES (
-            @RowsProcessed, 
+            @RowsProcessed,
             @NewMaxScan,
             @ElapsedMS,
             @ShouldRunMaintenance,
-            CASE 
+            CASE
                 WHEN @ShouldRunMaintenance = 1 THEN 'Weekly maintenance completed'
                 ELSE 'Incremental processing (no maintenance)'
             END
         );
     END
-    
+
     PRINT '----------------------------------------';
-    PRINT '✅ Processing completed in ' + CAST(@ElapsedMS AS VARCHAR(10)) + 'ms';
+    PRINT 'âœ… Processing completed in ' + CAST(@ElapsedMS AS VARCHAR(10)) + 'ms';
     PRINT 'Rows processed: ' + CAST(@RowsProcessed AS VARCHAR(10));
     IF @RowsProcessed > 0
         PRINT 'Performance: ' + CAST(CAST(@ElapsedMS * 1.0 / @RowsProcessed AS DECIMAL(10,2)) AS VARCHAR(10)) + ' ms/row';
@@ -569,4 +569,3 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
 
     SET NOCOUNT OFF;
 END
-
