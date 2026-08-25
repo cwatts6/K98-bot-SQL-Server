@@ -73,6 +73,9 @@ Assert-Contains $header "PublicationState\s*=\s*N'OFFICIAL'[\s\S]+SourceScanType
 Assert-Contains $header "OutputObjectName\s*=\s*[\s\r\n]*N'dbo\.EXCEL_EXPORT_KVK_TARGETS_'\s*\+\s*CONVERT\(nvarchar\(20\),\s*KVK_NO\)" 'Publication output identity must match its KVK.'
 Assert-Contains $rows 'FOREIGN KEY\s*\(PublicationId\)[\s\S]+REFERENCES dbo\.KVK_Target_Publication' 'Publication rows must be bound to a durable header.'
 Assert-Contains $rows 'PRIMARY KEY CLUSTERED\s*\(PublicationId, GovernorID\)' 'Publication rows must reject duplicate Governor IDs.'
+foreach ($column in @('KillTarget', 'MinimumKillTarget', 'DeadTarget', 'DKPTarget')) {
+    Assert-Contains $rows ("{0}\s+int\s+NULL" -f $column) "Publication rows must preserve nullable $column values."
+}
 Assert-Contains $view 'WHERE p\.IsCurrent = 1' 'Bot view must expose current publications only.'
 Assert-NotContains $view 'v_TARGETS_FOR_UPLOAD' 'Bot view must not depend on the mutable legacy pointer.'
 Assert-NotContains $view 'ForcedRepublish|RepublishReason|PublishedBy' 'Bot view must not expose operator-only publication audit fields.'
@@ -84,6 +87,9 @@ Assert-Contains $master '@ForceRepublish = 1 AND @MatchedKVKCount <> 1' 'Force-r
 Assert-Contains $master "@ForceRepublish = 1[\s\S]+NOT EXISTS[\s\S]+FROM dbo\.ProcConfig[\s\S]+KVKVersion = @RequestedKVK" 'Invalid forced KVKs must fail before target helper processing.'
 Assert-Before $master 'could not resolve the requested KVK before force-republish processing' 'EXEC dbo.CREATE_DELTA_TABLES' 'Force-republish KVK validation must occur before shared helper work.'
 Assert-Contains $master '@CurrentKVK IS NULL OR @CurrentKVK <= 0' 'Full refresh must reject invalid configured KVK identities.'
+Assert-Contains $master 'IF @@TRANCOUNT <> 0[\s\S]+must own its publication transaction[\s\S]+RETURN' 'Publication must reject an ambient caller transaction without retaining a transaction-owned applock.'
+Assert-Before $master 'IF @@TRANCOUNT <> 0' 'EXEC dbo.CREATE_DELTA_TABLES' 'Ambient transaction rejection must occur before shared helper work.'
+Assert-NotContains $master 'SAVE TRANSACTION KVKTargetPublicationSave|@StartedTransaction|@InitialTranCount' 'Publication must not retain a transaction-owned applock in a caller transaction.'
 Assert-Contains $master 'sys\.sp_getapplock' 'Publication must use a cross-session KVK mutex.'
 Assert-Contains $master "SET @SourceScanType = N'MATCHMAKING_SCAN'" 'The master procedure must persist the matchmaking source branch.'
 Assert-Contains $master "SET @SourceScanType = N'DRAFTSCAN'" 'The master procedure must persist the draft source branch.'
@@ -92,6 +98,8 @@ Assert-Before $master 'WHERE ScanOrder = @Scan' 'EXEC dbo.sp_Prep_TargetTable' '
 Assert-Contains $master "@CurrentPublicationState = N'OFFICIAL'[\s\S]+@ForceRepublish = 0" 'Routine processing must detect an existing Official publication.'
 Assert-Contains $master "Official targets already published[\s\S]+EXEC dbo\.sp_ExcelOutput_ByKVK[\s\S]+SET @ShouldProcess = 0" 'Routine processing must preserve combat output refreshes while skipping target publication.'
 Assert-Contains $master 'ISNULL\(@TargetRowCount, 0\) <= 0' 'Publication must reject an empty output.'
+Assert-NotContains $master 'OR \[Kill Target\] IS NULL|OR \[Minimum Kill Target\] IS NULL|OR \[Dead Target\] IS NULL|OR \[DKP Target\] IS NULL' 'Publication must preserve rows whose target amounts are not set.'
+Assert-Contains $master "refused target rows with invalid identity or target values[\s\S]+SET ANSI_WARNINGS ON;[\s\S]+SET ANSI_PADDING ON;[\s\S]+SET ARITHABORT ON;[\s\S]+SET CONCAT_NULL_YIELDS_NULL ON;[\s\S]+SET NUMERIC_ROUNDABORT OFF;[\s\S]+INSERT dbo\.KVK_Target_Publication" 'Filtered-index-safe SET options must be enabled before publication writes.'
 Assert-Contains $master 'INSERT dbo\.KVK_Target_Publication_Row' 'Publication must copy immutable bot-facing rows.'
 Assert-Before $master 'INSERT dbo.KVK_Target_Publication_Row' 'SET IsCurrent = 1' 'Rows must be copied before a publication becomes current.'
 Assert-Contains $master 'CREATE OR ALTER VIEW dbo\.v_TARGETS_FOR_UPLOAD' 'The legacy pointer must be replaced without a drop/create gap.'

@@ -147,10 +147,10 @@ CREATE TABLE dbo.KVK_Target_Publication_Row
     TargetRank bigint NULL,
     GovernorName nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
     Power nvarchar(4000) COLLATE Latin1_General_CI_AS NULL,
-    KillTarget int NOT NULL,
-    MinimumKillTarget int NOT NULL,
-    DeadTarget int NOT NULL,
-    DKPTarget int NOT NULL,
+    KillTarget int NULL,
+    MinimumKillTarget int NULL,
+    DeadTarget int NULL,
+    DKPTarget int NULL,
     CONSTRAINT PK_KVK_Target_Publication_Row
         PRIMARY KEY CLUSTERED (PublicationId, GovernorID),
     CONSTRAINT FK_KVK_Target_Publication_Row_Publication
@@ -160,10 +160,10 @@ CREATE TABLE dbo.KVK_Target_Publication_Row
         CHECK
         (
             GovernorID > 0
-            AND KillTarget >= 0
-            AND MinimumKillTarget >= 0
-            AND DeadTarget >= 0
-            AND DKPTarget >= 0
+            AND (KillTarget IS NULL OR KillTarget >= 0)
+            AND (MinimumKillTarget IS NULL OR MinimumKillTarget >= 0)
+            AND (DeadTarget IS NULL OR DeadTarget >= 0)
+            AND (DKPTarget IS NULL OR DKPTarget >= 0)
         )
 );
 END
@@ -210,6 +210,17 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+
+    IF @@TRANCOUNT <> 0
+    BEGIN
+        RAISERROR(
+            'sp_TARGETS_MASTER must own its publication transaction and cannot run inside an existing transaction.',
+            16,
+            1
+        );
+        RETURN;
+    END;
+
     SET XACT_ABORT ON;
 
     DECLARE @RequestedKVK int = @KVK;
@@ -288,19 +299,8 @@ BEGIN
 
             SET @MatchedKVKCount += 1;
 
-            DECLARE @InitialTranCount int = @@TRANCOUNT;
-            DECLARE @StartedTransaction bit = 0;
-
             BEGIN TRY
-                IF @InitialTranCount = 0
-                BEGIN
-                    BEGIN TRANSACTION;
-                    SET @StartedTransaction = 1;
-                END
-                ELSE
-                BEGIN
-                    SAVE TRANSACTION KVKTargetPublicationSave;
-                END;
+                BEGIN TRANSACTION;
 
                 DECLARE @PublicationLockResult int;
                 DECLARE @PublicationLockResource nvarchar(255) =
@@ -513,10 +513,6 @@ BEGIN
                                       OR TRY_CONVERT(bigint, [Gov_ID]) IS NULL
                                       OR CONVERT(float, TRY_CONVERT(bigint, [Gov_ID])) <> [Gov_ID]
                                       OR TRY_CONVERT(bigint, [Gov_ID]) <= 0
-                                      OR [Kill Target] IS NULL
-                                      OR [Minimum Kill Target] IS NULL
-                                      OR [Dead Target] IS NULL
-                                      OR [DKP Target] IS NULL
                                       OR [Kill Target] < 0
                                       OR [Minimum Kill Target] < 0
                                       OR [Dead Target] < 0
@@ -538,6 +534,12 @@ BEGIN
 
                     IF ISNULL(@InvalidTargetRowCount, 0) <> 0
                         THROW 52613, 'sp_TARGETS_MASTER refused target rows with invalid identity or target values.', 1;
+
+                    SET ANSI_WARNINGS ON;
+                    SET ANSI_PADDING ON;
+                    SET ARITHABORT ON;
+                    SET CONCAT_NULL_YIELDS_NULL ON;
+                    SET NUMERIC_ROUNDABORT OFF;
 
                     DECLARE @PublicationVersion int;
                     DECLARE @PublicationSignature uniqueidentifier = NEWID();
@@ -675,14 +677,11 @@ BEGIN
                     );
                 END;
 
-                IF @StartedTransaction = 1
-                    COMMIT TRANSACTION;
+                COMMIT TRANSACTION;
             END TRY
             BEGIN CATCH
-                IF @StartedTransaction = 1 AND XACT_STATE() <> 0
+                IF XACT_STATE() <> 0
                     ROLLBACK TRANSACTION;
-                ELSE IF @StartedTransaction = 0 AND XACT_STATE() = 1
-                    ROLLBACK TRANSACTION KVKTargetPublicationSave;
 
                 THROW;
             END CATCH;
@@ -785,6 +784,16 @@ IF NOT EXISTS
       AND is_not_trusted = 0
 )
     THROW 52659, 'KVK target publication migration post-validation found a missing or untrusted row foreign key.', 1;
+
+IF
+(
+    SELECT COUNT(*)
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.KVK_Target_Publication_Row')
+      AND name IN (N'KillTarget', N'MinimumKillTarget', N'DeadTarget', N'DKPTarget')
+      AND is_nullable = 1
+) <> 4
+    THROW 52661, 'KVK target publication migration post-validation found non-nullable target amount columns.', 1;
 
 IF
 (

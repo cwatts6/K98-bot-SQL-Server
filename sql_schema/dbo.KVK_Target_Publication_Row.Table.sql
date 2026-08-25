@@ -9,10 +9,10 @@ CREATE TABLE dbo.KVK_Target_Publication_Row
     TargetRank bigint NULL,
     GovernorName nvarchar(255) COLLATE Latin1_General_CI_AS NULL,
     Power nvarchar(4000) COLLATE Latin1_General_CI_AS NULL,
-    KillTarget int NOT NULL,
-    MinimumKillTarget int NOT NULL,
-    DeadTarget int NOT NULL,
-    DKPTarget int NOT NULL,
+    KillTarget int NULL,
+    MinimumKillTarget int NULL,
+    DeadTarget int NULL,
+    DKPTarget int NULL,
     CONSTRAINT PK_KVK_Target_Publication_Row
         PRIMARY KEY CLUSTERED (PublicationId, GovernorID),
     CONSTRAINT FK_KVK_Target_Publication_Row_Publication
@@ -22,11 +22,10 @@ CREATE TABLE dbo.KVK_Target_Publication_Row
         CHECK
         (
             GovernorID > 0
-            AND KillTarget >= 0
-            AND MinimumKillTarget >= 0
-            AND DeadTarget >= 0
-            AND DKPTarget >= 0
+            AND (KillTarget IS NULL OR KillTarget >= 0)
+            AND (MinimumKillTarget IS NULL OR MinimumKillTarget >= 0)
+            AND (DeadTarget IS NULL OR DeadTarget >= 0)
+            AND (DKPTarget IS NULL OR DKPTarget >= 0)
         )
 );
 END
-
