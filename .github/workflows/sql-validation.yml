@@ -21,6 +21,10 @@ jobs:
         shell: pwsh
         run: .\deploy\Validate-SqlRepo.ps1
 
+      - name: Validate KVK target publication contract
+        shell: pwsh
+        run: .\deploy\Test-KvkTargetPublicationContract.ps1
+
       - name: Parse PowerShell deployment scripts
         shell: pwsh
         run: |

@@ -1,10 +1,36 @@
-﻿SET ANSI_NULLS ON
-SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CREATE_DELTA_TABLES]') AND type in (N'P', N'PC'))
-BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[CREATE_DELTA_TABLES] AS' 
-END
-ALTER PROCEDURE [dbo].[CREATE_DELTA_TABLES]
+/*
+MigrationId: 20260826_001_serialize_delta_preprocessing
+Purpose: Serialize every CREATE_DELTA_TABLES caller around shared delta high-watermark selection and inserts
+Author: cwatts
+CreatedUtc: 2026-08-26
+RequiresBackup: Yes
+RiskLevel: High
+Rollback: Manual
+RollbackScript: N/A
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Included
+EstimatedRowsAffected: No deployment-time data changes; future delta processing is serialized
+PreValidationQuery: Capture OBJECT_DEFINITION(OBJECT_ID(N'dbo.CREATE_DELTA_TABLES', N'P')) and verify dbo.UPDATE_ALL, dbo.sp_Loop_ExcelOutput_ByKVK, and dbo.sp_TARGETS_MASTER call it
+PostValidationQuery: Verify dbo.CREATE_DELTA_TABLES owns K98:TargetPublication:DeltaPreprocessing and all direct callers still invoke the helper
+RelatedBotPR: cwatts6/K98-bot-mirror#235
+RelatedSQLPR: cwatts6/K98-bot-SQL-Server#73
+*/
+
+/*
+Deployment and rollback posture:
+    - Deploy immediately after 20260825_001_kvk_target_publication_provenance.sql.
+    - Capture the current dbo.CREATE_DELTA_TABLES definition before deployment.
+    - CREATE OR ALTER is one atomic DDL statement; the migration changes no existing rows.
+    - Manual rollback restores the captured procedure definition.
+    - Do not run delta processing or target publication between the two KVK publication migrations.
+*/
+
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+
+CREATE OR ALTER PROCEDURE [dbo].[CREATE_DELTA_TABLES]
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -620,4 +646,16 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
 
     SET NOCOUNT OFF;
 END
+
+GO
+
+IF OBJECT_DEFINITION(OBJECT_ID(N'dbo.CREATE_DELTA_TABLES', N'P'))
+       NOT LIKE N'%K98:TargetPublication:DeltaPreprocessing%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CREATE_DELTA_TABLES', N'P'))
+       NOT LIKE N'%@LockOwner = N''Session''%'
+   OR OBJECT_DEFINITION(OBJECT_ID(N'dbo.CREATE_DELTA_TABLES', N'P'))
+       NOT LIKE N'%EXEC @DeltaPreprocessingLockResult = sys.sp_releaseapplock%'
+BEGIN
+    THROW 52624, 'CREATE_DELTA_TABLES shared preprocessing mutex validation failed.', 1;
+END;
 
