@@ -1,8 +1,7 @@
 SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-IF OBJECT_ID(N'dbo.v_KVK_TARGETS_FOR_BOT', N'V') IS NULL
-EXECUTE dbo.sp_executesql N'
-CREATE VIEW dbo.v_KVK_TARGETS_FOR_BOT
+GO
+CREATE OR ALTER VIEW dbo.v_KVK_TARGETS_FOR_BOT
 AS
 SELECT
     p.PublicationId,
@@ -29,4 +28,4 @@ FROM dbo.KVK_Target_Publication AS p
 JOIN dbo.KVK_Target_Publication_Row AS r
   ON r.PublicationId = p.PublicationId
 WHERE p.IsCurrent = 1;
-'
+GO

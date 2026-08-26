@@ -77,6 +77,8 @@ foreach ($column in @('KillTarget', 'MinimumKillTarget', 'DeadTarget', 'DKPTarge
     Assert-Contains $rows ("{0}\s+int\s+NULL" -f $column) "Publication rows must preserve nullable $column values."
 }
 Assert-Contains $view 'WHERE p\.IsCurrent = 1' 'Bot view must expose current publications only.'
+Assert-Contains $view 'CREATE OR ALTER VIEW dbo\.v_KVK_TARGETS_FOR_BOT' 'Canonical bot view must be safely re-runnable.'
+Assert-NotContains $view 'IF OBJECT_ID|sp_executesql' 'Canonical bot view must not retain first-deployment-only creation guards.'
 Assert-NotContains $view 'v_TARGETS_FOR_UPLOAD' 'Bot view must not depend on the mutable legacy pointer.'
 Assert-NotContains $view 'ForcedRepublish|RepublishReason|PublishedBy' 'Bot view must not expose operator-only publication audit fields.'
 
@@ -127,6 +129,17 @@ Assert-Contains $migration 'BEGIN TRANSACTION' 'Migration must deploy the contra
 Assert-Contains $migration 'Current-KVK publication is a separate' 'Migration must document the SQL-first explicit publication step.'
 Assert-Contains $migration 'is_not_trusted = 0' 'Migration post-validation must prove its integrity constraints are trusted.'
 Assert-Contains $migration "COUNT\(\*\)[\s\S]+dbo\.v_KVK_TARGETS_FOR_BOT[\s\S]+<> 20" 'Migration post-validation must prove the exact bot-view column count.'
+foreach ($setOption in @(
+    'SET ANSI_NULLS ON;',
+    'SET QUOTED_IDENTIFIER ON;',
+    'SET ANSI_WARNINGS ON;',
+    'SET ANSI_PADDING ON;',
+    'SET ARITHABORT ON;',
+    'SET CONCAT_NULL_YIELDS_NULL ON;',
+    'SET NUMERIC_ROUNDABORT OFF;'
+)) {
+    Assert-Before $migration $setOption 'CREATE UNIQUE NONCLUSTERED INDEX UX_KVK_Target_Publication_Current' "Migration must set $setOption before creating the filtered index."
+}
 
 if ($failures.Count -gt 0) {
     $failures | ForEach-Object { Write-Error $_ }
