@@ -138,6 +138,7 @@ foreach ($setOption in @(
     'SET CONCAT_NULL_YIELDS_NULL ON;',
     'SET NUMERIC_ROUNDABORT OFF;'
 )) {
+    Assert-Before $header $setOption 'CREATE UNIQUE NONCLUSTERED INDEX UX_KVK_Target_Publication_Current' "Canonical publication table must set $setOption before creating the filtered index."
     Assert-Before $migration $setOption 'CREATE UNIQUE NONCLUSTERED INDEX UX_KVK_Target_Publication_Current' "Migration must set $setOption before creating the filtered index."
 }
 
