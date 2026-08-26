@@ -287,10 +287,41 @@ BEGIN
               AND (@RequestedKVK IS NULL OR KVKVersion = @RequestedKVK)
             ORDER BY KVKVersion;
 
-        SET ANSI_WARNINGS ON;
-        PRINT N'Calling CREATE_DELTA_TABLES';
-        EXEC dbo.CREATE_DELTA_TABLES;
-        SET ANSI_WARNINGS OFF;
+        DECLARE @DeltaPreprocessingLockResult int;
+        DECLARE @DeltaPreprocessingLockResource nvarchar(255) =
+            N'K98:TargetPublication:DeltaPreprocessing';
+
+        EXEC @DeltaPreprocessingLockResult = sys.sp_getapplock
+            @Resource = @DeltaPreprocessingLockResource,
+            @LockMode = N'Exclusive',
+            @LockOwner = N'Session',
+            @LockTimeout = 60000,
+            @DbPrincipal = N'public';
+
+        IF @DeltaPreprocessingLockResult < 0
+            THROW 52622, 'sp_TARGETS_MASTER could not acquire the shared delta-preprocessing mutex.', 1;
+
+        BEGIN TRY
+            SET ANSI_WARNINGS ON;
+            PRINT N'Calling CREATE_DELTA_TABLES';
+            EXEC dbo.CREATE_DELTA_TABLES;
+            SET ANSI_WARNINGS OFF;
+        END TRY
+        BEGIN CATCH
+            EXEC sys.sp_releaseapplock
+                @Resource = @DeltaPreprocessingLockResource,
+                @LockOwner = N'Session',
+                @DbPrincipal = N'public';
+            THROW;
+        END CATCH;
+
+        EXEC @DeltaPreprocessingLockResult = sys.sp_releaseapplock
+            @Resource = @DeltaPreprocessingLockResource,
+            @LockOwner = N'Session',
+            @DbPrincipal = N'public';
+
+        IF @DeltaPreprocessingLockResult < 0
+            THROW 52623, 'sp_TARGETS_MASTER could not release the shared delta-preprocessing mutex.', 1;
 
         OPEN kvk_cursor_master;
         FETCH NEXT FROM kvk_cursor_master INTO @CurrentKVK;
