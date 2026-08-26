@@ -19,7 +19,7 @@ BEGIN
 		   INTO DALL
     FROM KingdomScanData4
 	ORDER BY GovernorID
-	
+
 	SELECT GovernorID,
            [DEADS],
 		   ScanDate,
@@ -28,7 +28,7 @@ BEGIN
 		   INTO D12
     FROM KingdomScanData4
 	WHERE SCANDATE >= DATEADD(month, -12, GETDATE())
-	
+
 
 	SELECT GovernorID,
            [DEADS],
@@ -38,7 +38,7 @@ BEGIN
 		   INTO D6
     FROM KingdomScanData4
 	WHERE SCANDATE >= DATEADD(month, -6, GETDATE())
-	
+
 	SELECT GovernorID,
            [DEADS],
 		   ScanDate,
@@ -49,7 +49,7 @@ BEGIN
 	WHERE SCANDATE >= DATEADD(month, -3, GETDATE())
 ;
 
-DECLARE 
+DECLARE
 @MAXSCAN AS INT = (SELECT MAX(SCANORDER) FROM KingdomScanData4)
 
 SELECT DISTINCT ([GovernorID]) -- Governor T5_Kills #K TEMP TABLE
@@ -86,5 +86,3 @@ DROP TABLE DALL, D12, D6, D3
 DROP TABLE #D
 
 END;
-
-

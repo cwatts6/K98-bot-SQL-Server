@@ -1,10 +1,14 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_BackfillKvkFinalReportCompletion
-    @KVKNo int,
-    @FinalScanOrder int,
-    @FinalDataAtUtc datetime2(0),
-    @FinalizationBasis nvarchar(24) = N'AUDIT_BACKFILL'
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_BackfillKvkFinalReportCompletion]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_BackfillKvkFinalReportCompletion] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_BackfillKvkFinalReportCompletion]
+	@KVKNo [int],
+	@FinalScanOrder [int],
+	@FinalDataAtUtc [datetime2](0),
+	@FinalizationBasis [nvarchar](24) = N'AUDIT_BACKFILL'
 WITH EXECUTE AS CALLER
 AS
 BEGIN

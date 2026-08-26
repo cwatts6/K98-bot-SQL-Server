@@ -13,7 +13,7 @@ BEGIN
     SET NOCOUNT ON;
 	SET XACT_ABORT ON;
 
-    DECLARE 
+    DECLARE
         @CURRENTKVK3      INT,
         @KVK_END_SCAN     INT,
         @LASTKVKEND       INT,
@@ -64,7 +64,7 @@ BEGIN
 
     -- Determine which scan to use for latest data
     -- For completed KVKs use KVK_END_SCAN, for current KVK use MaxAvailableScan
-    SET @LatestScanToUse = CASE 
+    SET @LatestScanToUse = CASE
         WHEN @MaxAvailableScan > @KVK_END_SCAN THEN @KVK_END_SCAN
         ELSE @MaxAvailableScan
     END;
@@ -139,8 +139,8 @@ BEGIN
         ksd.[Civilization],
         ksd.[KvKPlayed],
 		ksd.[Deads],
-		ksd.[T4&T5_KILLS], 
-		ksd.[HealedTroops], 
+		ksd.[T4&T5_KILLS],
+		ksd.[HealedTroops],
 		ksd.[KillPoints],
 		ksd.[AutarchTimes],
         pk.MaxPreKvkPoints    AS MaxPreKvkPoints,
@@ -226,7 +226,7 @@ BEGIN
     );
 
     INSERT INTO #Deads (GovernorID, DeadsDelta, DeadsDeltaOutKVK, P4DeadsDelta, P6DeadsDelta, P7DeadsDelta, P8DeadsDelta)
-    SELECT 
+    SELECT
         d.GovernorID,
         SUM(CASE WHEN d.DeltaOrder > @PRE_PASS_4_SCAN AND d.DeltaOrder <= @KVK_END_SCAN THEN d.DeadsDelta ELSE 0 END) AS DeadsDelta,
         SUM(CASE WHEN d.DeltaOrder > @LASTKVKEND      AND d.DeltaOrder <= @PRE_PASS_4_SCAN THEN d.DeadsDelta ELSE 0 END) AS DeadsDeltaOutKVK,
@@ -253,7 +253,7 @@ BEGIN
     );
 
     INSERT INTO #Kills (GovernorID, T4T5KillsDelta, KillsOutsideKVK, P4Kills, P6Kills, P7Kills, P8Kills)
-    SELECT 
+    SELECT
         k.GovernorID,
         SUM(CASE WHEN k.DeltaOrder > @PRE_PASS_4_SCAN AND k.DeltaOrder <= @KVK_END_SCAN THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS T4T5KillsDelta,
         SUM(CASE WHEN k.DeltaOrder > @LASTKVKEND      AND k.DeltaOrder <= @PRE_PASS_4_SCAN THEN k.[T4&T5_KILLSDelta] ELSE 0 END) AS KillsOutsideKVK,
@@ -293,9 +293,9 @@ BEGIN
     WHERE t5.DeltaOrder > @PRE_PASS_4_SCAN AND t5.DeltaOrder <= @KVK_END_SCAN
     GROUP BY t5.GovernorID;
 
-	----------------------------------------------- 
-	-- 5. KillPointsDelta aggregation (use same window as other deltas) 
-	----------------------------------------------- 
+	-----------------------------------------------
+	-- 5. KillPointsDelta aggregation (use same window as other deltas)
+	-----------------------------------------------
     CREATE TABLE #KillPoints (
         GovernorID      bigint  NOT NULL PRIMARY KEY CLUSTERED,
         KillPointsDelta bigint  NOT NULL
@@ -305,7 +305,7 @@ BEGIN
 	SELECT kp.GovernorID, SUM(COALESCE(kp.KillPointsDelta, 0)) AS KillPointsDelta
 	FROM dbo.KillPointsDelta kp
     INNER JOIN #GovernorList gl ON gl.GovernorID = kp.GovernorID
-	WHERE kp.DeltaOrder > @PRE_PASS_4_SCAN AND kp.DeltaOrder <= @KVK_END_SCAN 
+	WHERE kp.DeltaOrder > @PRE_PASS_4_SCAN AND kp.DeltaOrder <= @KVK_END_SCAN
 	GROUP BY kp.GovernorID;
 
     -----------------------------------------------
@@ -460,7 +460,7 @@ BEGIN
 		, COALESCE(ra.RSSAssistDelta, 0)            AS RSSASSISTDelta
 		, COALESCE(rg.RSSGatheredDelta, 0)          AS RSSGatheredDelta
 		, COALESCE(s.HealedTroops, 0)               AS HealedTroops
-		, COALESCE(s.RangedPoints, 0)             AS RangedPoints        
+		, COALESCE(s.RangedPoints, 0)             AS RangedPoints
 		, COALESCE(ran.RangedPointsDelta, 0)        AS RangedPointsDelta
 		, COALESCE(s.AutarchTimes, 0)               AS AutarchTimes
 		, s.Civilization
@@ -497,7 +497,7 @@ BEGIN
 	LEFT JOIN #RSSAssist   ra  ON ra.GovernorID  = s.GovernorID
 	LEFT JOIN #RSSGathered rg  ON rg.GovernorID  = s.GovernorID
 	LEFT JOIN #Healed      he  ON he.GovernorID  = s.GovernorID
-	LEFT JOIN #Ranged      ran ON ran.GovernorID = s.GovernorID   
+	LEFT JOIN #Ranged      ran ON ran.GovernorID = s.GovernorID
 	WHERE s.GovernorID IS NOT NULL;
 
 
@@ -516,9 +516,9 @@ BEGIN
     FROM dbo.STAGING_STATS AS S1
     LEFT JOIN dbo.ZEROED    AS Z ON Z.GovernorID = S1.GovernorID AND Z.ScanOrder = @Scan;
 
-    SELECT GovernorID, MAX(T4_Deads) AS [T4 Deads], MAX(T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER 
+    SELECT GovernorID, MAX(T4_Deads) AS [T4 Deads], MAX(T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER
     INTO #HD1
-    FROM dbo.HoH_Deads 
+    FROM dbo.HoH_Deads
     GROUP BY GovernorID;
 
     -----------------------------------------------
@@ -664,7 +664,7 @@ BEGIN
 	-- Call index creation procedure with BOTH parameters
 	EXEC dbo.sp_Create_Excel_For_Kvk_Indexes @FullTableName = @ExcelTblFull, @TableBase = @ExcelTbl;
 
-	-- ✅ NEW: Update statistics for optimal query performance
+	-- âœ… NEW: Update statistics for optimal query performance
     DECLARE @UpdateStatsSQL NVARCHAR(MAX) = N'UPDATE STATISTICS ' + @ExcelTblFull + N' WITH FULLSCAN;';
     EXEC sp_executesql @UpdateStatsSQL;
     PRINT 'Updated statistics on ' + @ExcelTblFull + ' with FULLSCAN';
@@ -690,4 +690,3 @@ BEGIN
         + ', LatestScanUsed=' + CAST(@LatestScanToUse AS varchar(20))
         + ' at ' + CONVERT(varchar, GETDATE(), 120);
 END
-
