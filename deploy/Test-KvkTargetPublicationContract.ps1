@@ -50,7 +50,11 @@ $header = Get-SqlSource 'sql_schema\dbo.KVK_Target_Publication.Table.sql'
 $rows = Get-SqlSource 'sql_schema\dbo.KVK_Target_Publication_Row.Table.sql'
 $view = Get-SqlSource 'sql_schema\dbo.v_KVK_TARGETS_FOR_BOT.View.sql'
 $master = Get-SqlSource 'sql_schema\dbo.sp_TARGETS_MASTER.StoredProcedure.sql'
+$delta = Get-SqlSource 'sql_schema\dbo.CREATE_DELTA_TABLES.StoredProcedure.sql'
+$updateAll = Get-SqlSource 'sql_schema\dbo.UPDATE_ALL.StoredProcedure.sql'
+$loop = Get-SqlSource 'sql_schema\dbo.sp_Loop_ExcelOutput_ByKVK.StoredProcedure.sql'
 $migration = Get-SqlSource 'migrations\20260825_001_kvk_target_publication_provenance.sql'
+$deltaMigration = Get-SqlSource 'migrations\20260826_001_serialize_delta_preprocessing.sql'
 
 foreach ($column in @(
     'PublicationState',
@@ -96,6 +100,18 @@ Assert-Contains $master 'sys\.sp_getapplock' 'Publication must use a cross-sessi
 Assert-Contains $master "K98:TargetPublication:DeltaPreprocessing[\s\S]+@LockOwner = N'Session'" 'Shared delta preprocessing must use a global session-owned mutex.'
 Assert-Before $master 'K98:TargetPublication:DeltaPreprocessing' 'EXEC dbo.CREATE_DELTA_TABLES' 'Shared delta preprocessing must acquire its mutex before helper execution.'
 Assert-Contains $master "EXEC dbo\.CREATE_DELTA_TABLES;[\s\S]+sys\.sp_releaseapplock[\s\S]+@LockOwner = N'Session'" 'Shared delta preprocessing must release its session mutex after helper execution.'
+Assert-Contains $delta "K98:TargetPublication:DeltaPreprocessing[\s\S]+@LockOwner = N'Session'" 'The shared delta helper must own the global session mutex used by every caller.'
+Assert-Before $delta 'K98:TargetPublication:DeltaPreprocessing' 'SELECT @LastProcessedScan' 'The shared delta helper must acquire its mutex before reading the shared high-water mark.'
+Assert-Contains $delta "COMMIT TRANSACTION;[\s\S]+sys\.sp_releaseapplock[\s\S]+@LockOwner = N'Session'" 'The shared delta helper must retain the mutex through its delta-table commit.'
+Assert-Contains $delta "BEGIN CATCH[\s\S]+@DeltaPreprocessingLockHeld = 1[\s\S]+sys\.sp_releaseapplock[\s\S]+THROW" 'The shared delta helper must release its mutex and rethrow catchable failures.'
+Assert-Before $delta 'sys.sp_releaseapplock' '-- Step 6: LIGHTWEIGHT MAINTENANCE' 'The shared delta helper must release its mutex before optional maintenance.'
+foreach ($caller in @(
+    @{ Source = $master; Name = 'sp_TARGETS_MASTER' },
+    @{ Source = $updateAll; Name = 'UPDATE_ALL' },
+    @{ Source = $loop; Name = 'sp_Loop_ExcelOutput_ByKVK' }
+)) {
+    Assert-Contains $caller.Source '(?i)EXEC\s+(?:dbo\.)?CREATE_DELTA_TABLES' "$($caller.Name) must continue to route delta preprocessing through the mutex-owning helper."
+}
 Assert-Contains $master "SET @SourceScanType = N'MATCHMAKING_SCAN'" 'The master procedure must persist the matchmaking source branch.'
 Assert-Contains $master "SET @SourceScanType = N'DRAFTSCAN'" 'The master procedure must persist the draft source branch.'
 Assert-Contains $master 'WHERE ScanOrder = @Scan' 'The master procedure must validate the exact selected scan.'
@@ -126,12 +142,30 @@ else {
     }
 }
 
+$deltaProcedureMarker = 'ALTER PROCEDURE'
+$deltaProcedureStart = $delta.IndexOf($deltaProcedureMarker, [StringComparison]::Ordinal)
+if ($deltaProcedureStart -lt 0) {
+    $failures.Add('Canonical delta procedure has no ALTER PROCEDURE marker.')
+}
+else {
+    $expectedDeltaMigrationProcedure = $delta.Substring($deltaProcedureStart)
+    $expectedDeltaMigrationProcedure =
+        'CREATE OR ALTER PROCEDURE' + $expectedDeltaMigrationProcedure.Substring($deltaProcedureMarker.Length)
+    if (-not $deltaMigration.Contains($expectedDeltaMigrationProcedure)) {
+        $failures.Add('Delta mutex migration copy is not identical to the canonical CREATE_DELTA_TABLES schema snapshot.')
+    }
+}
+
 Assert-Contains $migration 'Rollback:\s+Manual' 'Migration must retain the approved manual rollback posture.'
 Assert-Contains $migration 'DataChange:\s+No' 'Schema deployment must not silently publish or backfill a KVK.'
 Assert-Contains $migration 'BEGIN TRANSACTION' 'Migration must deploy the contract transactionally.'
 Assert-Contains $migration 'Current-KVK publication is a separate' 'Migration must document the SQL-first explicit publication step.'
 Assert-Contains $migration 'is_not_trusted = 0' 'Migration post-validation must prove its integrity constraints are trusted.'
 Assert-Contains $migration "COUNT\(\*\)[\s\S]+dbo\.v_KVK_TARGETS_FOR_BOT[\s\S]+<> 20" 'Migration post-validation must prove the exact bot-view column count.'
+Assert-Contains $deltaMigration 'Rollback:\s+Manual' 'Delta mutex migration must retain a manual rollback posture.'
+Assert-Contains $deltaMigration 'DataChange:\s+No' 'Delta mutex deployment must not modify existing rows.'
+Assert-Contains $deltaMigration 'Do not run delta processing or target publication between the two KVK publication migrations' 'Delta mutex migration must document the no-processing deployment boundary.'
+Assert-Contains $deltaMigration "OBJECT_DEFINITION[\s\S]+K98:TargetPublication:DeltaPreprocessing" 'Delta mutex migration must verify the deployed helper owns the shared lock.'
 foreach ($setOption in @(
     'SET ANSI_NULLS ON;',
     'SET QUOTED_IDENTIFIER ON;',
