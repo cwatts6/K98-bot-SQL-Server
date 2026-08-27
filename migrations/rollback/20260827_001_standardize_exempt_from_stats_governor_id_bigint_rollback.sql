@@ -19,42 +19,44 @@ SET XACT_ABORT ON;
 SET DEADLOCK_PRIORITY LOW;
 SET LOCK_TIMEOUT 60000;
 
-IF OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U') IS NULL
-    THROW 52750, 'dbo.EXEMPT_FROM_STATS does not exist.', 1;
-
 DECLARE @CurrentType sysname;
 DECLARE @IsNullable bit;
-
-SELECT
-    @CurrentType = TYPE_NAME(system_type_id),
-    @IsNullable = is_nullable
-FROM sys.columns
-WHERE object_id = OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U')
-  AND name = N'GovernorID';
-
-IF @CurrentType IS NULL
-    THROW 52751, 'dbo.EXEMPT_FROM_STATS.GovernorID does not exist.', 1;
-
-IF @CurrentType NOT IN (N'bigint', N'float')
-    THROW 52752, 'dbo.EXEMPT_FROM_STATS.GovernorID has an unexpected datatype.', 1;
-
-IF @IsNullable <> 0
-    THROW 52753, 'dbo.EXEMPT_FROM_STATS.GovernorID must remain NOT NULL.', 1;
-
-IF @CurrentType = N'bigint'
-   AND EXISTS
-   (
-       SELECT 1
-       FROM dbo.EXEMPT_FROM_STATS
-       WHERE GovernorID < -9007199254740991
-          OR GovernorID > 9007199254740991
-   )
-    THROW 52754, 'Rollback refused because a GovernorID cannot be represented exactly as float.', 1;
-
-DECLARE @RowsBefore bigint = (SELECT COUNT_BIG(*) FROM dbo.EXEMPT_FROM_STATS);
+DECLARE @RowsBefore bigint;
 
 BEGIN TRY
     BEGIN TRANSACTION;
+
+    IF OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U') IS NULL
+        THROW 52750, 'dbo.EXEMPT_FROM_STATS does not exist.', 1;
+
+    SELECT @RowsBefore = COUNT_BIG(*)
+    FROM dbo.EXEMPT_FROM_STATS WITH (TABLOCKX, HOLDLOCK);
+
+    SELECT
+        @CurrentType = TYPE_NAME(system_type_id),
+        @IsNullable = is_nullable
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U')
+      AND name = N'GovernorID';
+
+    IF @CurrentType IS NULL
+        THROW 52751, 'dbo.EXEMPT_FROM_STATS.GovernorID does not exist.', 1;
+
+    IF @CurrentType NOT IN (N'bigint', N'float')
+        THROW 52752, 'dbo.EXEMPT_FROM_STATS.GovernorID has an unexpected datatype.', 1;
+
+    IF @IsNullable <> 0
+        THROW 52753, 'dbo.EXEMPT_FROM_STATS.GovernorID must remain NOT NULL.', 1;
+
+    IF @CurrentType = N'bigint'
+       AND EXISTS
+       (
+           SELECT 1
+           FROM dbo.EXEMPT_FROM_STATS
+           WHERE GovernorID < -9007199254740991
+              OR GovernorID > 9007199254740991
+       )
+        THROW 52754, 'Rollback refused because a GovernorID cannot be represented exactly as float.', 1;
 
     IF @CurrentType = N'bigint'
         ALTER TABLE dbo.EXEMPT_FROM_STATS

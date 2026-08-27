@@ -27,7 +27,8 @@ Data safety plan:
     - Preserve every row and every other column; do not add a key, unique constraint,
       index, or exemption-rule change. One existing non-conflicting duplicate
       GovernorID/KVK group is deliberately retained.
-    - Run the conversion and post-validation in one transaction with XACT_ABORT enabled.
+    - Acquire and retain an exclusive table lock before value validation, then run the
+      conversion and post-validation in one transaction with XACT_ABORT enabled.
     - The included rollback refuses to restore float if new bigint values cannot be
       represented exactly as float.
 */
@@ -39,44 +40,46 @@ SET XACT_ABORT ON;
 SET DEADLOCK_PRIORITY LOW;
 SET LOCK_TIMEOUT 60000;
 
-IF OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U') IS NULL
-    THROW 52700, 'dbo.EXEMPT_FROM_STATS does not exist.', 1;
-
 DECLARE @CurrentType sysname;
 DECLARE @IsNullable bit;
-
-SELECT
-    @CurrentType = TYPE_NAME(system_type_id),
-    @IsNullable = is_nullable
-FROM sys.columns
-WHERE object_id = OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U')
-  AND name = N'GovernorID';
-
-IF @CurrentType IS NULL
-    THROW 52701, 'dbo.EXEMPT_FROM_STATS.GovernorID does not exist.', 1;
-
-IF @CurrentType NOT IN (N'float', N'bigint')
-    THROW 52702, 'dbo.EXEMPT_FROM_STATS.GovernorID has an unexpected datatype.', 1;
-
-IF @IsNullable <> 0
-    THROW 52703, 'dbo.EXEMPT_FROM_STATS.GovernorID must remain NOT NULL.', 1;
-
-IF @CurrentType = N'float'
-   AND EXISTS
-   (
-       SELECT 1
-       FROM dbo.EXEMPT_FROM_STATS
-       WHERE TRY_CONVERT(bigint, GovernorID) IS NULL
-          OR GovernorID <> FLOOR(GovernorID)
-          OR ABS(GovernorID) > 9007199254740991.0
-          OR GovernorID <> CONVERT(float, TRY_CONVERT(bigint, GovernorID))
-   )
-    THROW 52704, 'dbo.EXEMPT_FROM_STATS contains GovernorID values that cannot be converted exactly to bigint.', 1;
-
-DECLARE @RowsBefore bigint = (SELECT COUNT_BIG(*) FROM dbo.EXEMPT_FROM_STATS);
+DECLARE @RowsBefore bigint;
 
 BEGIN TRY
     BEGIN TRANSACTION;
+
+    IF OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U') IS NULL
+        THROW 52700, 'dbo.EXEMPT_FROM_STATS does not exist.', 1;
+
+    SELECT @RowsBefore = COUNT_BIG(*)
+    FROM dbo.EXEMPT_FROM_STATS WITH (TABLOCKX, HOLDLOCK);
+
+    SELECT
+        @CurrentType = TYPE_NAME(system_type_id),
+        @IsNullable = is_nullable
+    FROM sys.columns
+    WHERE object_id = OBJECT_ID(N'dbo.EXEMPT_FROM_STATS', N'U')
+      AND name = N'GovernorID';
+
+    IF @CurrentType IS NULL
+        THROW 52701, 'dbo.EXEMPT_FROM_STATS.GovernorID does not exist.', 1;
+
+    IF @CurrentType NOT IN (N'float', N'bigint')
+        THROW 52702, 'dbo.EXEMPT_FROM_STATS.GovernorID has an unexpected datatype.', 1;
+
+    IF @IsNullable <> 0
+        THROW 52703, 'dbo.EXEMPT_FROM_STATS.GovernorID must remain NOT NULL.', 1;
+
+    IF @CurrentType = N'float'
+       AND EXISTS
+       (
+           SELECT 1
+           FROM dbo.EXEMPT_FROM_STATS
+           WHERE TRY_CONVERT(bigint, GovernorID) IS NULL
+              OR GovernorID <> FLOOR(GovernorID)
+              OR ABS(GovernorID) > 9007199254740991.0
+              OR GovernorID <> CONVERT(float, TRY_CONVERT(bigint, GovernorID))
+       )
+        THROW 52704, 'dbo.EXEMPT_FROM_STATS contains GovernorID values that cannot be converted exactly to bigint.', 1;
 
     IF @CurrentType = N'float'
         ALTER TABLE dbo.EXEMPT_FROM_STATS
