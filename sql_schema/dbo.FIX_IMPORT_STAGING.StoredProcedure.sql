@@ -31,13 +31,13 @@ BEGIN TRY
         THROW 51830, 'FIX_IMPORT_STAGING could not acquire the KingdomScanData4 import mutex within 60000 ms; staging was not changed.', 1;
 
 -- Set the variable using SELECT
-SELECT @DT = CONVERT(DATETIME, 
+SELECT @DT = CONVERT(DATETIME,
     STUFF(STUFF(SUBSTRING(Updated_on, 1, 7), 3, 0, '-'), 7, 0, '-') + ' ' +
     REPLACE(REPLACE(SUBSTRING(Updated_on, 9, LEN(Updated_on) - 8), 'h', ':'), 'm', '')
 )
 FROM IMPORT_STAGING;
 
-UPDATE IMPORT_STAGING -- 
+UPDATE IMPORT_STAGING --
 --SET SCANDATE = @CurrentDate
 SET SCANDATE = @DT
 
@@ -93,11 +93,11 @@ IF EXISTS
 
 
 UPDATE IMPORT_STAGING -- FIX ALLIANCE SCAN NAME
-SET ALLIANCE = '[k98A]SparTanS' 
+SET ALLIANCE = '[k98A]SparTanS'
 WHERE ALLIANCE = '[k98A]SparTanS$S'
 
 UPDATE IMPORT_STAGING -- FIX ALLIANCE SCAN NAME
-SET ALLIANCE = '[K98B]TrojanS' 
+SET ALLIANCE = '[K98B]TrojanS'
 WHERE ALLIANCE = '[K98B]Trojan$S';
 
 
@@ -112,7 +112,7 @@ WITH LatestScan AS (
 
 -- Step 2: Update all fields in one go
 UPDATE I
-SET 
+SET
     [Total Kill Points] = CASE WHEN I.[Total Kill Points] < K.KillPoints THEN K.KillPoints ELSE I.[Total Kill Points] END,
     [Dead Troops] = CASE WHEN I.[Dead Troops] < K.Deads THEN K.Deads ELSE I.[Dead Troops] END,
     [T1-Kills] = CASE WHEN I.[T1-Kills] < K.T1_Kills THEN K.T1_Kills ELSE I.[T1-Kills] END,
