@@ -749,7 +749,7 @@ BEGIN
     SET XACT_ABORT ON;
 
     DECLARE
-        @LatestKVK bigint,
+        @LatestKVK int,
         @MaxScan int,
         @KvkEndScanValue float,
         @KvkEndScan int,
@@ -964,7 +964,7 @@ BEGIN
         EXEC sys.sp_executesql
             @sql,
             N''@pLatestKVK int, @pSourceRowCount bigint OUTPUT, @pInvalidGovernorRows bigint OUTPUT, @pWrongKvkRows bigint OUTPUT, @pDuplicateGovernorGroups bigint OUTPUT'',
-            @pLatestKVK = CONVERT(int, @LatestKVK),
+            @pLatestKVK = @LatestKVK,
             @pSourceRowCount = @SourceRowCount OUTPUT,
             @pInvalidGovernorRows = @InvalidGovernorRows OUTPUT,
             @pWrongKvkRows = @WrongKvkRows OUTPUT,
@@ -1061,7 +1061,7 @@ BEGIN
         EXEC sys.sp_executesql
             @sql,
             N''@pLatestKVK int, @pProvenScanDate datetime2(0)'',
-            @pLatestKVK = CONVERT(int, @LatestKVK),
+            @pLatestKVK = @LatestKVK,
             @pProvenScanDate = @ProvenScanDate;
 
         SELECT
