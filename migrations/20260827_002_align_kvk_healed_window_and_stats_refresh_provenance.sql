@@ -816,9 +816,7 @@ BEGIN
         IF @LockResult < 0
         BEGIN
             SET @Diagnostic = CONCAT(
-                ''SP_Stats_for_Upload: publication lock failed for KVK='', @LatestKVK,
-                '', expected scan='', @ExpectedFinalScan,
-                '', lock result='', @LockResult, ''.''
+                ''SP_Stats_for_Upload: publication lock failed; lock result='', @LockResult, ''.''
             );
             THROW 52803, @Diagnostic, 1;
         END;
