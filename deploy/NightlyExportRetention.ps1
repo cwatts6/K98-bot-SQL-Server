@@ -24,7 +24,21 @@ function Get-K98ExpiredExportBranches {
     $matchingBranches = @(
         $RemoteBranches |
             ForEach-Object { $_.Trim() } |
-            Where-Object { $_ -cmatch $branchPattern } |
+            Where-Object {
+                if ($_ -cnotmatch $branchPattern) {
+                    return $false
+                }
+
+                $timestampText = $_.Substring($remotePrefix.Length)
+                $parsedTimestamp = [DateTime]::MinValue
+                return [DateTime]::TryParseExact(
+                    $timestampText,
+                    "yyyyMMdd-HHmmss",
+                    [System.Globalization.CultureInfo]::InvariantCulture,
+                    [System.Globalization.DateTimeStyles]::None,
+                    [ref]$parsedTimestamp
+                )
+            } |
             Sort-Object -Descending
     )
 
@@ -45,7 +59,7 @@ function Invoke-K98NightlyExportRetention {
     Assert-K98ExportBranchPrefix -ExportBranchPrefix $ExportBranchPrefix
 
     $currentBranch = Get-K98GitBranch -RepoRoot $RepoRoot
-    if ($currentBranch -ne "main") {
+    if ($currentBranch -cne "main") {
         throw "Nightly export retention requires the repository to be on main; current branch is '$currentBranch'."
     }
     Assert-K98CleanGitTree -RepoRoot $RepoRoot
@@ -97,5 +111,59 @@ function Invoke-K98NightlyExportRetention {
             recommended_action = "Review remote export branches and retry retention from a clean main checkout."
         }
         throw
+    }
+}
+
+function Invoke-K98NightlyExportPostProcessing {
+    param(
+        [Parameter(Mandatory=$true)][string]$RepoRoot,
+        [Parameter(Mandatory=$true)][string]$ExportBranchPrefix,
+        [Parameter(Mandatory=$true)][ValidateRange(1, 365)][int]$RetainCount,
+        [switch]$NoGitCommitPush
+    )
+
+    if ($NoGitCommitPush) {
+        $status = Invoke-K98Git -RepoRoot $RepoRoot -Arguments @("status", "--porcelain")
+        $preserveUncommittedChanges = -not [string]::IsNullOrWhiteSpace($status.Output)
+
+        if (-not $preserveUncommittedChanges) {
+            Invoke-K98Git -RepoRoot $RepoRoot -Arguments @("switch", "main") | Out-Null
+            Invoke-K98Git -RepoRoot $RepoRoot -Arguments @("pull", "--ff-only", "origin", "main") | Out-Null
+            Assert-K98CleanGitTree -RepoRoot $RepoRoot
+        }
+
+        $currentBranch = Get-K98GitBranch -RepoRoot $RepoRoot
+        Write-K98JsonLog -RepoRoot $RepoRoot -LogName "export.jsonl" -Event @{
+            script = "Invoke-NightlyProdSchemaExport.ps1"
+            operation = "nightly_export_retention"
+            status = "Skipped"
+            reason = "NoGitCommitPush was specified."
+            export_branch_prefix = $ExportBranchPrefix
+            retained_branch_count = $RetainCount
+            current_branch = $currentBranch
+            preserved_uncommitted_changes = $preserveUncommittedChanges
+        }
+
+        return [pscustomobject]@{
+            CurrentBranch = $currentBranch
+            DeletedBranches = @()
+            PreservedUncommittedChanges = $preserveUncommittedChanges
+        }
+    }
+
+    Invoke-K98Git -RepoRoot $RepoRoot -Arguments @("switch", "main") | Out-Null
+    Invoke-K98Git -RepoRoot $RepoRoot -Arguments @("pull", "--ff-only", "origin", "main") | Out-Null
+    Assert-K98CleanGitTree -RepoRoot $RepoRoot
+    $deletedBranches = @(
+        Invoke-K98NightlyExportRetention `
+            -RepoRoot $RepoRoot `
+            -ExportBranchPrefix $ExportBranchPrefix `
+            -RetainCount $RetainCount
+    )
+
+    return [pscustomobject]@{
+        CurrentBranch = "main"
+        DeletedBranches = $deletedBranches
+        PreservedUncommittedChanges = $false
     }
 }

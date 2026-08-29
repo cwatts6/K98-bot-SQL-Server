@@ -120,11 +120,14 @@ jobs:
           if ($nightly -notmatch 'RetainedExportBranchCount\s*=\s*14') {
             throw "Nightly export no longer defaults to retaining 14 export branches."
           }
-          if ($retention -notmatch 'currentBranch\s+-ne\s+"main"') {
+          if ($retention -notmatch 'currentBranch\s+-cne\s+"main"') {
             throw "Nightly retention no longer requires a main checkout."
           }
           if ($retention -notmatch 'refs/remotes/origin') {
             throw "Nightly retention no longer scopes discovery to origin remote refs."
+          }
+          if ($retention -notmatch 'TryParseExact') {
+            throw "Nightly retention no longer validates export timestamps before counting branches."
           }
 
       - name: Validate nightly export retention selection

@@ -227,11 +227,14 @@ The new nightly workflow:
 9. Writes structured export and retention logs.
 10. Sends a Discord alert on export, retention, or cleanup failure when `SQL_SCHEMA_DISCORD_WEBHOOK_URL` is configured for the scheduled-task account.
 
-Retention runs only after a successful export has returned the repository to a clean `main`
-checkout. It ignores `main`, feature branches, malformed snapshot names, and branches outside the
-configured `export/*` prefix. `-NoGitCommitPush` also skips remote retention. The retention count
-can be changed explicitly with `-RetainedExportBranchCount`, but the scheduled task should normally
-use the default of 14.
+For normal commit-and-push runs, retention starts only after a successful export has returned the
+repository to a clean `main` checkout. It ignores `main`, feature branches, malformed snapshot names,
+and branches outside the configured `export/*` prefix. Snapshot timestamps must also parse as real
+`yyyyMMdd-HHmmss` values.
+`-NoGitCommitPush` skips remote retention; when the export produces a diff, the local export branch
+and its uncommitted schema changes are deliberately preserved for inspection instead of forcing the
+repository back to `main`. The retention count can be changed explicitly with
+`-RetainedExportBranchCount`, but the scheduled task should normally use the default of 14.
 
 ### Replace The Scheduled Task
 

@@ -155,26 +155,11 @@ try {
         throw "Export-ProdSchemaSnapshot.ps1 failed with exit code $LASTEXITCODE."
     }
 
-    Invoke-K98Git -RepoRoot $repoRoot -Arguments @("switch", "main") | Out-Null
-    Invoke-K98Git -RepoRoot $repoRoot -Arguments @("pull", "--ff-only", "origin", "main") | Out-Null
-    Assert-K98CleanGitTree -RepoRoot $repoRoot
-
-    if ($NoGitCommitPush) {
-        Write-K98JsonLog -RepoRoot $repoRoot -LogName "export.jsonl" -Event @{
-            script = "Invoke-NightlyProdSchemaExport.ps1"
-            operation = "nightly_export_retention"
-            status = "Skipped"
-            reason = "NoGitCommitPush was specified."
-            export_branch_prefix = $ExportBranchPrefix
-            retained_branch_count = $RetainedExportBranchCount
-        }
-    }
-    else {
-        Invoke-K98NightlyExportRetention `
-            -RepoRoot $repoRoot `
-            -ExportBranchPrefix $ExportBranchPrefix `
-            -RetainCount $RetainedExportBranchCount | Out-Null
-    }
+    $postProcessingResult = Invoke-K98NightlyExportPostProcessing `
+        -RepoRoot $repoRoot `
+        -ExportBranchPrefix $ExportBranchPrefix `
+        -RetainCount $RetainedExportBranchCount `
+        -NoGitCommitPush:$NoGitCommitPush
 
     Write-K98JsonLog -RepoRoot $repoRoot -LogName "export.jsonl" -Event @{
         script = "Invoke-NightlyProdSchemaExport.ps1"
@@ -184,8 +169,14 @@ try {
         database = $DatabaseName
         export_branch = $exportBranch
         retained_export_branch_count = $RetainedExportBranchCount
+        post_export_branch = $postProcessingResult.CurrentBranch
+        preserved_uncommitted_changes = $postProcessingResult.PreservedUncommittedChanges
         duration_ms = [int]((Get-Date) - $started).TotalMilliseconds
-        recommended_action = "Review the export branch if it was pushed. Reconcile expected drift through a SQL PR."
+        recommended_action = if ($postProcessingResult.PreservedUncommittedChanges) {
+            "Review the local uncommitted schema diff on the export branch. It was not committed or pushed."
+        } else {
+            "Review the export branch if it was pushed. Reconcile expected drift through a SQL PR."
+        }
     }
 
     Write-Host "Nightly SQL schema export completed. Export branch: $exportBranch"
@@ -213,8 +204,21 @@ catch {
 }
 finally {
     try {
-        Invoke-K98Git -RepoRoot $repoRoot -Arguments @("switch", "main") | Out-Null
-        Invoke-K98Git -RepoRoot $repoRoot -Arguments @("pull", "--ff-only", "origin", "main") | Out-Null
+        $cleanupStatus = Invoke-K98Git -RepoRoot $repoRoot -Arguments @("status", "--porcelain")
+        $preserveNoPushChanges = $NoGitCommitPush -and -not [string]::IsNullOrWhiteSpace($cleanupStatus.Output)
+        if ($preserveNoPushChanges) {
+            Write-K98JsonLog -RepoRoot $repoRoot -LogName "export.jsonl" -Event @{
+                script = "Invoke-NightlyProdSchemaExport.ps1"
+                operation = "nightly_export_cleanup"
+                status = "Skipped"
+                reason = "Preserving uncommitted schema changes produced by NoGitCommitPush."
+                current_branch = Get-K98GitBranch -RepoRoot $repoRoot
+            }
+        }
+        else {
+            Invoke-K98Git -RepoRoot $repoRoot -Arguments @("switch", "main") | Out-Null
+            Invoke-K98Git -RepoRoot $repoRoot -Arguments @("pull", "--ff-only", "origin", "main") | Out-Null
+        }
     }
     catch {
         $cleanupMessage = $_.Exception.Message
