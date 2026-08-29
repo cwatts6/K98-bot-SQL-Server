@@ -145,4 +145,3 @@ BEGIN
         PRINT 'No eligible KVK tables found based on MATCHMAKING_SCAN and Max SCANORDER.';
     END
 END
-

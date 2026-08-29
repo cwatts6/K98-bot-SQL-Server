@@ -294,4 +294,3 @@ BEGIN
     WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
     VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
 END
-
