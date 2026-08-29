@@ -106,6 +106,7 @@ Use this checklist for production SQL deployments.
 - [ ] New task action points to `deploy\Invoke-NightlyProdSchemaExport.ps1`.
 - [ ] Manual task run completed successfully.
 - [ ] SQL repo returned to clean `main` after the task.
+- [ ] Nightly retention kept the 14 newest `export/prod-schema-*` branches and did not touch unrelated branches.
 - [ ] `SQL_SCHEMA_DISCORD_WEBHOOK_URL` is configured for the scheduled-task account if failure-only Discord notification is required.
 - [ ] Any pushed `export/prod-schema-*` branch was reviewed or intentionally left for drift review.
 
@@ -113,6 +114,7 @@ Use this checklist for production SQL deployments.
 
 - [ ] `deploy/Test-NightlyExportHealth.ps1` reports success after task installation or changes.
 - [ ] Latest `nightly_export_finish` event in `logs/export.jsonl` is recent and succeeded.
+- [ ] Latest `nightly_export_retention` event succeeded or was intentionally skipped with `-NoGitCommitPush`.
 - [ ] Scheduled task `LastTaskResult` is `0` when Task Scheduler is available.
 - [ ] Failed or stale nightly export has an owner-visible Discord alert or follow-up note.
 - [ ] SQL repo branch/status was checked after a failed export.

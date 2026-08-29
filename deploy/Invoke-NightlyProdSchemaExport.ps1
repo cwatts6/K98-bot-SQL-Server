@@ -4,6 +4,7 @@ param(
     [string]$RepoPath = "C:\K98-bot-SQL-Server",
     [string]$BotRepoPath = "C:\discord_file_downloader",
     [string]$ExportBranchPrefix = "export/prod-schema",
+    [ValidateRange(1, 365)][int]$RetainedExportBranchCount = 14,
     [switch]$NoGitCommitPush,
     [string]$DiscordAlertUrl = $env:SQL_SCHEMA_DISCORD_WEBHOOK_URL
 )
@@ -11,6 +12,7 @@ param(
 $ErrorActionPreference = "Stop"
 
 . "$PSScriptRoot\SqlDeploy.Common.ps1"
+. "$PSScriptRoot\NightlyExportRetention.ps1"
 
 function Import-K98BotDevEnvironment {
     param([Parameter(Mandatory=$true)][string]$Path)
@@ -153,6 +155,27 @@ try {
         throw "Export-ProdSchemaSnapshot.ps1 failed with exit code $LASTEXITCODE."
     }
 
+    Invoke-K98Git -RepoRoot $repoRoot -Arguments @("switch", "main") | Out-Null
+    Invoke-K98Git -RepoRoot $repoRoot -Arguments @("pull", "--ff-only", "origin", "main") | Out-Null
+    Assert-K98CleanGitTree -RepoRoot $repoRoot
+
+    if ($NoGitCommitPush) {
+        Write-K98JsonLog -RepoRoot $repoRoot -LogName "export.jsonl" -Event @{
+            script = "Invoke-NightlyProdSchemaExport.ps1"
+            operation = "nightly_export_retention"
+            status = "Skipped"
+            reason = "NoGitCommitPush was specified."
+            export_branch_prefix = $ExportBranchPrefix
+            retained_branch_count = $RetainedExportBranchCount
+        }
+    }
+    else {
+        Invoke-K98NightlyExportRetention `
+            -RepoRoot $repoRoot `
+            -ExportBranchPrefix $ExportBranchPrefix `
+            -RetainCount $RetainedExportBranchCount | Out-Null
+    }
+
     Write-K98JsonLog -RepoRoot $repoRoot -LogName "export.jsonl" -Event @{
         script = "Invoke-NightlyProdSchemaExport.ps1"
         operation = "nightly_export_finish"
@@ -160,6 +183,7 @@ try {
         server = $ServerName
         database = $DatabaseName
         export_branch = $exportBranch
+        retained_export_branch_count = $RetainedExportBranchCount
         duration_ms = [int]((Get-Date) - $started).TotalMilliseconds
         recommended_action = "Review the export branch if it was pushed. Reconcile expected drift through a SQL PR."
     }

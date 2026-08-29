@@ -103,6 +103,7 @@ jobs:
         shell: pwsh
         run: |
           $nightly = Get-Content -Raw -Path .\deploy\Invoke-NightlyProdSchemaExport.ps1
+          $retention = Get-Content -Raw -Path .\deploy\NightlyExportRetention.ps1
           $export = Get-Content -Raw -Path .\deploy\Export-ProdSchemaSnapshot.ps1
           if ($nightly -notmatch 'export/prod-schema') {
             throw "Nightly export does not use the expected export/prod-schema branch prefix."
@@ -116,6 +117,19 @@ jobs:
           if ($export -notmatch '-Reason is required when -AllowMain is used') {
             throw "Export script no longer requires a reason for -AllowMain."
           }
+          if ($nightly -notmatch 'RetainedExportBranchCount\s*=\s*14') {
+            throw "Nightly export no longer defaults to retaining 14 export branches."
+          }
+          if ($retention -notmatch 'currentBranch\s+-ne\s+"main"') {
+            throw "Nightly retention no longer requires a main checkout."
+          }
+          if ($retention -notmatch 'refs/remotes/origin') {
+            throw "Nightly retention no longer scopes discovery to origin remote refs."
+          }
+
+      - name: Validate nightly export retention selection
+        shell: pwsh
+        run: .\deploy\Test-NightlyExportRetention.ps1
 
       - name: SQLFluff advisory lint
         shell: pwsh
