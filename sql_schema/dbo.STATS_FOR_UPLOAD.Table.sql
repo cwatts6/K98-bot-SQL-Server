@@ -21,7 +21,6 @@ CREATE TABLE [dbo].[STATS_FOR_UPLOAD](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
 	[Starting_T4&T5_KILLS] [bigint] NULL,
 	[T4_KILLS] [bigint] NULL,
 	[T5_KILLS] [bigint] NULL,
@@ -64,7 +63,8 @@ CREATE TABLE [dbo].[STATS_FOR_UPLOAD](
 	[Honor_Rank] [bigint] NULL,
 	[KVK_NO] [int] NULL,
 	[LAST_REFRESH] [datetime2](0) NULL,
-	[STATUS] [nvarchar](20) COLLATE Latin1_General_CI_AS NULL
+	[STATUS] [nvarchar](20) COLLATE Latin1_General_CI_AS NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[STATS_FOR_UPLOAD]') AND name = N'IX_STATS_FOR_UPLOAD_GovID')
