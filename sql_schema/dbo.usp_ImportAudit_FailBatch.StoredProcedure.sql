@@ -1,22 +1,22 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ImportAudit_FailBatch]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_FailBatch] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ImportAudit_FailBatch] AS' 
 END
 ALTER PROCEDURE [dbo].[usp_ImportAudit_FailBatch]
-    @ImportAuditBatchId bigint,
-    @Status nvarchar(32) = N'failed',
-    @ErrorType nvarchar(128) = NULL,
-    @ErrorText nvarchar(2000) = NULL,
-    @RowsStaged int = NULL,
-    @RowsWritten int = NULL,
-    @RowsSkipped int = NULL,
-    @ExternalBatchTable nvarchar(256) = NULL,
-    @ExternalBatchId nvarchar(128) = NULL,
-    @DetailsJson nvarchar(max) = NULL,
-    @CompletedAtUtc datetime2(3) = NULL,
-    @RowsInSource int = NULL
+	@ImportAuditBatchId [bigint],
+	@Status [nvarchar](32) = N'failed',
+	@ErrorType [nvarchar](128) = NULL,
+	@ErrorText [nvarchar](2000) = NULL,
+	@RowsStaged [int] = NULL,
+	@RowsWritten [int] = NULL,
+	@RowsSkipped [int] = NULL,
+	@ExternalBatchTable [nvarchar](256) = NULL,
+	@ExternalBatchId [nvarchar](128) = NULL,
+	@DetailsJson [nvarchar](max) = NULL,
+	@CompletedAtUtc [datetime2](3) = NULL,
+	@RowsInSource [int] = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -53,3 +53,4 @@ BEGIN
 
     SELECT @ImportAuditBatchId AS ImportAuditBatchId;
 END
+
