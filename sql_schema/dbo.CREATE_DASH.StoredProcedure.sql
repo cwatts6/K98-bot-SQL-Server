@@ -90,7 +90,7 @@ INSERT INTO EXCEL_FOR_DASHBOARD (
     [% of DKP Target], [Pass 4 Kills], [Pass 6 Kills],
     [Pass 7 Kills], [Pass 8 Kills], [KVK_NO]
 )
-SELECT 
+SELECT
     [RANK], [KVK_RANK], [Gov_ID], [Governor_Name],
     [Starting Power], [POWER_DELTA], [T4_Kills], [T5_Kills],
     [T4&T5_Kills], [Kill Target], [% of Kill target],
@@ -105,4 +105,3 @@ DROP TABLE IF EXISTS #RankingGroups;
 DROP TABLE IF EXISTS #Aggregated;
 
  END;
- 
