@@ -1,4 +1,4 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]') AND type in (N'U'))
 BEGIN
@@ -30,15 +30,15 @@ IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N
 ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_DiscordUserID] CHECK  (([DiscordUserID]>(0)))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_DiscordUserID]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
 ALTER TABLE [dbo].[DiscordUserProfilePreference] CHECK CONSTRAINT [CK_DiscordUserProfilePreference_DiscordUserID]
-IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_TimezoneName]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
-ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_TimezoneName] CHECK  (([TimezoneName] IS NULL OR (len(ltrim(rtrim([TimezoneName])))>(0) AND [TimezoneName] NOT LIKE N'% %' AND patindex(N'%[^A-Za-z0-9_+/.-]%', [TimezoneName] COLLATE Latin1_General_BIN2)=(0))))
-IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_TimezoneName]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
-ALTER TABLE [dbo].[DiscordUserProfilePreference] CHECK CONSTRAINT [CK_DiscordUserProfilePreference_TimezoneName]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_LocationCountryCode]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
-ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_LocationCountryCode] CHECK  (([LocationCountryCode] IS NULL OR [LocationCountryCode] COLLATE Latin1_General_BIN2 like N'[A-Z][A-Z]'))
+ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_LocationCountryCode] CHECK  (([LocationCountryCode] IS NULL OR ([LocationCountryCode]) collate Latin1_General_BIN2 like N'[A-Z][A-Z]'))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_LocationCountryCode]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
 ALTER TABLE [dbo].[DiscordUserProfilePreference] CHECK CONSTRAINT [CK_DiscordUserProfilePreference_LocationCountryCode]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_PreferredLanguageTag]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
-ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_PreferredLanguageTag] CHECK  (([PreferredLanguageTag] IS NULL OR (len(ltrim(rtrim([PreferredLanguageTag])))>(0) AND patindex(N'%[^A-Za-z0-9-]%', [PreferredLanguageTag] COLLATE Latin1_General_BIN2)=(0) AND [PreferredLanguageTag] NOT LIKE N'-%' AND [PreferredLanguageTag] NOT LIKE N'%-' AND [PreferredLanguageTag] NOT LIKE N'%--%')))
+ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_PreferredLanguageTag] CHECK  (([PreferredLanguageTag] IS NULL OR len(ltrim(rtrim([PreferredLanguageTag])))>(0) AND patindex(N'%[^A-Za-z0-9-]%',([PreferredLanguageTag]) collate Latin1_General_BIN2)=(0) AND NOT [PreferredLanguageTag] like N'-%' AND NOT [PreferredLanguageTag] like N'%-' AND NOT [PreferredLanguageTag] like N'%--%'))
 IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_PreferredLanguageTag]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
 ALTER TABLE [dbo].[DiscordUserProfilePreference] CHECK CONSTRAINT [CK_DiscordUserProfilePreference_PreferredLanguageTag]
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_TimezoneName]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
+ALTER TABLE [dbo].[DiscordUserProfilePreference]  WITH CHECK ADD  CONSTRAINT [CK_DiscordUserProfilePreference_TimezoneName] CHECK  (([TimezoneName] IS NULL OR len(ltrim(rtrim([TimezoneName])))>(0) AND NOT [TimezoneName] like N'% %' AND patindex(N'%[^A-Za-z0-9_+/.-]%',([TimezoneName]) collate Latin1_General_BIN2)=(0)))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_DiscordUserProfilePreference_TimezoneName]') AND parent_object_id = OBJECT_ID(N'[dbo].[DiscordUserProfilePreference]'))
+ALTER TABLE [dbo].[DiscordUserProfilePreference] CHECK CONSTRAINT [CK_DiscordUserProfilePreference_TimezoneName]
