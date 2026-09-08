@@ -1,7 +1,11 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_UpsertGovernorNameHistoryForScan
-    @ScanOrder int = NULL
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_UpsertGovernorNameHistoryForScan]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_UpsertGovernorNameHistoryForScan] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_UpsertGovernorNameHistoryForScan]
+	@ScanOrder [int] = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
