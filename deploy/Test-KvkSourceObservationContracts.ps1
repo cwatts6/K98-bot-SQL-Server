@@ -145,6 +145,11 @@ Assert-Contract ([regex]::Matches($fixture, 'INSERT @Cases \(Label, Statement, E
 foreach ($label in @('cross-season','wrong source allowlist','source case sensitive','selected revision belongs to another observation','selected revision belongs to another report','aggregate mapping provenance','aggregate decimal overflow','scan int overflow','unavailable must not become zero','overall cannot accept live','no-fight aggregate rejects')) {
     Assert-Contract ($fixture.Contains($label)) "Fixture missing $label coverage."
 }
+Assert-Contains $source.SourcePlayerSnapshot 'FieldStatusJson nvarchar\(4000\) COLLATE Latin1_General_100_BIN2 NOT NULL' 'JSON field-status values require exact case-sensitive comparisons.'
+Assert-Contains $source.SourceObservationRevision "AcceptanceState <> 'corrected' OR SupersedesRevisionID IS NOT NULL" 'Corrected player revisions require predecessor lineage.'
+foreach ($label in @('noncanonical field status Available','noncanonical field status Invalid_source_value','noncanonical field status Unsupported','noncanonical field status Not_applicable','corrected observation requires predecessor','Valid correction lineage was not stored')) {
+    Assert-Contract ($fixture.Contains($label)) "Missing review regression: $label"
+}
 if ($failures.Count -gt 0) {
     throw ("S2A static contract failures:`n" + ($failures -join "`n"))
 }

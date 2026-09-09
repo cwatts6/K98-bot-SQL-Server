@@ -187,7 +187,7 @@ CREATE TABLE KVK.SourceObservationRevision
     CONSTRAINT CK_SourceObservationRevision_Scope CHECK (SourceKey = 'snapshot_report_v1' AND DATALENGTH(SourceKey) = 18 AND KVK_NO > 0),
     CONSTRAINT CK_SourceObservationRevision_Number CHECK (RevisionNo > 0),
     CONSTRAINT CK_SourceObservationRevision_Supersedes CHECK (SupersedesRevisionID IS NULL OR SupersedesRevisionID <> RevisionID),
-    CONSTRAINT CK_SourceObservationRevision_State CHECK (AcceptanceState IN ('accepted','corrected') AND LEN(AcceptedBy) > 0 AND LEN(Reason) > 0 AND LEN(DigestVersion) > 0 AND LEN(SchemaVersion) > 0),
+    CONSTRAINT CK_SourceObservationRevision_State CHECK (AcceptanceState IN ('accepted','corrected') AND (AcceptanceState <> 'corrected' OR SupersedesRevisionID IS NOT NULL) AND LEN(AcceptedBy) > 0 AND LEN(Reason) > 0 AND LEN(DigestVersion) > 0 AND LEN(SchemaVersion) > 0),
     CONSTRAINT CK_SourceObservationRevision_Metadata CHECK (ISJSON(MetadataJson) = 1 AND DATALENGTH(MetadataJson) <= 65536)
 );
 -- END TABLE SourceObservationRevision
@@ -238,7 +238,7 @@ CREATE TABLE KVK.SourcePlayerSnapshot
     aoo_avg_kill bigint NULL,
     aoo_avg_dead bigint NULL,
     aoo_avg_heal bigint NULL,
-    FieldStatusJson nvarchar(4000) NOT NULL,
+    FieldStatusJson nvarchar(4000) COLLATE Latin1_General_100_BIN2 NOT NULL,
     RawProfileJson nvarchar(max) NOT NULL,
     CONSTRAINT PK_SourcePlayerSnapshot PRIMARY KEY (RevisionID, GovernorID),
     CONSTRAINT FK_SourcePlayerSnapshot_Revision FOREIGN KEY (SourceKey, KVK_NO, RevisionID) REFERENCES KVK.SourceObservationRevision (SourceKey, KVK_NO, RevisionID),

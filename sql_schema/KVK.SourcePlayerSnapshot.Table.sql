@@ -43,7 +43,7 @@ CREATE TABLE KVK.SourcePlayerSnapshot
     aoo_avg_kill bigint NULL,
     aoo_avg_dead bigint NULL,
     aoo_avg_heal bigint NULL,
-    FieldStatusJson nvarchar(4000) NOT NULL,
+    FieldStatusJson nvarchar(4000) COLLATE Latin1_General_100_BIN2 NOT NULL,
     RawProfileJson nvarchar(max) NOT NULL,
     CONSTRAINT PK_SourcePlayerSnapshot PRIMARY KEY (RevisionID, GovernorID),
     CONSTRAINT FK_SourcePlayerSnapshot_Revision FOREIGN KEY (SourceKey, KVK_NO, RevisionID) REFERENCES KVK.SourceObservationRevision (SourceKey, KVK_NO, RevisionID),

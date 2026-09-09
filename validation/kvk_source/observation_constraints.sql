@@ -165,6 +165,12 @@ INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'ne
 INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'zero unit SourceCampReportRow dkp', N'UPDATE KVK.SourceCampReportRow SET dkp_unit = 0 WHERE RevisionID = @agg;', 547, N'CK_SourceCampReportRow_dkp');
 INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'aggregate decimal overflow', N'UPDATE KVK.SourceCampReportRow SET dkp = 100000000000000000000000000000000 WHERE RevisionID = @agg;', 8115, N'');
 
+INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'noncanonical field status Available', N'UPDATE KVK.SourcePlayerSnapshot SET FieldStatusJson = JSON_MODIFY(FieldStatusJson, ''$.power'', ''Available'') WHERE RevisionID = @rev;', 547, N'CK_SourcePlayerSnapshot_power');
+INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'noncanonical field status Invalid_source_value', N'UPDATE KVK.SourcePlayerSnapshot SET FieldStatusJson = JSON_MODIFY(FieldStatusJson, ''$.city_hall'', ''Invalid_source_value'') WHERE RevisionID = @rev;', 547, N'CK_SourcePlayerSnapshot_city_hall');
+INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'noncanonical field status Unsupported', N'UPDATE KVK.SourcePlayerSnapshot SET FieldStatusJson = JSON_MODIFY(FieldStatusJson, ''$.city_hall'', ''Unsupported'') WHERE RevisionID = @rev;', 547, N'CK_SourcePlayerSnapshot_city_hall');
+INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'noncanonical field status Not_applicable', N'UPDATE KVK.SourcePlayerSnapshot SET FieldStatusJson = JSON_MODIFY(FieldStatusJson, ''$.city_hall'', ''Not_applicable'') WHERE RevisionID = @rev;', 547, N'CK_SourcePlayerSnapshot_city_hall');
+INSERT @Cases (Label, Statement, ExpectedError, ExpectedConstraint) VALUES (N'corrected observation requires predecessor', N'UPDATE KVK.SourceObservationRevision SET AcceptanceState = ''corrected'', SupersedesRevisionID = NULL WHERE RevisionID = @rev;', 547, N'CK_SourceObservationRevision_State');
+
 DECLARE @CaseNo int = 1, @Label nvarchar(128), @Statement nvarchar(max), @ExpectedError int, @ExpectedConstraint nvarchar(128);
 DECLARE @Rejected bit, @ActualError int, @ActualMessage nvarchar(4000);
 WHILE @CaseNo <= (SELECT MAX(CaseNo) FROM @Cases)
@@ -196,6 +202,20 @@ BEGIN
     SET @Passed += 1;
     SET @CaseNo += 1;
 END;
+
+-- Canonical enum tokens remain valid with the case-sensitive JSON value collation.
+SAVE TRANSACTION CanonicalStates;
+UPDATE KVK.SourcePlayerSnapshot SET city_hall = NULL, FieldStatusJson = JSON_MODIFY(FieldStatusJson, '$.city_hall', 'unsupported') WHERE RevisionID = @rev;
+UPDATE KVK.SourcePlayerSnapshot SET FieldStatusJson = JSON_MODIFY(FieldStatusJson, '$.city_hall', 'not_applicable') WHERE RevisionID = @rev;
+ROLLBACK TRANSACTION CanonicalStates;
+-- A corrected revision with a same-observation predecessor is accepted; undo it after proof.
+SAVE TRANSACTION CorrectedLineage;
+DECLARE @correction uniqueidentifier = NEWID();
+INSERT KVK.SourceObservationRevision (RevisionID, SourceKey, KVK_NO, ObservationID, RevisionNo, SemanticHash, DigestVersion, SchemaVersion, ArtifactHash, SupersedesRevisionID, AcceptanceState, AcceptedUTC, AcceptedBy, Reason, MetadataJson)
+VALUES (@correction, 'snapshot_report_v1', @season, @obs, 99, @hash2, 'semantic_digest_v1', 'snapshot_report_players_v1', @hash, @rev, 'corrected', @utc, N'synthetic-operator', N'correction with predecessor', N'{}');
+IF NOT EXISTS (SELECT 1 FROM KVK.SourceObservationRevision WHERE RevisionID = @correction AND SupersedesRevisionID = @rev AND AcceptanceState = 'corrected')
+    THROW 51100, 'Valid correction lineage was not stored.', 1;
+ROLLBACK TRANSACTION CorrectedLineage;
 
 -- Exact decimal boundary and raw/unit precision survive storage without binary float.
 UPDATE KVK.SourceCampReportRow SET dkp = 99999999999999999999999999999999.999999 WHERE RevisionID = @agg;

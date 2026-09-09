@@ -30,6 +30,6 @@ CREATE TABLE KVK.SourceObservationRevision
     CONSTRAINT CK_SourceObservationRevision_Scope CHECK (SourceKey = 'snapshot_report_v1' AND DATALENGTH(SourceKey) = 18 AND KVK_NO > 0),
     CONSTRAINT CK_SourceObservationRevision_Number CHECK (RevisionNo > 0),
     CONSTRAINT CK_SourceObservationRevision_Supersedes CHECK (SupersedesRevisionID IS NULL OR SupersedesRevisionID <> RevisionID),
-    CONSTRAINT CK_SourceObservationRevision_State CHECK (AcceptanceState IN ('accepted','corrected') AND LEN(AcceptedBy) > 0 AND LEN(Reason) > 0 AND LEN(DigestVersion) > 0 AND LEN(SchemaVersion) > 0),
+    CONSTRAINT CK_SourceObservationRevision_State CHECK (AcceptanceState IN ('accepted','corrected') AND (AcceptanceState <> 'corrected' OR SupersedesRevisionID IS NOT NULL) AND LEN(AcceptedBy) > 0 AND LEN(Reason) > 0 AND LEN(DigestVersion) > 0 AND LEN(SchemaVersion) > 0),
     CONSTRAINT CK_SourceObservationRevision_Metadata CHECK (ISJSON(MetadataJson) = 1 AND DATALENGTH(MetadataJson) <= 65536)
 );
