@@ -15,3 +15,6 @@ CREATE TABLE KVK.SourceRosterMember
     CONSTRAINT CK_SourceRosterMember_Scope CHECK (SourceKey = 'snapshot_report_v1' AND DATALENGTH(SourceKey) = 18 AND KVK_NO > 0),
     CONSTRAINT CK_SourceRosterMember_Identity CHECK (GovernorID > 0 AND b0_kingdom > 0 AND (b0_power IS NULL OR b0_power >= 0))
 );
+
+-- S2B adds the referenced baseline attribution key; the accepted S2A migration is unchanged.
+ALTER TABLE KVK.SourceRosterMember ADD CONSTRAINT UQ_SourceRosterMember_BaselineKingdom UNIQUE (RosterID, GovernorID, b0_kingdom);
