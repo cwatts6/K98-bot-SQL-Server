@@ -67,7 +67,7 @@ CREATE TABLE KVK.SourcePlayerResult
     dkp_power_ratio_cohort int NULL,
     CONSTRAINT PK_SourcePlayerResult PRIMARY KEY (PublicationID, GovernorID),
     CONSTRAINT FK_SourcePlayerResult_Publication FOREIGN KEY (SourceKey, KVK_NO, PublicationID, ConfigVersionID, RosterID) REFERENCES KVK.SourcePublication (SourceKey, KVK_NO, PublicationID, ConfigVersionID, RosterID),
-    CONSTRAINT FK_SourcePlayerResult_Eligible FOREIGN KEY (RosterID, GovernorID) REFERENCES KVK.SourceRosterMember (RosterID, GovernorID),
+    CONSTRAINT FK_SourcePlayerResult_Eligible FOREIGN KEY (RosterID, GovernorID, b0_kingdom) REFERENCES KVK.SourceRosterMember (RosterID, GovernorID, b0_kingdom),
     CONSTRAINT FK_SourcePlayerResult_Camp FOREIGN KEY (ConfigVersionID, b0_kingdom, CampID) REFERENCES KVK.SourceCampConfig (ConfigVersionID, Kingdom, CampID),
     CONSTRAINT CK_SourcePlayerResult_StatusJson CHECK (ISJSON(FieldStatusJson) = 1),
     CONSTRAINT CK_SourcePlayerResult_Identity CHECK (GovernorID > 0 AND b0_kingdom > 0 AND CampID BETWEEN 1 AND 8),

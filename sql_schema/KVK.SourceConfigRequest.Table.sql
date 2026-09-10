@@ -25,7 +25,7 @@ CREATE TABLE KVK.SourceConfigRequest
     Reason nvarchar(1024) NOT NULL,
     ProvenanceJson nvarchar(max) NOT NULL,
     CONSTRAINT PK_SourceConfigRequest PRIMARY KEY (RequestID),
-    CONSTRAINT UQ_SourceConfigRequest_Replay UNIQUE (SourceKey, KVK_NO, ConfigContentHash, BaseConfigVersionID),
+    CONSTRAINT UQ_SourceConfigRequest_Replay UNIQUE (SourceKey, KVK_NO, PeriodID, ConfigContentHash, BaseConfigVersionID),
     CONSTRAINT UQ_SourceConfigRequest_Scope UNIQUE (SourceKey, KVK_NO, PeriodID, RequestID),
     CONSTRAINT FK_SourceConfigRequest_Period FOREIGN KEY (SourceKey, KVK_NO, PeriodID, PeriodKey) REFERENCES KVK.SourcePeriod (SourceKey, KVK_NO, PeriodID, PeriodKey),
     CONSTRAINT FK_SourceConfigRequest_Base FOREIGN KEY (SourceKey, KVK_NO, BaseConfigVersionID, PeriodKey) REFERENCES KVK.SourceWindowConfig (SourceKey, KVK_NO, ConfigVersionID, PeriodKey),

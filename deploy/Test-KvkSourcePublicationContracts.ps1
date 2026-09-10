@@ -51,6 +51,14 @@ $aggregate = Read-Source 'sql_schema/KVK.SourceAggregateReport.Table.sql'
 $periodLink = [regex]::Match($aggregate, '(?m)^ALTER TABLE KVK.SourceAggregateReport WITH CHECK ADD CONSTRAINT FK_SourceAggregateReport_Period[^\n]+;').Value
 Assert-Contract ($periodLink.Length -gt 0 -and $ddl.Contains($periodLink)) 'Trusted same-source/KVK/period/kind FK missing.'
 Assert-Contract ($periodLink.Contains('(SourceKey, KVK_NO, PeriodKey, PeriodKind)')) 'Aggregate period scope mismatch.'
+$roster = Read-Source 'sql_schema/KVK.SourceRosterMember.Table.sql'
+$rosterKey = [regex]::Match($roster, '(?m)^ALTER TABLE KVK.SourceRosterMember ADD CONSTRAINT UQ_SourceRosterMember_BaselineKingdom[^\n]+;').Value
+Assert-Contract ($rosterKey.Length -gt 0 -and $ddl.Contains($rosterKey)) 'Baseline kingdom referenced key missing or snapshot drift.'
+Assert-Contract ((Read-Source 'sql_schema/KVK.SourcePlayerResult.Table.sql').Contains('FOREIGN KEY (RosterID, GovernorID, b0_kingdom) REFERENCES KVK.SourceRosterMember (RosterID, GovernorID, b0_kingdom)')) 'Result B0 kingdom must match its roster member.'
+Assert-Contract ($fixture.Contains('Independent period request was suppressed.')) 'Cross-period replay regression missing.'
+Assert-Contract ($fixture.Contains('wrong B0 kingdom with valid camp')) 'Wrong-kingdom regression missing.'
+Assert-Contract ($fixture.Contains('Explicit terminal unavailable states were not retained.')) 'Terminal unavailable positive coverage missing.'
+Assert-Contract ($fixture.Contains('corrected_final rejects live/live despite reason')) 'Finality bypass regression missing.'
 $source = Read-Source 'sql_schema/KVK.SourceConfigVersion.Table.sql'
 Assert-Contract ($source.Contains('RosterID')) 'SourceConfigVersion: required contract missing'
 Assert-Contract ($source.Contains('WindowDigest binary(32)')) 'SourceConfigVersion: required contract missing'
@@ -83,7 +91,7 @@ $source = Read-Source 'sql_schema/KVK.SourceScanBinding.Table.sql'
 Assert-Contract ($source.Contains('PRIMARY KEY (ConfigVersionID, LogicalScanID)')) 'SourceScanBinding: required contract missing'
 Assert-Contract ($source.Contains('FOREIGN KEY (SourceKey, KVK_NO, LogicalScanID) REFERENCES KVK.SourceLogicalScan')) 'SourceScanBinding: required contract missing'
 $source = Read-Source 'sql_schema/KVK.SourceConfigRequest.Table.sql'
-Assert-Contract ($source.Contains('UNIQUE (SourceKey, KVK_NO, ConfigContentHash, BaseConfigVersionID)')) 'SourceConfigRequest: required contract missing'
+Assert-Contract ($source.Contains('UNIQUE (SourceKey, KVK_NO, PeriodID, ConfigContentHash, BaseConfigVersionID)')) 'SourceConfigRequest: required contract missing'
 Assert-Contract ($source.Contains('OldEndScanID int NULL')) 'SourceConfigRequest: required contract missing'
 Assert-Contract ($source.Contains('NewEndScanID int NULL')) 'SourceConfigRequest: required contract missing'
 Assert-Contract ($source.Contains('DesiredConfigVersionID')) 'SourceConfigRequest: required contract missing'
@@ -186,7 +194,7 @@ Assert-Contract ($fixture.Contains('ROLLBACK TRANSACTION;')) 'Fixture guard/scen
 Assert-Contract ($fixture.Contains('13-14-13')) 'Fixture guard/scenario missing'
 Assert-Contract ($fixture.Contains('Absent endpoint')) 'Fixture guard/scenario missing'
 Assert-Contract ($fixture.Contains('Uncertain receipt')) 'Fixture guard/scenario missing'
-Assert-Contract ([regex]::Matches($fixture, 'Accepted invalid case:').Count -eq 131) 'Negative coverage manifest drift.'
+Assert-Contract ([regex]::Matches($fixture, 'Accepted invalid case:').Count -eq 144) 'Negative coverage manifest drift.'
 if ($failures.Count) {
     $failures | ForEach-Object { Write-Output "FAIL: $_" }
     throw "$($failures.Count) of $checks S2B static assertions failed."

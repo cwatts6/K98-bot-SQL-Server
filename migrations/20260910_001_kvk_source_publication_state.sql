@@ -102,6 +102,8 @@ BEGIN TRY
     -- Hold report-family range until FK installation. Empty new Period cannot match old reports.
     IF EXISTS (SELECT 1 FROM KVK.SourceAggregateReport WITH (TABLOCKX, HOLDLOCK))
         THROW 51200, 'Existing aggregate families have no S2B periods; explicit reconciliation required.', 1;
+-- Existing PK (RosterID, GovernorID) already guarantees uniqueness; no data change.
+ALTER TABLE KVK.SourceRosterMember ADD CONSTRAINT UQ_SourceRosterMember_BaselineKingdom UNIQUE (RosterID, GovernorID, b0_kingdom);
 CREATE TABLE KVK.SourceConfigVersion
 (
     ConfigVersionID uniqueidentifier NOT NULL,
@@ -237,7 +239,7 @@ CREATE TABLE KVK.SourceConfigRequest
     Reason nvarchar(1024) NOT NULL,
     ProvenanceJson nvarchar(max) NOT NULL,
     CONSTRAINT PK_SourceConfigRequest PRIMARY KEY (RequestID),
-    CONSTRAINT UQ_SourceConfigRequest_Replay UNIQUE (SourceKey, KVK_NO, ConfigContentHash, BaseConfigVersionID),
+    CONSTRAINT UQ_SourceConfigRequest_Replay UNIQUE (SourceKey, KVK_NO, PeriodID, ConfigContentHash, BaseConfigVersionID),
     CONSTRAINT UQ_SourceConfigRequest_Scope UNIQUE (SourceKey, KVK_NO, PeriodID, RequestID),
     CONSTRAINT FK_SourceConfigRequest_Period FOREIGN KEY (SourceKey, KVK_NO, PeriodID, PeriodKey) REFERENCES KVK.SourcePeriod (SourceKey, KVK_NO, PeriodID, PeriodKey),
     CONSTRAINT FK_SourceConfigRequest_Base FOREIGN KEY (SourceKey, KVK_NO, BaseConfigVersionID, PeriodKey) REFERENCES KVK.SourceWindowConfig (SourceKey, KVK_NO, ConfigVersionID, PeriodKey),
@@ -293,9 +295,17 @@ CREATE TABLE KVK.SourcePublication
     CONSTRAINT FK_SourcePublication_Aggregate FOREIGN KEY (SourceKey, KVK_NO, AggregateReportID, AggregateRevisionID) REFERENCES KVK.SourceAggregateRevision (SourceKey, KVK_NO, ReportID, RevisionID),
     CONSTRAINT CK_SourcePublication_Counts CHECK (Generation > 0 AND EligibleCount BETWEEN 1 AND 50000 AND ResultCount BETWEEN 0 AND EligibleCount AND KingdomCount BETWEEN 0 AND 512 AND CampCount BETWEEN 0 AND 8 AND LEN(CalculationVersion) > 0),
     CONSTRAINT CK_SourcePublication_Inputs CHECK (((StartScanID IS NULL AND StartRevisionID IS NULL) OR (StartScanID IS NOT NULL AND StartRevisionID IS NOT NULL)) AND ((EndScanID IS NULL AND EndRevisionID IS NULL) OR (EndScanID IS NOT NULL AND EndRevisionID IS NOT NULL)) AND ((AggregateReportID IS NULL AND AggregateRevisionID IS NULL) OR (AggregateReportID IS NOT NULL AND AggregateRevisionID IS NOT NULL))),
-    CONSTRAINT CK_SourcePublication_Player CHECK (DATALENGTH(PlayerState) = LEN(PlayerState) AND ((PlayerState IN ('live','final','corrected_final','not_applicable') AND StartRevisionID IS NOT NULL AND EndRevisionID IS NOT NULL) OR PlayerState IN ('missing_start','missing_end','missing_configuration','validation_failed','not_received'))),
-    CONSTRAINT CK_SourcePublication_AggregateState CHECK (DATALENGTH(AggregateState) = LEN(AggregateState) AND ((AggregateState IN ('live','final','corrected_final') AND AggregateRevisionID IS NOT NULL) OR (AggregateState IN ('not_received','validation_failed','not_applicable') AND AggregateRevisionID IS NULL))),
-    CONSTRAINT CK_SourcePublication_Final CHECK (DATALENGTH(PeriodState) = LEN(PeriodState) AND PeriodState IN ('live','final','corrected_final') AND (PeriodState = 'live' OR ((PlayerState IN ('final','corrected_final','not_applicable') AND AggregateState IN ('final','corrected_final','not_applicable')) OR (FinalUnavailableReason IS NOT NULL AND LEN(FinalUnavailableReason) > 0)))),
+    CONSTRAINT CK_SourcePublication_Player CHECK (DATALENGTH(PlayerState) = LEN(PlayerState) AND ((PlayerState IN ('live','final','corrected_final','not_applicable') AND StartRevisionID IS NOT NULL AND EndRevisionID IS NOT NULL) OR PlayerState IN ('missing_start','missing_end','missing_configuration','validation_failed','not_received','final_unavailable'))),
+    CONSTRAINT CK_SourcePublication_AggregateState CHECK (DATALENGTH(AggregateState) = LEN(AggregateState) AND ((AggregateState IN ('live','final','corrected_final') AND AggregateRevisionID IS NOT NULL) OR (AggregateState IN ('not_received','validation_failed','not_applicable','final_unavailable') AND AggregateRevisionID IS NULL))),
+    -- An unavailable reason cannot finalize a live or merely missing component.
+    -- Authorization of the explicit terminal designation is enforced by the later S3B writer.
+    CONSTRAINT CK_SourcePublication_Final CHECK (
+        DATALENGTH(PeriodState) = LEN(PeriodState) AND PeriodState IN ('live','final','corrected_final')
+        AND ((PlayerState <> 'final_unavailable' AND AggregateState <> 'final_unavailable')
+             OR (FinalUnavailableReason IS NOT NULL AND LEN(FinalUnavailableReason) > 0))
+        AND (PeriodState = 'live'
+             OR (PlayerState IN ('final','corrected_final','not_applicable','final_unavailable')
+                 AND AggregateState IN ('final','corrected_final','not_applicable','final_unavailable')))),
     CONSTRAINT CK_SourcePublication_Build CHECK (DATALENGTH(BuildState) = LEN(BuildState) AND ((BuildState = 'building' AND CompletedUTC IS NULL) OR (BuildState = 'complete' AND CompletedUTC IS NOT NULL AND ManifestHash IS NOT NULL AND ResultCount = EligibleCount)) AND (CompletedUTC IS NULL OR CompletedUTC >= CreatedUTC)),
     CONSTRAINT CK_SourcePublication_Scope CHECK (SourceKey = 'snapshot_report_v1' AND DATALENGTH(SourceKey) = 18 AND KVK_NO > 0)
 );
@@ -365,7 +375,7 @@ CREATE TABLE KVK.SourcePlayerResult
     dkp_power_ratio_cohort int NULL,
     CONSTRAINT PK_SourcePlayerResult PRIMARY KEY (PublicationID, GovernorID),
     CONSTRAINT FK_SourcePlayerResult_Publication FOREIGN KEY (SourceKey, KVK_NO, PublicationID, ConfigVersionID, RosterID) REFERENCES KVK.SourcePublication (SourceKey, KVK_NO, PublicationID, ConfigVersionID, RosterID),
-    CONSTRAINT FK_SourcePlayerResult_Eligible FOREIGN KEY (RosterID, GovernorID) REFERENCES KVK.SourceRosterMember (RosterID, GovernorID),
+    CONSTRAINT FK_SourcePlayerResult_Eligible FOREIGN KEY (RosterID, GovernorID, b0_kingdom) REFERENCES KVK.SourceRosterMember (RosterID, GovernorID, b0_kingdom),
     CONSTRAINT FK_SourcePlayerResult_Camp FOREIGN KEY (ConfigVersionID, b0_kingdom, CampID) REFERENCES KVK.SourceCampConfig (ConfigVersionID, Kingdom, CampID),
     CONSTRAINT CK_SourcePlayerResult_StatusJson CHECK (ISJSON(FieldStatusJson) = 1),
     CONSTRAINT CK_SourcePlayerResult_Identity CHECK (GovernorID > 0 AND b0_kingdom > 0 AND CampID BETWEEN 1 AND 8),

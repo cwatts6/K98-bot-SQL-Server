@@ -116,7 +116,166 @@ IF NOT EXISTS (SELECT 1 FROM KVK.SourceDelivery WHERE DeliveryState='uncertain' 
  THROW 51300, 'Uncertain receipt lost owner/fence/evidence.', 1;
 UPDATE KVK.SourceDelivery SET DeliveryState='confirmed',ConfirmedUTC=@utc,Receipt=N'synthetic-confirmed';
 
+-- PR review: independent periods may share the same imported configuration transition.
+INSERT KVK.SourceWindowConfig SELECT ConfigVersionID,'snapshot_report_v1',@season,N'Overall',NULL,10,CASE WHEN ConfigVersionID=@cfg2 THEN 14 ELSE 13 END,NULL,@utc,'overall' FROM KVK.SourceConfigVersion;
+INSERT KVK.SourceConfigRequest VALUES (NEWID(),'snapshot_report_v1',@season,@overall,'overall',@cfg,@cfg2,@hash,10,13,10,14,'authorized_import',N'synthetic',@utc,'pending',NULL,NULL,N'overall endpoint update',N'{}');
+IF (SELECT COUNT(*) FROM KVK.SourceConfigRequest WHERE BaseConfigVersionID=@cfg AND ConfigContentHash=@hash)<>2
+ THROW 51300, 'Independent period request was suppressed.', 1;
+-- A second valid camp mapping must not allow a governor to leave their B0 kingdom.
+INSERT KVK.SourceCampConfig SELECT ConfigVersionID,'snapshot_report_v1',@season,2,2,N'Other synthetic camp',N'other synthetic camp' FROM KVK.SourceConfigVersion;
+SAVE TRANSACTION ValidReviewStates;
+UPDATE KVK.SourcePublication SET PlayerState='final_unavailable',PeriodState='final',FinalUnavailableReason=N'explicit terminal player designation' WHERE PublicationID=@pub;
+UPDATE KVK.SourcePublication SET PlayerState='final',AggregateState='final_unavailable',AggregateReportID=NULL,AggregateRevisionID=NULL,PeriodState='corrected_final',FinalUnavailableReason=N'explicit terminal aggregate designation' WHERE PublicationID=@pub2;
+UPDATE KVK.SourcePublication SET PlayerState='final_unavailable',AggregateState='final_unavailable',AggregateReportID=NULL,AggregateRevisionID=NULL,PeriodState='final',FinalUnavailableReason=N'both streams terminal unavailable' WHERE PublicationID=@pub3;
+IF (SELECT COUNT(*) FROM KVK.SourcePublication WHERE PlayerState='final_unavailable' OR AggregateState='final_unavailable')<>3
+ THROW 51300, 'Explicit terminal unavailable states were not retained.', 1;
+ROLLBACK TRANSACTION ValidReviewStates;
+
 -- Each rejection must be the intended constraint class; unexpected SQL errors fail the harness.
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='final',PlayerState='live',AggregateState='live',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: final rejects live/live despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='final',PlayerState='live',AggregateState='final',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: final rejects live/final despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='final',PlayerState='final',AggregateState='live',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: final rejects final/live despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='final',PlayerState='missing_end',AggregateState='final',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: final rejects missing_end/final despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='corrected_final',PlayerState='live',AggregateState='live',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: corrected_final rejects live/live despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='corrected_final',PlayerState='live',AggregateState='final',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: corrected_final rejects live/final despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='corrected_final',PlayerState='final',AggregateState='live',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: corrected_final rejects final/live despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PeriodState='corrected_final',PlayerState='missing_end',AggregateState='final',FinalUnavailableReason=N'not terminal authority' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: corrected_final rejects missing_end/final despite reason', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PlayerState='final_unavailable',PeriodState='final',FinalUnavailableReason=NULL WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: terminal unavailable rejects reason NULL', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PlayerState='final_unavailable',PeriodState='final',FinalUnavailableReason=N'' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: terminal unavailable rejects reason N', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePublication SET PlayerState='final_unavailable',PeriodState='final',FinalUnavailableReason=N'   ' WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: terminal unavailable rejects reason N___', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'CK_SourcePublication_Final', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    UPDATE KVK.SourcePlayerResult SET b0_kingdom=2,CampID=2 WHERE PublicationID=@pub;
+    THROW 51301, 'Accepted invalid case: wrong B0 kingdom with valid camp', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'FK_SourcePlayerResult_Eligible', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+SAVE TRANSACTION ExpectedRejection;
+BEGIN TRY
+    INSERT KVK.SourceConfigRequest SELECT NEWID(),SourceKey,KVK_NO,PeriodID,PeriodKey,BaseConfigVersionID,DesiredConfigVersionID,ConfigContentHash,OldStartScanID,OldEndScanID,NewStartScanID,NewEndScanID,Origin,Actor,RequestedUTC,RequestState,AppliedPublicationID,CompletedUTC,Reason,ProvenanceJson FROM KVK.SourceConfigRequest WHERE PeriodID=@overall;
+    THROW 51301, 'Accepted invalid case: overall duplicate request base hash', 1;
+END TRY
+BEGIN CATCH
+    IF ERROR_NUMBER() NOT IN (547,2601,2627) OR XACT_STATE() <> 1 THROW;
+    IF CHARINDEX(N'UQ_SourceConfigRequest_Replay', ERROR_MESSAGE()) = 0 THROW;
+    ROLLBACK TRANSACTION ExpectedRejection;
+    SET @Passed+=1;
+END CATCH;
+
 SAVE TRANSACTION ExpectedRejection;
 BEGIN TRY
     EXEC sys.sp_executesql N'UPDATE KVK.SourceConfigVersion SET KVK_NO=0', N'@cfg uniqueidentifier,@cfg2 uniqueidentifier,@pub2 uniqueidentifier,@pub3 uniqueidentifier,@request uniqueidentifier,@overall uniqueidentifier,@season int,@utc datetime2(0)', @cfg=@cfg,@cfg2=@cfg2,@pub2=@pub2,@pub3=@pub3,@request=@request,@overall=@overall,@season=@season,@utc=@utc;
@@ -1562,7 +1721,7 @@ IF EXISTS (SELECT 1 FROM KVK.SourceSelection) THROW 51300, 'Synthetic rows survi
 IF EXISTS (SELECT 1 FROM KVK.SourceRouting) THROW 51300, 'Synthetic rows survived rollback: SourceRouting', 1;
 IF EXISTS (SELECT 1 FROM KVK.SourceAction) THROW 51300, 'Synthetic rows survived rollback: SourceAction', 1;
 IF EXISTS (SELECT 1 FROM KVK.SourceDelivery) THROW 51300, 'Synthetic rows survived rollback: SourceDelivery', 1;
-IF @Passed <> 131 THROW 51300, 'Not all rejection cases executed.', 1;
+IF @Passed <> 144 THROW 51300, 'Not all rejection cases executed.', 1;
 IF @WasXactAbort=1 SET XACT_ABORT ON;
 IF @WasRoundAbort=1 SET NUMERIC_ROUNDABORT ON;
 SELECT @Passed AS ExpectedRejectionsPassed, 25 AS EmptyTablesAfterRollback;
