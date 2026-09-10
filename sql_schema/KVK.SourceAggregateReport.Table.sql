@@ -22,3 +22,6 @@ CREATE TABLE KVK.SourceAggregateReport
 
 -- Added after all twelve tables exist. NULL is creation-only; S3B must fill it before commit.
 ALTER TABLE KVK.SourceAggregateReport WITH CHECK ADD CONSTRAINT FK_SourceAggregateReport_SelectedRevision FOREIGN KEY (SourceKey, KVK_NO, ReportID, SelectedRevisionID) REFERENCES KVK.SourceAggregateRevision (SourceKey, KVK_NO, ReportID, RevisionID);
+
+-- S2B validates existing report families before adding this same-source/season/kind FK.
+ALTER TABLE KVK.SourceAggregateReport WITH CHECK ADD CONSTRAINT FK_SourceAggregateReport_Period FOREIGN KEY (SourceKey, KVK_NO, PeriodKey, PeriodKind) REFERENCES KVK.SourcePeriod (SourceKey, KVK_NO, PeriodKey, PeriodKind);
