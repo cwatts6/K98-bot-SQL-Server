@@ -164,7 +164,7 @@ BEGIN
             KillPointsDelta6Months,
             KillPointsDelta3Months
         )
-        SELECT 
+        SELECT
             P.GOVERNORID,
             P.GOVERNORNAME,
             K.[T4&T5_KILLS],
@@ -241,7 +241,7 @@ BEGIN
             @ErrorSeverity INT,
             @ErrorState INT;
 
-        SELECT 
+        SELECT
             @ErrorMessage = ERROR_MESSAGE(),
             @ErrorSeverity = ERROR_SEVERITY(),
             @ErrorState = ERROR_STATE();
@@ -249,4 +249,3 @@ BEGIN
         RAISERROR(@ErrorMessage, @ErrorSeverity, @ErrorState);
     END CATCH
 END
-
