@@ -3,6 +3,8 @@ param(
     [string]$DatabaseName = "ROK_TRACKER",
     [string]$RepoPath,
     [string]$MigrationId,
+    [string]$S8AInputFile,
+    [string]$S8AInputSha256,
     [switch]$ValidationOnly,
     [switch]$SkipBackupCheck,
     [switch]$AllowNonMainBranch,
@@ -10,6 +12,61 @@ param(
 )
 
 . "$PSScriptRoot\SqlDeploy.Common.ps1"
+
+# S8A input is a separately reviewed SQL prelude, not arbitrary automatic discovery.
+# Require explicit destination and exact migration selection; never use runner defaults.
+if ($S8AInputFile -or $S8AInputSha256) {
+    if ($MigrationId -cne '20260912_001_kvk_season_complete_updates' -or
+        -not $PSBoundParameters.ContainsKey('ServerName') -or [string]::IsNullOrWhiteSpace($ServerName) -or
+        -not $PSBoundParameters.ContainsKey('DatabaseName') -or [string]::IsNullOrWhiteSpace($DatabaseName) -or
+        [string]::IsNullOrWhiteSpace($S8AInputFile) -or $S8AInputSha256 -notmatch '^[a-fA-F0-9]{64}$') {
+        throw 'S8A inputs require exact -MigrationId, explicit -ServerName/-DatabaseName, -S8AInputFile and its -S8AInputSha256.'
+    }
+}
+
+function Invoke-K98S8AMigration {
+    param([string]$ServerName, [string]$DatabaseName, [string]$InputFile,
+        [string]$ApprovalFile, [string]$ApprovalSha256)
+    $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $ApprovalFile).ProviderPath)
+    $hasher = [System.Security.Cryptography.SHA256]::Create()
+    try { $actualHash = ([BitConverter]::ToString($hasher.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
+    finally { $hasher.Dispose() }
+    if ($actualHash -cne $ApprovalSha256.ToLowerInvariant()) { throw 'S8A input hash mismatch; no SQL executed.' }
+    $prelude = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes).TrimStart([char]0xFEFF)
+    $migration = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $InputFile).ProviderPath)
+    if ($prelude -match '(?m)^\s*:' -or $migration -match '(?m)^\s*:') {
+        throw 'S8A same-session execution accepts plain SQL only, not SQLCMD directives.'
+    }
+    $guard = @"
+IF @@TRANCOUNT<>0 THROW 51800, 'S8A input must not open a transaction.', 1;
+IF OBJECT_ID(N'dbo.SchemaMigrationHistory',N'U') IS NULL
+    THROW 51800, 'S8A runner requires SchemaMigrationHistory before apply.', 1;
+IF OBJECT_ID(N'tempdb..#S8AApproval',N'U') IS NULL OR OBJECT_ID(N'tempdb..#S8AClassification',N'U') IS NULL
+    THROW 51800, 'S8A input must supply both reviewed temporary tables.', 1;
+IF (SELECT COUNT_BIG(*) FROM #S8AApproval)<>1 OR EXISTS
+ (SELECT 1 FROM #S8AApproval WHERE Mode IS NULL OR Mode COLLATE Latin1_General_100_BIN2<>'apply' OR DATALENGTH(Mode)<>5)
+    THROW 51800, 'S8A runner is apply-only; preview must not be recorded as Applied.', 1;
+"@
+    # Reuse the existing connection/batch helpers. One connection retains temporary
+    # tables across prelude, guard and migration; do not use separate Invoke-Sqlcmd calls.
+    $connection = New-K98SqlConnection -ServerName $ServerName -DatabaseName $DatabaseName
+    try {
+        $connection.Open()
+        foreach ($text in @($prelude, $guard, $migration)) {
+            foreach ($batch in (Split-K98SqlBatches -SqlText $text)) {
+                $command = $connection.CreateCommand()
+                try {
+                    $command.CommandText = $batch
+                    $command.CommandTimeout = 120
+                    [void]$command.ExecuteNonQuery()
+                }
+                finally { $command.Dispose() }
+            }
+        }
+    }
+    finally { $connection.Dispose() }
+}
+
 
 if ([string]::IsNullOrWhiteSpace($RepoPath)) {
     $RepoPath = Get-K98RepoRoot
@@ -221,13 +278,23 @@ try {
         exit 0
     }
 
+    if (@($pending | Where-Object { $_.BaseName -ceq '20260912_001_kvk_season_complete_updates' }).Count -gt 0 -and
+        [string]::IsNullOrWhiteSpace($S8AInputFile)) {
+        throw 'Pending S8A requires a separately reviewed same-session input. Run exact -MigrationId 20260912_001_kvk_season_complete_updates with explicit target, -S8AInputFile and -S8AInputSha256 first.'
+    }
+
     foreach ($file in $pending) {
         $id = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
         $checksum = Get-K98FileSha256 -Path $file.FullName
         $migrationStart = Get-Date
         try {
             Write-Host "Applying migration $id"
-            Invoke-K98SqlFile -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $file.FullName | Out-Null
+            if ($id -ceq '20260912_001_kvk_season_complete_updates') {
+                Invoke-K98S8AMigration -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $file.FullName -ApprovalFile $S8AInputFile -ApprovalSha256 $S8AInputSha256
+            }
+            else {
+                Invoke-K98SqlFile -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $file.FullName | Out-Null
+            }
             $durationMs = [int]((Get-Date) - $migrationStart).TotalMilliseconds
             Write-K98MigrationHistory -MigrationId $id -MigrationFile $file.Name -Checksum $checksum -Status "Applied" -ErrorMessage $null -DurationMs $durationMs
             Write-K98JsonLog -RepoRoot $repoRoot -LogName "deployment.jsonl" -Event @{

@@ -17,7 +17,7 @@ what has actually been deployed.
 | 2026-07-09 | `20260709_001_add_update_all2_audit_outputs` / SQL PR #41 | Deployed to production | Added non-invasive `dbo.UPDATE_ALL2` phase audit output rows while preserving output tables, `SP_TaskStatus` polling, and the final 8-column summary result set consumed by the bot. Bot PRs #215/#522 parse and persist the phase rows through generic `ImportAuditPhase`. Production smoke confirmed fallback batch 67 completed normally, emitted 13 `update_all2_*` subphase rows, identified `update_all2_summary_proc` as the dominant first-sample visible subphase at about 78 seconds, and showed no `_update_all2_phase_results` leakage after the bot review-fix restart. Follow-up work is evidence review before any `SUMMARY_PROC` or `UPDATE_ALL2` decomposition. |
 
 
-## S8A KVK SQL foundation â€” authored 2026-09-12, execution not authorized
+## S8A KVK SQL foundation — authored 2026-09-12, execution not authorized
 
 Chris Watts approved the eight-file implementation, static validation and exact SQL
 Changes security review. Initial scope completed before authoring. SQL is on `main`
@@ -135,7 +135,7 @@ patch against `a2f148fa9bd4fb367fd46d0500a768c14fee915b` qualifies for documente
 no executable, permission, configuration, dependency, input, data-access, network or
 persistence behavior changes. There is no standard/deep audit or new task.
 
-### Exact proposed disposable execution plan â€” requires separate approval
+### Exact proposed disposable execution plan — requires separate approval
 
 Proposed server: `9SX2VF4\K98DEV`, reached locally using `lpc:localhost\K98DEV` and
 Windows authentication. This is a proposal based on retained evidence, **not a fresh
@@ -273,3 +273,37 @@ creation. The SQL manifest remains exactly eight paths. The Bot PR must preserve
 27 carry-forward paths, including both origins/destinations of the S6 archive moves.
 Verify actual provider Files changed with filename and previous_filename before handoff.
 PR creation does not authorize merge, production promotion or database deployment.
+
+
+## PR #80 review follow-up: standard runner integration
+
+Review found that the normal runner had no way to provide S8A temporary inputs on its
+fresh connection. The review-fix scope adds `deploy/Deploy-SqlMigration.ps1` and
+`deploy/Test-S8AMigrationInputs.ps1` to the original eight paths: ten SQL PR paths total.
+This is a bounded deployment/test addition authorized by the operator's review-action
+request, not a change to the approved S7 data model or S8B scope.
+
+The existing runner now accepts `-S8AInputFile` (reviewed UTF-8 plain SQL prelude) and
+`-S8AInputSha256` only with exact `-MigrationId 20260912_001_kvk_season_complete_updates`
+and explicit server/database arguments. The prelude creates/populates #S8AApproval and
+#S8AClassification under the migration's existing contract. Its exact hash is checked
+before connecting. Prelude, apply-only guard and unchanged migration share one SqlClient
+connection. The existing backup/clean-tree checks and SchemaMigrationHistory success/
+failure recording remain in the runner. The ledger must exist before S8A apply. An
+already-Applied migration is skipped by the existing history check. If SQL commits but
+the separate history write fails, preserve the input and obtain a reviewed rerun with an
+updated ExpectedNewChoices count (normally zero). The migration verifies existing catalog/choices and the normal runner repairs its history; never reset data.
+
+Preview remains a separately approved explicit operation, not a runner deployment:
+the runner rejects preview mode so it cannot record rolled-back schema as Applied.
+Missing inputs fail before any pending migration is applied and explain the required
+targeted command. After approved S8A apply/history completion, normal pending deployment
+can continue. Never invent historical rows or use a default production target.
+
+Example command shape (placeholders require separately approved actual values):
+`Deploy-SqlMigration.ps1 -ServerName <approved-server> -DatabaseName <approved-database> -MigrationId 20260912_001_kvk_season_complete_updates -S8AInputFile <reviewed-input.sql> -S8AInputSha256 <approved-sha256>`.
+This source change does not authorize running it against any retained or new database.
+The six earlier disposable results remain valid for the unchanged migration/fixture;
+they do not claim runtime coverage of the new runner path. Offline regression checks
+cover same-connection ordering, hash/directive rejection and error/disposal behavior.
+The runner change requires its own exact Changes review, Deep off, before final handoff.
