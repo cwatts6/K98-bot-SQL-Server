@@ -1,0 +1,58 @@
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+
+-- S8A reference snapshot; deploy the reviewed migration, not this file.
+-- SQL enforces static scope, shape and uniqueness, not temporal immutability or eligibility.
+-- S8B alone supplies authorized writer APIs, CAS, lock ordering and atomic public intent.
+CREATE TABLE KVK.SourceUpdate
+(
+    UpdateID uniqueidentifier NOT NULL,
+    SourceKey varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    KVK_NO int NOT NULL,
+    PeriodID uniqueidentifier NOT NULL,
+    PeriodKey varchar(128) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    ChoiceID uniqueidentifier NOT NULL,
+    ConfigVersionID uniqueidentifier NOT NULL,
+    RosterID uniqueidentifier NOT NULL,
+    StartScanID int NULL,
+    EndScanID int NULL,
+    StartRevisionID uniqueidentifier NULL,
+    EndRevisionID uniqueidentifier NULL,
+    AggregateReportID uniqueidentifier NULL,
+    AggregateRevisionID uniqueidentifier NULL,
+    CoverageStartUTC datetime2(0) NOT NULL,
+    CoverageEndUTC datetime2(0) NOT NULL,
+    AsOfUTC datetime2(0) NOT NULL,
+    UpdateKind varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    UpdateState varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    BaseUpdateID uniqueidentifier NULL,
+    CounterpartRevisionID uniqueidentifier NULL,
+    ConfirmedBy nvarchar(128) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    ConfirmedUTC datetime2(0) NOT NULL,
+    ConfirmationJson nvarchar(max) NOT NULL,
+    RequestID uniqueidentifier NULL,
+    ContentHash binary(32) NOT NULL,
+    Version bigint NOT NULL,
+    CONSTRAINT PK_SourceUpdate PRIMARY KEY (UpdateID),
+    CONSTRAINT UQ_SourceUpdate_Scope UNIQUE (SourceKey, KVK_NO, PeriodID, UpdateID),
+    CONSTRAINT UQ_SourceUpdate_Config UNIQUE (SourceKey, KVK_NO, PeriodID, UpdateID, ConfigVersionID),
+    CONSTRAINT FK_SourceUpdate_Choice FOREIGN KEY (KVK_NO, SourceKey, ChoiceID) REFERENCES KVK.SeasonSource (KVK_NO, SourceKey, ChoiceID),
+    CONSTRAINT FK_SourceUpdate_Period FOREIGN KEY (SourceKey, KVK_NO, PeriodID, PeriodKey) REFERENCES KVK.SourcePeriod (SourceKey, KVK_NO, PeriodID, PeriodKey),
+    CONSTRAINT FK_SourceUpdate_Kind FOREIGN KEY (SourceKey, KVK_NO, PeriodKey, UpdateKind) REFERENCES KVK.SourcePeriod (SourceKey, KVK_NO, PeriodKey, PeriodKind),
+    CONSTRAINT FK_SourceUpdate_Window FOREIGN KEY (SourceKey, KVK_NO, ConfigVersionID, PeriodKey) REFERENCES KVK.SourceWindowConfig (SourceKey, KVK_NO, ConfigVersionID, PeriodKey),
+    CONSTRAINT FK_SourceUpdate_ConfigRoster FOREIGN KEY (SourceKey, KVK_NO, ConfigVersionID, RosterID) REFERENCES KVK.SourceConfigVersion (SourceKey, KVK_NO, ConfigVersionID, RosterID),
+    CONSTRAINT FK_SourceUpdate_StartBinding FOREIGN KEY (ConfigVersionID, StartScanID) REFERENCES KVK.SourceScanBinding (ConfigVersionID, LogicalScanID),
+    CONSTRAINT FK_SourceUpdate_EndBinding FOREIGN KEY (ConfigVersionID, EndScanID) REFERENCES KVK.SourceScanBinding (ConfigVersionID, LogicalScanID),
+    CONSTRAINT FK_SourceUpdate_StartRevision FOREIGN KEY (SourceKey, KVK_NO, StartRevisionID) REFERENCES KVK.SourceObservationRevision (SourceKey, KVK_NO, RevisionID),
+    CONSTRAINT FK_SourceUpdate_EndRevision FOREIGN KEY (SourceKey, KVK_NO, EndRevisionID) REFERENCES KVK.SourceObservationRevision (SourceKey, KVK_NO, RevisionID),
+    CONSTRAINT FK_SourceUpdate_Aggregate FOREIGN KEY (SourceKey, KVK_NO, AggregateReportID, AggregateRevisionID) REFERENCES KVK.SourceAggregateRevision (SourceKey, KVK_NO, ReportID, RevisionID),
+    CONSTRAINT FK_SourceUpdate_AggregateKind FOREIGN KEY (SourceKey, KVK_NO, AggregateReportID, UpdateKind) REFERENCES KVK.SourceAggregateReport (SourceKey, KVK_NO, ReportID, PeriodKind),
+    CONSTRAINT FK_SourceUpdate_Base FOREIGN KEY (SourceKey, KVK_NO, PeriodID, BaseUpdateID) REFERENCES KVK.SourceUpdate (SourceKey, KVK_NO, PeriodID, UpdateID),
+    CONSTRAINT FK_SourceUpdate_Request FOREIGN KEY (SourceKey, KVK_NO, PeriodID, RequestID) REFERENCES KVK.SourceConfigRequest (SourceKey, KVK_NO, PeriodID, RequestID),
+    CONSTRAINT CK_SourceUpdate_Scope CHECK (SourceKey = 'snapshot_report_v1' AND DATALENGTH(SourceKey) = 18 AND KVK_NO > 0),
+    CONSTRAINT CK_SourceUpdate_Time CHECK (CoverageEndUTC >= CoverageStartUTC AND AsOfUTC >= CoverageEndUTC),
+    CONSTRAINT CK_SourceUpdate_Inputs CHECK (((StartScanID IS NULL AND StartRevisionID IS NULL) OR (StartScanID IS NOT NULL AND StartRevisionID IS NOT NULL)) AND ((EndScanID IS NULL AND EndRevisionID IS NULL) OR (EndScanID IS NOT NULL AND EndRevisionID IS NOT NULL)) AND ((AggregateReportID IS NULL AND AggregateRevisionID IS NULL) OR (AggregateReportID IS NOT NULL AND AggregateRevisionID IS NOT NULL)) AND (StartScanID IS NULL OR EndScanID IS NULL OR EndScanID >= StartScanID)),
+    CONSTRAINT CK_SourceUpdate_Kind CHECK (DATALENGTH(UpdateKind) = LEN(UpdateKind) AND UpdateKind IN ('fight','overall','no_fight') AND (UpdateKind <> 'no_fight' OR (AggregateReportID IS NULL AND AggregateRevisionID IS NULL AND (StartScanID IS NULL OR EndScanID IS NULL OR (StartScanID = EndScanID AND StartRevisionID = EndRevisionID))))),
+    CONSTRAINT CK_SourceUpdate_State CHECK (DATALENGTH(UpdateState) = LEN(UpdateState) AND Version > 0 AND ((UpdateState = 'waiting_player' AND (StartRevisionID IS NULL OR EndRevisionID IS NULL)) OR (UpdateState = 'waiting_aggregate' AND UpdateKind <> 'no_fight' AND StartRevisionID IS NOT NULL AND EndRevisionID IS NOT NULL AND AggregateRevisionID IS NULL) OR (UpdateState IN ('ready','selected','superseded','rejected') AND StartRevisionID IS NOT NULL AND EndRevisionID IS NOT NULL AND (UpdateKind = 'no_fight' OR AggregateRevisionID IS NOT NULL)))),
+    CONSTRAINT CK_SourceUpdate_Confirmation CHECK (LEN(ConfirmedBy) > 0 AND ISJSON(ConfirmationJson) = 1 AND DATALENGTH(ConfirmationJson) <= 65536 AND (BaseUpdateID IS NULL OR BaseUpdateID <> UpdateID) AND (CounterpartRevisionID IS NULL OR (BaseUpdateID IS NOT NULL AND ((StartRevisionID IS NOT NULL AND CounterpartRevisionID = StartRevisionID) OR (EndRevisionID IS NOT NULL AND CounterpartRevisionID = EndRevisionID) OR (AggregateRevisionID IS NOT NULL AND CounterpartRevisionID = AggregateRevisionID)))))
+);
