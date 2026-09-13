@@ -336,7 +336,7 @@ S6-OPS01/PERF01/CAP01, both uncertain publications and every retained database/f
 This append is a separate SQL documentation carry-forward for a later authorized SQL PR,
 not part of the S8B Bot PR. Verify its actual Files changed or prove this exact append merged.
 Bot closeout, four archived S7/S8A pack/starter pairs of paths and the S8B preparation outputs
-are listed in `docs/reference/kvk_source_migration/s8a_closeout_and_s8b_handoff.md` in Bot.
+are listed in the Bot handoff `s8a_closeout_and_s8b_handoff.md`, carried by [Bot PR #274](https://github.com/cwatts6/K98-bot-mirror/pull/274).
 Security routing: documentation-only skip for this append against the merge above; no
 executable/configuration/permission/data-access/deployment/persistence behavior changes.
 No SQL connection/execution, stage/commit/push/PR/merge, deployment or cleanup performed.
