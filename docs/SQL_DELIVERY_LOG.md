@@ -423,3 +423,41 @@ operations. Preserve all earlier evidence and verify actual PR filename plus pre
 for every path, including the four archive origin/destination pairs. SQL delivery-log carry-forward
 remains exclusively in the SQL PR. Source/test bytes are unchanged from accepted validation and
 final Changes reviews; these acceptance/status edits have a documentation-only security skip.
+
+
+## PR #81 review action — supported S8B runner path
+
+The P1 missing same-session input/history path was confirmed. The approved review-action scope
+adds deploy/Deploy-SqlMigration.ps1 and deploy/Test-S8AMigrationInputs.ps1 to the SQL delivery:
+six physical SQL paths in total, with all original four carry-forward paths retained. The Bot
+manifest remains 51 physical paths; no SQL delivery log enters its PR.
+
+Use Deploy-SqlMigration.ps1 with exact MigrationId
+`20260913_001_kvk_source_update_no_fight_context`, explicit ServerName and DatabaseName,
+and S8BInputFile plus its S8BInputSha256. The input is a separately reviewed UTF-8 SQL prelude
+creating and populating exactly one `#S8BNoFightApproval` row with Mode=apply, exact target,
+backup/restore evidence, preview evidence and expected row count. It must not open a transaction.
+The runner verifies the input bytes against SHA256 and rejects SQLCMD directives before opening
+the migration connection. Prelude, apply/history guard and migration run on that same connection.
+
+The guard requires SchemaMigrationHistory and refuses preview mode. Only a successful migration
+returns to the existing Applied-history writer; failures take the Failed-history path. If the
+history write fails after schema commit, a newly reviewed exact count/evidence packet permits the
+migration's verified idempotent rerun to complete history. No manual history deletion or fake
+Applied record is a supported recovery path. Preview remains a separately approved operation and
+must never be recorded as Applied. This runner support does not grant SQL execution permission.
+
+Offline regression coverage in Test-S8AMigrationInputs.ps1 now covers both S8A and S8B: exact
+argument gates, hash/directive rejection, one-connection batch order, guard failure/disposal,
+pending-migration rejection, S8B dispatch and Applied/Failed history ordering with mocked SQL.
+The S8A entry point and guard are retained through the shared reviewed-session executor.
+No live deployment-runner or migration-history execution is claimed by these offline checks.
+
+
+PR-fix validation: offline S8A/S8B runner tests passed, including actual runner gate/dispatch/history
+control flow with fake connections. Separate SQL Changes review
+33e0bcba-9127-45a8-95d5-b2fa26e048f2 sealed 2026-09-13 09:55:32 UTC, Deep off, zero findings,
+complete changed-source coverage. Bot review ef9cf7e4-f388-4e8b-9f64-dfaba85f13b1 likewise completed;
+full offline Bot suite 4,149 passed /57 skipped, logs unchanged. New runner history execution was
+not tested against live SQL. The retained 50-case disposable result remains historical evidence
+for its recorded source. Documentation-only follow-up evidence has a precise security skip.

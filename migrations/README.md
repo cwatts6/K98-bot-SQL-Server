@@ -116,9 +116,33 @@ No historical ID, hash, confirmation, state, selection, intent or publication is
 Execution remains separately gated: provide exact target, backup/restore and metadata preview
 receipts plus expected update count in `#S8BNoFightApproval`. Review `preview`, then separately
 approve `apply` with all source writers idle. This batch owns its transaction and is intended
-for a reviewed same-session invocation, not the generic pending deploy runner (which does not
-supply this input table). Do not alter runner/history behavior or rerun predecessors implicitly.
+for the reviewed same-session runner path documented below. Ordinary pending deployment stops
+before applying migrations if S8B inputs are missing. No predecessor is rerun implicitly.
 Deploy the amendment before the revised S8B writer; older inserts omit the required column
 and fail closed. Retained no-fight fight-period updates require forward fixes, not a downgrade.
 Disposable validation must prove preview/apply/rerun, rollback, FK/check rejection and retained
 history identity before deployment. No SQL connection or execution is claimed by this entry.
+
+
+## S8B reviewed runner inputs — PR #81 review follow-up
+
+Use Deploy-SqlMigration.ps1 with exact MigrationId
+`20260913_001_kvk_source_update_no_fight_context`, explicit ServerName and DatabaseName,
+and S8BInputFile plus its S8BInputSha256. The input is a separately reviewed UTF-8 SQL prelude
+creating and populating exactly one `#S8BNoFightApproval` row with Mode=apply, exact target,
+backup/restore evidence, preview evidence and expected row count. It must not open a transaction.
+The runner verifies the input bytes against SHA256 and rejects SQLCMD directives before opening
+the migration connection. Prelude, apply/history guard and migration run on that same connection.
+
+The guard requires SchemaMigrationHistory and refuses preview mode. Only a successful migration
+returns to the existing Applied-history writer; failures take the Failed-history path. If the
+history write fails after schema commit, a newly reviewed exact count/evidence packet permits the
+migration's verified idempotent rerun to complete history. No manual history deletion or fake
+Applied record is a supported recovery path. Preview remains a separately approved operation and
+must never be recorded as Applied. This runner support does not grant SQL execution permission.
+
+Offline regression coverage in Test-S8AMigrationInputs.ps1 now covers both S8A and S8B: exact
+argument gates, hash/directive rejection, one-connection batch order, guard failure/disposal,
+pending-migration rejection, S8B dispatch and Applied/Failed history ordering with mocked SQL.
+The S8A entry point and guard are retained through the shared reviewed-session executor.
+No live deployment-runner or migration-history execution is claimed by these offline checks.
