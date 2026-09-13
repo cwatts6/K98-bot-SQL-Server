@@ -1,5 +1,10 @@
 # SQL Delivery Log
 
+> Current KVK status, 2026-09-13: S8B is complete, operator accepted and successfully smoke
+> tested; SQL #81 and Bot production #581 are merged and locally pulled. No bot-machine pull,
+> fresh post-merge SQL execution or deployment is claimed. See the S8B closeout appendix below;
+> earlier pending-approval/delivery wording is historical. S8C intake/admin UX is next for scope.
+
 This file records notable SQL delivery milestones that are useful to bot task-pack closeout and
 promotion review. Migration files and `dbo.SchemaMigrationHistory` remain the source of truth for
 what has actually been deployed.
@@ -461,3 +466,60 @@ complete changed-source coverage. Bot review ef9cf7e4-f388-4e8b-9f64-dfaba85f13b
 full offline Bot suite 4,149 passed /57 skipped, logs unchanged. New runner history execution was
 not tested against live SQL. The retained 50-case disposable result remains historical evidence
 for its recorded source. Documentation-only follow-up evidence has a precise security skip.
+
+
+## S8B accepted closeout and S8C documentation carry-forward — 2026-09-13
+
+SQL #81 merged at 10:57:34 UTC as 3983522feb0ff90c96ba56ca11c2dac177f84ca6, final reviewed
+head 32d7752f90fba9bbc805d86f80326ce78771924a. All six actual PR file blobs match local
+main/origin main at that merge. Bot production #581 merged at 10:58:06 UTC as
+9bcbe004ecd6174e7343dbbb552410facd2feb32, reviewed head fc600fdba378e62e1aec5486b5480152d5bc090b.
+Bot mirror main/origin main e9114dd62f4f4ee2d8e193bd1f0b9e31b8543486 is synchronized from that
+production merge. Mirror #274 is closed without a merge record; content delivery is verified
+through production's complete 51-path manifest and local blob equality, not a claimed mirror merge.
+
+The operator confirms successful smoke acceptance and completed local pulls; no changes have
+been pulled to the bot machine. S8B is complete. Retained S8B disposable backup/actual restore,
+preview/apply/rerun and 50 SQL cases passed at their recorded source hashes. Later runner input/
+session/history fixes passed offline with fake connections only; no live runner-history test or
+fresh post-merge SQL execution is claimed. S8A six-script/VERIFYONLY evidence remains separate.
+Final Bot review fixes passed 43 focused tests and equivalent mirror full offline tests
+(4,152 passed / 57 skipped, operational logs unchanged); exact production Changes review
+092cb991-5be6-4be6-86e6-1633413b7342 completed with zero findings, Deep off. SQL Changes review
+33e0bcba-9127-45a8-95d5-b2fa26e048f2 remains the accepted final SQL review. No SQL code changed here.
+
+S8C Intake and Admin Pairing UX is ready for initial review/scope in a new chat, not implementation
+or activation. Canonical Bot-relative reference:
+`docs/reference/kvk_source_migration/s8b_closeout_and_s8c_handoff.md`.
+The Bot S8C pack requires its entire documentation manifest and both S8B archive move sides in
+the eventual Bot PR. This new SQL_DELIVERY_LOG.md append and migrations/README.md closeout status edit are the exact
+two-path separate SQL documentation carry-forward against
+3983522feb0ff90c96ba56ca11c2dac177f84ca6; never include it in a Bot PR. Earlier log carry-forward
+is already merged in #81. Prove each exact changed path merged if omitted from a later SQL PR.
+
+Preserve S6-OPS01/PERF01/CAP01, both uncertain publications, all disposable/predecessor databases,
+backups, files and receipts. No SQL connection/execution, provider/Discord operation, deployment,
+activation, cleanup or Git mutation occurred in this closeout. Security skip: these two Markdown status
+and evidence edits changes no executable, configuration, data-access or persistence behavior.
+
+## S8C local authoring checkpoint - 2026-09-13
+
+Operator approval covers authoring the S8C review table, additive migration,
+disposable-only validation fixture and read-only static contract checker. The exact
+SQL union is these four new paths plus this log and migrations/README.md:
+
+- migrations/20260913_002_kvk_source_admin_reviews.sql
+- sql_schema/KVK.SourceAdminReview.Table.sql
+- validation/kvk_source/s8c_admin_reviews.sql
+- deploy/Test-KvkSourceAdminReviewContracts.ps1
+
+The checker passes 13 static checks. No SQL was executed; the disposable fixture
+and five opt-in Bot SQL tests remain unrun. Deploy this additive table after S8A/S8B
+and before the revised intake is enabled, under separate execution approval.
+ReviewSequence orders import snapshots only; it never allocates scan IDs.
+
+These six paths belong exclusively to the separate SQL PR. Preserve the existing
+S8B delivery record: accepted operator smoke, retained 50-case disposable evidence,
+later offline review fixes and offline-only runner history support are distinct.
+S8A six-script evidence remains separate. No fresh post-merge or bot-machine run
+is claimed. This checkpoint does not authorize Git publication or deployment.
