@@ -5,7 +5,7 @@ Author: cwatts
 CreatedUtc: 2026-09-13
 RequiresBackup: Yes
 RiskLevel: Low
-Rollback: Manual
+Rollback: Forward Fix Only
 RollbackScript: N/A
 TransactionMode: Auto
 DataChange: No
@@ -19,6 +19,7 @@ RelatedSQLPR:
 -- Authoring only. No execution/deployment authorized by the S8C implementation approval.
 -- Deploy after S8A/S8B and before enabling revised intake. Never delete retained reviews
 -- as rollback: disable intake and forward-fix; previous Bot versions ignore this table.
+SET NOCOUNT ON;
 SET XACT_ABORT ON;
 IF OBJECT_ID(N'KVK.SeasonSource',N'U') IS NULL
     THROW 51000, 'S8A season-source schema is required.', 1;

@@ -523,3 +523,12 @@ S8B delivery record: accepted operator smoke, retained 50-case disposable eviden
 later offline review fixes and offline-only runner history support are distinct.
 S8A six-script evidence remains separate. No fresh post-merge or bot-machine run
 is claimed. This checkpoint does not authorize Git publication or deployment.
+
+### S8C PR review corrections
+
+Migration recovery metadata now states Forward Fix Only, consistent with retaining review data.
+Migration and disposable fixture set NOCOUNT ON; fixture owner/guild/channel literals are Unicode.
+The 13 text-only contract checks pass. Follow-up Changes security review
+1f23bee6-0463-4fa7-9eff-6b11a538270f completed with zero findings, Deep off, against
+2f419bfbee3124e5bb88b6b94c9768164d431c15. No SQL was executed and the table definition is unchanged.
+The six-path SQL PR union and original S8B documentation carry-forward remain intact.
