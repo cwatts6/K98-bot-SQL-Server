@@ -1,5 +1,14 @@
 # SQL Migrations
 
+> S8B closeout, 2026-09-13: SQL #81 and Bot production #581 are merged and locally pulled;
+> S8B is complete and operator smoke accepted. No bot-machine pull or fresh post-merge SQL run.
+> The approved S8B disposable packet passed backup/actual restore, preview/apply/rerun and 50
+> SQL cases at its recorded hashes. Later runner/history support below has offline tests only.
+> See [SQL delivery log](../docs/SQL_DELIVERY_LOG.md) for exact merge and evidence distinctions.
+> S8C intake/admin UX is next for initial scope. This README status edit and the delivery-log
+> closeout append must accompany a later separate SQL PR or have exact merged-content proof;
+> neither belongs in the Bot PR. Existing execution guardrails remain unchanged.
+
 This folder is the deployable source for intentional SQL changes.
 
 Schema snapshots in `sql_schema/` are generated reference material. Do not deploy from
@@ -102,7 +111,7 @@ The deploy runner prevents repeat execution through `dbo.SchemaMigrationHistory`
 migrations should still be idempotent where that is genuinely safe.
 
 
-## S8B no-fight update amendment — 2026-09-13 (authored, not executed)
+## Historical S8B authoring checkpoint — 2026-09-13 (before disposable execution)
 
 The operator approved closing the recorded S8B gaps. Migration
 `20260913_001_kvk_source_update_no_fight_context.sql` adds required `SourceUpdate.PeriodKind`
@@ -146,3 +155,25 @@ argument gates, hash/directive rejection, one-connection batch order, guard fail
 pending-migration rejection, S8B dispatch and Applied/Failed history ordering with mocked SQL.
 The S8A entry point and guard are retained through the shared reviewed-session executor.
 No live deployment-runner or migration-history execution is claimed by these offline checks.
+
+## S8C local authoring checkpoint - 2026-09-13
+
+Operator approval covers authoring the S8C review table, additive migration,
+disposable-only validation fixture and read-only static contract checker. The exact
+SQL union is these four new paths plus this log and migrations/README.md:
+
+- migrations/20260913_002_kvk_source_admin_reviews.sql
+- sql_schema/KVK.SourceAdminReview.Table.sql
+- validation/kvk_source/s8c_admin_reviews.sql
+- deploy/Test-KvkSourceAdminReviewContracts.ps1
+
+The checker passes 13 static checks. No SQL was executed; the disposable fixture
+and five opt-in Bot SQL tests remain unrun. Deploy this additive table after S8A/S8B
+and before the revised intake is enabled, under separate execution approval.
+ReviewSequence orders import snapshots only; it never allocates scan IDs.
+
+These six paths belong exclusively to the separate SQL PR. Preserve the existing
+S8B delivery record: accepted operator smoke, retained 50-case disposable evidence,
+later offline review fixes and offline-only runner history support are distinct.
+S8A six-script evidence remains separate. No fresh post-merge or bot-machine run
+is claimed. This checkpoint does not authorize Git publication or deployment.
