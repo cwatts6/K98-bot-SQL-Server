@@ -489,8 +489,8 @@ Final Bot review fixes passed 43 focused tests and equivalent mirror full offlin
 33e0bcba-9127-45a8-95d5-b2fa26e048f2 remains the accepted final SQL review. No SQL code changed here.
 
 S8C Intake and Admin Pairing UX is ready for initial review/scope in a new chat, not implementation
-or activation. Canonical Bot-relative reference:
-`docs/reference/kvk_source_migration/s8b_closeout_and_s8c_handoff.md`.
+or activation. The companion [Bot PR #275](https://github.com/cwatts6/K98-bot-mirror/pull/275) carries the canonical Bot closeout reference:
+`s8b_closeout_and_s8c_handoff.md` in the Bot KVK source-migration reference documentation.
 The Bot S8C pack requires its entire documentation manifest and both S8B archive move sides in
 the eventual Bot PR. This new SQL_DELIVERY_LOG.md append and migrations/README.md closeout status edit are the exact
 two-path separate SQL documentation carry-forward against
