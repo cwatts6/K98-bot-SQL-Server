@@ -307,3 +307,157 @@ The six earlier disposable results remain valid for the unchanged migration/fixt
 they do not claim runtime coverage of the new runner path. Offline regression checks
 cover same-connection ordering, hash/directive rejection and error/disposal behavior.
 The runner change requires its own exact Changes review, Deep off, before final handoff.
+
+## S8A accepted closeout and S8B handoff — 2026-09-13
+
+S8A is complete, operator smoke accepted and merged. SQL PR #80 merged at
+2026-09-13 06:47:39 UTC as `50310950a1adb7425e6db6bc86f38bdeb38e0830`, reviewed
+head `120110e0222881b8938e5071544267f6afb74995`. Actual GitHub Files changed confirms
+ten paths, including the runner/test amendment to the original eight. Local SQL
+main/origin main matches the merge; the worktree was clean before this documentation append.
+Bot mirror #273 and production #580 are merged; the operator confirms local pulls complete
+and no changes pulled to the bot machine. No production runtime deployment is claimed.
+
+Smoke acceptance is operator-attested and supported by the six successful disposable
+scripts recorded above. The later runner fix retains offline-only validation; no fresh
+post-merge SQL execution, two-session concurrency pass or actual restore is claimed.
+The follow-up Changes review `7c5a7f68-9bd7-4629-b035-0d0b757404a4` completed/sealed
+2026-09-12T22:00:17.914530Z at `05d7815..120110e` with zero reportable findings, Deep off.
+The original seven SQL files and their accepted source/disposable evidence remain unchanged.
+Migration `20260912_001` is retained without renaming. No real allowlist rows are added.
+
+Next is S8B Bot source/matched-update DAL and services, initial review/scope in a new chat.
+It owns immutable choices/sealed tuples, authorization, eligibility/counterpart validation,
+CAS and atomic complete selection plus full-vector intent. Ordinary public routing remains
+separate S9 work; SourceRouting.Enabled alone is insufficient. Further database operations
+require exact target, backup/row preview and operation approval. S1–S6 acceptance,
+S6-OPS01/PERF01/CAP01, both uncertain publications and every retained database/file remain intact.
+
+This append is a separate SQL documentation carry-forward for a later authorized SQL PR,
+not part of the S8B Bot PR. Verify its actual Files changed or prove this exact append merged.
+Bot closeout, four archived S7/S8A pack/starter pairs of paths and the S8B preparation outputs
+are listed in the Bot handoff `s8a_closeout_and_s8b_handoff.md`, carried by [Bot PR #274](https://github.com/cwatts6/K98-bot-mirror/pull/274).
+Security routing: documentation-only skip for this append against the merge above; no
+executable/configuration/permission/data-access/deployment/persistence behavior changes.
+No SQL connection/execution, stage/commit/push/PR/merge, deployment or cleanup performed.
+
+
+## S8B no-fight update amendment — 2026-09-13 (authored, not executed)
+
+The operator approved closing the recorded S8B gaps. Migration
+`20260913_001_kvk_source_update_no_fight_context.sql` adds required `SourceUpdate.PeriodKind`
+copied from the immutable period and rebinds the scoped kind FK to that classification.
+`UpdateKind=no_fight` may then apply to an existing fight period without changing its identity.
+The new mode check rejects all other cross-kind combinations; existing equal-player-input,
+no-aggregate, readiness and scoped revision/configuration constraints remain intact. The Bot
+additionally requires explicitly confirmed equal configured endpoints and exact revisions.
+No historical ID, hash, confirmation, state, selection, intent or publication is rewritten.
+
+Execution remains separately gated: provide exact target, backup/restore and metadata preview
+receipts plus expected update count in `#S8BNoFightApproval`. Review `preview`, then separately
+approve `apply` with all source writers idle. This batch owns its transaction and is intended
+for a reviewed same-session invocation, not the generic pending deploy runner (which does not
+supply this input table). Do not alter runner/history behavior or rerun predecessors implicitly.
+Deploy the amendment before the revised S8B writer; older inserts omit the required column
+and fail closed. Retained no-fight fight-period updates require forward fixes, not a downgrade.
+Disposable validation must prove preview/apply/rerun, rollback, FK/check rejection and retained
+history identity before deployment. No SQL connection or execution is claimed by this entry.
+
+
+S8B amendment offline review evidence, 2026-09-13: separate SQL Changes scan
+`ebf9cb6a-f2a8-4399-9879-ec1d5b67458b` sealed at 08:33:04 UTC, Deep off, zero findings,
+complete two-source-file coverage plus both documentation paths. Snapshot digest:
+`49a1bcb632ba32c6aa3032b986e3b23c57621478c8e5f7bba62d710d944b2816`.
+SQLFluff T-SQL parsing passed migration, both constant dynamic batches and snapshot.
+Isolated-copy Validate-SqlRepo passed with only 15 older-migration warnings; no operational
+SQL logs changed. Bot offline rerun: 4,139 passed / 57 skipped, logs unchanged; SQL tests
+remain gated. These results do not assert SQL Server compilation or execution. This final
+Markdown evidence append has a documentation-only security skip with no runtime effect.
+Source implementation approval is satisfied; actual target/backup/preview/apply/rerun and
+real concurrency evidence still require the separate SQL operations gate. Preserve this
+SQL delivery-log carry-forward in the SQL PR, never in the Bot PR. No SQL connection,
+Git publication, deployment, predecessor rerun or retained-data cleanup occurred.
+
+
+## S8B approved disposable execution completed — 2026-09-13
+
+The operator approved the exact new target `9SX2VF4\K98DEV` /
+`K98_S8B_Disposable_20260913_validation` and separate actual-restore database
+`K98_S8B_Disposable_20260913_validation_restore`. Both are retained. COPY_ONLY/CHECKSUM backup,
+RESTORE VERIFYONLY and actual RESTORE passed; restored baseline digests matched all thirty
+original table projections. Wrong target/count rejected unchanged. Migration preview, apply and
+fresh-session rerun passed, preserving every original-column count/content digest.
+
+Amendment SHA256: `aa66a2015e089a7df9ae5cdb6e4d89f96e3d0cfacfa119ba9ca7d39dcf8ac807`.
+Snapshot SHA256: `bdf354f1c78fb113c04b22d073a0ee5fd6771d41e79f31ec1d5cb8ec5cad432a`.
+Both source files remain unchanged from separate SQL Changes review
+`ebf9cb6a-f2a8-4399-9879-ec1d5b67458b` (Deep off, zero findings).
+
+Evidence root: `C:/Users/cwatt/AppData/Local/Temp/k98-s8b-execution-dzmmcw49`.
+Original manifest SHA256 `ab149d5622661a059736b149d9a03500f91f26f8ef75bc09efaff32f1beaedbb`;
+reviewed-continuation-01 manifest `227d69ca50840654b250e39804974141222bc923c20a08ea71343b24c0f6d0ad`.
+The first connection failure, rolled-back bootstrap dependency-order failure and initial SQL
+suite (30 passed / 20 failed) remain recorded. A reviewed continuation moved the existing roster
+unique key before its dependent FK after verifying an empty target; no database was dropped.
+Related Bot-only synthetic fixture corrections passed 22 selected cases, then **all 50 SQL
+cases in 25.09 seconds**. Receipts, JUnit, transcripts and execution-summary.md are retained in
+reviewed-continuation-01. Final offline suite: **4,139 passed / 57 skipped**, logs unchanged.
+
+This closes the disposable migration and real transaction/concurrency evidence gaps. Earlier
+unexecuted entries are historical; this is not production deployment, operator acceptance of
+these new results, or a fresh S7/S8A post-merge smoke. SQL-before-Bot rollout with source writers
+idle and actual publication/merge/deployment gates remain separately authorized work. Preserve
+all four SQL delivery paths and this entire log carry-forward in a SQL PR, never the Bot PR.
+No provider operation, predecessor runner, retained-data cleanup or Git mutation occurred.
+This append is documentation-only and has a precise security skip: no executable, configuration,
+permission, input, data-access or persistence change. All retained S6/S7/S8A evidence remains.
+
+
+## Operator acceptance and publication approval — 2026-09-13
+
+The operator accepted the completed S8B implementation, gap closure and disposable validation,
+and explicitly approved publication. Publish separate Bot mirror and SQL PRs with the exact
+51-path Bot and four-path SQL manifests. This supersedes earlier pending acceptance/publication
+wording; it does not authorize merge, production promotion, deployment, activation or new runtime
+operations. Preserve all earlier evidence and verify actual PR filename plus previous_filename
+for every path, including the four archive origin/destination pairs. SQL delivery-log carry-forward
+remains exclusively in the SQL PR. Source/test bytes are unchanged from accepted validation and
+final Changes reviews; these acceptance/status edits have a documentation-only security skip.
+
+
+## PR #81 review action — supported S8B runner path
+
+The P1 missing same-session input/history path was confirmed. The approved review-action scope
+adds deploy/Deploy-SqlMigration.ps1 and deploy/Test-S8AMigrationInputs.ps1 to the SQL delivery:
+six physical SQL paths in total, with all original four carry-forward paths retained. The Bot
+manifest remains 51 physical paths; no SQL delivery log enters its PR.
+
+Use Deploy-SqlMigration.ps1 with exact MigrationId
+`20260913_001_kvk_source_update_no_fight_context`, explicit ServerName and DatabaseName,
+and S8BInputFile plus its S8BInputSha256. The input is a separately reviewed UTF-8 SQL prelude
+creating and populating exactly one `#S8BNoFightApproval` row with Mode=apply, exact target,
+backup/restore evidence, preview evidence and expected row count. It must not open a transaction.
+The runner verifies the input bytes against SHA256 and rejects SQLCMD directives before opening
+the migration connection. Prelude, apply/history guard and migration run on that same connection.
+
+The guard requires SchemaMigrationHistory and refuses preview mode. Only a successful migration
+returns to the existing Applied-history writer; failures take the Failed-history path. If the
+history write fails after schema commit, a newly reviewed exact count/evidence packet permits the
+migration's verified idempotent rerun to complete history. No manual history deletion or fake
+Applied record is a supported recovery path. Preview remains a separately approved operation and
+must never be recorded as Applied. This runner support does not grant SQL execution permission.
+
+Offline regression coverage in Test-S8AMigrationInputs.ps1 now covers both S8A and S8B: exact
+argument gates, hash/directive rejection, one-connection batch order, guard failure/disposal,
+pending-migration rejection, S8B dispatch and Applied/Failed history ordering with mocked SQL.
+The S8A entry point and guard are retained through the shared reviewed-session executor.
+No live deployment-runner or migration-history execution is claimed by these offline checks.
+
+
+PR-fix validation: offline S8A/S8B runner tests passed, including actual runner gate/dispatch/history
+control flow with fake connections. Separate SQL Changes review
+33e0bcba-9127-45a8-95d5-b2fa26e048f2 sealed 2026-09-13 09:55:32 UTC, Deep off, zero findings,
+complete changed-source coverage. Bot review ef9cf7e4-f388-4e8b-9f64-dfaba85f13b1 likewise completed;
+full offline Bot suite 4,149 passed /57 skipped, logs unchanged. New runner history execution was
+not tested against live SQL. The retained 50-case disposable result remains historical evidence
+for its recorded source. Documentation-only follow-up evidence has a precise security skip.

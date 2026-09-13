@@ -5,6 +5,8 @@ param(
     [string]$MigrationId,
     [string]$S8AInputFile,
     [string]$S8AInputSha256,
+    [string]$S8BInputFile,
+    [string]$S8BInputSha256,
     [switch]$ValidationOnly,
     [switch]$SkipBackupCheck,
     [switch]$AllowNonMainBranch,
@@ -24,20 +26,44 @@ if ($S8AInputFile -or $S8AInputSha256) {
     }
 }
 
-function Invoke-K98S8AMigration {
+# S8B has its own exact migration/target gate; inputs cannot spill into another migration.
+if ($S8BInputFile -or $S8BInputSha256) {
+    if ($MigrationId -cne '20260913_001_kvk_source_update_no_fight_context' -or
+        -not $PSBoundParameters.ContainsKey('ServerName') -or [string]::IsNullOrWhiteSpace($ServerName) -or
+        -not $PSBoundParameters.ContainsKey('DatabaseName') -or [string]::IsNullOrWhiteSpace($DatabaseName) -or
+        [string]::IsNullOrWhiteSpace($S8BInputFile) -or $S8BInputSha256 -notmatch '^[a-fA-F0-9]{64}$') {
+        throw 'S8B inputs require exact -MigrationId, explicit -ServerName/-DatabaseName, -S8BInputFile and its -S8BInputSha256.'
+    }
+}
+
+function Invoke-K98ReviewedMigration {
     param([string]$ServerName, [string]$DatabaseName, [string]$InputFile,
-        [string]$ApprovalFile, [string]$ApprovalSha256)
+        [string]$ApprovalFile, [string]$ApprovalSha256,
+        [ValidateSet("S8A", "S8B")][string]$ApprovalKind)
     $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $ApprovalFile).ProviderPath)
     $hasher = [System.Security.Cryptography.SHA256]::Create()
     try { $actualHash = ([BitConverter]::ToString($hasher.ComputeHash($bytes))).Replace('-', '').ToLowerInvariant() }
     finally { $hasher.Dispose() }
-    if ($actualHash -cne $ApprovalSha256.ToLowerInvariant()) { throw 'S8A input hash mismatch; no SQL executed.' }
+    if ($actualHash -cne $ApprovalSha256.ToLowerInvariant()) { throw "$ApprovalKind input hash mismatch; no SQL executed." }
     $prelude = [System.Text.UTF8Encoding]::new($false, $true).GetString($bytes).TrimStart([char]0xFEFF)
     $migration = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $InputFile).ProviderPath)
     if ($prelude -match '(?m)^\s*:' -or $migration -match '(?m)^\s*:') {
-        throw 'S8A same-session execution accepts plain SQL only, not SQLCMD directives.'
+        throw "$ApprovalKind same-session execution accepts plain SQL only, not SQLCMD directives."
     }
-    $guard = @"
+    $guard = if ($ApprovalKind -ceq 'S8B') {
+@"
+IF @@TRANCOUNT<>0 THROW 51900, 'S8B input must not open a transaction.', 1;
+IF OBJECT_ID(N'dbo.SchemaMigrationHistory',N'U') IS NULL
+    THROW 51900, 'S8B runner requires SchemaMigrationHistory before apply.', 1;
+IF OBJECT_ID(N'tempdb..#S8BNoFightApproval',N'U') IS NULL
+    THROW 51900, 'S8B input must supply the reviewed approval table.', 1;
+IF (SELECT COUNT_BIG(*) FROM #S8BNoFightApproval)<>1 OR EXISTS
+ (SELECT 1 FROM #S8BNoFightApproval WHERE Mode IS NULL OR Mode COLLATE Latin1_General_100_BIN2<>'apply' OR DATALENGTH(Mode)<>5)
+    THROW 51900, 'S8B runner is apply-only; preview must not be recorded as Applied.', 1;
+"@
+    }
+    else {
+@"
 IF @@TRANCOUNT<>0 THROW 51800, 'S8A input must not open a transaction.', 1;
 IF OBJECT_ID(N'dbo.SchemaMigrationHistory',N'U') IS NULL
     THROW 51800, 'S8A runner requires SchemaMigrationHistory before apply.', 1;
@@ -47,6 +73,7 @@ IF (SELECT COUNT_BIG(*) FROM #S8AApproval)<>1 OR EXISTS
  (SELECT 1 FROM #S8AApproval WHERE Mode IS NULL OR Mode COLLATE Latin1_General_100_BIN2<>'apply' OR DATALENGTH(Mode)<>5)
     THROW 51800, 'S8A runner is apply-only; preview must not be recorded as Applied.', 1;
 "@
+    }
     # Reuse the existing connection/batch helpers. One connection retains temporary
     # tables across prelude, guard and migration; do not use separate Invoke-Sqlcmd calls.
     $connection = New-K98SqlConnection -ServerName $ServerName -DatabaseName $DatabaseName
@@ -67,6 +94,12 @@ IF (SELECT COUNT_BIG(*) FROM #S8AApproval)<>1 OR EXISTS
     finally { $connection.Dispose() }
 }
 
+
+function Invoke-K98S8AMigration {
+    param([string]$ServerName, [string]$DatabaseName, [string]$InputFile,
+        [string]$ApprovalFile, [string]$ApprovalSha256)
+    Invoke-K98ReviewedMigration @PSBoundParameters -ApprovalKind S8A
+}
 
 if ([string]::IsNullOrWhiteSpace($RepoPath)) {
     $RepoPath = Get-K98RepoRoot
@@ -283,6 +316,11 @@ try {
         throw 'Pending S8A requires a separately reviewed same-session input. Run exact -MigrationId 20260912_001_kvk_season_complete_updates with explicit target, -S8AInputFile and -S8AInputSha256 first.'
     }
 
+    if (@($pending | Where-Object { $_.BaseName -ceq '20260913_001_kvk_source_update_no_fight_context' }).Count -gt 0 -and
+        [string]::IsNullOrWhiteSpace($S8BInputFile)) {
+        throw 'Pending S8B requires a separately reviewed same-session input. Run exact -MigrationId 20260913_001_kvk_source_update_no_fight_context with explicit target, -S8BInputFile and -S8BInputSha256 first.'
+    }
+
     foreach ($file in $pending) {
         $id = [System.IO.Path]::GetFileNameWithoutExtension($file.Name)
         $checksum = Get-K98FileSha256 -Path $file.FullName
@@ -291,6 +329,9 @@ try {
             Write-Host "Applying migration $id"
             if ($id -ceq '20260912_001_kvk_season_complete_updates') {
                 Invoke-K98S8AMigration -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $file.FullName -ApprovalFile $S8AInputFile -ApprovalSha256 $S8AInputSha256
+            }
+            elseif ($id -ceq '20260913_001_kvk_source_update_no_fight_context') {
+                Invoke-K98ReviewedMigration -ApprovalKind S8B -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $file.FullName -ApprovalFile $S8BInputFile -ApprovalSha256 $S8BInputSha256
             }
             else {
                 Invoke-K98SqlFile -ServerName $ServerName -DatabaseName $DatabaseName -InputFile $file.FullName | Out-Null
