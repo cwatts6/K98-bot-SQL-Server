@@ -1,12 +1,12 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[HASH_KS4_IMPORT_ARCHIVE_FILE]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[HASH_KS4_IMPORT_ARCHIVE_FILE] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[HASH_KS4_IMPORT_ARCHIVE_FILE] AS' 
 END
 ALTER PROCEDURE [dbo].[HASH_KS4_IMPORT_ARCHIVE_FILE]
-    @ApprovedPath [nvarchar](4000),
-    @FileDigest [binary](32) OUTPUT
+	@ApprovedPath [nvarchar](4000),
+	@FileDigest [binary](32) OUTPUT
 WITH EXECUTE AS CALLER
 AS
 BEGIN
