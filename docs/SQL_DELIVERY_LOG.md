@@ -4,9 +4,9 @@
 > Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
 > S10A Shared Export Coordination SQL Foundation is implemented and published in
 > [SQL PR #85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85), pending review and merge.
-> Approved disposable validation passed backup/actual restore and install (76 cases), then
-> stopped at partial-schema error 207. The compilation-boundary correction is implemented;
-> its review and the approved continuation on retained disposable databases are pending.
+> Approved disposable validation passed backup/actual restore, install (76 cases), partial
+> and type-conflict rejection, and direct migration application. A Python audit ordering
+> error then stopped the continuation; direct rerun, constraints and drift remain pending.
 > Both delivery-log and migration-README updates are included in that S10A SQL
 > implementation PR. Bot handoff documentation stays in Bot for the next Bot implementation PR,
 > S10B; no standalone documentation PR. Earlier status/publication checkpoints are historical.
@@ -31,7 +31,7 @@ what has actually been deployed.
 | 2026-07-09 | `20260709_001_add_update_all2_audit_outputs` / SQL PR #41 | Deployed to production | Added non-invasive `dbo.UPDATE_ALL2` phase audit output rows while preserving output tables, `SP_TaskStatus` polling, and the final 8-column summary result set consumed by the bot. Bot PRs #215/#522 parse and persist the phase rows through generic `ImportAuditPhase`. Production smoke confirmed fallback batch 67 completed normally, emitted 13 `update_all2_*` subphase rows, identified `update_all2_summary_proc` as the dominant first-sample visible subphase at about 78 seconds, and showed no `_update_all2_phase_results` leakage after the bot review-fix restart. Follow-up work is evidence review before any `SUMMARY_PROC` or `UPDATE_ALL2` decomposition. |
 
 
-## S8A KVK SQL foundation — authored 2026-09-12, execution not authorized
+## S8A KVK SQL foundation â€” authored 2026-09-12, execution not authorized
 
 Chris Watts approved the eight-file implementation, static validation and exact SQL
 Changes security review. Initial scope completed before authoring. SQL is on `main`
@@ -149,7 +149,7 @@ patch against `a2f148fa9bd4fb367fd46d0500a768c14fee915b` qualifies for documente
 no executable, permission, configuration, dependency, input, data-access, network or
 persistence behavior changes. There is no standard/deep audit or new task.
 
-### Exact proposed disposable execution plan — requires separate approval
+### Exact proposed disposable execution plan â€” requires separate approval
 
 Proposed server: `9SX2VF4\K98DEV`, reached locally using `lpc:localhost\K98DEV` and
 Windows authentication. This is a proposal based on retained evidence, **not a fresh
@@ -226,7 +226,7 @@ evidence for each omitted path. No stage/commit/push/PR/merge/pull/reset/fetch i
 This is a reviewable file/static-evidence checkpoint, not deployment or release approval.
 
 
-## S8A disposable execution and PR handoff — 2026-09-12
+## S8A disposable execution and PR handoff â€” 2026-09-12
 
 The operator separately approved the exact six-script disposable package after the
 read-only target/name/backup-path preflight. All six scripts completed with sqlcmd exit
@@ -322,7 +322,7 @@ they do not claim runtime coverage of the new runner path. Offline regression ch
 cover same-connection ordering, hash/directive rejection and error/disposal behavior.
 The runner change requires its own exact Changes review, Deep off, before final handoff.
 
-## S8A accepted closeout and S8B handoff — 2026-09-13
+## S8A accepted closeout and S8B handoff â€” 2026-09-13
 
 S8A is complete, operator smoke accepted and merged. SQL PR #80 merged at
 2026-09-13 06:47:39 UTC as `50310950a1adb7425e6db6bc86f38bdeb38e0830`, reviewed
@@ -344,7 +344,7 @@ Next is S8B Bot source/matched-update DAL and services, initial review/scope in 
 It owns immutable choices/sealed tuples, authorization, eligibility/counterpart validation,
 CAS and atomic complete selection plus full-vector intent. Ordinary public routing remains
 separate S9 work; SourceRouting.Enabled alone is insufficient. Further database operations
-require exact target, backup/row preview and operation approval. S1–S6 acceptance,
+require exact target, backup/row preview and operation approval. S1â€“S6 acceptance,
 S6-OPS01/PERF01/CAP01, both uncertain publications and every retained database/file remain intact.
 
 This append is a separate SQL documentation carry-forward for a later authorized SQL PR,
@@ -356,7 +356,7 @@ executable/configuration/permission/data-access/deployment/persistence behavior 
 No SQL connection/execution, stage/commit/push/PR/merge, deployment or cleanup performed.
 
 
-## S8B no-fight update amendment — 2026-09-13 (authored, not executed)
+## S8B no-fight update amendment â€” 2026-09-13 (authored, not executed)
 
 The operator approved closing the recorded S8B gaps. Migration
 `20260913_001_kvk_source_update_no_fight_context.sql` adds required `SourceUpdate.PeriodKind`
@@ -393,7 +393,7 @@ SQL delivery-log carry-forward in the SQL PR, never in the Bot PR. No SQL connec
 Git publication, deployment, predecessor rerun or retained-data cleanup occurred.
 
 
-## S8B approved disposable execution completed — 2026-09-13
+## S8B approved disposable execution completed â€” 2026-09-13
 
 The operator approved the exact new target `9SX2VF4\K98DEV` /
 `K98_S8B_Disposable_20260913_validation` and separate actual-restore database
@@ -427,7 +427,7 @@ This append is documentation-only and has a precise security skip: no executable
 permission, input, data-access or persistence change. All retained S6/S7/S8A evidence remains.
 
 
-## Operator acceptance and publication approval — 2026-09-13
+## Operator acceptance and publication approval â€” 2026-09-13
 
 The operator accepted the completed S8B implementation, gap closure and disposable validation,
 and explicitly approved publication. Publish separate Bot mirror and SQL PRs with the exact
@@ -439,7 +439,7 @@ remains exclusively in the SQL PR. Source/test bytes are unchanged from accepted
 final Changes reviews; these acceptance/status edits have a documentation-only security skip.
 
 
-## PR #81 review action — supported S8B runner path
+## PR #81 review action â€” supported S8B runner path
 
 The P1 missing same-session input/history path was confirmed. The approved review-action scope
 adds deploy/Deploy-SqlMigration.ps1 and deploy/Test-S8AMigrationInputs.ps1 to the SQL delivery:
@@ -477,7 +477,7 @@ not tested against live SQL. The retained 50-case disposable result remains hist
 for its recorded source. Documentation-only follow-up evidence has a precise security skip.
 
 
-## S8B accepted closeout and S8C documentation carry-forward — 2026-09-13
+## S8B accepted closeout and S8C documentation carry-forward â€” 2026-09-13
 
 SQL #81 merged at 10:57:34 UTC as 3983522feb0ff90c96ba56ca11c2dac177f84ca6, final reviewed
 head 32d7752f90fba9bbc805d86f80326ce78771924a. All six actual PR file blobs match local
@@ -542,7 +542,7 @@ The 13 text-only contract checks pass. Follow-up Changes security review
 2f419bfbee3124e5bb88b6b94c9768164d431c15. No SQL was executed and the table definition is unchanged.
 The six-path SQL PR union and original S8B documentation carry-forward remain intact.
 
-## S8C merged delivery and next steps — 2026-09-13
+## S8C merged delivery and next steps â€” 2026-09-13
 
 S8C code review and repository delivery are complete. SQL #82 merged at 18:43:41 UTC as
 3c1b5ceaa7a686bc594ca8637d0a1569030d66c4 (reviewed head 083718e971acc7d4593610199a5575bd3159b4e8).
@@ -590,7 +590,7 @@ The static contract validator passed 13 checks. This used direct SQL execution, 
 runner history. S8A/B snapshots were empty prerequisite fixtures; their installers/tests were not rerun.
 
 Real Bot intake/services/DAL used this disposable SQL for synthetic B0, waiting-pair completion,
-11−10/12−10/13−10 then authorized 14−10, later 17/18 assignment, no-fight, independent overall,
+11âˆ’10/12âˆ’10/13âˆ’10 then authorized 14âˆ’10, later 17/18 assignment, no-fight, independent overall,
 weight/camp corrections, explicit synthetic attestation, CAS and semantic duplicate checks.
 No production code fix was required. SourceRouting remained disabled and no provider delivery ran.
 See [Bot companion PR #276](https://github.com/cwatts6/K98-bot-mirror/pull/276), its
@@ -603,7 +603,7 @@ These two SQL documentation paths were retained locally at the original closeout
 and are now committed and published separately in SQL PR #83 for the S9A delivery cycle.
 Only documentation changed; no SQL runtime file, deployment or activation changed.
 
-## S9A delivered / S9B documentation carry-forward — 2026-09-14
+## S9A delivered / S9B documentation carry-forward â€” 2026-09-14
 
 [SQL #83](https://github.com/cwatts6/K98-bot-SQL-Server/pull/83) merged at 10:13:01 UTC as
 `278b24b48ed075252217a5525ccb751f8e5bf928`, reviewed head
@@ -644,7 +644,7 @@ execution or persistence behavior changes. No security scan or SQL execution. Va
 links, exact pending paths and whitespace; runtime SQL checks are intentionally not rerun.
 
 
-## S9B publication checkpoint — 2026-09-14
+## S9B publication checkpoint â€” 2026-09-14
 
 The operator authorized PR creation following local Bot implementation and review. The final
 Bot scope is 23 runtime/test paths plus 35 documentation paths, including the two approved
@@ -658,7 +658,7 @@ they do not establish SQL execution or live Discord acceptance. All retained gat
 publications, databases and files remain preserved. No merge, deployment or activation occurs.
 
 
-## S9B delivered / S10A documentation carry-forward — 2026-09-14
+## S9B delivered / S10A documentation carry-forward â€” 2026-09-14
 
 [SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84) merged at 13:27:17 UTC as
 `d0916f742f9c88743b97107dfca1f3acbcb32c2e`, final reviewed head
@@ -701,7 +701,7 @@ against `d0916f742f9c88743b97107dfca1f3acbcb32c2e`. No runtime, data-access, per
 dependency or persistence behavior changes. Validate links, documentation references, whitespace
 and exact paths. No SQL runtime execution or fresh security scan for this closeout.
 
-## S10A approved local SQL implementation — 2026-09-14
+## S10A approved local SQL implementation â€” 2026-09-14
 
 The operator approved local implementation and closure of the physical-design gaps.
 This is additive SQL authoring, offline validation and Changes security review only.
@@ -830,7 +830,7 @@ actual-restore evidence stays distinct from offline runner history, S8A six-scri
 S8C execution/operator evidence. S8C seven local checks PASS is not live Discord acceptance.
 
 
-### PR #85 review corrections — 2026-09-14
+### PR #85 review corrections â€” 2026-09-14
 
 Current banners now reflect the implemented/open-PR checkpoint. Migration and fixture reject
 non-table name conflicts explicitly before counting user tables for the absent/complete state.
@@ -839,7 +839,7 @@ rollback transaction and requires the exact migration error without any new expo
 All five modes and 76 structural cases remain unexecuted; no SQL execution is authorized.
 
 
-### PR #85 temporary-shape collation correction — 2026-09-14
+### PR #85 temporary-shape collation correction â€” 2026-09-14
 
 Seven temporary reason/JSON columns now explicitly use COLLATE DATABASE_DEFAULT so their
 expected catalog shape matches permanent columns inheriting the application database default,
@@ -849,7 +849,7 @@ Before deployment, separately authorize the existing install/constraints fixture
 a new disposable database with collation different from tempdb, recording both collations.
 That SQL execution remains pending; parser/static checks are not runtime collation evidence.
 
-## S10A compilation-boundary correction — 2026-09-14
+## S10A compilation-boundary correction â€” 2026-09-14
 
 The first approved disposable run retained the checksum backup, successful actual restore,
 and 76-case cross-collation install result. Partial-schema validation stopped with SQL Server
@@ -865,3 +865,35 @@ will preserve the original failed-run evidence and reuse its backup/actual-resto
 no database recreation, prerequisite rerun, backup overwrite or restore rerun is planned.
 Run install, partial, type_conflict, direct apply/rerun, constraints and drift after review.
 PR #85 remains unmerged. No production, provider, Discord or bot-machine action is included.
+
+## S10A corrected compilation validation result — 2026-09-14
+
+Fix commit `b8e19f8f03683eec0d6c2563d732fb5303ba04dd` passed 87 static parse inputs
+and exact decoded-DDL/guard/verification parity. Changes review, Deep off, scan
+`0a151f59-3c5d-4dfc-a5dc-81852a5782d0` completed with zero findings; target base
+`0cdf9efcc6f625580a84f57449c5c103e74d8268`, content digest
+`3f1701d12151a1b24203a15c0ff20d97af003d6decd54b224520028dc2447a7e`.
+
+Approved continuation manifest SHA256
+`705ce96f3ef40907c059a30c118dedfb8835e40a66adb7370bc31b1bd146c3b7`
+ran against the two retained S10A disposable databases. Install passed all 76 cases;
+partial and type_conflict passed their strict expected-error assertions. Direct migration
+application returned successfully and committed six empty export tables. The subsequent
+Python audit compared SQL case-insensitive ORDER BY output with Python case-sensitive sort
+and stopped on the same exact 25 names in different order. This was a harness comparison
+failure, not a second migration failure. No automatic runtime retry occurred.
+
+The corrected read-only audit verifies 25 empty primary tables, 19 empty restored tables,
+unchanged prerequisite metadata, enabled/trusted constraints, original database inventory
+and backup presence. Receipt `s10a-continuation-01-receipt.json` SHA256
+`f6c2032f99605225eef146853594f5135f355663a92c45966d5474328e0408f0`
+and `s10a-continuation-01-stopped-audit.json` are retained beside the original execution
+evidence under the existing `k98-s10a-implementation-20260914` temporary evidence directory.
+
+A separate continuation02 harness normalizes both name lists before exact comparison;
+offline regression rejects missing, extra and duplicate names. Only direct migration rerun,
+constraints (76 cases), drift and final audit remain, requiring approval after this new stop.
+No install/bootstrap/backup/restore will be repeated. Both original receipts remain immutable.
+These sequential SQL checks do not establish worker concurrency or provider guarantees.
+This evidence-only update needs no new security scan: migration and fixture bytes are unchanged.
+PR #85 remains unmerged and no production or bot-machine action occurred.
