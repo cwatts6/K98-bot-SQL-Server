@@ -1,13 +1,13 @@
 # SQL Delivery Log
 
-> Current KVK status, 2026-09-14: S9A repository delivery is complete. SQL #83,
-> Bot mirror #276 and production-repository #583 are merged and locally pulled.
-> No changes have been pulled to the bot machine; no deployment or activation is claimed.
-> S9B local Bot implementation and offline review are complete, including both approved path
-> amendments. The operator authorized the Bot mirror PR and this separate SQL documentation PR.
-> These delivery-log and migration-README updates are published in [SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84),
-> alongside [Bot mirror PR #277](https://github.com/cwatts6/K98-bot-mirror/pull/277) in the S9B cycle.
-> Earlier next-slice and publication-authorization wording describes historical checkpoints.
+> Current KVK status, 2026-09-14: S9B repository delivery is complete. SQL #84,
+> Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
+> Next is S10A Shared Export Coordination SQL Foundation, initial review/scope only.
+> These fresh delivery-log and migration-README updates are mandatory in the eventual S10A SQL
+> implementation PR. Bot handoff documentation stays in Bot for the next Bot implementation PR,
+> S10B; no standalone documentation PR. Earlier status/publication checkpoints are historical.
+> No SQL execution, bot-machine pull, deployment or activation is authorized by this update.
+
 
 
 This file records notable SQL delivery milestones that are useful to bot task-pack closeout and
@@ -652,3 +652,175 @@ Bot offline tests and Changes security evidence are recorded in [Bot mirror PR #
 and the S9B closeout linked from that PR;
 they do not establish SQL execution or live Discord acceptance. All retained gates, uncertain
 publications, databases and files remain preserved. No merge, deployment or activation occurs.
+
+
+## S9B delivered / S10A documentation carry-forward — 2026-09-14
+
+[SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84) merged at 13:27:17 UTC as
+`d0916f742f9c88743b97107dfca1f3acbcb32c2e`, final reviewed head
+`604af8f88e42f43cc80d1848b37312526e56338f`. Both SQL static CI runs passed. Exact provider
+coverage is these two documentation paths, with resulting blobs matching local SQL main.
+No migration or runtime SQL file was changed by that PR; no SQL execution was performed.
+
+Companion [Bot mirror #277](https://github.com/cwatts6/K98-bot-mirror/pull/277) and
+[production #584](https://github.com/cwatts6/k98-bot/pull/584) merged at 13:27:27 and 13:27:58 UTC.
+Their exact 56 provider entries cover all 58 physical paths after checking both filename and
+previous_filename for both S9A archive moves. Final blobs match synchronized Bot main.
+Final Bot offline evidence is 4,350 passed / 62 skipped, operational logs unchanged; final hosted
+quality, governance and secrets checks passed. These are retained results, not fresh execution.
+No changes have been pulled to the bot machine; no deployment or activation is claimed.
+
+S10A Shared Export Coordination SQL Foundation is next, initial review/scope only, using the
+new task pack/starter and S9B closeout retained in the Bot repository. The initial approved SQL
+manifest reserves a migration, six general export tables, one SQL validation file and the delivery
+log. The migration README is also mandatory, yielding ten initial delivery paths. Resolve the
+reserved migration date/sequence during scope before writing SQL. Do not rename merged migrations.
+
+**The eventual S10A SQL implementation PR must include these updated `docs/SQL_DELIVERY_LOG.md`
+and `migrations/README.md` alongside its reviewed SQL implementation.** Recheck pending changes
+at entry and before PR creation; verify exact filename/previous_filename coverage or explicit
+already-merged content proof. Counts alone are insufficient. The Bot-side documentation manifest,
+including S9B archive move origins/destinations and S10A preparation outputs, stays in Bot and is
+mandatory carry-forward into the next Bot implementation PR (S10B). S10A must preserve and hand
+that exact manifest onward. No standalone documentation PR or repository mixing; grouping is
+approved and must not be re-requested. Implementation and Git publication need separate approval.
+
+Preserve S6-OPS01/PERF01/CAP01, both uncertain publications and all retained databases/backups/files.
+S8B accepted smoke/50-case and actual-restore evidence remains separate from offline runner-history
+support, S8A six-script and S8C evidence. S8C seven local checks PASS is not live Discord acceptance.
+No SQL/provider/Discord execution, real imports/exports, bot-machine pull/restart/deployment,
+activation or predecessor rerun. SchemaMigrationHistory and actual execution records, not PR merges,
+remain the deployment truth. SourceRouting.Enabled alone is insufficient.
+
+Security routing: independent documentation-only skip for this exact two-Markdown-file update
+against `d0916f742f9c88743b97107dfca1f3acbcb32c2e`. No runtime, data-access, permission, configuration,
+dependency or persistence behavior changes. Validate links, documentation references, whitespace
+and exact paths. No SQL runtime execution or fresh security scan for this closeout.
+
+## S10A approved local SQL implementation — 2026-09-14
+
+The operator approved local implementation and closure of the physical-design gaps.
+This is additive SQL authoring, offline validation and Changes security review only.
+SQL execution (including disposable databases), provider/Discord operations, imports/exports,
+Git staging/commit/publication, bot-machine changes, deployment and activation remain unapproved.
+Earlier initial-scope statements above are historical. No S10B/C/D/E or S11 implementation.
+
+### Exact SQL delivery manifest
+
+The uncreated S7 reservation was amended to the actual authoring date and free sequence:
+`migrations/20260914_001_shared_export_coordination.sql`. No merged migration was renamed.
+The eventual SQL implementation PR must include ALL ten paths below, including both
+pre-existing pending documentation files. Check provider filename AND previous_filename,
+or supply per-path merged-content proof; counts alone are insufficient.
+
+- migrations/20260914_001_shared_export_coordination.sql
+- sql_schema/dbo.ExportJob.Table.sql
+- sql_schema/dbo.ExportJobResource.Table.sql
+- sql_schema/dbo.ExportResource.Table.sql
+- sql_schema/dbo.ExportRequestBudget.Table.sql
+- sql_schema/dbo.ExportAttempt.Table.sql
+- sql_schema/dbo.ExportAttemptPart.Table.sql
+- validation/kvk_source/s10_export_coordination.sql
+- docs/SQL_DELIVERY_LOG.md
+- migrations/README.md
+
+### Physical contract and closed design gaps
+
+All identity/enumeration text uses Latin1_General_100_BIN2. UUIDs are uniqueidentifier,
+digests binary(32), audit timestamps datetime2(0) UTC, budget timestamps datetime2(3) UTC.
+There are no application defaults, seed rows, permissions, cascade deletes or activation changes.
+Required identifiers reject empty/edge-spaced values; enums reject trailing-space aliases.
+
+| Table | Contract |
+|---|---|
+| ExportJob | JobID PK; ConsumerKind new_source/all_kvk/scan_data. New-source requires SourceKey=snapshot_report_v1, positive KVK_NO/PoolEpoch and scoped IntentID FK. All-KVK requires positive KVK_NO, no source intent/epoch; scan-data has no season/intent/epoch. AccountKey varchar(128), input/destination hashes; nullable RepairID. Replay UQ includes consumer/account/season/input/destination/epoch/repair, INCLUDING NULL epoch/repair tuples; no filtered NULL escape. SpoolKey varchar(128) is an opaque ASCII alphanumeric/underscore/hyphen token; SpoolBytes positive bigint and StorageOwner varchar(128) are all-or-none, mandatory for legacy/daily jobs. New-source may reload pinned SQL facts without a spool. |
+| ExportJob state | waiting/ready/running/confirmed/failed/uncertain/coalesced/cancelled. Unclaimed waiting/ready/coalesced/cancelled have NULL OwnerID and fence 0; attempted running/confirmed/failed/uncertain retain UUID OwnerID and positive fence. Version and EnqueueSequence are positive bigint. Tickets are caller-supplied, not identity or unique: a successor may inherit the original pending ticket while history retains it. Supersession is only coalesced new-source and FK-scoped to consumer/account/season/destination/epoch. Actor nvarchar(128), Reason nvarchar(1024), provenance valid JSON <=65536 bytes. |
+| ExportResource / ExportJobResource | ResourceKey varchar(256) PK; kind account/destination/sql_snapshot. JobResource PK(JobID,ResourceKey), both parent FKs and reverse index. Resource active ownership FK references declared membership, preventing an undeclared job claim. ActiveJobID/OwnerID are paired; claimed fence positive; free resources retain a nonnegative fence. BlockedReason nullable nvarchar(1024), Version positive bigint. A blocked resource may remain unassigned for an ambiguous historical association. |
+| ExportRequestBudget | PK(AccountKey varchar(128),BudgetKind varchar(32)); initial allowed kind google_request covers both Google client stacks. NextAllowedUTC required, CooldownUntilUTC optional, both datetime2(3). IntervalMilliseconds int 1..86400000; PolicyVersion/Version positive bigint. No seeded budget or implicit quota. Later DAL starts with the retained 2100ms spacing and reserves max(server UTC,next allowance,cooldown) atomically. The interval bound is representation safety, not provider quota; cooldown can extend independently. |
+| ExportAttempt | AttemptID PK, UQ(JobID,AttemptNo), positive bigint owner fence/attempt/remote sequence/CAS version. ConsumerKind and optional Epoch FKs pin job kind/epoch without binding old attempts to a mutable current owner. Phase private_started/verified/publication_pending/published/failed/uncertain/retired. Verified/publication phases require verification time; published/retired require publication time and receipt. Manifest hash and JSON required, receipt JSON optional; each JSON <=65536 bytes. PartCount int 1..1024 counts every represented file, including an index when present. This is a schema safety limit, not pool capacity or provider policy. |
+| ExportAttempt legacy reference | Optional complete six-column reference: publication/source/KVK/period/destination-kind/destination-ID. Exact SourceDelivery PK FK plus scoped SourcePublication FK and job-season FK. Only new-source attempts may reference this predecessor table, even though columns use the Legacy prefix. Existing receipt bytes remain in SourceDelivery. No receipt import/backfill occurs. |
+| ExportAttemptPart | PK(AttemptID,PartNo), UQ(AttemptID,FileID); FileID nvarchar(128) BIN2. PartCount copied and FK-bound to attempt; PartNo 1..PartCount. Role index/generation/output. ManifestHash required; GridCount positive int, RowCount nonnegative bigint, CellCount positive bigint >=RowCount. VerificationState pending/verified/failed/uncertain with verified timestamp required exactly for verified. AclState pending/private/public_viewer/failed/uncertain; non-pending requires observation time. QuarantineState none/quarantined; quarantine requires time/reason (nvarchar(1024)). EvidenceJson optional valid JSON <=65536 bytes; Version positive bigint. |
+
+The bounded manifest is metadata; normalized part rows hold per-file evidence. Exhaustion must
+reject before any provider mutation, never truncate receipts or assume 1024 files are provisioned.
+New vocabularies require a reviewed schema/protocol amendment, never unvalidated strings.
+
+Queue indexes support account/state/ticket, intent and supersession lookup. Resource reverse/active
+indexes support admission inspection. Attempt job/sequence and phase/time indexes support recovery.
+All scoped FK column types/collations were checked against authoritative snapshots.
+
+### Static SQL versus later writer obligations
+
+SQL enforces row shape, scoped relationships, bounded evidence and uniqueness. It does NOT prove
+temporal immutability, authorized repairs, valid provider receipts or complete manifest cardinality.
+Authorized later DAL must validate exactly PartCount distinct rows, hashes, pinned intent vector
+and matching legacy receipt publication membership before mutation/confirmation. Existing complete
+selection FKs alone also do not prove matching input tuples: keep S8B sealed-input/CAS validation.
+
+Resource ownership/fence updates must be monotonic and atomic across Job/Resource under the later
+admission protocol. Matching resource/job owner tuples, canonical resolved account/file identities,
+frozen resource membership, oldest-ticket fairness, retained repair authority, immutable attempt
+identity and valid phase transitions are DAL/service guarantees. Historical attempts must not FK
+to the mutable current job owner, nor be overwritten when another owner/attempt is admitted.
+
+Keep running A pinned while pending B/C arrive; coalesce only eligible pending new-source work,
+preserving B and its ticket. Daily SCANORDER jobs are not coalesced. An uncertain claim blocks
+conflicting admission even after timeout/lease expiry. SQL fences cannot cancel a submitted Google
+request. Blocked/unmapped history is not free capacity. Later recovery needs exact readback and
+terminated-worker evidence. Failed pre-mutation work may be retried under a new retained attempt;
+do not erase ownership evidence to make it look never attempted.
+
+Account admission precedes sorted destination acquisition and short job CAS. Budget reservations
+are separate short transactions; waits/provider calls occur after commit. Legacy SQL snapshot
+admission is confined to producer/capture work and released before provider work. All participating
+writers must use the same coordinator database/admission; bypassing writers remain a deployment
+gate. The existing Bot publication_gate/latest-selection behavior is unchanged until S10B/C.
+
+### Migration classification, order and recovery
+
+DataChange: No; zero existing application rows affected. RequiresBackup: Yes; DataSafetyPlan:
+Included; rollback Forward Fix Only. Creates Job, Resource, JobResource, Budget, Attempt and Part,
+then adds FKs including cyclic active membership. Uses XACT_ABORT and a transaction-owned schema
+application lock. Owns commit/rollback only when no caller transaction exists; an ambient caller
+must roll back on failure. No SQL transaction spans provider work.
+
+Absent-all installs atomically. Partial presence fails before creation. Full presence is verified
+against empty temporary expected shapes through SQL catalog comparisons: column types/nullability/
+collations, CHECK expressions without lossy normalization, trusted/enabled checks and FKs, index
+grouping/uniqueness/order, and absence of unexpected defaults/triggers/table modes. Conflicting
+schema is rejected without attempting history repair. Compatible reruns do not alter application
+rows. Deploy only the migration; snapshots describe post-installation state and their cyclic FKs
+require creating all tables first if constructing a separately approved empty prerequisite fixture.
+
+Forward correction retains tables, attempts, receipts and fences. No history cleanup, backfill,
+old-receipt mapping, automatic repair, predecessor rerun or manual migration-history rewrite.
+Deploy after S8A/S8B prerequisites and before coordinated Bot writers, with separate execution
+approval. Repository delivery is never proof of migration application.
+
+### Validation and retained evidence boundaries
+
+76 offline static checks and 85 T-SQL parse inputs passed (eight artifacts, embedded test body,
+76 case statements). The fixture authors 76 structural cases and four guarded modes (install,
+constraints, partial, drift), including exact NULL replay, repairs/epochs, scopes, key/JSON limits,
+ownership membership, budget precision, attempt/part evidence, and unchanged uncertain state on
+rerun. These SQL cases have NOT executed. Later execution requires exact new disposable target,
+reviewed migration hash, backup/actual-restore evidence and independent operation approval.
+No mock/static result establishes SQL Server catalog behavior, concurrency or provider acceptance.
+
+Offline validation evidence is retained outside Git at
+`C:/Users/cwatt/AppData/Local/Temp/k98-s10a-implementation-20260914`.
+Security review is separately tracked at its exact working-patch snapshot; do not treat this
+authoring checkpoint as a completed scan or live acceptance claim.
+
+All pending Bot documentation remains mandatory in S10B's next Bot implementation PR, including
+the S10A pack/starter, S9B closeout and both sides of both S9B archive moves. The new Bot handoff
+is added to that exact manifest; no Bot file enters this SQL PR, no standalone documentation PR.
+
+Preserve fixed source, supplied overall/B0, independent stats/targets/publication/roster/history/
+daily consumers, authoritative aggregate/DKP values, UTC starts, SCANORDER, unused scans, movable
+within-season windows, exact 11-10/12-10/13-10/authorized14-10 endpoint chain, sealed inputs/CAS,
+matched UpdateID, explicit counterpart attestation and admission locks. No summed-fight overall,
+mixed source, silent legacy fallback or activation from SourceRouting.Enabled alone.
+S6-OPS01/PERF01/CAP01 and both uncertain publications remain untouched. S8B accepted smoke/50-case/
+actual-restore evidence stays distinct from offline runner history, S8A six-script evidence and
+S8C execution/operator evidence. S8C seven local checks PASS is not live Discord acceptance.
