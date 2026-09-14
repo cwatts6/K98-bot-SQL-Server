@@ -1,13 +1,14 @@
 # SQL Migrations
 
-> S8B closeout, 2026-09-13: SQL #81 and Bot production #581 are merged and locally pulled;
-> S8B is complete and operator smoke accepted. No bot-machine pull or fresh post-merge SQL run.
-> The approved S8B disposable packet passed backup/actual restore, preview/apply/rerun and 50
-> SQL cases at its recorded hashes. Later runner/history support below has offline tests only.
-> See [SQL delivery log](../docs/SQL_DELIVERY_LOG.md) for exact merge and evidence distinctions.
-> S8C intake/admin UX is next for initial scope. This README status edit and the delivery-log
-> closeout append must accompany a later separate SQL PR or have exact merged-content proof;
-> neither belongs in the Bot PR. Existing execution guardrails remain unchanged.
+> Current KVK status, 2026-09-14: S9A repository delivery is complete. SQL #83,
+> Bot mirror #276 and production-repository #583 are merged and locally pulled.
+> No changes have been pulled to the bot machine; no deployment or activation is claimed.
+> S9B local Bot implementation and offline review are complete, including both approved path
+> amendments. The operator authorized the Bot mirror PR and this separate SQL documentation PR.
+> These delivery-log and migration-README updates are published in [SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84),
+> alongside [Bot mirror PR #277](https://github.com/cwatts6/K98-bot-mirror/pull/277) in the S9B cycle.
+> Earlier next-slice and publication-authorization wording describes historical checkpoints.
+
 
 This folder is the deployable source for intentional SQL changes.
 
@@ -238,3 +239,57 @@ All predecessor evidence, uncertain publications and S6 open gates remain separa
 These two SQL documentation paths were retained locally at the original closeout checkpoint
 and are now committed and published separately in SQL PR #83 for the S9A delivery cycle.
 Only documentation changed; no SQL runtime file, deployment or activation changed.
+
+## S9A delivered / S9B documentation carry-forward — 2026-09-14
+
+[SQL #83](https://github.com/cwatts6/K98-bot-SQL-Server/pull/83) merged at 10:13:01 UTC as
+`278b24b48ed075252217a5525ccb751f8e5bf928`, reviewed head
+`810ade56faa25f9e0333e0175b753bfa326190dd`. Local main/origin main match the merge;
+the worktree was clean at closeout entry. These are comparison anchors, never reset instructions.
+The exact two delivered files were the SQL delivery log and migration README, with local blob
+matches. Both SQL static CI checks passed; this documentation-only PR introduced no SQL runtime
+change and no migration execution. Historical metadata/CI-link review comments were addressed.
+
+Companion [Bot mirror #276](https://github.com/cwatts6/K98-bot-mirror/pull/276) and
+[production #583](https://github.com/cwatts6/K98-bot/pull/583) are merged. Their 56 GitHub entries
+cover the exact 58 physical Bot paths after checking filenames and previous filenames for both
+S8C archive moves; resulting blobs match synchronized Bot main. The Bot S9A closeout and S9B pack
+record current evidence and the fresh pending documentation manifest. S9A's delivered union is
+not the next slice's pending carry-forward.
+
+The operator approved these documentation updates on 2026-09-14. Both files are now published
+in [SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84) in the same delivery cycle
+as [Bot mirror PR #277](https://github.com/cwatts6/K98-bot-mirror/pull/277). The SQL files are
+excluded from Bot. Exact provider filename/previous_filename coverage was verified before
+ready-for-review, with no missing paths or already-merged exemptions. The final Bot scope is
+23 runtime/test paths after the approved posting amendment; there is no SQL runtime amendment.
+Authoritative SQL definitions were validated during Bot implementation.
+
+Retain S8B accepted disposable smoke/50-case and actual-restore evidence separately from offline
+runner-history support, S8A six-script evidence and S8C disposable SQL/folder smoke. Chris's seven
+local S8C operator checks PASS on 2026-09-14 is not live Discord acceptance. The completed evidence
+does not prove production migration application. Preserve S6-OPS01/PERF01/CAP01, both uncertain
+publications and all retained databases, backups and files; no predecessor rerun or cleanup.
+PR publication was subsequently authorized and completed for the two linked PRs. SQL/provider/Discord
+execution, real import/export, bot-machine pull/restart/deployment and activation remain excluded.
+Deployment history remains governed
+by the migration files and actual SchemaMigrationHistory, not repository merge records.
+
+Security routing: independent documented skip for this exact two-Markdown-file working-tree patch
+against `278b24b48ed075252217a5525ccb751f8e5bf928`; no SQL/data-access, permissions, configuration,
+execution or persistence behavior changes. No security scan or SQL execution. Validate Markdown
+links, exact pending paths and whitespace; runtime SQL checks are intentionally not rerun.
+
+
+## S9B publication checkpoint — 2026-09-14
+
+The operator authorized PR creation following local Bot implementation and review. The final
+Bot scope is 23 runtime/test paths plus 35 documentation paths, including the two approved
+path amendments. This SQL PR remains limited to `docs/SQL_DELIVERY_LOG.md` and
+`migrations/README.md`; no SQL runtime amendment or execution is included. Earlier scope-only
+and publication-not-authorized statements describe the historical closeout checkpoint.
+The independent documentation-only security skip still applies to these exact two paths.
+Bot offline tests and Changes security evidence are recorded in [Bot mirror PR #277](https://github.com/cwatts6/K98-bot-mirror/pull/277)
+and the S9B closeout linked from that PR;
+they do not establish SQL execution or live Discord acceptance. All retained gates, uncertain
+publications, databases and files remain preserved. No merge, deployment or activation occurs.
