@@ -8,6 +8,9 @@
 -- Record UTF-8 file SHA256 independently; no SQLCMD, network reads or runner defaults.
 -- All case-created schema/data rolls back. Retain the database and external evidence.
 -- These sequential structural cases do not prove worker concurrency or provider safety.
+-- Include separately approved install/constraints runs where the disposable database
+-- collation differs from tempdb; retain both collation values with the execution evidence.
+-- This source-only checkpoint does not claim that cross-collation execution passed.
 SET NOCOUNT ON;
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;

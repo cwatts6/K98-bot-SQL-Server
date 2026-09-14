@@ -225,6 +225,7 @@ ALTER TABLE dbo.ExportAttempt WITH CHECK ADD CONSTRAINT FK_ExportAttempt_LegacyS
 ALTER TABLE dbo.ExportAttemptPart WITH CHECK ADD CONSTRAINT FK_ExportAttemptPart_Attempt FOREIGN KEY (AttemptID, PartCount) REFERENCES dbo.ExportAttempt (AttemptID, PartCount);
 END;
 -- Exact rerun verification; temporary empty shapes never copy application data.
+-- Database-default text must model the application database, not tempdb collation.
 CREATE TABLE #S10A_ExportJob
 (
     JobID uniqueidentifier NOT NULL,
@@ -249,8 +250,8 @@ CREATE TABLE #S10A_ExportJob
     UpdatedUTC datetime2(0) NOT NULL,
     SupersededByJobID uniqueidentifier NULL,
     Actor nvarchar(128) COLLATE Latin1_General_100_BIN2 NOT NULL,
-    Reason nvarchar(1024) NOT NULL,
-    ProvenanceJson nvarchar(max) NOT NULL,
+    Reason nvarchar(1024) COLLATE DATABASE_DEFAULT NOT NULL,
+    ProvenanceJson nvarchar(max) COLLATE DATABASE_DEFAULT NOT NULL,
     PRIMARY KEY (JobID),
     UNIQUE (ConsumerKind, AccountKey, KVK_NO, InputHash, DestinationSetHash, PoolEpoch, RepairID),
     UNIQUE (JobID, ConsumerKind),
@@ -278,7 +279,7 @@ CREATE TABLE #S10A_ExportResource
     ActiveJobID uniqueidentifier NULL,
     OwnerID uniqueidentifier NULL,
     Fence bigint NOT NULL,
-    BlockedReason nvarchar(1024) NULL,
+    BlockedReason nvarchar(1024) COLLATE DATABASE_DEFAULT NULL,
     Version bigint NOT NULL,
     PRIMARY KEY (ResourceKey),
     CHECK (LEN(ResourceKey) > 0 AND DATALENGTH(ResourceKey) = DATALENGTH(LTRIM(RTRIM(ResourceKey)))),
@@ -327,8 +328,8 @@ CREATE TABLE #S10A_ExportAttempt
     VerifiedUTC datetime2(0) NULL,
     PublishedUTC datetime2(0) NULL,
     ManifestHash binary(32) NOT NULL,
-    ManifestJson nvarchar(max) NOT NULL,
-    ReceiptJson nvarchar(max) NULL,
+    ManifestJson nvarchar(max) COLLATE DATABASE_DEFAULT NOT NULL,
+    ReceiptJson nvarchar(max) COLLATE DATABASE_DEFAULT NULL,
     PartCount int NOT NULL,
     LegacyPublicationID uniqueidentifier NULL,
     LegacySourceKey varchar(32) COLLATE Latin1_General_100_BIN2 NULL,
@@ -367,8 +368,8 @@ CREATE TABLE #S10A_ExportAttemptPart
     AclCheckedUTC datetime2(0) NULL,
     QuarantineState varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,
     QuarantinedUTC datetime2(0) NULL,
-    QuarantineReason nvarchar(1024) NULL,
-    EvidenceJson nvarchar(max) NULL,
+    QuarantineReason nvarchar(1024) COLLATE DATABASE_DEFAULT NULL,
+    EvidenceJson nvarchar(max) COLLATE DATABASE_DEFAULT NULL,
     Version bigint NOT NULL,
     PRIMARY KEY (AttemptID, PartNo),
     UNIQUE (AttemptID, FileID),

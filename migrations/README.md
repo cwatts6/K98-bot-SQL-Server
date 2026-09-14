@@ -476,3 +476,14 @@ non-table name conflicts explicitly before counting user tables for the absent/c
 The additional type_conflict fixture mode creates a synthetic conflicting view inside its
 rollback transaction and requires the exact migration error without any new export table.
 All five modes and 76 structural cases remain unexecuted; no SQL execution is authorized.
+
+
+### PR #85 temporary-shape collation correction — 2026-09-14
+
+Seven temporary reason/JSON columns now explicitly use COLLATE DATABASE_DEFAULT so their
+expected catalog shape matches permanent columns inheriting the application database default,
+even when tempdb differs. Explicit BIN2 identity columns and permanent schemas are unchanged.
+Static regression checks compare every temporary character column with its permanent counterpart.
+Before deployment, separately authorize the existing install/constraints fixture modes against
+a new disposable database with collation different from tempdb, recording both collations.
+That SQL execution remains pending; parser/static checks are not runtime collation evidence.
