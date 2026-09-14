@@ -177,3 +177,64 @@ S8B delivery record: accepted operator smoke, retained 50-case disposable eviden
 later offline review fixes and offline-only runner history support are distinct.
 S8A six-script evidence remains separate. No fresh post-merge or bot-machine run
 is claimed. This checkpoint does not authorize Git publication or deployment.
+
+## S8C merged delivery and next steps — 2026-09-13
+
+S8C code review and repository delivery are complete. SQL #82 merged at 18:43:41 UTC as
+3c1b5ceaa7a686bc594ca8637d0a1569030d66c4 (reviewed head 083718e971acc7d4593610199a5575bd3159b4e8).
+Mirror #275 merged at 18:44:03 UTC; production-repository #582 merged at 18:45:13 UTC as
+afac4118db4bca282c8d12ea3d121701ae2da3c0. Local SQL main/origin main matches its merge; Bot
+main/origin main b6e45293348ece7b562e29c0451a8c3a7dbe2550 is synchronized from production.
+All six actual SQL PR file blobs match local HEAD; production's 69 physical Bot paths were
+also verified, including archive previous_filename entries. Both worktrees were clean at entry.
+
+Final Bot offline evidence: 4214 passed / 62 skipped, 96 focused tests, operational logs unchanged.
+At the repository-delivery checkpoint, hosted Bot and SQL CI passed and the SQL static contract
+checker passed 13 checks. The S8C disposable fixture and five opt-in Bot SQL cases had not yet run
+at that checkpoint. Their later approved execution for the named disposable target is recorded in
+the [disposable execution addendum](#2026-09-13-approved-s8c-disposable-execution-addendum) below.
+No bot-machine pull, deployment or activation is claimed. Local whole-repo validation previously
+could not write its sandboxed log; hosted SQL validation passed. Earlier entries retain their
+dated scope; the addendum supersedes only the named disposable-execution status.
+
+The next implementation slice is S9A Public Routing and Availability, initial review/scope only,
+as specified in the approved S7 manifests. See the companion Bot documentation
+`s8c_closeout_and_s9a_handoff.md` and S9A pack/starter; completed S8C pack/starter are archived.
+Separately scope exact disposable SQL migration/fixture and intake smoke operations for approval
+before enabling dependent intake. Apply the additive S8C table after reviewed S8A/S8B prerequisites;
+no predecessor rerun is implied. SourceRouting.Enabled alone does not implement public routing.
+S9B cards, S10 exports and S11 integration evidence remain later slices.
+
+Preserve accepted S8B smoke and 50-case/actual-restore evidence separately from offline review fixes
+and offline-only runner-history support; S8A six-script/VERIFYONLY evidence remains separate.
+Preserve S6-OPS01/PERF01/CAP01, both uncertain publications and all databases/backups/files.
+This append in docs/SQL_DELIVERY_LOG.md and migrations/README.md is the exact two-path pending SQL
+closeout carry-forward against 3c1b5ceaa7a686bc594ca8637d0a1569030d66c4. Deliver it in a separately
+authorized SQL PR, never in a Bot PR; omissions require specific merged-content proof.
+Security skip: Markdown status/evidence only, no SQL/config/runtime behavior change. No SQL
+execution, Git mutation, provider/Discord action or deployment occurs in this closeout.
+
+
+## 2026-09-13 approved S8C disposable execution addendum
+
+Supersedes the earlier unrun-S8C statements above for this named disposable target only.
+Operator approved instance `9SX2VF4\K98DEV`, primary
+`K98_S8C_Disposable_20260913_intake`, separate `_restore` database and
+`C:/K98-S8C-Smoke/20260913`. New prerequisite fixture backup/VERIFYONLY/actual restore,
+S8C migration apply/rerun, rollback fixture and five opt-in S8C SQL tests passed.
+The static contract validator passed 13 checks. This used direct SQL execution, not deployment
+runner history. S8A/B snapshots were empty prerequisite fixtures; their installers/tests were not rerun.
+
+Real Bot intake/services/DAL used this disposable SQL for synthetic B0, waiting-pair completion,
+11−10/12−10/13−10 then authorized 14−10, later 17/18 assignment, no-fight, independent overall,
+weight/camp corrections, explicit synthetic attestation, CAS and semantic duplicate checks.
+No production code fix was required. SourceRouting remained disabled and no provider delivery ran.
+See [Bot companion PR #276](https://github.com/cwatts6/K98-bot-mirror/pull/276), its
+`s8c_folder_intake_smoke_evidence.md`, and retained
+`C:/K98-S8C-Smoke/20260913/evidence` for scripts, hashes, failures/resumptions, exact assertions
+and limits. Live Discord, real Google kvk_list import and bot-machine smoke are not claimed.
+
+All predecessor evidence, uncertain publications and S6 open gates remain separate and preserved.
+These two SQL documentation paths were retained locally at the original closeout checkpoint
+and are now committed and published separately in SQL PR #83 for the S9A delivery cycle.
+Only documentation changed; no SQL runtime file, deployment or activation changed.
