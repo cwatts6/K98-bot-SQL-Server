@@ -2,7 +2,7 @@
 -- Requires a separately approved NEW K98_S10A_Disposable_* database and exact server,
 -- plus empty S8A/S8B prerequisite snapshots. Never rerun predecessor migrations/tests.
 -- Caller supplies SESSION_CONTEXT keys S10A_AUTHORIZED=1, S10A_SERVER, S10A_DATABASE,
--- S10A_CASE: install, constraints, partial or drift. Each case has its own exact approval.
+-- S10A_CASE: install, constraints, partial, drift or type_conflict. Each case has its own exact approval.
 -- #S10AMigrationInput(SqlText nvarchar(max), ExpectedUtf16Hash binary(32),
 -- BackupEvidence nvarchar(1024), RestoreEvidence nvarchar(1024)): one reviewed bound row.
 -- Record UTF-8 file SHA256 independently; no SQLCMD, network reads or runner defaults.
@@ -19,7 +19,7 @@ IF COALESCE(TRY_CONVERT(int,SESSION_CONTEXT(N'S10A_AUTHORIZED')),0) <> 1
  OR DB_ID() <= 4 OR DB_NAME() NOT LIKE N'K98[_]S10A[_]Disposable[_]%'
     THROW 51900, 'Exact new S10A disposable target authorization required.', 1;
 DECLARE @Case varchar(32)=CONVERT(varchar(32),SESSION_CONTEXT(N'S10A_CASE'));
-IF @Case IS NULL OR @Case COLLATE Latin1_General_100_BIN2 NOT IN ('install','constraints','partial','drift') OR DATALENGTH(@Case)<>LEN(@Case)
+IF @Case IS NULL OR @Case COLLATE Latin1_General_100_BIN2 NOT IN ('install','constraints','partial','drift','type_conflict') OR DATALENGTH(@Case)<>LEN(@Case)
     THROW 51900, 'Exact S10A case required.', 1;
 IF OBJECT_ID(N'tempdb..#S10AMigrationInput') IS NULL THROW 51900, 'Reviewed migration and backup/restore evidence required.', 1;
 IF (SELECT COUNT_BIG(*) FROM #S10AMigrationInput)<>1 OR EXISTS
@@ -30,7 +30,9 @@ IF (SELECT COUNT_BIG(*) FROM #S10AMigrationInput)<>1 OR EXISTS
 DECLARE @Migration nvarchar(max)=(SELECT SqlText FROM #S10AMigrationInput);
 DECLARE @WasXactAbort bit=CASE WHEN (16384 & @@OPTIONS)=16384 THEN 1 ELSE 0 END;
 DECLARE @ExpectedObjects int=CASE WHEN @Case IN ('constraints','drift') THEN 6 ELSE 0 END;
-IF (SELECT COUNT(*) FROM sys.objects WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN
+IF EXISTS (SELECT 1 FROM sys.objects WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN ('ExportJob','ExportResource','ExportJobResource','ExportRequestBudget','ExportAttempt','ExportAttemptPart') AND type <> 'U')
+    THROW 51900, 'Fixture object type conflict; preserve the existing object and select an empty authorized target.', 1;
+IF (SELECT COUNT(*) FROM sys.tables WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN
  ('ExportJob','ExportResource','ExportJobResource','ExportRequestBudget','ExportAttempt','ExportAttemptPart'))<>@ExpectedObjects
     THROW 51900, 'Fixture requires the exact initial S10A object state.', 1;
 IF EXISTS (SELECT 1 FROM KVK.SeasonSource) OR EXISTS (SELECT 1 FROM KVK.SourceExportIntent)
@@ -45,7 +47,21 @@ BEGIN
 END;
 BEGIN TRANSACTION;
 BEGIN TRY
-    IF @Case='partial'
+    IF @Case='type_conflict'
+    BEGIN
+        EXEC sys.sp_executesql N'CREATE VIEW dbo.ExportJob AS SELECT CONVERT(int,1) AS SyntheticValue;';
+        BEGIN TRY
+            EXEC sys.sp_executesql @Migration;
+            THROW 51901, 'Non-table name conflict was accepted.', 1;
+        END TRY
+        BEGIN CATCH
+            IF ERROR_NUMBER()<>51000 OR ERROR_MESSAGE() NOT LIKE 'S10A object type conflict;%' THROW;
+        END CATCH;
+        IF OBJECT_ID(N'dbo.ExportJob',N'V') IS NULL
+           OR EXISTS (SELECT 1 FROM sys.tables WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN ('ExportJob','ExportResource','ExportJobResource','ExportRequestBudget','ExportAttempt','ExportAttemptPart'))
+            THROW 51901, 'Type conflict rejection changed the fixture schema.', 1;
+    END
+    ELSE IF @Case='partial'
     BEGIN
         EXEC sys.sp_executesql N'CREATE TABLE dbo.ExportJob (JobID uniqueidentifier NOT NULL);';
         BEGIN TRY

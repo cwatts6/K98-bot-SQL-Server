@@ -2,8 +2,10 @@
 
 > Current KVK status, 2026-09-14: S9B repository delivery is complete. SQL #84,
 > Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
-> Next is S10A Shared Export Coordination SQL Foundation, initial review/scope only.
-> These fresh delivery-log and migration-README updates are mandatory in the eventual S10A SQL
+> S10A Shared Export Coordination SQL Foundation is implemented and published in
+> [SQL PR #85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85), pending review and merge.
+> Static validation passed; SQL fixture execution remains separately approval-gated.
+> Both delivery-log and migration-README updates are included in that S10A SQL
 > implementation PR. Bot handoff documentation stays in Bot for the next Bot implementation PR,
 > S10B; no standalone documentation PR. Earlier status/publication checkpoints are historical.
 > No SQL execution, bot-machine pull, deployment or activation is authorized by this update.
@@ -441,8 +443,8 @@ approval. Repository delivery is never proof of migration application.
 ### Validation and retained evidence boundaries
 
 76 offline static checks and 85 T-SQL parse inputs passed (eight artifacts, embedded test body,
-76 case statements). The fixture authors 76 structural cases and four guarded modes (install,
-constraints, partial, drift), including exact NULL replay, repairs/epochs, scopes, key/JSON limits,
+76 case statements). The fixture authors 76 structural cases and five guarded modes (install,
+constraints, partial, drift, type_conflict), including exact NULL replay, repairs/epochs, scopes, key/JSON limits,
 ownership membership, budget precision, attempt/part evidence, and unchanged uncertain state on
 rerun. These SQL cases have NOT executed. Later execution requires exact new disposable target,
 reviewed migration hash, backup/actual-restore evidence and independent operation approval.
@@ -465,3 +467,12 @@ mixed source, silent legacy fallback or activation from SourceRouting.Enabled al
 S6-OPS01/PERF01/CAP01 and both uncertain publications remain untouched. S8B accepted smoke/50-case/
 actual-restore evidence stays distinct from offline runner history, S8A six-script evidence and
 S8C execution/operator evidence. S8C seven local checks PASS is not live Discord acceptance.
+
+
+### PR #85 review corrections — 2026-09-14
+
+Current banners now reflect the implemented/open-PR checkpoint. Migration and fixture reject
+non-table name conflicts explicitly before counting user tables for the absent/complete state.
+The additional type_conflict fixture mode creates a synthetic conflicting view inside its
+rollback transaction and requires the exact migration error without any new export table.
+All five modes and 76 structural cases remain unexecuted; no SQL execution is authorized.

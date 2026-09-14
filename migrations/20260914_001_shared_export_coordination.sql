@@ -43,7 +43,9 @@ IF OBJECT_ID(N'KVK.SourceExportIntent',N'U') IS NULL
    OR OBJECT_ID(N'KVK.SourceDelivery',N'U') IS NULL
    OR OBJECT_ID(N'KVK.SourcePublication',N'U') IS NULL
     THROW 51000, 'S10A requires the reviewed S8A/S8B intent, selection and receipt schema.', 1;
-DECLARE @S10AExisting int = (SELECT COUNT(*) FROM sys.objects WHERE schema_id = SCHEMA_ID(N'dbo') AND name IN (N'ExportJob',N'ExportResource',N'ExportJobResource',N'ExportRequestBudget',N'ExportAttempt',N'ExportAttemptPart'));
+IF EXISTS (SELECT 1 FROM sys.objects WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN ('ExportJob','ExportResource','ExportJobResource','ExportRequestBudget','ExportAttempt','ExportAttemptPart') AND type <> 'U')
+    THROW 51000, 'S10A object type conflict; preserve the existing object and review a forward correction.', 1;
+DECLARE @S10AExisting int = (SELECT COUNT(*) FROM sys.tables WHERE schema_id = SCHEMA_ID(N'dbo') AND name IN (N'ExportJob',N'ExportResource',N'ExportJobResource',N'ExportRequestBudget',N'ExportAttempt',N'ExportAttemptPart'));
 IF @S10AExisting NOT IN (0,6) THROW 51000, 'Partial S10A installation: preserve state and review a forward correction.', 1;
 IF @S10AExisting = 0
 BEGIN
