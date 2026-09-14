@@ -1,13 +1,17 @@
 # SQL Delivery Log
 
-> Current KVK status, 2026-09-14: S9A repository delivery is complete. SQL #83,
-> Bot mirror #276 and production-repository #583 are merged and locally pulled.
-> No changes have been pulled to the bot machine; no deployment or activation is claimed.
-> S9B local Bot implementation and offline review are complete, including both approved path
-> amendments. The operator authorized the Bot mirror PR and this separate SQL documentation PR.
-> These delivery-log and migration-README updates are published in [SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84),
-> alongside [Bot mirror PR #277](https://github.com/cwatts6/K98-bot-mirror/pull/277) in the S9B cycle.
-> Earlier next-slice and publication-authorization wording describes historical checkpoints.
+> Current KVK status, 2026-09-14: S9B repository delivery is complete. SQL #84,
+> Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
+> S10A Shared Export Coordination SQL Foundation is implemented and published in
+> [SQL PR #85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85), pending review and merge.
+> Approved disposable validation is complete: backup/actual restore, all five fixture modes,
+> 76 unique structural cases in both install and constraints, and direct apply/rerun passed.
+> Retained databases and evidence are preserved; merge and deployment remain separate.
+> Both delivery-log and migration-README updates are included in that S10A SQL
+> implementation PR. Bot handoff documentation stays in Bot for the next Bot implementation PR,
+> S10B; no standalone documentation PR. Earlier status/publication checkpoints are historical.
+> No SQL execution, bot-machine pull, deployment or activation is authorized by this update.
+
 
 
 This file records notable SQL delivery milestones that are useful to bot task-pack closeout and
@@ -27,7 +31,7 @@ what has actually been deployed.
 | 2026-07-09 | `20260709_001_add_update_all2_audit_outputs` / SQL PR #41 | Deployed to production | Added non-invasive `dbo.UPDATE_ALL2` phase audit output rows while preserving output tables, `SP_TaskStatus` polling, and the final 8-column summary result set consumed by the bot. Bot PRs #215/#522 parse and persist the phase rows through generic `ImportAuditPhase`. Production smoke confirmed fallback batch 67 completed normally, emitted 13 `update_all2_*` subphase rows, identified `update_all2_summary_proc` as the dominant first-sample visible subphase at about 78 seconds, and showed no `_update_all2_phase_results` leakage after the bot review-fix restart. Follow-up work is evidence review before any `SUMMARY_PROC` or `UPDATE_ALL2` decomposition. |
 
 
-## S8A KVK SQL foundation — authored 2026-09-12, execution not authorized
+## S8A KVK SQL foundation â€” authored 2026-09-12, execution not authorized
 
 Chris Watts approved the eight-file implementation, static validation and exact SQL
 Changes security review. Initial scope completed before authoring. SQL is on `main`
@@ -145,7 +149,7 @@ patch against `a2f148fa9bd4fb367fd46d0500a768c14fee915b` qualifies for documente
 no executable, permission, configuration, dependency, input, data-access, network or
 persistence behavior changes. There is no standard/deep audit or new task.
 
-### Exact proposed disposable execution plan — requires separate approval
+### Exact proposed disposable execution plan â€” requires separate approval
 
 Proposed server: `9SX2VF4\K98DEV`, reached locally using `lpc:localhost\K98DEV` and
 Windows authentication. This is a proposal based on retained evidence, **not a fresh
@@ -222,7 +226,7 @@ evidence for each omitted path. No stage/commit/push/PR/merge/pull/reset/fetch i
 This is a reviewable file/static-evidence checkpoint, not deployment or release approval.
 
 
-## S8A disposable execution and PR handoff — 2026-09-12
+## S8A disposable execution and PR handoff â€” 2026-09-12
 
 The operator separately approved the exact six-script disposable package after the
 read-only target/name/backup-path preflight. All six scripts completed with sqlcmd exit
@@ -318,7 +322,7 @@ they do not claim runtime coverage of the new runner path. Offline regression ch
 cover same-connection ordering, hash/directive rejection and error/disposal behavior.
 The runner change requires its own exact Changes review, Deep off, before final handoff.
 
-## S8A accepted closeout and S8B handoff — 2026-09-13
+## S8A accepted closeout and S8B handoff â€” 2026-09-13
 
 S8A is complete, operator smoke accepted and merged. SQL PR #80 merged at
 2026-09-13 06:47:39 UTC as `50310950a1adb7425e6db6bc86f38bdeb38e0830`, reviewed
@@ -340,7 +344,7 @@ Next is S8B Bot source/matched-update DAL and services, initial review/scope in 
 It owns immutable choices/sealed tuples, authorization, eligibility/counterpart validation,
 CAS and atomic complete selection plus full-vector intent. Ordinary public routing remains
 separate S9 work; SourceRouting.Enabled alone is insufficient. Further database operations
-require exact target, backup/row preview and operation approval. S1–S6 acceptance,
+require exact target, backup/row preview and operation approval. S1â€“S6 acceptance,
 S6-OPS01/PERF01/CAP01, both uncertain publications and every retained database/file remain intact.
 
 This append is a separate SQL documentation carry-forward for a later authorized SQL PR,
@@ -352,7 +356,7 @@ executable/configuration/permission/data-access/deployment/persistence behavior 
 No SQL connection/execution, stage/commit/push/PR/merge, deployment or cleanup performed.
 
 
-## S8B no-fight update amendment — 2026-09-13 (authored, not executed)
+## S8B no-fight update amendment â€” 2026-09-13 (authored, not executed)
 
 The operator approved closing the recorded S8B gaps. Migration
 `20260913_001_kvk_source_update_no_fight_context.sql` adds required `SourceUpdate.PeriodKind`
@@ -389,7 +393,7 @@ SQL delivery-log carry-forward in the SQL PR, never in the Bot PR. No SQL connec
 Git publication, deployment, predecessor rerun or retained-data cleanup occurred.
 
 
-## S8B approved disposable execution completed — 2026-09-13
+## S8B approved disposable execution completed â€” 2026-09-13
 
 The operator approved the exact new target `9SX2VF4\K98DEV` /
 `K98_S8B_Disposable_20260913_validation` and separate actual-restore database
@@ -423,7 +427,7 @@ This append is documentation-only and has a precise security skip: no executable
 permission, input, data-access or persistence change. All retained S6/S7/S8A evidence remains.
 
 
-## Operator acceptance and publication approval — 2026-09-13
+## Operator acceptance and publication approval â€” 2026-09-13
 
 The operator accepted the completed S8B implementation, gap closure and disposable validation,
 and explicitly approved publication. Publish separate Bot mirror and SQL PRs with the exact
@@ -435,7 +439,7 @@ remains exclusively in the SQL PR. Source/test bytes are unchanged from accepted
 final Changes reviews; these acceptance/status edits have a documentation-only security skip.
 
 
-## PR #81 review action — supported S8B runner path
+## PR #81 review action â€” supported S8B runner path
 
 The P1 missing same-session input/history path was confirmed. The approved review-action scope
 adds deploy/Deploy-SqlMigration.ps1 and deploy/Test-S8AMigrationInputs.ps1 to the SQL delivery:
@@ -473,7 +477,7 @@ not tested against live SQL. The retained 50-case disposable result remains hist
 for its recorded source. Documentation-only follow-up evidence has a precise security skip.
 
 
-## S8B accepted closeout and S8C documentation carry-forward — 2026-09-13
+## S8B accepted closeout and S8C documentation carry-forward â€” 2026-09-13
 
 SQL #81 merged at 10:57:34 UTC as 3983522feb0ff90c96ba56ca11c2dac177f84ca6, final reviewed
 head 32d7752f90fba9bbc805d86f80326ce78771924a. All six actual PR file blobs match local
@@ -538,7 +542,7 @@ The 13 text-only contract checks pass. Follow-up Changes security review
 2f419bfbee3124e5bb88b6b94c9768164d431c15. No SQL was executed and the table definition is unchanged.
 The six-path SQL PR union and original S8B documentation carry-forward remain intact.
 
-## S8C merged delivery and next steps — 2026-09-13
+## S8C merged delivery and next steps â€” 2026-09-13
 
 S8C code review and repository delivery are complete. SQL #82 merged at 18:43:41 UTC as
 3c1b5ceaa7a686bc594ca8637d0a1569030d66c4 (reviewed head 083718e971acc7d4593610199a5575bd3159b4e8).
@@ -586,7 +590,7 @@ The static contract validator passed 13 checks. This used direct SQL execution, 
 runner history. S8A/B snapshots were empty prerequisite fixtures; their installers/tests were not rerun.
 
 Real Bot intake/services/DAL used this disposable SQL for synthetic B0, waiting-pair completion,
-11−10/12−10/13−10 then authorized 14−10, later 17/18 assignment, no-fight, independent overall,
+11âˆ’10/12âˆ’10/13âˆ’10 then authorized 14âˆ’10, later 17/18 assignment, no-fight, independent overall,
 weight/camp corrections, explicit synthetic attestation, CAS and semantic duplicate checks.
 No production code fix was required. SourceRouting remained disabled and no provider delivery ran.
 See [Bot companion PR #276](https://github.com/cwatts6/K98-bot-mirror/pull/276), its
@@ -599,7 +603,7 @@ These two SQL documentation paths were retained locally at the original closeout
 and are now committed and published separately in SQL PR #83 for the S9A delivery cycle.
 Only documentation changed; no SQL runtime file, deployment or activation changed.
 
-## S9A delivered / S9B documentation carry-forward — 2026-09-14
+## S9A delivered / S9B documentation carry-forward â€” 2026-09-14
 
 [SQL #83](https://github.com/cwatts6/K98-bot-SQL-Server/pull/83) merged at 10:13:01 UTC as
 `278b24b48ed075252217a5525ccb751f8e5bf928`, reviewed head
@@ -640,7 +644,7 @@ execution or persistence behavior changes. No security scan or SQL execution. Va
 links, exact pending paths and whitespace; runtime SQL checks are intentionally not rerun.
 
 
-## S9B publication checkpoint — 2026-09-14
+## S9B publication checkpoint â€” 2026-09-14
 
 The operator authorized PR creation following local Bot implementation and review. The final
 Bot scope is 23 runtime/test paths plus 35 documentation paths, including the two approved
@@ -652,3 +656,274 @@ Bot offline tests and Changes security evidence are recorded in [Bot mirror PR #
 and the S9B closeout linked from that PR;
 they do not establish SQL execution or live Discord acceptance. All retained gates, uncertain
 publications, databases and files remain preserved. No merge, deployment or activation occurs.
+
+
+## S9B delivered / S10A documentation carry-forward â€” 2026-09-14
+
+[SQL PR #84](https://github.com/cwatts6/K98-bot-SQL-Server/pull/84) merged at 13:27:17 UTC as
+`d0916f742f9c88743b97107dfca1f3acbcb32c2e`, final reviewed head
+`604af8f88e42f43cc80d1848b37312526e56338f`. Both SQL static CI runs passed. Exact provider
+coverage is these two documentation paths, with resulting blobs matching local SQL main.
+No migration or runtime SQL file was changed by that PR; no SQL execution was performed.
+
+Companion [Bot mirror #277](https://github.com/cwatts6/K98-bot-mirror/pull/277) and
+[production #584](https://github.com/cwatts6/k98-bot/pull/584) merged at 13:27:27 and 13:27:58 UTC.
+Their exact 56 provider entries cover all 58 physical paths after checking both filename and
+previous_filename for both S9A archive moves. Final blobs match synchronized Bot main.
+Final Bot offline evidence is 4,350 passed / 62 skipped, operational logs unchanged; final hosted
+quality, governance and secrets checks passed. These are retained results, not fresh execution.
+No changes have been pulled to the bot machine; no deployment or activation is claimed.
+
+S10A Shared Export Coordination SQL Foundation is next, initial review/scope only, using the
+new task pack/starter and S9B closeout retained in the Bot repository. The initial approved SQL
+manifest reserves a migration, six general export tables, one SQL validation file and the delivery
+log. The migration README is also mandatory, yielding ten initial delivery paths. Resolve the
+reserved migration date/sequence during scope before writing SQL. Do not rename merged migrations.
+
+**The eventual S10A SQL implementation PR must include these updated `docs/SQL_DELIVERY_LOG.md`
+and `migrations/README.md` alongside its reviewed SQL implementation.** Recheck pending changes
+at entry and before PR creation; verify exact filename/previous_filename coverage or explicit
+already-merged content proof. Counts alone are insufficient. The Bot-side documentation manifest,
+including S9B archive move origins/destinations and S10A preparation outputs, stays in Bot and is
+mandatory carry-forward into the next Bot implementation PR (S10B). S10A must preserve and hand
+that exact manifest onward. No standalone documentation PR or repository mixing; grouping is
+approved and must not be re-requested. Implementation and Git publication need separate approval.
+
+Preserve S6-OPS01/PERF01/CAP01, both uncertain publications and all retained databases/backups/files.
+S8B accepted smoke/50-case and actual-restore evidence remains separate from offline runner-history
+support, S8A six-script and S8C evidence. S8C seven local checks PASS is not live Discord acceptance.
+No SQL/provider/Discord execution, real imports/exports, bot-machine pull/restart/deployment,
+activation or predecessor rerun. SchemaMigrationHistory and actual execution records, not PR merges,
+remain the deployment truth. SourceRouting.Enabled alone is insufficient.
+
+Security routing: independent documentation-only skip for this exact two-Markdown-file update
+against `d0916f742f9c88743b97107dfca1f3acbcb32c2e`. No runtime, data-access, permission, configuration,
+dependency or persistence behavior changes. Validate links, documentation references, whitespace
+and exact paths. No SQL runtime execution or fresh security scan for this closeout.
+
+## S10A approved local SQL implementation â€” 2026-09-14
+
+The operator approved local implementation and closure of the physical-design gaps.
+This is additive SQL authoring, offline validation and Changes security review only.
+SQL execution (including disposable databases), provider/Discord operations, imports/exports,
+Git staging/commit/publication, bot-machine changes, deployment and activation remain unapproved.
+Earlier initial-scope statements above are historical. No S10B/C/D/E or S11 implementation.
+
+### Exact SQL delivery manifest
+
+The uncreated S7 reservation was amended to the actual authoring date and free sequence:
+`migrations/20260914_001_shared_export_coordination.sql`. No merged migration was renamed.
+The eventual SQL implementation PR must include ALL ten paths below, including both
+pre-existing pending documentation files. Check provider filename AND previous_filename,
+or supply per-path merged-content proof; counts alone are insufficient.
+
+- migrations/20260914_001_shared_export_coordination.sql
+- sql_schema/dbo.ExportJob.Table.sql
+- sql_schema/dbo.ExportJobResource.Table.sql
+- sql_schema/dbo.ExportResource.Table.sql
+- sql_schema/dbo.ExportRequestBudget.Table.sql
+- sql_schema/dbo.ExportAttempt.Table.sql
+- sql_schema/dbo.ExportAttemptPart.Table.sql
+- validation/kvk_source/s10_export_coordination.sql
+- docs/SQL_DELIVERY_LOG.md
+- migrations/README.md
+
+### Physical contract and closed design gaps
+
+All identity/enumeration text uses Latin1_General_100_BIN2. UUIDs are uniqueidentifier,
+digests binary(32), audit timestamps datetime2(0) UTC, budget timestamps datetime2(3) UTC.
+There are no application defaults, seed rows, permissions, cascade deletes or activation changes.
+Required identifiers reject empty/edge-spaced values; enums reject trailing-space aliases.
+
+| Table | Contract |
+|---|---|
+| ExportJob | JobID PK; ConsumerKind new_source/all_kvk/scan_data. New-source requires SourceKey=snapshot_report_v1, positive KVK_NO/PoolEpoch and scoped IntentID FK. All-KVK requires positive KVK_NO, no source intent/epoch; scan-data has no season/intent/epoch. AccountKey varchar(128), input/destination hashes; nullable RepairID. Replay UQ includes consumer/account/season/input/destination/epoch/repair, INCLUDING NULL epoch/repair tuples; no filtered NULL escape. SpoolKey varchar(128) is an opaque ASCII alphanumeric/underscore/hyphen token; SpoolBytes positive bigint and StorageOwner varchar(128) are all-or-none, mandatory for legacy/daily jobs. New-source may reload pinned SQL facts without a spool. |
+| ExportJob state | waiting/ready/running/confirmed/failed/uncertain/coalesced/cancelled. Unclaimed waiting/ready/coalesced/cancelled have NULL OwnerID and fence 0; attempted running/confirmed/failed/uncertain retain UUID OwnerID and positive fence. Version and EnqueueSequence are positive bigint. Tickets are caller-supplied, not identity or unique: a successor may inherit the original pending ticket while history retains it. Supersession is only coalesced new-source and FK-scoped to consumer/account/season/destination/epoch. Actor nvarchar(128), Reason nvarchar(1024), provenance valid JSON <=65536 bytes. |
+| ExportResource / ExportJobResource | ResourceKey varchar(256) PK; kind account/destination/sql_snapshot. JobResource PK(JobID,ResourceKey), both parent FKs and reverse index. Resource active ownership FK references declared membership, preventing an undeclared job claim. ActiveJobID/OwnerID are paired; claimed fence positive; free resources retain a nonnegative fence. BlockedReason nullable nvarchar(1024), Version positive bigint. A blocked resource may remain unassigned for an ambiguous historical association. |
+| ExportRequestBudget | PK(AccountKey varchar(128),BudgetKind varchar(32)); initial allowed kind google_request covers both Google client stacks. NextAllowedUTC required, CooldownUntilUTC optional, both datetime2(3). IntervalMilliseconds int 1..86400000; PolicyVersion/Version positive bigint. No seeded budget or implicit quota. Later DAL starts with the retained 2100ms spacing and reserves max(server UTC,next allowance,cooldown) atomically. The interval bound is representation safety, not provider quota; cooldown can extend independently. |
+| ExportAttempt | AttemptID PK, UQ(JobID,AttemptNo), positive bigint owner fence/attempt/remote sequence/CAS version. ConsumerKind and optional Epoch FKs pin job kind/epoch without binding old attempts to a mutable current owner. Phase private_started/verified/publication_pending/published/failed/uncertain/retired. Verified/publication phases require verification time; published/retired require publication time and receipt. Manifest hash and JSON required, receipt JSON optional; each JSON <=65536 bytes. PartCount int 1..1024 counts every represented file, including an index when present. This is a schema safety limit, not pool capacity or provider policy. |
+| ExportAttempt legacy reference | Optional complete six-column reference: publication/source/KVK/period/destination-kind/destination-ID. Exact SourceDelivery PK FK plus scoped SourcePublication FK and job-season FK. Only new-source attempts may reference this predecessor table, even though columns use the Legacy prefix. Existing receipt bytes remain in SourceDelivery. No receipt import/backfill occurs. |
+| ExportAttemptPart | PK(AttemptID,PartNo), UQ(AttemptID,FileID); FileID nvarchar(128) BIN2. PartCount copied and FK-bound to attempt; PartNo 1..PartCount. Role index/generation/output. ManifestHash required; GridCount positive int, RowCount nonnegative bigint, CellCount positive bigint >=RowCount. VerificationState pending/verified/failed/uncertain with verified timestamp required exactly for verified. AclState pending/private/public_viewer/failed/uncertain; non-pending requires observation time. QuarantineState none/quarantined; quarantine requires time/reason (nvarchar(1024)). EvidenceJson optional valid JSON <=65536 bytes; Version positive bigint. |
+
+The bounded manifest is metadata; normalized part rows hold per-file evidence. Exhaustion must
+reject before any provider mutation, never truncate receipts or assume 1024 files are provisioned.
+New vocabularies require a reviewed schema/protocol amendment, never unvalidated strings.
+
+Queue indexes support account/state/ticket, intent and supersession lookup. Resource reverse/active
+indexes support admission inspection. Attempt job/sequence and phase/time indexes support recovery.
+All scoped FK column types/collations were checked against authoritative snapshots.
+
+### Static SQL versus later writer obligations
+
+SQL enforces row shape, scoped relationships, bounded evidence and uniqueness. It does NOT prove
+temporal immutability, authorized repairs, valid provider receipts or complete manifest cardinality.
+Authorized later DAL must validate exactly PartCount distinct rows, hashes, pinned intent vector
+and matching legacy receipt publication membership before mutation/confirmation. Existing complete
+selection FKs alone also do not prove matching input tuples: keep S8B sealed-input/CAS validation.
+
+Resource ownership/fence updates must be monotonic and atomic across Job/Resource under the later
+admission protocol. Matching resource/job owner tuples, canonical resolved account/file identities,
+frozen resource membership, oldest-ticket fairness, retained repair authority, immutable attempt
+identity and valid phase transitions are DAL/service guarantees. Historical attempts must not FK
+to the mutable current job owner, nor be overwritten when another owner/attempt is admitted.
+
+Keep running A pinned while pending B/C arrive; coalesce only eligible pending new-source work,
+preserving B and its ticket. Daily SCANORDER jobs are not coalesced. An uncertain claim blocks
+conflicting admission even after timeout/lease expiry. SQL fences cannot cancel a submitted Google
+request. Blocked/unmapped history is not free capacity. Later recovery needs exact readback and
+terminated-worker evidence. Failed pre-mutation work may be retried under a new retained attempt;
+do not erase ownership evidence to make it look never attempted.
+
+Account admission precedes sorted destination acquisition and short job CAS. Budget reservations
+are separate short transactions; waits/provider calls occur after commit. Legacy SQL snapshot
+admission is confined to producer/capture work and released before provider work. All participating
+writers must use the same coordinator database/admission; bypassing writers remain a deployment
+gate. The existing Bot publication_gate/latest-selection behavior is unchanged until S10B/C.
+
+### Migration classification, order and recovery
+
+DataChange: No; zero existing application rows affected. RequiresBackup: Yes; DataSafetyPlan:
+Included; rollback Forward Fix Only. Creates Job, Resource, JobResource, Budget, Attempt and Part,
+then adds FKs including cyclic active membership. Uses XACT_ABORT and a transaction-owned schema
+application lock. Owns commit/rollback only when no caller transaction exists; an ambient caller
+must roll back on failure. No SQL transaction spans provider work.
+
+Absent-all installs atomically. Partial presence fails before creation. Full presence is verified
+against empty temporary expected shapes through SQL catalog comparisons: column types/nullability/
+collations, CHECK expressions without lossy normalization, trusted/enabled checks and FKs, index
+grouping/uniqueness/order, and absence of unexpected defaults/triggers/table modes. Conflicting
+schema is rejected without attempting history repair. Compatible reruns do not alter application
+rows. Deploy only the migration; snapshots describe post-installation state and their cyclic FKs
+require creating all tables first if constructing a separately approved empty prerequisite fixture.
+
+Forward correction retains tables, attempts, receipts and fences. No history cleanup, backfill,
+old-receipt mapping, automatic repair, predecessor rerun or manual migration-history rewrite.
+Deploy after S8A/S8B prerequisites and before coordinated Bot writers, with separate execution
+approval. Repository delivery is never proof of migration application.
+
+### Validation and retained evidence boundaries
+
+76 offline static checks and 85 T-SQL parse inputs passed (eight artifacts, embedded test body,
+76 case statements). The fixture authors 76 structural cases and five guarded modes (install,
+constraints, partial, drift, type_conflict), including exact NULL replay, repairs/epochs, scopes, key/JSON limits,
+ownership membership, budget precision, attempt/part evidence, and unchanged uncertain state on
+rerun. These SQL cases have NOT executed. Later execution requires exact new disposable target,
+reviewed migration hash, backup/actual-restore evidence and independent operation approval.
+No mock/static result establishes SQL Server catalog behavior, concurrency or provider acceptance.
+
+Offline validation evidence is retained outside Git at
+`C:/Users/cwatt/AppData/Local/Temp/k98-s10a-implementation-20260914`.
+Security review is separately tracked at its exact working-patch snapshot; do not treat this
+authoring checkpoint as a completed scan or live acceptance claim.
+
+All pending Bot documentation remains mandatory in S10B's next Bot implementation PR, including
+the S10A pack/starter, S9B closeout and both sides of both S9B archive moves. The new Bot handoff
+is added to that exact manifest; no Bot file enters this SQL PR, no standalone documentation PR.
+
+Preserve fixed source, supplied overall/B0, independent stats/targets/publication/roster/history/
+daily consumers, authoritative aggregate/DKP values, UTC starts, SCANORDER, unused scans, movable
+within-season windows, exact 11-10/12-10/13-10/authorized14-10 endpoint chain, sealed inputs/CAS,
+matched UpdateID, explicit counterpart attestation and admission locks. No summed-fight overall,
+mixed source, silent legacy fallback or activation from SourceRouting.Enabled alone.
+S6-OPS01/PERF01/CAP01 and both uncertain publications remain untouched. S8B accepted smoke/50-case/
+actual-restore evidence stays distinct from offline runner history, S8A six-script evidence and
+S8C execution/operator evidence. S8C seven local checks PASS is not live Discord acceptance.
+
+
+### PR #85 review corrections â€” 2026-09-14
+
+Current banners now reflect the implemented/open-PR checkpoint. Migration and fixture reject
+non-table name conflicts explicitly before counting user tables for the absent/complete state.
+The additional type_conflict fixture mode creates a synthetic conflicting view inside its
+rollback transaction and requires the exact migration error without any new export table.
+All five modes and 76 structural cases remain unexecuted; no SQL execution is authorized.
+
+
+### PR #85 temporary-shape collation correction â€” 2026-09-14
+
+Seven temporary reason/JSON columns now explicitly use COLLATE DATABASE_DEFAULT so their
+expected catalog shape matches permanent columns inheriting the application database default,
+even when tempdb differs. Explicit BIN2 identity columns and permanent schemas are unchanged.
+Static regression checks compare every temporary character column with its permanent counterpart.
+Before deployment, separately authorize the existing install/constraints fixture modes against
+a new disposable database with collation different from tempdb, recording both collations.
+That SQL execution remains pending; parser/static checks are not runtime collation evidence.
+
+## S10A compilation-boundary correction â€” 2026-09-14
+
+The first approved disposable run retained the checksum backup, successful actual restore,
+and 76-case cross-collation install result. Partial-schema validation stopped with SQL Server
+error 207 (`IntentID`): the static installation index was bound before the partial-table guard.
+The permanent six-table DDL now runs as one constant `sys.sp_executesql` batch only after
+prerequisite, object-type and completeness guards pass. Decoded DDL is unchanged; transaction,
+applock, exact rerun checks and strict error 51000 fixture expectations remain intact.
+
+The operator approved this fix and continuation on the existing
+`K98_S10A_Disposable_20260914_validation` and `_restore` databases on `9SX2VF4\K98DEV`.
+Both currently retain the identical 19-table empty prerequisite baseline. A new pinned receipt
+will preserve the original failed-run evidence and reuse its backup/actual-restore proof;
+no database recreation, prerequisite rerun, backup overwrite or restore rerun is planned.
+Run install, partial, type_conflict, direct apply/rerun, constraints and drift after review.
+PR #85 remains unmerged. No production, provider, Discord or bot-machine action is included.
+
+## S10A corrected compilation validation result — 2026-09-14
+
+Fix commit `b8e19f8f03683eec0d6c2563d732fb5303ba04dd` passed 87 static parse inputs
+and exact decoded-DDL/guard/verification parity. Changes review, Deep off, scan
+`0a151f59-3c5d-4dfc-a5dc-81852a5782d0` completed with zero findings; target base
+`0cdf9efcc6f625580a84f57449c5c103e74d8268`, content digest
+`3f1701d12151a1b24203a15c0ff20d97af003d6decd54b224520028dc2447a7e`.
+
+Approved continuation manifest SHA256
+`705ce96f3ef40907c059a30c118dedfb8835e40a66adb7370bc31b1bd146c3b7`
+ran against the two retained S10A disposable databases. Install passed all 76 cases;
+partial and type_conflict passed their strict expected-error assertions. Direct migration
+application returned successfully and committed six empty export tables. The subsequent
+Python audit compared SQL case-insensitive ORDER BY output with Python case-sensitive sort
+and stopped on the same exact 25 names in different order. This was a harness comparison
+failure, not a second migration failure. No automatic runtime retry occurred.
+
+The corrected read-only audit verifies 25 empty primary tables, 19 empty restored tables,
+unchanged prerequisite metadata, enabled/trusted constraints, original database inventory
+and backup presence. Receipt `s10a-continuation-01-receipt.json` SHA256
+`f6c2032f99605225eef146853594f5135f355663a92c45966d5474328e0408f0`
+and `s10a-continuation-01-stopped-audit.json` are retained beside the original execution
+evidence under the existing `k98-s10a-implementation-20260914` temporary evidence directory.
+
+A separate continuation02 harness normalizes both name lists before exact comparison;
+offline regression rejects missing, extra and duplicate names. Only direct migration rerun,
+constraints (76 cases), drift and final audit remain, requiring approval after this new stop.
+No install/bootstrap/backup/restore will be repeated. Both original receipts remain immutable.
+These sequential SQL checks do not establish worker concurrency or provider guarantees.
+This evidence-only update needs no new security scan: migration and fixture bytes are unchanged.
+PR #85 remains unmerged and no production or bot-machine action occurred.
+
+## S10A disposable validation complete — 2026-09-14
+
+The operator approved continuation02 and it passed at 16:39:18–16:39:22 UTC on
+`9SX2VF4\K98DEV`, using retained `K98_S10A_Disposable_20260914_validation` and
+`K98_S10A_Disposable_20260914_validation_restore`. Direct migration rerun preserved the
+installed baseline; constraints passed all 76 cases; drift rejection passed; final baseline
+and database inventory checks passed. Primary retains 25 empty tables, restore retains the
+unchanged 19-table prerequisite baseline, with enabled/trusted constraints.
+
+Together with the retained original backup/actual-restore proof and continuation01 install,
+partial/type-conflict and direct-apply evidence, all five fixture modes and direct apply/rerun
+are now complete. Install and constraints each passed the same 76 structural cases; these
+are 76 unique cases, not 152 different cases. Cross-collation application/default-tempdb
+behavior passed. No database recreation, bootstrap, backup overwrite or restore repeat occurred.
+
+Executed SQL head: `dbaab083db57e400845f701b453fb4ff6d158dab`; migration/fixture unchanged
+from security-reviewed fix `b8e19f8`. Manifest SHA256
+`170493741737c899caeaebb98d8e0e93f00d54ba4e3d0347bc04420f2c4e7b50`.
+Receipt `s10a-continuation-02-receipt.json`, SHA256
+`71be461a0ab4db270c49664c97a8d89a376a3bbb958b65c165f3edd160254713`, retained under
+`C:/Users/cwatt/AppData/Local/Temp/k98-s10a-implementation-20260914` with every prior receipt.
+The manifest's pending-approval wording is its immutable preparation checkpoint; subsequent
+operator approval and this executed receipt supersede it without rewriting evidence.
+
+This is sequential disposable SQL evidence, not worker concurrency, provider truth or live
+Discord acceptance. All retained operational gates and uncertain publications remain intact.
+No production/bot-machine deployment, activation, merge or later-slice implementation occurred.
+This update changes only delivery evidence; SQL source bytes remain unchanged, so the existing
+Changes security review applies and a precise documentation-only skip covers this delta.
