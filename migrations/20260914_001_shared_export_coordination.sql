@@ -49,7 +49,9 @@ DECLARE @S10AExisting int = (SELECT COUNT(*) FROM sys.tables WHERE schema_id = S
 IF @S10AExisting NOT IN (0,6) THROW 51000, 'Partial S10A installation: preserve state and review a forward correction.', 1;
 IF @S10AExisting = 0
 BEGIN
-CREATE TABLE dbo.ExportJob
+-- Compile installation DDL only after prerequisite, object-type and completeness guards.
+-- This is a constant batch: no caller input or identifiers are interpolated.
+EXEC sys.sp_executesql N'CREATE TABLE dbo.ExportJob
 (
     JobID uniqueidentifier NOT NULL,
     ConsumerKind varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,
@@ -81,13 +83,13 @@ CREATE TABLE dbo.ExportJob
     CONSTRAINT UQ_ExportJob_Epoch UNIQUE (JobID, PoolEpoch),
     CONSTRAINT UQ_ExportJob_Season UNIQUE (JobID, KVK_NO),
     CONSTRAINT UQ_ExportJob_SupersessionScope UNIQUE (JobID, ConsumerKind, AccountKey, KVK_NO, DestinationSetHash, PoolEpoch),
-    CONSTRAINT CK_ExportJob_Consumer CHECK (DATALENGTH(ConsumerKind) = LEN(ConsumerKind) AND ConsumerKind IN ('new_source','all_kvk','scan_data')),
-    CONSTRAINT CK_ExportJob_Scope CHECK ((ConsumerKind = 'new_source' AND SourceKey IS NOT NULL AND SourceKey = 'snapshot_report_v1' AND DATALENGTH(SourceKey) = 18 AND IntentID IS NOT NULL AND KVK_NO IS NOT NULL AND KVK_NO > 0 AND PoolEpoch IS NOT NULL AND PoolEpoch > 0) OR (ConsumerKind = 'all_kvk' AND SourceKey IS NULL AND IntentID IS NULL AND KVK_NO IS NOT NULL AND KVK_NO > 0 AND PoolEpoch IS NULL) OR (ConsumerKind = 'scan_data' AND SourceKey IS NULL AND IntentID IS NULL AND KVK_NO IS NULL AND PoolEpoch IS NULL)),
+    CONSTRAINT CK_ExportJob_Consumer CHECK (DATALENGTH(ConsumerKind) = LEN(ConsumerKind) AND ConsumerKind IN (''new_source'',''all_kvk'',''scan_data'')),
+    CONSTRAINT CK_ExportJob_Scope CHECK ((ConsumerKind = ''new_source'' AND SourceKey IS NOT NULL AND SourceKey = ''snapshot_report_v1'' AND DATALENGTH(SourceKey) = 18 AND IntentID IS NOT NULL AND KVK_NO IS NOT NULL AND KVK_NO > 0 AND PoolEpoch IS NOT NULL AND PoolEpoch > 0) OR (ConsumerKind = ''all_kvk'' AND SourceKey IS NULL AND IntentID IS NULL AND KVK_NO IS NOT NULL AND KVK_NO > 0 AND PoolEpoch IS NULL) OR (ConsumerKind = ''scan_data'' AND SourceKey IS NULL AND IntentID IS NULL AND KVK_NO IS NULL AND PoolEpoch IS NULL)),
     CONSTRAINT CK_ExportJob_Identity CHECK (LEN(AccountKey) > 0 AND DATALENGTH(AccountKey) = DATALENGTH(LTRIM(RTRIM(AccountKey))) AND LEN(Actor) > 0 AND DATALENGTH(Actor) = DATALENGTH(LTRIM(RTRIM(Actor))) AND LEN(Reason) > 0),
-    CONSTRAINT CK_ExportJob_Spool CHECK (((SpoolKey IS NULL AND SpoolBytes IS NULL AND StorageOwner IS NULL AND ConsumerKind = 'new_source') OR (SpoolKey IS NOT NULL AND SpoolBytes IS NOT NULL AND StorageOwner IS NOT NULL AND SpoolBytes > 0 AND LEN(SpoolKey) > 0 AND DATALENGTH(SpoolKey) = DATALENGTH(LTRIM(RTRIM(SpoolKey))) AND LEN(StorageOwner) > 0 AND DATALENGTH(StorageOwner) = DATALENGTH(LTRIM(RTRIM(StorageOwner))) AND SpoolKey NOT LIKE '%[^a-zA-Z0-9_-]%' COLLATE Latin1_General_100_BIN2))),
-    CONSTRAINT CK_ExportJob_State CHECK (DATALENGTH(State) = LEN(State) AND State IN ('waiting','ready','running','confirmed','failed','uncertain','coalesced','cancelled')),
-    CONSTRAINT CK_ExportJob_Ownership CHECK (Fence >= 0 AND ((OwnerID IS NULL AND Fence = 0 AND State IN ('waiting','ready','coalesced','cancelled')) OR (OwnerID IS NOT NULL AND Fence > 0 AND State IN ('running','confirmed','failed','uncertain')))),
-    CONSTRAINT CK_ExportJob_Supersession CHECK ((State = 'coalesced' AND ConsumerKind = 'new_source' AND SupersededByJobID IS NOT NULL AND SupersededByJobID <> JobID) OR (State <> 'coalesced' AND SupersededByJobID IS NULL)),
+    CONSTRAINT CK_ExportJob_Spool CHECK (((SpoolKey IS NULL AND SpoolBytes IS NULL AND StorageOwner IS NULL AND ConsumerKind = ''new_source'') OR (SpoolKey IS NOT NULL AND SpoolBytes IS NOT NULL AND StorageOwner IS NOT NULL AND SpoolBytes > 0 AND LEN(SpoolKey) > 0 AND DATALENGTH(SpoolKey) = DATALENGTH(LTRIM(RTRIM(SpoolKey))) AND LEN(StorageOwner) > 0 AND DATALENGTH(StorageOwner) = DATALENGTH(LTRIM(RTRIM(StorageOwner))) AND SpoolKey NOT LIKE ''%[^a-zA-Z0-9_-]%'' COLLATE Latin1_General_100_BIN2))),
+    CONSTRAINT CK_ExportJob_State CHECK (DATALENGTH(State) = LEN(State) AND State IN (''waiting'',''ready'',''running'',''confirmed'',''failed'',''uncertain'',''coalesced'',''cancelled'')),
+    CONSTRAINT CK_ExportJob_Ownership CHECK (Fence >= 0 AND ((OwnerID IS NULL AND Fence = 0 AND State IN (''waiting'',''ready'',''coalesced'',''cancelled'')) OR (OwnerID IS NOT NULL AND Fence > 0 AND State IN (''running'',''confirmed'',''failed'',''uncertain'')))),
+    CONSTRAINT CK_ExportJob_Supersession CHECK ((State = ''coalesced'' AND ConsumerKind = ''new_source'' AND SupersededByJobID IS NOT NULL AND SupersededByJobID <> JobID) OR (State <> ''coalesced'' AND SupersededByJobID IS NULL)),
     CONSTRAINT CK_ExportJob_Counters CHECK (EnqueueSequence > 0 AND Version > 0),
     CONSTRAINT CK_ExportJob_Time CHECK (UpdatedUTC >= CreatedUTC),
     CONSTRAINT CK_ExportJob_Provenance CHECK (ISJSON(ProvenanceJson) = 1 AND DATALENGTH(ProvenanceJson) <= 65536)
@@ -107,7 +109,7 @@ CREATE TABLE dbo.ExportResource
     Version bigint NOT NULL,
     CONSTRAINT PK_ExportResource PRIMARY KEY (ResourceKey),
     CONSTRAINT CK_ExportResource_Key CHECK (LEN(ResourceKey) > 0 AND DATALENGTH(ResourceKey) = DATALENGTH(LTRIM(RTRIM(ResourceKey)))),
-    CONSTRAINT CK_ExportResource_Kind CHECK (DATALENGTH(ResourceKind) = LEN(ResourceKind) AND ResourceKind IN ('account','destination','sql_snapshot')),
+    CONSTRAINT CK_ExportResource_Kind CHECK (DATALENGTH(ResourceKind) = LEN(ResourceKind) AND ResourceKind IN (''account'',''destination'',''sql_snapshot'')),
     CONSTRAINT CK_ExportResource_Ownership CHECK ((ActiveJobID IS NULL AND OwnerID IS NULL AND Fence >= 0) OR (ActiveJobID IS NOT NULL AND OwnerID IS NOT NULL AND Fence > 0)),
     CONSTRAINT CK_ExportResource_Blocked CHECK (BlockedReason IS NULL OR LEN(BlockedReason) > 0),
     CONSTRAINT CK_ExportResource_Version CHECK (Version > 0)
@@ -133,7 +135,7 @@ CREATE TABLE dbo.ExportRequestBudget
     Version bigint NOT NULL,
     CONSTRAINT PK_ExportRequestBudget PRIMARY KEY (AccountKey, BudgetKind),
     CONSTRAINT CK_ExportRequestBudget_Account CHECK (LEN(AccountKey) > 0 AND DATALENGTH(AccountKey) = DATALENGTH(LTRIM(RTRIM(AccountKey)))),
-    CONSTRAINT CK_ExportRequestBudget_Kind CHECK (BudgetKind = 'google_request' AND DATALENGTH(BudgetKind) = 14),
+    CONSTRAINT CK_ExportRequestBudget_Kind CHECK (BudgetKind = ''google_request'' AND DATALENGTH(BudgetKind) = 14),
     CONSTRAINT CK_ExportRequestBudget_Policy CHECK (IntervalMilliseconds BETWEEN 1 AND 86400000 AND PolicyVersion > 0 AND Version > 0)
 );
 
@@ -167,15 +169,15 @@ CREATE TABLE dbo.ExportAttempt
     CONSTRAINT PK_ExportAttempt PRIMARY KEY (AttemptID),
     CONSTRAINT UQ_ExportAttempt_Sequence UNIQUE (JobID, AttemptNo),
     CONSTRAINT UQ_ExportAttempt_PartCount UNIQUE (AttemptID, PartCount),
-    CONSTRAINT CK_ExportAttempt_Consumer CHECK (DATALENGTH(ConsumerKind) = LEN(ConsumerKind) AND ConsumerKind IN ('new_source','all_kvk','scan_data')),
-    CONSTRAINT CK_ExportAttempt_Epoch CHECK ((ConsumerKind = 'new_source' AND Epoch IS NOT NULL AND Epoch > 0) OR (ConsumerKind IN ('all_kvk','scan_data') AND Epoch IS NULL)),
-    CONSTRAINT CK_ExportAttempt_Phase CHECK (DATALENGTH(Phase) = LEN(Phase) AND Phase IN ('private_started','verified','publication_pending','published','failed','uncertain','retired')),
+    CONSTRAINT CK_ExportAttempt_Consumer CHECK (DATALENGTH(ConsumerKind) = LEN(ConsumerKind) AND ConsumerKind IN (''new_source'',''all_kvk'',''scan_data'')),
+    CONSTRAINT CK_ExportAttempt_Epoch CHECK ((ConsumerKind = ''new_source'' AND Epoch IS NOT NULL AND Epoch > 0) OR (ConsumerKind IN (''all_kvk'',''scan_data'') AND Epoch IS NULL)),
+    CONSTRAINT CK_ExportAttempt_Phase CHECK (DATALENGTH(Phase) = LEN(Phase) AND Phase IN (''private_started'',''verified'',''publication_pending'',''published'',''failed'',''uncertain'',''retired'')),
     CONSTRAINT CK_ExportAttempt_Counters CHECK (AttemptNo > 0 AND Fence > 0 AND RemoteSequence > 0 AND Version > 0 AND PartCount BETWEEN 1 AND 1024),
     CONSTRAINT CK_ExportAttempt_Manifest CHECK (ISJSON(ManifestJson) = 1 AND DATALENGTH(ManifestJson) <= 65536),
     CONSTRAINT CK_ExportAttempt_Receipt CHECK (ReceiptJson IS NULL OR (ISJSON(ReceiptJson) = 1 AND DATALENGTH(ReceiptJson) <= 65536)),
     CONSTRAINT CK_ExportAttempt_Time CHECK (UpdatedUTC >= CreatedUTC AND (VerifiedUTC IS NULL OR VerifiedUTC BETWEEN CreatedUTC AND UpdatedUTC) AND (PublishedUTC IS NULL OR (VerifiedUTC IS NOT NULL AND PublishedUTC BETWEEN VerifiedUTC AND UpdatedUTC))),
-    CONSTRAINT CK_ExportAttempt_Evidence CHECK ((Phase NOT IN ('verified','publication_pending','published','retired') OR VerifiedUTC IS NOT NULL) AND (Phase NOT IN ('published','retired') OR (PublishedUTC IS NOT NULL AND ReceiptJson IS NOT NULL)) AND (Phase <> 'private_started' OR (VerifiedUTC IS NULL AND PublishedUTC IS NULL))),
-    CONSTRAINT CK_ExportAttempt_Legacy CHECK ((LegacyPublicationID IS NULL AND LegacySourceKey IS NULL AND LegacyKVK_NO IS NULL AND LegacyPeriodID IS NULL AND LegacyDestinationKind IS NULL AND LegacyDestinationID IS NULL) OR (ConsumerKind = 'new_source' AND LegacyPublicationID IS NOT NULL AND LegacySourceKey IS NOT NULL AND LegacySourceKey = 'snapshot_report_v1' AND DATALENGTH(LegacySourceKey) = 18 AND LegacyKVK_NO IS NOT NULL AND LegacyKVK_NO > 0 AND LegacyPeriodID IS NOT NULL AND LegacyDestinationKind IS NOT NULL AND DATALENGTH(LegacyDestinationKind) = LEN(LegacyDestinationKind) AND LegacyDestinationKind IN ('discord','sheets','file') AND LegacyDestinationID IS NOT NULL AND LEN(LegacyDestinationID) > 0 AND DATALENGTH(LegacyDestinationID) = DATALENGTH(LTRIM(RTRIM(LegacyDestinationID)))))
+    CONSTRAINT CK_ExportAttempt_Evidence CHECK ((Phase NOT IN (''verified'',''publication_pending'',''published'',''retired'') OR VerifiedUTC IS NOT NULL) AND (Phase NOT IN (''published'',''retired'') OR (PublishedUTC IS NOT NULL AND ReceiptJson IS NOT NULL)) AND (Phase <> ''private_started'' OR (VerifiedUTC IS NULL AND PublishedUTC IS NULL))),
+    CONSTRAINT CK_ExportAttempt_Legacy CHECK ((LegacyPublicationID IS NULL AND LegacySourceKey IS NULL AND LegacyKVK_NO IS NULL AND LegacyPeriodID IS NULL AND LegacyDestinationKind IS NULL AND LegacyDestinationID IS NULL) OR (ConsumerKind = ''new_source'' AND LegacyPublicationID IS NOT NULL AND LegacySourceKey IS NOT NULL AND LegacySourceKey = ''snapshot_report_v1'' AND DATALENGTH(LegacySourceKey) = 18 AND LegacyKVK_NO IS NOT NULL AND LegacyKVK_NO > 0 AND LegacyPeriodID IS NOT NULL AND LegacyDestinationKind IS NOT NULL AND DATALENGTH(LegacyDestinationKind) = LEN(LegacyDestinationKind) AND LegacyDestinationKind IN (''discord'',''sheets'',''file'') AND LegacyDestinationID IS NOT NULL AND LEN(LegacyDestinationID) > 0 AND DATALENGTH(LegacyDestinationID) = DATALENGTH(LTRIM(RTRIM(LegacyDestinationID)))))
 );
 CREATE INDEX IX_ExportAttempt_Phase ON dbo.ExportAttempt (Phase, UpdatedUTC, JobID);
 
@@ -203,11 +205,11 @@ CREATE TABLE dbo.ExportAttemptPart
     CONSTRAINT UQ_ExportAttemptPart_File UNIQUE (AttemptID, FileID),
     CONSTRAINT CK_ExportAttemptPart_Number CHECK (PartCount BETWEEN 1 AND 1024 AND PartNo BETWEEN 1 AND PartCount),
     CONSTRAINT CK_ExportAttemptPart_File CHECK (LEN(FileID) > 0 AND DATALENGTH(FileID) = DATALENGTH(LTRIM(RTRIM(FileID)))),
-    CONSTRAINT CK_ExportAttemptPart_Role CHECK (DATALENGTH([Role]) = LEN([Role]) AND [Role] IN ('index','generation','output')),
+    CONSTRAINT CK_ExportAttemptPart_Role CHECK (DATALENGTH([Role]) = LEN([Role]) AND [Role] IN (''index'',''generation'',''output'')),
     CONSTRAINT CK_ExportAttemptPart_Counts CHECK (GridCount > 0 AND [RowCount] >= 0 AND CellCount > 0 AND CellCount >= [RowCount] AND Version > 0),
-    CONSTRAINT CK_ExportAttemptPart_Verification CHECK (DATALENGTH(VerificationState) = LEN(VerificationState) AND VerificationState IN ('pending','verified','failed','uncertain') AND ((VerificationState = 'verified' AND VerifiedUTC IS NOT NULL) OR (VerificationState <> 'verified' AND VerifiedUTC IS NULL))),
-    CONSTRAINT CK_ExportAttemptPart_Acl CHECK (DATALENGTH(AclState) = LEN(AclState) AND AclState IN ('pending','private','public_viewer','failed','uncertain') AND ((AclState = 'pending' AND AclCheckedUTC IS NULL) OR (AclState <> 'pending' AND AclCheckedUTC IS NOT NULL))),
-    CONSTRAINT CK_ExportAttemptPart_Quarantine CHECK (DATALENGTH(QuarantineState) = LEN(QuarantineState) AND QuarantineState IN ('none','quarantined') AND ((QuarantineState = 'none' AND QuarantinedUTC IS NULL AND QuarantineReason IS NULL) OR (QuarantineState = 'quarantined' AND QuarantinedUTC IS NOT NULL AND QuarantineReason IS NOT NULL AND LEN(QuarantineReason) > 0))),
+    CONSTRAINT CK_ExportAttemptPart_Verification CHECK (DATALENGTH(VerificationState) = LEN(VerificationState) AND VerificationState IN (''pending'',''verified'',''failed'',''uncertain'') AND ((VerificationState = ''verified'' AND VerifiedUTC IS NOT NULL) OR (VerificationState <> ''verified'' AND VerifiedUTC IS NULL))),
+    CONSTRAINT CK_ExportAttemptPart_Acl CHECK (DATALENGTH(AclState) = LEN(AclState) AND AclState IN (''pending'',''private'',''public_viewer'',''failed'',''uncertain'') AND ((AclState = ''pending'' AND AclCheckedUTC IS NULL) OR (AclState <> ''pending'' AND AclCheckedUTC IS NOT NULL))),
+    CONSTRAINT CK_ExportAttemptPart_Quarantine CHECK (DATALENGTH(QuarantineState) = LEN(QuarantineState) AND QuarantineState IN (''none'',''quarantined'') AND ((QuarantineState = ''none'' AND QuarantinedUTC IS NULL AND QuarantineReason IS NULL) OR (QuarantineState = ''quarantined'' AND QuarantinedUTC IS NOT NULL AND QuarantineReason IS NOT NULL AND LEN(QuarantineReason) > 0))),
     CONSTRAINT CK_ExportAttemptPart_Evidence CHECK (EvidenceJson IS NULL OR (ISJSON(EvidenceJson) = 1 AND DATALENGTH(EvidenceJson) <= 65536))
 );
 
@@ -223,6 +225,7 @@ ALTER TABLE dbo.ExportAttempt WITH CHECK ADD CONSTRAINT FK_ExportAttempt_LegacyD
 ALTER TABLE dbo.ExportAttempt WITH CHECK ADD CONSTRAINT FK_ExportAttempt_LegacyPublication FOREIGN KEY (LegacySourceKey, LegacyKVK_NO, LegacyPeriodID, LegacyPublicationID) REFERENCES KVK.SourcePublication (SourceKey, KVK_NO, PeriodID, PublicationID);
 ALTER TABLE dbo.ExportAttempt WITH CHECK ADD CONSTRAINT FK_ExportAttempt_LegacySeason FOREIGN KEY (JobID, LegacyKVK_NO) REFERENCES dbo.ExportJob (JobID, KVK_NO);
 ALTER TABLE dbo.ExportAttemptPart WITH CHECK ADD CONSTRAINT FK_ExportAttemptPart_Attempt FOREIGN KEY (AttemptID, PartCount) REFERENCES dbo.ExportAttempt (AttemptID, PartCount);
+';
 END;
 -- Exact rerun verification; temporary empty shapes never copy application data.
 -- Database-default text must model the application database, not tempdb collation.

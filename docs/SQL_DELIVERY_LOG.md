@@ -4,7 +4,9 @@
 > Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
 > S10A Shared Export Coordination SQL Foundation is implemented and published in
 > [SQL PR #85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85), pending review and merge.
-> Static validation passed; SQL fixture execution remains separately approval-gated.
+> Approved disposable validation passed backup/actual restore and install (76 cases), then
+> stopped at partial-schema error 207. The compilation-boundary correction is implemented;
+> its review and the approved continuation on retained disposable databases are pending.
 > Both delivery-log and migration-README updates are included in that S10A SQL
 > implementation PR. Bot handoff documentation stays in Bot for the next Bot implementation PR,
 > S10B; no standalone documentation PR. Earlier status/publication checkpoints are historical.
@@ -846,3 +848,20 @@ Static regression checks compare every temporary character column with its perma
 Before deployment, separately authorize the existing install/constraints fixture modes against
 a new disposable database with collation different from tempdb, recording both collations.
 That SQL execution remains pending; parser/static checks are not runtime collation evidence.
+
+## S10A compilation-boundary correction — 2026-09-14
+
+The first approved disposable run retained the checksum backup, successful actual restore,
+and 76-case cross-collation install result. Partial-schema validation stopped with SQL Server
+error 207 (`IntentID`): the static installation index was bound before the partial-table guard.
+The permanent six-table DDL now runs as one constant `sys.sp_executesql` batch only after
+prerequisite, object-type and completeness guards pass. Decoded DDL is unchanged; transaction,
+applock, exact rerun checks and strict error 51000 fixture expectations remain intact.
+
+The operator approved this fix and continuation on the existing
+`K98_S10A_Disposable_20260914_validation` and `_restore` databases on `9SX2VF4\K98DEV`.
+Both currently retain the identical 19-table empty prerequisite baseline. A new pinned receipt
+will preserve the original failed-run evidence and reuse its backup/actual-restore proof;
+no database recreation, prerequisite rerun, backup overwrite or restore rerun is planned.
+Run install, partial, type_conflict, direct apply/rerun, constraints and drift after review.
+PR #85 remains unmerged. No production, provider, Discord or bot-machine action is included.
