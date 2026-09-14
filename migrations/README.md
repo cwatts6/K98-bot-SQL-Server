@@ -189,11 +189,13 @@ All six actual SQL PR file blobs match local HEAD; production's 69 physical Bot 
 also verified, including archive previous_filename entries. Both worktrees were clean at entry.
 
 Final Bot offline evidence: 4214 passed / 62 skipped, 96 focused tests, operational logs unchanged.
-Final hosted Bot and SQL CI passed. SQL static contract checker passed 13 checks. S8C disposable
-fixture and five opt-in Bot SQL cases remain unrun; no SQL apply, post-merge smoke, bot-machine
-pull, deployment or activation is claimed. Local whole-repo validation previously could not write
-its sandboxed log; hosted SQL validation passed. Earlier authoring and no-publication entries are
-historical and superseded only as to repository delivery, not operational execution.
+At the repository-delivery checkpoint, hosted Bot and SQL CI passed and the SQL static contract
+checker passed 13 checks. The S8C disposable fixture and five opt-in Bot SQL cases had not yet run
+at that checkpoint. Their later approved execution for the named disposable target is recorded in
+the [disposable execution addendum](#2026-09-13-approved-s8c-disposable-execution-addendum) below.
+No bot-machine pull, deployment or activation is claimed. Local whole-repo validation previously
+could not write its sandboxed log; hosted SQL validation passed. Earlier entries retain their
+dated scope; the addendum supersedes only the named disposable-execution status.
 
 The next implementation slice is S9A Public Routing and Availability, initial review/scope only,
 as specified in the approved S7 manifests. See the companion Bot documentation
@@ -233,5 +235,6 @@ See [Bot companion PR #276](https://github.com/cwatts6/K98-bot-mirror/pull/276),
 and limits. Live Discord, real Google kvk_list import and bot-machine smoke are not claimed.
 
 All predecessor evidence, uncertain publications and S6 open gates remain separate and preserved.
-These two SQL documentation paths remain unstaged/uncommitted separate SQL PR carry-forward;
-no SQL runtime file or Git publication changed.
+These two SQL documentation paths were retained locally at the original closeout checkpoint
+and are now committed and published separately in SQL PR #83 for the S9A delivery cycle.
+Only documentation changed; no SQL runtime file, deployment or activation changed.
