@@ -649,6 +649,6 @@ path amendments. This SQL PR remains limited to `docs/SQL_DELIVERY_LOG.md` and
 and publication-not-authorized statements describe the historical closeout checkpoint.
 The independent documentation-only security skip still applies to these exact two paths.
 Bot offline tests and Changes security evidence are recorded in [Bot mirror PR #277](https://github.com/cwatts6/K98-bot-mirror/pull/277)
-and its [S9B closeout](https://github.com/cwatts6/K98-bot-mirror/blob/codex/s9b-card-context-admin-dispatch/docs/reference/kvk_source_migration/s9a_closeout_and_s9b_handoff.md);
+and the S9B closeout linked from that PR;
 they do not establish SQL execution or live Discord acceptance. All retained gates, uncertain
 publications, databases and files remain preserved. No merge, deployment or activation occurs.
