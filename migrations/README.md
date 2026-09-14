@@ -227,7 +227,8 @@ Real Bot intake/services/DAL used this disposable SQL for synthetic B0, waiting-
 11−10/12−10/13−10 then authorized 14−10, later 17/18 assignment, no-fight, independent overall,
 weight/camp corrections, explicit synthetic attestation, CAS and semantic duplicate checks.
 No production code fix was required. SourceRouting remained disabled and no provider delivery ran.
-See Bot `docs/reference/kvk_source_migration/s8c_folder_intake_smoke_evidence.md` and retained
+See [Bot companion PR #276](https://github.com/cwatts6/K98-bot-mirror/pull/276), its
+`s8c_folder_intake_smoke_evidence.md`, and retained
 `C:/K98-S8C-Smoke/20260913/evidence` for scripts, hashes, failures/resumptions, exact assertions
 and limits. Live Discord, real Google kvk_list import and bot-machine smoke are not claimed.
 
