@@ -4,9 +4,9 @@
 > Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
 > S10A Shared Export Coordination SQL Foundation is implemented and published in
 > [SQL PR #85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85), pending review and merge.
-> Approved disposable validation passed backup/actual restore, install (76 cases), partial
-> and type-conflict rejection, and direct migration application. A Python audit ordering
-> error then stopped the continuation; direct rerun, constraints and drift remain pending.
+> Approved disposable validation is complete: backup/actual restore, all five fixture modes,
+> 76 unique structural cases in both install and constraints, and direct apply/rerun passed.
+> Retained databases and evidence are preserved; merge and deployment remain separate.
 > Both delivery-log and migration-README updates are included in that S10A SQL
 > implementation PR. Bot handoff documentation stays in Bot for the next Bot implementation PR,
 > S10B; no standalone documentation PR. Earlier status/publication checkpoints are historical.
@@ -538,3 +538,33 @@ No install/bootstrap/backup/restore will be repeated. Both original receipts rem
 These sequential SQL checks do not establish worker concurrency or provider guarantees.
 This evidence-only update needs no new security scan: migration and fixture bytes are unchanged.
 PR #85 remains unmerged and no production or bot-machine action occurred.
+
+## S10A disposable validation complete — 2026-09-14
+
+The operator approved continuation02 and it passed at 16:39:18–16:39:22 UTC on
+`9SX2VF4\K98DEV`, using retained `K98_S10A_Disposable_20260914_validation` and
+`K98_S10A_Disposable_20260914_validation_restore`. Direct migration rerun preserved the
+installed baseline; constraints passed all 76 cases; drift rejection passed; final baseline
+and database inventory checks passed. Primary retains 25 empty tables, restore retains the
+unchanged 19-table prerequisite baseline, with enabled/trusted constraints.
+
+Together with the retained original backup/actual-restore proof and continuation01 install,
+partial/type-conflict and direct-apply evidence, all five fixture modes and direct apply/rerun
+are now complete. Install and constraints each passed the same 76 structural cases; these
+are 76 unique cases, not 152 different cases. Cross-collation application/default-tempdb
+behavior passed. No database recreation, bootstrap, backup overwrite or restore repeat occurred.
+
+Executed SQL head: `dbaab083db57e400845f701b453fb4ff6d158dab`; migration/fixture unchanged
+from security-reviewed fix `b8e19f8`. Manifest SHA256
+`170493741737c899caeaebb98d8e0e93f00d54ba4e3d0347bc04420f2c4e7b50`.
+Receipt `s10a-continuation-02-receipt.json`, SHA256
+`71be461a0ab4db270c49664c97a8d89a376a3bbb958b65c165f3edd160254713`, retained under
+`C:/Users/cwatt/AppData/Local/Temp/k98-s10a-implementation-20260914` with every prior receipt.
+The manifest's pending-approval wording is its immutable preparation checkpoint; subsequent
+operator approval and this executed receipt supersede it without rewriting evidence.
+
+This is sequential disposable SQL evidence, not worker concurrency, provider truth or live
+Discord acceptance. All retained operational gates and uncertain publications remain intact.
+No production/bot-machine deployment, activation, merge or later-slice implementation occurred.
+This update changes only delivery evidence; SQL source bytes remain unchanged, so the existing
+Changes security review applies and a precise documentation-only skip covers this delta.
