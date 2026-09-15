@@ -26,6 +26,7 @@ CREATE TABLE dbo.ExportAttemptPart
     Version bigint NOT NULL,
     CONSTRAINT PK_ExportAttemptPart PRIMARY KEY (AttemptID, PartNo),
     CONSTRAINT UQ_ExportAttemptPart_File UNIQUE (AttemptID, FileID),
+    CONSTRAINT UQ_ExportAttemptPart_NumberFile UNIQUE (AttemptID, PartNo, FileID),
     CONSTRAINT CK_ExportAttemptPart_Number CHECK (PartCount BETWEEN 1 AND 1024 AND PartNo BETWEEN 1 AND PartCount),
     CONSTRAINT CK_ExportAttemptPart_File CHECK (LEN(FileID) > 0 AND DATALENGTH(FileID) = DATALENGTH(LTRIM(RTRIM(FileID)))),
     CONSTRAINT CK_ExportAttemptPart_Role CHECK (DATALENGTH([Role]) = LEN([Role]) AND [Role] IN ('index','generation','output')),

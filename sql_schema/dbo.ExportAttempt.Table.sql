@@ -33,6 +33,7 @@ CREATE TABLE dbo.ExportAttempt
     CONSTRAINT PK_ExportAttempt PRIMARY KEY (AttemptID),
     CONSTRAINT UQ_ExportAttempt_Sequence UNIQUE (JobID, AttemptNo),
     CONSTRAINT UQ_ExportAttempt_PartCount UNIQUE (AttemptID, PartCount),
+    CONSTRAINT UQ_ExportAttempt_JobEpoch UNIQUE (AttemptID, JobID, Epoch),
     CONSTRAINT CK_ExportAttempt_Consumer CHECK (DATALENGTH(ConsumerKind) = LEN(ConsumerKind) AND ConsumerKind IN ('new_source','all_kvk','scan_data')),
     CONSTRAINT CK_ExportAttempt_Epoch CHECK ((ConsumerKind = 'new_source' AND Epoch IS NOT NULL AND Epoch > 0) OR (ConsumerKind IN ('all_kvk','scan_data') AND Epoch IS NULL)),
     CONSTRAINT CK_ExportAttempt_Phase CHECK (DATALENGTH(Phase) = LEN(Phase) AND Phase IN ('private_started','verified','publication_pending','published','failed','uncertain','retired')),
