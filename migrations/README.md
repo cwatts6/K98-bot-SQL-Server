@@ -1,5 +1,37 @@
 # SQL Migrations
 
+## Current KVK status — S10B delivered; S10C scope next, 2026-09-14
+
+S10A SQL [#85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85) is accepted, merged and locally
+pulled at `3776dfa6b0892a8800d236fdf111c4d2f93c3813`. The five approved disposable fixture modes,
+76 unique structural cases in install and constraints, backup/actual restore and direct apply/rerun
+remain retained accepted evidence; no execution was repeated for this closeout.
+
+S10B Bot mirror [#278](https://github.com/cwatts6/K98-bot-mirror/pull/278) and production
+[#585](https://github.com/cwatts6/k98-bot/pull/585) are merged and locally pulled, including the
+production review correction backported to the mirror. Production merge is
+`40c2e48111ebbe44d58d71269dea63a6dd9388b7`; synchronized local Bot main is
+`8ae66da6e12b53781c5df0d46a8ee79314cecead`. S10B required no SQL delta.
+**No changes have been pulled to the bot machine.** No production SQL deployment or activation is claimed.
+
+Next is S10C Legacy and Scan Export Adapters, initial review/scope only. The Bot repository's
+`docs/reference/kvk_source_migration/s10b_closeout_and_s10c_handoff.md` controls the exact pending
+Bot documentation manifest and S10B archive moves; all belong in the eventual S10C Bot implementation PR.
+The two pending SQL documentation paths, `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md`,
+must remain in this repository and accompany its next authorized SQL PR. If S10C independently
+requires an approved SQL delta, include both then; otherwise carry them to S10D. No standalone
+SQL docs PR, manufactured schema change, Bot/SQL mixing or new grouping approval.
+
+Preserve S6-OPS01/PERF01/CAP01, both uncertain publications
+`e19c89ac-7977-5f28-ae4c-031807cd1728` and `54a2480a-26fb-5bad-a3f5-9321525a731c`, and all retained
+databases/files. S8A six-script/VERIFYONLY, S8B 50-case/actual-restore versus offline-runner, and
+S8C seven local-check evidence stay distinct; none implies live Discord or current deployment acceptance.
+This update changes documentation only: security routing is a documentation-only skip. No SQL,
+provider/Discord execution, real import/export, bot-machine pull/restart, activation, predecessor
+rerun, Git publication or automatic new task is authorized. Historical checkpoints below remain history.
+
+## Historical S10A publication checkpoint — 2026-09-14
+
 > Current KVK status, 2026-09-14: S9B repository delivery is complete. SQL #84,
 > Bot mirror #277 and production #584 are merged and locally pulled; the bot machine is unchanged.
 > S10A Shared Export Coordination SQL Foundation is implemented and published in
@@ -568,3 +600,40 @@ Discord acceptance. All retained operational gates and uncertain publications re
 No production/bot-machine deployment, activation, merge or later-slice implementation occurred.
 This update changes only delivery evidence; SQL source bytes remain unchanged, so the existing
 Changes security review applies and a precise documentation-only skip covers this delta.
+
+
+## S10C preparation authoring approved — 2026-09-14
+
+The operator separately approved the eight-path preparation schema/migration/fixture/static-checker
+authoring boundary recorded in the Bot S10C task pack. Adds pre-spool preparation identity and
+exclusive preparation/job resource ownership. SQL execution, publication, deployment and activation
+remain unauthorized. Both pending SQL documentation files accompany the eventual separately
+authorized SQL implementation PR. Preserve accepted SQL #85, every retained database/file and
+uncertain publication. Static validation is not SQL concurrency or restore evidence.
+
+## S10C completed local review — 2026-09-14
+
+Separate Changes review (Deep off) 83778eb1-6169-4d08-ab6a-24ebfdd90f20 completed
+with no reportable findings or deferred candidates against the exact eight-path patch:
+codex-security-snapshot/v1:sha256:c56aa47a8c0672f6c1cb8c2d52311d8a907ed8d17ebd865baff2914c15f2e8be.
+The offline checker passed; no SQL case or migration was executed. This later evidence-only
+documentation update has no runtime/schema effect and is covered by a documentation-only
+security skip. Reviewed SQL/checker source bytes remain unchanged.
+The earlier scope-only closeout above is historical; separately approved authoring is complete.
+Exact-target SQL execution, backup/actual restore, rollout attestation and publication remain
+separate authorization gates. Preserve all retained databases/files, claims and receipts.
+
+## S10C PR86 review corrections — 2026-09-15
+
+The authorized review response tightens pending ownership and Actor BIN2 collation and validates
+inherited ExportResource columns, CHECKs, indexes and FK mappings against accepted S10A expectations
+before the first S10C alteration or metadata seal. Missing/extra/disabled/untrusted/altered inherited
+shape fails closed. This covers ExportResource, not a new deployment attestation of every S10A table.
+The script remains authoring-only, not an upgrade for a previously installed old S10C shape.
+
+Offline static validation passed the valid patch and rejected six corrupted variants. The authored
+SQL fixture adds owned-pending rejection and Actor metadata checks; it was not executed.
+Changes review (Deep off) eeb8cf3a-d063-4c0c-ba7e-97caf5aab5a4 completed without reportable findings
+or deferred candidates at codex-security-snapshot/v1:sha256:19c735c6af83c989274ceff27251179534358bd3fca9856bc2c7d2c1e270868a.
+This subsequent evidence-only documentation update is covered by a documentation-only security skip.
+No live SQL/provider/Discord execution, deployment, activation or retained-state mutation occurred.
