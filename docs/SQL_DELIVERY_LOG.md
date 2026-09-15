@@ -15,7 +15,7 @@ production review correction backported to the mirror. Production merge is
 **No changes have been pulled to the bot machine.** No production SQL deployment or activation is claimed.
 
 Next is S10C Legacy and Scan Export Adapters, initial review/scope only. The Bot repository's
-`s10b_closeout_and_s10c_handoff.md` (at `docs/reference/kvk_source_migration/` in cwatts6/k98-bot) controls the exact pending
+`s10b_closeout_and_s10c_handoff.md` (in the `cwatts6/k98-bot` reference docs) controls the exact pending
 Bot documentation manifest and S10B archive moves; all belong in the eventual S10C Bot implementation PR.
 The two pending SQL documentation paths, `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md`,
 must remain in this repository and accompany its next authorized SQL PR. If S10C independently
