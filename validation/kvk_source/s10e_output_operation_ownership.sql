@@ -33,9 +33,18 @@ END TRY
 BEGIN CATCH
     IF ERROR_NUMBER()<>547 THROW;
 END CATCH;
--- A stale owner/version CAS cannot authorize mutation.
-UPDATE dbo.ExportResource SET Version=Version+1 WHERE ActiveOutputOperationID=@Operation AND OwnerID=NEWID();
+-- Correct owner/fence with stale version must fail; the matching CAS must succeed.
+DECLARE @Resource varchar(256), @Version bigint, @Fence bigint;
+SELECT @Resource=ResourceKey,@Version=Version,@Fence=Fence FROM dbo.ExportResource WHERE ActiveOutputOperationID=@Operation AND OwnerID=@Owner;
+IF @Version IS NULL OR @Fence IS NULL THROW 51601, 'Owned resource snapshot required.', 1;
+UPDATE dbo.ExportResource SET Version=Version+1 WHERE ResourceKey=@Resource AND ActiveOutputOperationID=@Operation AND OwnerID=@Owner AND Fence=@Fence AND Version=@Version-1;
+IF @@ROWCOUNT<>0 THROW 51601, 'Stale version unexpectedly matched.', 1;
+UPDATE dbo.ExportResource SET Version=Version+1 WHERE ResourceKey=@Resource AND ActiveOutputOperationID=@Operation AND OwnerID=@Owner AND Fence=@Fence-1 AND Version=@Version;
+IF @@ROWCOUNT<>0 THROW 51601, 'Stale fence unexpectedly matched.', 1;
+UPDATE dbo.ExportResource SET Version=Version+1 WHERE ResourceKey=@Resource AND ActiveOutputOperationID=@Operation AND OwnerID=NEWID() AND Fence=@Fence AND Version=@Version;
 IF @@ROWCOUNT<>0 THROW 51601, 'Stale owner unexpectedly matched.', 1;
+UPDATE dbo.ExportResource SET Version=Version+1 WHERE ResourceKey=@Resource AND ActiveOutputOperationID=@Operation AND OwnerID=@Owner AND Fence=@Fence AND Version=@Version;
+IF @@ROWCOUNT<>1 THROW 51601, 'Current owner/fence/version CAS did not match.', 1;
 ROLLBACK TRANSACTION;
 SELECT 'S10E disposable ownership cases passed; no provider or installation proof' AS Result;
 END TRY
