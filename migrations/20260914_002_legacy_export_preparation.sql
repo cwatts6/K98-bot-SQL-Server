@@ -39,6 +39,84 @@ BEGIN TRY
   THROW 51420,'Partial S10C schema; preserve and forward-fix.',1;
  IF @Existing=0
  BEGIN
+ -- Validate accepted inherited resource shape before any S10C ALTER or metadata seal.
+CREATE TABLE #S10CInherited_ExportResource
+(
+    ResourceKey varchar(256) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    ResourceKind varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    ActiveJobID uniqueidentifier NULL,
+    OwnerID uniqueidentifier NULL,
+    Fence bigint NOT NULL,
+    BlockedReason nvarchar(1024) COLLATE DATABASE_DEFAULT NULL,
+    Version bigint NOT NULL,
+    PRIMARY KEY (ResourceKey),
+    CHECK (LEN(ResourceKey) > 0 AND DATALENGTH(ResourceKey) = DATALENGTH(LTRIM(RTRIM(ResourceKey)))),
+    CHECK (DATALENGTH(ResourceKind) = LEN(ResourceKind) AND ResourceKind IN ('account','destination','sql_snapshot')),
+    CHECK ((ActiveJobID IS NULL AND OwnerID IS NULL AND Fence >= 0) OR (ActiveJobID IS NOT NULL AND OwnerID IS NOT NULL AND Fence > 0)),
+    CHECK (BlockedReason IS NULL OR LEN(BlockedReason) > 0),
+    CHECK (Version > 0)
+);
+CREATE INDEX IX_ExportResource_ActiveJob ON #S10CInherited_ExportResource (ActiveJobID) WHERE ActiveJobID IS NOT NULL;
+DECLARE @S10CInheritedMap TABLE (Name sysname NOT NULL, ActualID int NULL, ExpectedID int NOT NULL);
+INSERT @S10CInheritedMap VALUES (N'ExportResource',OBJECT_ID(N'dbo.ExportResource',N'U'),OBJECT_ID(N'tempdb..#S10CInherited_ExportResource'));
+-- EXCEPT in both directions rejects missing, extra, disabled, untrusted or altered shape.
+IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @S10CInheritedMap m JOIN sys.columns c ON c.object_id=m.ActualID
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @S10CInheritedMap m JOIN tempdb.sys.columns c ON c.object_id=m.ExpectedID)
+OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @S10CInheritedMap m JOIN tempdb.sys.columns c ON c.object_id=m.ExpectedID
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @S10CInheritedMap m JOIN sys.columns c ON c.object_id=m.ActualID)
+    THROW 51420, 'S10CInherited column shape conflict; preserve history and forward-fix.', 1;
+IF EXISTS (SELECT 1 FROM @S10CInheritedMap m JOIN sys.columns c ON c.object_id=m.ActualID WHERE c.user_type_id<>c.system_type_id) THROW 51420, 'S10CInherited alias type conflict.', 1;
+IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.definition COLLATE Latin1_General_100_BIN2, c.is_disabled, c.is_not_trusted, c.is_not_for_replication FROM @S10CInheritedMap m JOIN sys.check_constraints c ON c.parent_object_id=m.ActualID
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, c.definition COLLATE Latin1_General_100_BIN2, c.is_disabled, c.is_not_trusted, c.is_not_for_replication FROM @S10CInheritedMap m JOIN tempdb.sys.check_constraints c ON c.parent_object_id=m.ExpectedID)
+OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.definition COLLATE Latin1_General_100_BIN2, c.is_disabled, c.is_not_trusted, c.is_not_for_replication FROM @S10CInheritedMap m JOIN tempdb.sys.check_constraints c ON c.parent_object_id=m.ExpectedID
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, c.definition COLLATE Latin1_General_100_BIN2, c.is_disabled, c.is_not_trusted, c.is_not_for_replication FROM @S10CInheritedMap m JOIN sys.check_constraints c ON c.parent_object_id=m.ActualID)
+    THROW 51420, 'S10CInherited check constraint shape conflict; preserve history and forward-fix.', 1;
+IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @S10CInheritedMap m JOIN sys.indexes i ON i.object_id=m.ActualID
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM tempdb.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @S10CInheritedMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID)
+OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM tempdb.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @S10CInheritedMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @S10CInheritedMap m JOIN sys.indexes i ON i.object_id=m.ActualID)
+    THROW 51420, 'S10CInherited index shape conflict; preserve history and forward-fix.', 1;
+IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, COUNT(*) FROM @S10CInheritedMap m JOIN sys.indexes i ON i.object_id=m.ActualID GROUP BY m.Name
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, COUNT(*) FROM @S10CInheritedMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID GROUP BY m.Name)
+OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, COUNT(*) FROM @S10CInheritedMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID GROUP BY m.Name
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, COUNT(*) FROM @S10CInheritedMap m JOIN sys.indexes i ON i.object_id=m.ActualID GROUP BY m.Name)
+    THROW 51420, 'S10CInherited index count shape conflict; preserve history and forward-fix.', 1;
+IF EXISTS (SELECT 1 FROM @S10CInheritedMap m JOIN sys.default_constraints d ON d.parent_object_id=m.ActualID)
+OR EXISTS (SELECT 1 FROM @S10CInheritedMap m JOIN sys.triggers t ON t.parent_id=m.ActualID)
+OR EXISTS (SELECT 1 FROM @S10CInheritedMap m JOIN sys.tables t ON t.object_id=m.ActualID WHERE t.temporal_type<>0 OR t.is_memory_optimized<>0)
+    THROW 51420, 'S10CInherited unexpected default, trigger or table mode.', 1;
+DECLARE @S10CInheritedFK TABLE (ParentName sysname, ConstraintName sysname, Ordinal int, ParentColumn sysname, TargetName nvarchar(256), TargetColumn sysname);
+INSERT @S10CInheritedFK VALUES
+(N'ExportResource',N'FK_ExportResource_ActiveMembership',1,N'ActiveJobID',N'dbo.ExportJobResource',N'JobID'),
+(N'ExportResource',N'FK_ExportResource_ActiveMembership',2,N'ResourceKey',N'dbo.ExportJobResource',N'ResourceKey');
+IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, f.name COLLATE Latin1_General_100_BIN2, fc.constraint_column_id,
+pc.name COLLATE Latin1_General_100_BIN2, (OBJECT_SCHEMA_NAME(f.referenced_object_id)+N'.'+OBJECT_NAME(f.referenced_object_id)) COLLATE Latin1_General_100_BIN2,
+rc.name COLLATE Latin1_General_100_BIN2, f.is_disabled, f.is_not_trusted, f.is_not_for_replication, f.delete_referential_action, f.update_referential_action
+FROM @S10CInheritedMap m JOIN sys.foreign_keys f ON f.parent_object_id=m.ActualID
+JOIN sys.foreign_key_columns fc ON fc.constraint_object_id=f.object_id
+JOIN sys.columns pc ON pc.object_id=fc.parent_object_id AND pc.column_id=fc.parent_column_id
+JOIN sys.columns rc ON rc.object_id=fc.referenced_object_id AND rc.column_id=fc.referenced_column_id
+EXCEPT
+SELECT ParentName COLLATE Latin1_General_100_BIN2, ConstraintName COLLATE Latin1_General_100_BIN2, Ordinal, ParentColumn COLLATE Latin1_General_100_BIN2, TargetName COLLATE Latin1_General_100_BIN2, TargetColumn COLLATE Latin1_General_100_BIN2, 0,0,0,0,0 FROM @S10CInheritedFK)
+OR EXISTS (SELECT ParentName COLLATE Latin1_General_100_BIN2, ConstraintName COLLATE Latin1_General_100_BIN2, Ordinal, ParentColumn COLLATE Latin1_General_100_BIN2, TargetName COLLATE Latin1_General_100_BIN2, TargetColumn COLLATE Latin1_General_100_BIN2, 0,0,0,0,0 FROM @S10CInheritedFK
+EXCEPT
+SELECT m.Name COLLATE Latin1_General_100_BIN2, f.name COLLATE Latin1_General_100_BIN2, fc.constraint_column_id,
+pc.name COLLATE Latin1_General_100_BIN2, (OBJECT_SCHEMA_NAME(f.referenced_object_id)+N'.'+OBJECT_NAME(f.referenced_object_id)) COLLATE Latin1_General_100_BIN2,
+rc.name COLLATE Latin1_General_100_BIN2, f.is_disabled, f.is_not_trusted, f.is_not_for_replication, f.delete_referential_action, f.update_referential_action
+FROM @S10CInheritedMap m JOIN sys.foreign_keys f ON f.parent_object_id=m.ActualID
+JOIN sys.foreign_key_columns fc ON fc.constraint_object_id=f.object_id
+JOIN sys.columns pc ON pc.object_id=fc.parent_object_id AND pc.column_id=fc.parent_column_id
+JOIN sys.columns rc ON rc.object_id=fc.referenced_object_id AND rc.column_id=fc.referenced_column_id)
+    THROW 51420, 'S10CInherited foreign key shape conflict; preserve history and forward-fix.', 1;
+DROP TABLE #S10CInherited_ExportResource;
  EXEC sys.sp_executesql N'CREATE TABLE dbo.ExportPreparation
 (
  PreparationID uniqueidentifier NOT NULL,
@@ -58,7 +136,7 @@ BEGIN TRY
  SpoolBytes bigint NULL,
  SpoolHash binary(32) NULL,
  JobID uniqueidentifier NULL,
- Actor nvarchar(128) NOT NULL,
+ Actor nvarchar(128) COLLATE Latin1_General_100_BIN2 NOT NULL,
  Reason nvarchar(1024) NOT NULL,
  CreatedUTC datetime2(3) NOT NULL,
  UpdatedUTC datetime2(3) NOT NULL,
@@ -67,7 +145,7 @@ BEGIN TRY
  CONSTRAINT CK_ExportPreparation_Consumer CHECK (ConsumerKind IN (''all_kvk'',''scan_data'',''config'') AND DATALENGTH(ConsumerKind)=LEN(ConsumerKind)),
  CONSTRAINT CK_ExportPreparation_Scope CHECK ((ConsumerKind=''all_kvk'' AND KVK_NO IS NOT NULL AND KVK_NO>0) OR (ConsumerKind IN (''scan_data'',''config'') AND KVK_NO IS NULL)),
  CONSTRAINT CK_ExportPreparation_State CHECK (State IN (''pending'',''preflight'',''sql_pending'',''writing'',''committed'',''captured'',''materialized'',''completed'',''unavailable'',''uncertain'') AND DATALENGTH(State)=LEN(State)),
- CONSTRAINT CK_ExportPreparation_Owner CHECK ((OwnerID IS NULL AND Fence=0 AND State=''pending'') OR (OwnerID IS NOT NULL AND Fence>0)),
+ CONSTRAINT CK_ExportPreparation_Owner CHECK ((OwnerID IS NULL AND Fence=0 AND State=''pending'') OR (OwnerID IS NOT NULL AND Fence>0 AND State<>''pending'')),
  CONSTRAINT CK_ExportPreparation_Counters CHECK (Version>0 AND EnqueueSequence>0 AND UpdatedUTC>=CreatedUTC),
  CONSTRAINT CK_ExportPreparation_Text CHECK (LEN(AccountKey)>0 AND DATALENGTH(AccountKey)=DATALENGTH(LTRIM(RTRIM(AccountKey))) AND LEN(StorageOwner)>0 AND DATALENGTH(StorageOwner)=DATALENGTH(LTRIM(RTRIM(StorageOwner))) AND LEN(Actor)>0 AND LEN(Reason)>0),
  CONSTRAINT CK_ExportPreparation_Request CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=65536),

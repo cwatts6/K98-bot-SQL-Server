@@ -24,6 +24,17 @@ BEGIN TRY
  DECLARE @Rejected bit;
  SET @Rejected=0;
  BEGIN TRY
+  UPDATE dbo.ExportPreparation SET State='pending' WHERE PreparationID=@Preparation;
+ END TRY BEGIN CATCH
+  IF ERROR_NUMBER()<>547 THROW;
+  SET @Rejected=1;
+ END CATCH;
+ IF @Rejected=0 THROW 51422,'Owned preparation accepted pending state.',1;
+ IF NOT EXISTS(SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID('dbo.ExportPreparation') AND name='Actor' AND collation_name='Latin1_General_100_BIN2')
+  THROW 51422,'Actor identity collation drifted.',1;
+
+ SET @Rejected=0;
+ BEGIN TRY
   UPDATE dbo.ExportPreparation SET KVK_NO=1 WHERE PreparationID=@Preparation;
  END TRY BEGIN CATCH
   IF ERROR_NUMBER()<>547 THROW;

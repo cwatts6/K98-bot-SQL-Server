@@ -622,3 +622,18 @@ security skip. Reviewed SQL/checker source bytes remain unchanged.
 The earlier scope-only closeout above is historical; separately approved authoring is complete.
 Exact-target SQL execution, backup/actual restore, rollout attestation and publication remain
 separate authorization gates. Preserve all retained databases/files, claims and receipts.
+
+## S10C PR86 review corrections — 2026-09-15
+
+The authorized review response tightens pending ownership and Actor BIN2 collation and validates
+inherited ExportResource columns, CHECKs, indexes and FK mappings against accepted S10A expectations
+before the first S10C alteration or metadata seal. Missing/extra/disabled/untrusted/altered inherited
+shape fails closed. This covers ExportResource, not a new deployment attestation of every S10A table.
+The script remains authoring-only, not an upgrade for a previously installed old S10C shape.
+
+Offline static validation passed the valid patch and rejected six corrupted variants. The authored
+SQL fixture adds owned-pending rejection and Actor metadata checks; it was not executed.
+Changes review (Deep off) eeb8cf3a-d063-4c0c-ba7e-97caf5aab5a4 completed without reportable findings
+or deferred candidates at codex-security-snapshot/v1:sha256:19c735c6af83c989274ceff27251179534358bd3fca9856bc2c7d2c1e270868a.
+This subsequent evidence-only documentation update is covered by a documentation-only security skip.
+No live SQL/provider/Discord execution, deployment, activation or retained-state mutation occurred.
