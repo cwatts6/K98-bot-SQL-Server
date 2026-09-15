@@ -1199,65 +1199,69 @@ closeout/S10E without creating a standalone docs PR, copying files into SQL or i
 implementation. Before future publication and promotion verify all GitHub filename AND
 previous_filename entries, or exact merged/content/absent-at-base proof for each identity.
 
-Authority: Bot `docs/reference/kvk_source_migration/s10c_closeout_and_s10d_handoff.md`, SHA256
+Authority: Bot repository, directory `docs`, file
+`reference/kvk_source_migration/s10c_closeout_and_s10d_handoff.md`, SHA256
 `a8e1bdd9ac5646eb33ea37252bd487741217bb015ae151a268ed8570a40e6514`.
 Bot base `bf3eccf964601e2975dd86eefe96f7b0153be3bb`, production base
 `aa1821adbde9ccda47797caa83b5d5a9958bfce9`. Both S10C archive destinations are absent at
 those bases. Source starter blob `0393a3f54067a37f587a69051f5450bae2564246`; source task-pack
 blob `58f0bd559488e34fdcf60cf9c50ba415455d3951`. Both deletions and destinations remain pending.
 
-| Action | Exact Bot path | Delivery |
-|---|---|---|
-| Modify | `README-DEV.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/ENV_REFERENCE.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/README.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/canonical_command_reference.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/decision_and_evidence_register.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/integration_contract_and_consumer_matrix.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/integration_implementation_manifests.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/phase_2_acceptance_scenarios.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/phase_2_contract_and_architecture.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/phase_2_evidence_and_validation_log.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/phase_2_implementation_plan.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/phase_2b_evidence_and_validation_log.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/post_s6_handoff_log.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/post_s6_integration_requirements.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/release_evidence_log.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/release_readiness_and_rollback.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s10a_implementation_and_s10b_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s10b_closeout_and_s10c_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Create | `docs/reference/kvk_source_migration/s10c_closeout_and_s10d_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s8a_closeout_and_s8b_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s8b_closeout_and_s8c_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s8c_closeout_and_s9a_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s8c_folder_intake_smoke_evidence.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s8c_operator_work_instruction.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s9a_closeout_and_s9b_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/kvk_source_migration/s9b_closeout_and_s10a_handoff.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/local_sql_development.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/runbook_shutdown.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/reference/runbook_startup.md` | Next authorized Bot implementation PR (S10E) |
-| Delete (archive source) | `docs/task_packs/Codex Chat Starter - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
-| Create | `docs/task_packs/Codex Chat Starter - KVK Source Migration S10D Output Pool and Rollover SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
-| Delete (archive source) | `docs/task_packs/Codex Task Pack - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
-| Create | `docs/task_packs/Codex Task Pack - KVK Source Migration S10D Output Pool and Rollover SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/KVK Source Migration - Programme Pack.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/README.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S10A Shared Export Coordination SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S10B Shared Export Coordination Worker and Durable Budget.md` | Next authorized Bot implementation PR (S10E) |
-| Create (archive destination) | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S7 Integration Contract and Implementation Planning.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S8A SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S9A Public Routing and Availability.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Chat Starter - KVK Source Migration S9B Stats Target Card Context and Admin Dispatch.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S10A Shared Export Coordination SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S10B Shared Export Coordination Worker and Durable Budget.md` | Next authorized Bot implementation PR (S10E) |
-| Create (archive destination) | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S7 Integration Contract and Implementation Planning.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S8A SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S9A Public Routing and Availability.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/Codex Task Pack - KVK Source Migration S9B Stats Target Card Context and Admin Dispatch.md` | Next authorized Bot implementation PR (S10E) |
-| Modify | `docs/task_packs/archive/README.md` | Next authorized Bot implementation PR (S10E) |
+Paths below belong to the Bot repository. Join the directory and relative path with `/`;
+`.` means the repository root. These are carry-forward identities, not SQL-local links.
+
+| Action | Bot directory | Exact path within directory | Delivery |
+|---|---|---|---|
+| Modify | `.` | `README-DEV.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/ENV_REFERENCE.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/README.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/canonical_command_reference.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/decision_and_evidence_register.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/integration_contract_and_consumer_matrix.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/integration_implementation_manifests.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_acceptance_scenarios.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_contract_and_architecture.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_evidence_and_validation_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_implementation_plan.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2b_evidence_and_validation_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/post_s6_handoff_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/post_s6_integration_requirements.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/release_evidence_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/release_readiness_and_rollback.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s10a_implementation_and_s10b_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s10b_closeout_and_s10c_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Create | `docs` | `reference/kvk_source_migration/s10c_closeout_and_s10d_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8a_closeout_and_s8b_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8b_closeout_and_s8c_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8c_closeout_and_s9a_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8c_folder_intake_smoke_evidence.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8c_operator_work_instruction.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s9a_closeout_and_s9b_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s9b_closeout_and_s10a_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/local_sql_development.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/runbook_shutdown.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/runbook_startup.md` | Next authorized Bot implementation PR (S10E) |
+| Delete (archive source) | `docs` | `task_packs/Codex Chat Starter - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Create | `docs` | `task_packs/Codex Chat Starter - KVK Source Migration S10D Output Pool and Rollover SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Delete (archive source) | `docs` | `task_packs/Codex Task Pack - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Create | `docs` | `task_packs/Codex Task Pack - KVK Source Migration S10D Output Pool and Rollover SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/KVK Source Migration - Programme Pack.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/README.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S10A Shared Export Coordination SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S10B Shared Export Coordination Worker and Durable Budget.md` | Next authorized Bot implementation PR (S10E) |
+| Create (archive destination) | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S7 Integration Contract and Implementation Planning.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S8A SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S9A Public Routing and Availability.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S9B Stats Target Card Context and Admin Dispatch.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S10A Shared Export Coordination SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S10B Shared Export Coordination Worker and Durable Budget.md` | Next authorized Bot implementation PR (S10E) |
+| Create (archive destination) | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S7 Integration Contract and Implementation Planning.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S8A SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S9A Public Routing and Availability.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S9B Stats Target Card Context and Admin Dispatch.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/README.md` | Next authorized Bot implementation PR (S10E) |
 
 ### Retained operational gates
 
@@ -1305,3 +1309,13 @@ Security routing skips another scan for this evidence-only addition. No Bot runt
 standalone docs PR, Git publication, SQL installation, provider/Discord execution, predecessor
 rerun, bot-machine pull/restart/deployment or activation occurred. All unexecuted S10D/S10E
 transaction/provider gates and all retained S6/S8 evidence distinctions remain as recorded.
+
+### PR #87 documentation CI correction
+
+The repository-path check interpreted Bot carry-forward paths as SQL-local files. The table
+now identifies the Bot directory separately from each exact relative path. Reconstructing
+all 50 paths preserves every original identity/action and both archive move sides. The
+authoritative closeout hash remains unchanged. No validator exclusion, workflow change or
+SQL source change is needed. This documentation-only correction uses the existing security
+routing skip; the reviewed implementation bytes and all runtime/installation gates remain
+unchanged.
