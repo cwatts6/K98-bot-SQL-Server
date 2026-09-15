@@ -1,34 +1,63 @@
 # SQL Delivery Log
 
-## Current KVK status — S10B delivered; S10C scope next, 2026-09-14
+## Current S10D authoring checkpoint - 2026-09-15
 
-S10A SQL [#85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85) is accepted, merged and locally
-pulled at `3776dfa6b0892a8800d236fdf111c4d2f93c3813`. The five approved disposable fixture modes,
-76 unique structural cases in install and constraints, backup/actual restore and direct apply/rerun
-remain retained accepted evidence; no execution was repeated for this closeout.
+The operator approved the eleven-path SQL-only scope and offline validation. S10D is now
+authored locally; it is not published or installed. The migration is
+`20260915_001_kvk_output_pool_rollover.sql`: actual creation date and free ordinal checked
+before authoring. No merged predecessor migration was changed or rerun.
 
-S10B Bot mirror [#278](https://github.com/cwatts6/K98-bot-mirror/pull/278) and production
-[#585](https://github.com/cwatts6/k98-bot/pull/585) are merged and locally pulled, including the
-production review correction backported to the mirror. Production merge is
-`40c2e48111ebbe44d58d71269dea63a6dd9388b7`; synchronized local Bot main is
-`8ae66da6e12b53781c5df0d46a8ee79314cecead`. S10B required no SQL delta.
-**No changes have been pulled to the bot machine.** No production SQL deployment or activation is claimed.
+The new file registry prevents pool-index/slot aliasing; pool, current-slot and disposition
+tables retain scoped ownership/history evidence. Two additive attempt/part reference keys
+complete exact FKs. S10E owns transaction CAS, append-only writer APIs, monotonic lifecycle
+transitions and provider proof; static shape does not certify remote privacy or safe reuse.
 
-Next is S10C Legacy and Scan Export Adapters, initial review/scope only. The Bot repository's
-`s10b_closeout_and_s10c_handoff.md` (in the `cwatts6/k98-bot` reference docs) controls the exact pending
-Bot documentation manifest and S10B archive moves; all belong in the eventual S10C Bot implementation PR.
-The two pending SQL documentation paths, `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md`,
-must remain in this repository and accompany its next authorized SQL PR. If S10C independently
-requires an approved SQL delta, include both then; otherwise carry them to S10D. No standalone
-SQL docs PR, manufactured schema change, Bot/SQL mixing or new grouping approval.
+S10C prerequisites remain source/static evidence, not installation proof. SQL main/origin
+main remains `a03835a12feb0d52374e00206f944a02d8937fbd`. Bot main/origin main remains
+`bf3eccf964601e2975dd86eefe96f7b0153be3bb`; production/main remains
+`aa1821adbde9ccda47797caa83b5d5a9958bfce9`. No changes have been pulled to the bot machine.
+
+Both previously pending SQL documents are preserved in this implementation. Every pending
+Bot document and both sides of both S10C archive moves remain assigned to the next authorized
+Bot implementation PR, currently S10E; see the exact tracking table in SQL_DELIVERY_LOG.md.
+No standalone documentation PR, mixed repository delivery, manufactured Bot work or renewed
+predecessor/grouping approval. Git publication, SQL/provider/Discord execution, deployment
+and activation are separate gates. Earlier dated checkpoints below remain historical.
+
+
+## Current KVK status — S10C merged and locally pulled; S10D scope next, 2026-09-15
+
+SQL [#86](https://github.com/cwatts6/K98-bot-SQL-Server/pull/86) is merged at
+`a03835a12feb0d52374e00206f944a02d8937fbd`; local main/origin main match. Final reviewed head:
+`bf87ca2b3d8795abb1a02764d390f8a87f51f5ad`. S10C's eight-path preparation patch and both pending
+SQL documents were delivered. The inherited-resource validator, pending-owner restriction and Actor
+BIN2 correction are included. Static validation and seven checker variants are retained evidence;
+no S10C migration/fixture/database execution, SQL deployment or activation is claimed.
+
+Bot mirror #279 and production #586 are merged and locally pulled. Bot main/origin main is
+`bf3eccf964601e2975dd86eefe96f7b0153be3bb`; production/main is
+`aa1821adbde9ccda47797caa83b5d5a9958bfce9`. **No changes have been pulled to the bot machine.**
+The final Bot offline suite passed 4,514 tests with 67 skips; this is not SQL execution evidence.
+
+Next is S10D Output Pool and Rollover SQL Foundation, initial review/scope only. Its Bot-repository
+task pack and `s10c_closeout_and_s10d_handoff.md` control the handoff. The S7 six-path SQL proposal
+plus this repository's `migrations/README.md` must be reconciled before implementation approval.
+Resolve the migration's actual creation date and free daily ordinal during scope; never rename a
+merged migration or use the historical proposed date blindly. No S10D schema objects are created now.
+
+Both `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md` are newly pending documentation updates
+and MUST accompany the next authorized S10D SQL implementation PR. Verify exact filename and
+previous_filename coverage or exact merged/absent-at-base proof, not counts. Bot documentation and
+S10C task archive moves remain in Bot for its next authorized implementation PR, currently S10E;
+S10D must track that manifest without copying it into SQL or opening a standalone docs PR.
 
 Preserve S6-OPS01/PERF01/CAP01, both uncertain publications
 `e19c89ac-7977-5f28-ae4c-031807cd1728` and `54a2480a-26fb-5bad-a3f5-9321525a731c`, and all retained
-databases/files. S8A six-script/VERIFYONLY, S8B 50-case/actual-restore versus offline-runner, and
-S8C seven local-check evidence stay distinct; none implies live Discord or current deployment acceptance.
-This update changes documentation only: security routing is a documentation-only skip. No SQL,
-provider/Discord execution, real import/export, bot-machine pull/restart, activation, predecessor
-rerun, Git publication or automatic new task is authorized. Historical checkpoints below remain history.
+databases/files. Keep S8A six-script/VERIFYONLY, S8B 50-case/actual-restore versus offline history,
+and S8C seven local checks distinct. Predecessor acceptance is not reopened; no rerun is authorized.
+Documentation-only security skip: no code, schema, configuration, permissions or persistence changes.
+No implementation, Git publication, SQL/provider/Discord execution, real import/export, bot-machine
+pull/restart, deployment, activation or automatic task is authorized. Earlier dated entries are historical.
 
 ## Historical S10A publication checkpoint — 2026-09-14
 
@@ -1009,3 +1038,284 @@ Changes review (Deep off) eeb8cf3a-d063-4c0c-ba7e-97caf5aab5a4 completed without
 or deferred candidates at codex-security-snapshot/v1:sha256:19c735c6af83c989274ceff27251179534358bd3fca9856bc2c7d2c1e270868a.
 This subsequent evidence-only documentation update is covered by a documentation-only security skip.
 No live SQL/provider/Discord execution, deployment, activation or retained-state mutation occurred.
+
+
+## S10D implementation contract and delivery boundary - 2026-09-15
+
+### Approved exact SQL manifest
+
+The baseline is S7's six paths plus mandatory migrations/README.md. The operator approved
+four additions: a shared typed physical-file registry, two existing snapshots with additive
+composite reference keys, and an offline contract checker. No Bot runtime delta is required.
+
+| Action | Exact SQL repository path |
+|---|---|
+| Create | `migrations/20260915_001_kvk_output_pool_rollover.sql` |
+| Create | `sql_schema/KVK.SourceOutputPool.Table.sql` |
+| Create | `sql_schema/KVK.SourceOutputSlot.Table.sql` |
+| Create | `sql_schema/KVK.SourceOutputDisposition.Table.sql` |
+| Create | `validation/kvk_source/s10_output_pool_rollover.sql` |
+| Modify | `docs/SQL_DELIVERY_LOG.md` |
+| Modify | `migrations/README.md` |
+| Create | `sql_schema/KVK.SourceOutputFile.Table.sql` |
+| Modify | `sql_schema/dbo.ExportAttempt.Table.sql` |
+| Modify | `sql_schema/dbo.ExportAttemptPart.Table.sql` |
+| Create | `deploy/Test-OutputPoolRolloverContracts.ps1` |
+
+### Static schema and exact foreign-key scope
+
+- SourceOutputFile: nvarchar(128) BIN2 ASCII FileID (3..128 characters), one fixed index/slot
+  role and canonical `destination:<FileID>` ResourceKey referencing ExportResource. Unique
+  (FileID,FileKind) and typed pool/slot references prohibit cross-table physical aliases.
+  Register under shared account admission; a file registry row alone is not capacity.
+- SourceOutputPool: UUID PoolID and unique index, account resource, expected owner, audience
+  and registration evidence. RegistrationNo is 1..8, unique within this coordinator database;
+  closed/blocked registrations still occupy their number. This preserves the configured
+  eight-registration boundary; replacement/reconfiguration requires reviewed S10E policy.
+  Nullable current KVK/ChoiceID is all-null only in setup/blocked, otherwise a complete
+  SeasonSource FK. Only snapshot_report_v1 pools are admitted. Epoch/Version are positive.
+  Closing requires ownership; closed cannot retain a live owner; blocked requires a reason.
+- SourceOutputSlot: global FileID primary key and typed slot-role FK; PoolID and SlotNo 1..16
+  uniquely identify position. Initially register as quarantined with a reason and no guessed
+  assignment. Free requires a scoped clear event; staging requires an owner and exact assign
+  event. Quarantine retains optional known assignment and owner evidence. Current pointers
+  reference exact event/pool/file/epoch/part/version/action keys; assignments cannot silently
+  point to another pool, physical part, epoch or disposition action.
+- SourceOutputDisposition: immutable-by-workflow event UUID, replay key per pool/operation/
+  file/action and unique pool sequence. Records old/new KVK/ChoiceID/epoch, actor/reason/UTC,
+  owner/fence, before/after versions, evidence JSON <=65536 bytes and binary(32) hash.
+  Both season choices have exact FKs. Slot and index references are mutually exclusive and
+  bind the file to its pool. Only clear can describe a +1 epoch change; all other events
+  retain the same epoch and season. A local CHECK does not prove an actual epoch transition.
+- Optional attempt scope is entirely absent or complete. Assign requires it. Existing
+  ExportJob's scoped unique key binds consumer/account/KVK/destination-set/epoch; the new
+  (AttemptID,JobID,Epoch) key binds that attempt; the new (AttemptID,PartNo,FileID) key binds
+  the physical part. JobResource FK proves declared file membership. Historical FKs do not
+  point at mutable pool epoch/current season or current job/resource owner.
+- Optional predecessor delivery scope is entirely absent or complete, references the exact
+  SourceDelivery receipt plus scoped SourcePublication, and binds its Sheets destination to
+  the same pool index. No automatic receipt import, truncation, remapping or JSON reformatting.
+  Unknown history stays blocked/quarantined. Legacy/daily jobs retain their existing shapes.
+- All new FKs are trusted/non-cascading; no deletes, cascades, triggers, grants or writer
+  procedures are introduced. Existing preparation/job membership and ownership checks stay
+  unchanged. ResourceKind agreement and current owner-tuple matching remain transaction checks.
+
+### Transaction and provider obligations retained for S10E
+
+S10D does not implement a writer API. Ordinary S10E APIs must never update/delete disposition
+history, relabel attempts or erase receipts. Raw privileged DML is not made append-only by a
+CHECK or FK. Allocate pool SequenceNo and slot assignment versions under the named owner;
+insert a disposition and change current pointers atomically using expected OwnerID/Fence/
+Version, with exactly one affected row. Reject stale ownership, version/epoch regression and
+overflow. Keep account admission -> sorted destination resources/pool -> short job/CAS order;
+respect the separate established season/publication lock order without reverse acquisition.
+No transaction spans waits, budget pacing or provider requests.
+
+Capacity is `1 + P + P + max(P,Q) + P + R`: P comes from the actual partition plan, Q is
+actual quarantine and R other protected references. P=2/Q<=2/R=0 needs nine files; this is
+not a capacity claim about retained S6 outputs. Preserve the 9,000,000-cell part ceiling,
+eight registrations and sixteen slots per registration. SQL ordinal bounds do not measure
+provider grid allocation; preflight complete part/receipt/capacity counts before mutation.
+Return setup required when exhausted. Keep normalized parts and 1024-UTF-16-unit predecessor
+receipts distinct; historical bytes stay intact and ambiguous mappings never become free slots.
+
+Rollover preview must pin old/new season, epoch, versions, exact jobs/receipts/files and
+authority. Close admission, drain/reconcile owned work and audit cancellation only of
+never-started pending exports. Prove the old writer cannot act before advancing the epoch.
+SQL fences cannot cancel a submitted request. Authorized reuse requires private ACL proof,
+complete clear of data/formatting/named ranges and empty-manifest readback, then an audited
+clear/assignment. Uncertain ACL/clear/pointer outcomes stay quarantined/blocked. Retire old
+URLs through separate events; never silently edit/delete Discord messages or replace an
+uncertain stable index. Pool current scope can advance without moving historical FK targets.
+
+Preserve immutable running A while eligible B/C pending work coalesces; daily SCANORDER and
+history never coalesce. Keep account fairness, scoped receipts, registration-aware intent
+lifecycle and one-period compaction. S10C immutable output/config/header/provenance capture,
+durable spool digest/length/owner, pending/unavailable evidence, nested owner tokens,
+UPDATE_ALL2 transaction ownership, server-UTC SDK reservations/completion/cooldown and
+uncertain/late-thread claim retention remain required. Shutdown stops new admission and
+drains owned delivery. No lease-age/job-state release or mutable-generation relabeling.
+
+Fixed season source and independent consumers remain unchanged. Supplied B0/overall and
+authoritative aggregate/DKP values, exact 11-10 / 12-10 / final 13-10 / authorized 14-10
+endpoints, sealed inputs/CAS, matched UpdateID and counterpart attestation remain controlling.
+SourceRouting.Enabled alone is not activation. No S10E UX, new command or S11 implementation.
+
+### Migration and data-safety plan
+
+DataChange No; zero existing application rows changed; RequiresBackup Yes; RiskLevel High;
+DataSafetyPlan Included; Forward Fix Only. Before execution, require an exact authorized
+target, reviewed script hashes, row-count/index-lock preview, backup and actual-restore proof.
+S10C installation is still unproven; absent prerequisites stop this migration and do not
+authorize predecessor execution. Never select retained S6/S8/S10A databases as new fixtures.
+
+The migration compares twelve accepted prerequisite tables against authored expected column,
+CHECK, default, index and FK definitions before permanent ALTER. S10C's current ExportResource
+shape includes mutually exclusive ActiveJobID/ActivePreparationID and both membership FKs.
+Four new tables must be absent together or present together; partial/type-conflicted/drifted
+states fail closed. Two reference keys are the only inherited additions. Constant DDL is
+compiled after guards, with all four tables created before cyclic FKs. Full expected shape
+is compared after installation and on rerun. No observed-metadata seal or repair is performed.
+
+Use XACT_ABORT and a zero-wait transaction-owned schema application lock. Direct invocation
+owns commit/rollback; an ambient caller owns its rollback after failure. Additive unique
+indexes may scan/lock populated attempt tables, so size and schedule them explicitly later.
+Use deployment migrations, never snapshots. Installation neither seeds pools nor activates
+writers. A failure rolls back owned DDL; after successful use retain schema/history/claims
+and correct forward. Never drop populated tables, reset fences or rewrite migration history.
+
+### Authored validation and evidence limits
+
+The offline checker compares exact expected bodies, additive keys, FK columns/types/collations,
+eligible reference keys and migration safety/order. SQL parsing and mutated-input checks are
+offline authoring evidence only. The guarded fixture authors 90 named structural/transaction
+examples and seven modes: install, constraints, partial, type_conflict, inherited_drift,
+drift and preservation. Install/constraints use empty S10D-only prerequisites; preservation
+requires nonempty separately seeded receipts and uncertain-claim sentinels. Every fixture
+change rolls back. Backup/restore strings are supplied evidence references, not verified
+backup operations. No fixture mode, migration or provider request has executed.
+
+S7-T14 covers owner/scoped FKs, stale CAS examples, epoch/history separation and quarantine.
+S7-T15 covers aliases, ordinal/JSON bounds, P/Q/R and cell-ceiling preflight examples. Positive
+insertion of synthetic evidence explicitly does not certify an ACL or terminated writer.
+Append-only/monotonic workflow tests and two-connection races need S10E transaction APIs;
+provider uncertainty needs separate authorized I/O. Future exact-target install/rerun,
+cross-collation, partial/drift rejection, lost acknowledgement and backup/actual restore
+remain unexecuted. S10D tests do not reopen predecessors or manufacture Bot runtime work.
+
+Bot pytest, smoke imports, command registration and architecture/deferred/test-selection/
+routing script reruns are skipped for this SQL-only patch: no Bot paths were changed by S10D.
+Carry-forward path/action/content checks cover the existing Bot documentation without
+claiming a fresh predecessor runtime result. SQL metadata/contract checks are separate.
+Security routing requires Changes, Deep off, against the exact SQL patch at base
+`a03835a12feb0d52374e00206f944a02d8937fbd`; a separate documentation-only skip covers
+unchanged-in-this-task Bot documentation. Security completion is recorded only after review.
+
+### Exact Bot carry-forward tracking; no Bot files in this SQL patch
+
+Every row below was matched to fresh Bot status, including staged/unstaged/untracked/deleted
+identities. Nothing is omitted or delivered by the SQL patch. Carry the exact list into S10D
+closeout/S10E without creating a standalone docs PR, copying files into SQL or inventing Bot
+implementation. Before future publication and promotion verify all GitHub filename AND
+previous_filename entries, or exact merged/content/absent-at-base proof for each identity.
+
+Authority: Bot repository, directory `docs`, file
+`reference/kvk_source_migration/s10c_closeout_and_s10d_handoff.md`, SHA256
+`a8e1bdd9ac5646eb33ea37252bd487741217bb015ae151a268ed8570a40e6514`.
+Bot base `bf3eccf964601e2975dd86eefe96f7b0153be3bb`, production base
+`aa1821adbde9ccda47797caa83b5d5a9958bfce9`. Both S10C archive destinations are absent at
+those bases. Source starter blob `0393a3f54067a37f587a69051f5450bae2564246`; source task-pack
+blob `58f0bd559488e34fdcf60cf9c50ba415455d3951`. Both deletions and destinations remain pending.
+
+Paths below belong to the Bot repository. Join the directory and relative path with `/`;
+`.` means the repository root. These are carry-forward identities, not SQL-local links.
+
+| Action | Bot directory | Exact path within directory | Delivery |
+|---|---|---|---|
+| Modify | `.` | `README-DEV.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/ENV_REFERENCE.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/README.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/canonical_command_reference.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/decision_and_evidence_register.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/integration_contract_and_consumer_matrix.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/integration_implementation_manifests.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_acceptance_scenarios.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_contract_and_architecture.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_evidence_and_validation_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2_implementation_plan.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/phase_2b_evidence_and_validation_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/post_s6_handoff_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/post_s6_integration_requirements.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/release_evidence_log.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/release_readiness_and_rollback.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s10a_implementation_and_s10b_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s10b_closeout_and_s10c_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Create | `docs` | `reference/kvk_source_migration/s10c_closeout_and_s10d_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8a_closeout_and_s8b_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8b_closeout_and_s8c_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8c_closeout_and_s9a_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8c_folder_intake_smoke_evidence.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s8c_operator_work_instruction.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s9a_closeout_and_s9b_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/kvk_source_migration/s9b_closeout_and_s10a_handoff.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/local_sql_development.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/runbook_shutdown.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `reference/runbook_startup.md` | Next authorized Bot implementation PR (S10E) |
+| Delete (archive source) | `docs` | `task_packs/Codex Chat Starter - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Create | `docs` | `task_packs/Codex Chat Starter - KVK Source Migration S10D Output Pool and Rollover SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Delete (archive source) | `docs` | `task_packs/Codex Task Pack - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Create | `docs` | `task_packs/Codex Task Pack - KVK Source Migration S10D Output Pool and Rollover SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/KVK Source Migration - Programme Pack.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/README.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S10A Shared Export Coordination SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S10B Shared Export Coordination Worker and Durable Budget.md` | Next authorized Bot implementation PR (S10E) |
+| Create (archive destination) | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S7 Integration Contract and Implementation Planning.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S8A SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S9A Public Routing and Availability.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Chat Starter - KVK Source Migration S9B Stats Target Card Context and Admin Dispatch.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S10A Shared Export Coordination SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S10B Shared Export Coordination Worker and Durable Budget.md` | Next authorized Bot implementation PR (S10E) |
+| Create (archive destination) | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S10C Legacy and Scan Export Adapters.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S7 Integration Contract and Implementation Planning.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S8A SQL Foundation.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S9A Public Routing and Availability.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/Codex Task Pack - KVK Source Migration S9B Stats Target Card Context and Admin Dispatch.md` | Next authorized Bot implementation PR (S10E) |
+| Modify | `docs` | `task_packs/archive/README.md` | Next authorized Bot implementation PR (S10E) |
+
+### Retained operational gates
+
+S6-OPS01/PERF01/CAP01 remain open for their recorded operational components. Preserve
+`e19c89ac-7977-5f28-ae4c-031807cd1728` and `54a2480a-26fb-5bad-a3f5-9321525a731c`, every
+retained database, backup, file, receipt and claim. S8A six scripts/VERIFYONLY did not prove
+actual restore; S8B 50 cases/actual restore are distinct from later offline runner history;
+S8C seven local checks are not live Discord/deployment evidence. No new operational claim.
+
+## S10D corrected authoring and security result - 2026-09-15
+
+The three expected-schema indexes for ExportPreparation/ExportPreparationResource now
+reference their #S10D temporary tables. The offline checker handles ON targets immediately
+followed by an opening parenthesis and rejects permanent table/index DDL outside the guarded
+installation payload. This corrects the installation-order defect found during review.
+No migration or fixture was executed.
+
+Validation of the corrected source:
+
+- Offline contract checker: 463 assertions passed in the actual SQL repository.
+- SQLFluff TSQL parsing: 101 inputs passed, including constant payloads and 90 case snippets.
+- Eleven deliberately corrupted scratch variants were rejected, including both affected
+  expected-index table targets. Original scratch bytes were restored after each case.
+- Validate-SqlRepo passed against an isolated source copy. All 15 warnings concern older
+  migrations; they were not changed or executed. git diff --check passed.
+- Exact identities/actions/bytes for all 50 pending Bot paths remain unchanged; both SQL
+  document titles and complete earlier pending bodies are retained. Both Git indexes are
+  empty and all recorded Bot/production/SQL base anchors remain unchanged.
+
+Initial Changes scan `a582a43f-c6df-4ec3-98be-2dc100f8fa0a` was completed after correcting
+its final-draft submission. Its source review identified the installation correctness issue,
+not a vulnerability. Corrected Changes scan `eddcf7bb-ba2f-48c2-a995-b4371f9ce3ac` is sealed,
+Deep off, with complete coverage of nine SQL/code files plus both documents and zero security
+findings. Corrected reviewed snapshot:
+`codex-security-snapshot/v1:sha256:11954e5793ccce9428f4fd70b1981be56407400085d86dfbab059f7521c76c14`.
+
+Implementation source SHA256:
+
+- Migration: `fd5344ec9d1080fe7ee824801ccb4f03910b71d83e85c6e42d48cbc90f2f0852`
+- Offline checker: `e34fd0498c601e0d40e3683844d41d72e2621c436084a5c27a77b917521cb9b1`
+
+This result section was appended to the two approved SQL documents after sealing. That
+follow-up is documentation-only; implementation source bytes remain exactly those reviewed.
+Security routing skips another scan for this evidence-only addition. No Bot runtime delta,
+standalone docs PR, Git publication, SQL installation, provider/Discord execution, predecessor
+rerun, bot-machine pull/restart/deployment or activation occurred. All unexecuted S10D/S10E
+transaction/provider gates and all retained S6/S8 evidence distinctions remain as recorded.
+
+### PR #87 documentation CI correction
+
+The repository-path check interpreted Bot carry-forward paths as SQL-local files. The table
+now identifies the Bot directory separately from each exact relative path. Reconstructing
+all 50 paths preserves every original identity/action and both archive move sides. The
+authoritative closeout hash remains unchanged. No validator exclusion, workflow change or
+SQL source change is needed. This documentation-only correction uses the existing security
+routing skip; the reviewed implementation bytes and all runtime/installation gates remain
+unchanged.

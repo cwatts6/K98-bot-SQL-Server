@@ -1,34 +1,63 @@
 # SQL Migrations
 
-## Current KVK status — S10B delivered; S10C scope next, 2026-09-14
+## Current S10D authoring checkpoint - 2026-09-15
 
-S10A SQL [#85](https://github.com/cwatts6/K98-bot-SQL-Server/pull/85) is accepted, merged and locally
-pulled at `3776dfa6b0892a8800d236fdf111c4d2f93c3813`. The five approved disposable fixture modes,
-76 unique structural cases in install and constraints, backup/actual restore and direct apply/rerun
-remain retained accepted evidence; no execution was repeated for this closeout.
+The operator approved the eleven-path SQL-only scope and offline validation. S10D is now
+authored locally; it is not published or installed. The migration is
+`20260915_001_kvk_output_pool_rollover.sql`: actual creation date and free ordinal checked
+before authoring. No merged predecessor migration was changed or rerun.
 
-S10B Bot mirror [#278](https://github.com/cwatts6/K98-bot-mirror/pull/278) and production
-[#585](https://github.com/cwatts6/k98-bot/pull/585) are merged and locally pulled, including the
-production review correction backported to the mirror. Production merge is
-`40c2e48111ebbe44d58d71269dea63a6dd9388b7`; synchronized local Bot main is
-`8ae66da6e12b53781c5df0d46a8ee79314cecead`. S10B required no SQL delta.
-**No changes have been pulled to the bot machine.** No production SQL deployment or activation is claimed.
+The new file registry prevents pool-index/slot aliasing; pool, current-slot and disposition
+tables retain scoped ownership/history evidence. Two additive attempt/part reference keys
+complete exact FKs. S10E owns transaction CAS, append-only writer APIs, monotonic lifecycle
+transitions and provider proof; static shape does not certify remote privacy or safe reuse.
 
-Next is S10C Legacy and Scan Export Adapters, initial review/scope only. The Bot repository's
-`docs/reference/kvk_source_migration/s10b_closeout_and_s10c_handoff.md` controls the exact pending
-Bot documentation manifest and S10B archive moves; all belong in the eventual S10C Bot implementation PR.
-The two pending SQL documentation paths, `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md`,
-must remain in this repository and accompany its next authorized SQL PR. If S10C independently
-requires an approved SQL delta, include both then; otherwise carry them to S10D. No standalone
-SQL docs PR, manufactured schema change, Bot/SQL mixing or new grouping approval.
+S10C prerequisites remain source/static evidence, not installation proof. SQL main/origin
+main remains `a03835a12feb0d52374e00206f944a02d8937fbd`. Bot main/origin main remains
+`bf3eccf964601e2975dd86eefe96f7b0153be3bb`; production/main remains
+`aa1821adbde9ccda47797caa83b5d5a9958bfce9`. No changes have been pulled to the bot machine.
+
+Both previously pending SQL documents are preserved in this implementation. Every pending
+Bot document and both sides of both S10C archive moves remain assigned to the next authorized
+Bot implementation PR, currently S10E; see the exact tracking table in SQL_DELIVERY_LOG.md.
+No standalone documentation PR, mixed repository delivery, manufactured Bot work or renewed
+predecessor/grouping approval. Git publication, SQL/provider/Discord execution, deployment
+and activation are separate gates. Earlier dated checkpoints below remain historical.
+
+
+## Current KVK status — S10C merged and locally pulled; S10D scope next, 2026-09-15
+
+SQL [#86](https://github.com/cwatts6/K98-bot-SQL-Server/pull/86) is merged at
+`a03835a12feb0d52374e00206f944a02d8937fbd`; local main/origin main match. Final reviewed head:
+`bf87ca2b3d8795abb1a02764d390f8a87f51f5ad`. S10C's eight-path preparation patch and both pending
+SQL documents were delivered. The inherited-resource validator, pending-owner restriction and Actor
+BIN2 correction are included. Static validation and seven checker variants are retained evidence;
+no S10C migration/fixture/database execution, SQL deployment or activation is claimed.
+
+Bot mirror #279 and production #586 are merged and locally pulled. Bot main/origin main is
+`bf3eccf964601e2975dd86eefe96f7b0153be3bb`; production/main is
+`aa1821adbde9ccda47797caa83b5d5a9958bfce9`. **No changes have been pulled to the bot machine.**
+The final Bot offline suite passed 4,514 tests with 67 skips; this is not SQL execution evidence.
+
+Next is S10D Output Pool and Rollover SQL Foundation, initial review/scope only. Its Bot-repository
+task pack and `s10c_closeout_and_s10d_handoff.md` control the handoff. The S7 six-path SQL proposal
+plus this repository's `migrations/README.md` must be reconciled before implementation approval.
+Resolve the migration's actual creation date and free daily ordinal during scope; never rename a
+merged migration or use the historical proposed date blindly. No S10D schema objects are created now.
+
+Both `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md` are newly pending documentation updates
+and MUST accompany the next authorized S10D SQL implementation PR. Verify exact filename and
+previous_filename coverage or exact merged/absent-at-base proof, not counts. Bot documentation and
+S10C task archive moves remain in Bot for its next authorized implementation PR, currently S10E;
+S10D must track that manifest without copying it into SQL or opening a standalone docs PR.
 
 Preserve S6-OPS01/PERF01/CAP01, both uncertain publications
 `e19c89ac-7977-5f28-ae4c-031807cd1728` and `54a2480a-26fb-5bad-a3f5-9321525a731c`, and all retained
-databases/files. S8A six-script/VERIFYONLY, S8B 50-case/actual-restore versus offline-runner, and
-S8C seven local-check evidence stay distinct; none implies live Discord or current deployment acceptance.
-This update changes documentation only: security routing is a documentation-only skip. No SQL,
-provider/Discord execution, real import/export, bot-machine pull/restart, activation, predecessor
-rerun, Git publication or automatic new task is authorized. Historical checkpoints below remain history.
+databases/files. Keep S8A six-script/VERIFYONLY, S8B 50-case/actual-restore versus offline history,
+and S8C seven local checks distinct. Predecessor acceptance is not reopened; no rerun is authorized.
+Documentation-only security skip: no code, schema, configuration, permissions or persistence changes.
+No implementation, Git publication, SQL/provider/Discord execution, real import/export, bot-machine
+pull/restart, deployment, activation or automatic task is authorized. Earlier dated entries are historical.
 
 ## Historical S10A publication checkpoint — 2026-09-14
 
@@ -637,3 +666,76 @@ Changes review (Deep off) eeb8cf3a-d063-4c0c-ba7e-97caf5aab5a4 completed without
 or deferred candidates at codex-security-snapshot/v1:sha256:19c735c6af83c989274ceff27251179534358bd3fca9856bc2c7d2c1e270868a.
 This subsequent evidence-only documentation update is covered by a documentation-only security skip.
 No live SQL/provider/Discord execution, deployment, activation or retained-state mutation occurred.
+
+
+## S10D output pool and rollover foundation - authored 2026-09-15
+
+Deployable source: `20260915_001_kvk_output_pool_rollover.sql`. Four new KVK tables plus
+two additive attempt/part unique reference keys; the complete eleven-path approved manifest,
+FK/ownership matrix, data-safety plan and exact Bot carry-forward table are recorded in
+`../docs/SQL_DELIVERY_LOG.md` under S10D. Both pending SQL documentation updates accompany
+the eventual authorized SQL implementation PR.
+
+Require exact accepted S10A/S10C schema. S10C merge/static results are not installation proof.
+Absent/partial/conflicted/drifted prerequisite state fails closed, without executing old
+migrations. Validate inherited shape before ALTER; compare full expected shape after install
+and on rerun. Never seal observed drift. The two additive indexes can lock populated attempt
+tables; preview row counts and schedule installation under an approved backup/restore plan.
+
+Metadata: DataChange No, zero application rows changed, RequiresBackup Yes, RiskLevel High,
+DataSafetyPlan Included, TransactionMode Auto, Rollback Forward Fix Only. Constant DDL runs
+under a transaction-owned schema lock after guards; direct calls own commit/rollback and
+ambient callers must roll back on failure. Do not deploy table snapshots. No seed/backfill,
+receipt rewrite, budget change, ownership release, feature activation or provider operation.
+
+Static SQL enforces file/index identity, scope, shape and evidence bounds. S10E must enforce
+owner/fence/version CAS, monotonic epochs, append-only event APIs, P/Q/R capacity and the
+9,000,000-cell ceiling before mutation. Keep eight registrations and sixteen slots each.
+Rollover closes admission, drains/reconciles, proves old-writer termination and separately
+verifies private ACL, complete clear and empty readback. Uncertainty remains quarantined;
+lease age/job state cannot release claims. Historical receipts and assignments remain intact.
+
+`../deploy/Test-OutputPoolRolloverContracts.ps1` is offline only. The fixture
+`../validation/kvk_source/s10_output_pool_rollover.sql` authors 90 structural/transaction
+examples and seven guarded modes, all unexecuted. Actual install/rerun, concurrency,
+lost acknowledgement, cross-collation and backup/actual restore require separate exact-target
+approval. Retained predecessor databases/files are not test targets. No bot-machine change.
+
+## S10D corrected authoring and security result - 2026-09-15
+
+The three expected-schema indexes for ExportPreparation/ExportPreparationResource now
+reference their #S10D temporary tables. The offline checker handles ON targets immediately
+followed by an opening parenthesis and rejects permanent table/index DDL outside the guarded
+installation payload. This corrects the installation-order defect found during review.
+No migration or fixture was executed.
+
+Validation of the corrected source:
+
+- Offline contract checker: 463 assertions passed in the actual SQL repository.
+- SQLFluff TSQL parsing: 101 inputs passed, including constant payloads and 90 case snippets.
+- Eleven deliberately corrupted scratch variants were rejected, including both affected
+  expected-index table targets. Original scratch bytes were restored after each case.
+- Validate-SqlRepo passed against an isolated source copy. All 15 warnings concern older
+  migrations; they were not changed or executed. git diff --check passed.
+- Exact identities/actions/bytes for all 50 pending Bot paths remain unchanged; both SQL
+  document titles and complete earlier pending bodies are retained. Both Git indexes are
+  empty and all recorded Bot/production/SQL base anchors remain unchanged.
+
+Initial Changes scan `a582a43f-c6df-4ec3-98be-2dc100f8fa0a` was completed after correcting
+its final-draft submission. Its source review identified the installation correctness issue,
+not a vulnerability. Corrected Changes scan `eddcf7bb-ba2f-48c2-a995-b4371f9ce3ac` is sealed,
+Deep off, with complete coverage of nine SQL/code files plus both documents and zero security
+findings. Corrected reviewed snapshot:
+`codex-security-snapshot/v1:sha256:11954e5793ccce9428f4fd70b1981be56407400085d86dfbab059f7521c76c14`.
+
+Implementation source SHA256:
+
+- Migration: `fd5344ec9d1080fe7ee824801ccb4f03910b71d83e85c6e42d48cbc90f2f0852`
+- Offline checker: `e34fd0498c601e0d40e3683844d41d72e2621c436084a5c27a77b917521cb9b1`
+
+This result section was appended to the two approved SQL documents after sealing. That
+follow-up is documentation-only; implementation source bytes remain exactly those reviewed.
+Security routing skips another scan for this evidence-only addition. No Bot runtime delta,
+standalone docs PR, Git publication, SQL installation, provider/Discord execution, predecessor
+rerun, bot-machine pull/restart/deployment or activation occurred. All unexecuted S10D/S10E
+transaction/provider gates and all retained S6/S8 evidence distinctions remain as recorded.
