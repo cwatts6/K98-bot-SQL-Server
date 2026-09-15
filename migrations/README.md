@@ -1,6 +1,39 @@
 # SQL Migrations
 
-## Current S10D authoring checkpoint - 2026-09-15
+## Current S10D merged closeout — 2026-09-15
+
+[SQL PR #87](https://github.com/cwatts6/K98-bot-SQL-Server/pull/87) merged at 10:57:04 UTC
+as `80353a6280e523f30c27e724f71e7b47dadadd16`; local main/origin main match. Final PR head:
+`0eb5494976627bcb6efaea40e11adcb0cf231344`. All eleven filename/previous_filename identities
+and delivered blobs were checked against head, merge and local refs. Both pending SQL documents
+were delivered. The migration remains `20260915_001_kvk_output_pool_rollover.sql`.
+Both corrected CI runs (34960113322 and 34960108335) passed. The final Changes security scan,
+Deep off, completed with zero findings; later edits were documentation-only.
+
+S10D establishes static physical identity, scope-correct references and additive shape. S10E owns
+transaction owner/fence/version CAS, monotonic epochs, append-only writer APIs, complete capacity
+preflight and provider proof. The 463 static assertions, 101 parse inputs and 11 rejected mutations
+are offline evidence; 90 authored SQL cases/seven modes remain unexecuted. S10C/S10D SQL installation
+is unproven. No predecessor rerun, database/provider/Discord operation, deployment or activation.
+
+Bot main/origin main remains `bf3eccf964601e2975dd86eefe96f7b0153be3bb`; production/main remains
+`aa1821adbde9ccda47797caa83b5d5a9958bfce9`. **No changes have been pulled to the bot machine.**
+Next is S10E initial review/scope only in Bot. Its `s10d_closeout_and_s10e_handoff.md` contains
+the current exact pending Bot documentation manifest, superseding the historical fifty-path table
+below. All fifty lost entries were recovered against their original hashes before closeout edits.
+S10D pack/starter are archived; include every pending Bot document, both S10C move sides, S10D
+archive destinations and new S10E pack/starter in the eventual authorized Bot implementation PR.
+Verify filename AND previous_filename or explicit content/base-absence proof; counts are insufficient.
+
+These new changes to `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md` are pending after #87.
+Carry BOTH into the next genuine authorized SQL implementation PR. If S10E identifies an actual
+SQL gap, scope it separately; otherwise retain both for the next SQL implementation. No standalone
+docs PR, mixed repositories, manufactured runtime work or renewed grouping/predecessor approval.
+Preserve historical receipts, uncertain ownership, all S6 gates and both uncertain publications,
+and distinct S8A/S8B/S8C retained evidence. Earlier checkpoints below are historical.
+
+
+## Historical S10D authoring checkpoint - 2026-09-15
 
 The operator approved the eleven-path SQL-only scope and offline validation. S10D is now
 authored locally; it is not published or installed. The migration is
@@ -25,7 +58,7 @@ predecessor/grouping approval. Git publication, SQL/provider/Discord execution, 
 and activation are separate gates. Earlier dated checkpoints below remain historical.
 
 
-## Current KVK status — S10C merged and locally pulled; S10D scope next, 2026-09-15
+## Historical KVK status — S10C merged and locally pulled; S10D scope next, 2026-09-15
 
 SQL [#86](https://github.com/cwatts6/K98-bot-SQL-Server/pull/86) is merged at
 `a03835a12feb0d52374e00206f944a02d8937fbd`; local main/origin main match. Final reviewed head:
@@ -739,3 +772,14 @@ Security routing skips another scan for this evidence-only addition. No Bot runt
 standalone docs PR, Git publication, SQL installation, provider/Discord execution, predecessor
 rerun, bot-machine pull/restart/deployment or activation occurred. All unexecuted S10D/S10E
 transaction/provider gates and all retained S6/S8 evidence distinctions remain as recorded.
+
+### S10E ownership amendment (local authoring; not installed)
+
+`20260915_002_kvk_output_operation_ownership.sql` is the separately approved follow-on to
+S10D, not a predecessor rerun. It requires exact accepted S10A/C/D objects and adds typed
+rollover operation/resource ownership. Existing jobs, preparations and receipts remain.
+Run `deploy/Test-OutputOperationOwnershipContracts.ps1` for offline text contracts only.
+`validation/kvk_source/s10e_output_operation_ownership.sql` requires separate exact
+disposable target, backup and actual restore approval; it has not been executed.
+Upgrade all resource readers/writers before operation admission. Do not activate by merely
+installing SQL or setting flags. Preserve claims/history and forward-fix on uncertainty.
