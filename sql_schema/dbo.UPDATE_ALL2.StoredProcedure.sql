@@ -1,4 +1,4 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL2]') AND type in (N'P', N'PC'))
 BEGIN
@@ -7,7 +7,7 @@ END
 ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL,
-    @CompletedFileName [nvarchar](260)
+	@CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -58,7 +58,7 @@ BEGIN
             @ArchivePath = @ImportArchivePath OUTPUT;
 
         ----------------------------------------------------------------
-        -- Phase A: Import → KS5 → (maybe) KS4  [commit early]
+        -- Phase A: Import â†’ KS5 â†’ (maybe) KS4  [commit early]
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
 
@@ -316,7 +316,7 @@ BEGIN
         -- 4) Truncate staging (safe post-insert)
         TRUNCATE TABLE dbo.IMPORT_STAGING;
 
-        COMMIT;  -- ✅ Import is now durable even if later steps fail
+        COMMIT;  -- âœ… Import is now durable even if later steps fail
 
         EXEC @ArchiveReturnCode = dbo.ARCHIVE_IMPORT_STAGING_FILE
             @CompletedFileName = @CompletedFileName;
@@ -335,7 +335,7 @@ BEGIN
 
         ----------------------------------------------------------------
         -- Phase B: Downstream builds (non-critical) - separate transaction
-        -- ⚡ OPTIMIZED SECTION ⚡
+        -- âš¡ OPTIMIZED SECTION âš¡
         ----------------------------------------------------------------
         BEGIN TRANSACTION;
 
@@ -423,7 +423,7 @@ BEGIN
 
         EXEC dbo.sp_Rebuild_ExcelForDashboard;
         
-        -- ⚡ OPTIMIZATION: Update statistics on newly built table
+        -- âš¡ OPTIMIZATION: Update statistics on newly built table
         IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
         BEGIN
             UPDATE STATISTICS dbo.EXCEL_FOR_DASHBOARD WITH SAMPLE 25 PERCENT;
@@ -491,7 +491,7 @@ BEGIN
                 PRINT 'Step 4a: Refreshing EXCEL_FOR_KVK_' + CAST(@LatestKVK_Upload AS VARCHAR(10)) 
                     + ' with ScanOrder=' + CAST(@ScanToUse_Upload AS VARCHAR(10)) + '...';
                 
-                -- ✅ LIFT: Call sp_ExcelOutput_ByKVK directly here
+                -- âœ… LIFT: Call sp_ExcelOutput_ByKVK directly here
                 SET @CurrentAuditPhase = N'update_all2_excel_for_kvk_refresh';
                 SET @StepStart = SYSUTCDATETIME();
                 EXEC dbo.sp_ExcelOutput_ByKVK @KVK = @LatestKVK_Upload, @Scan = @ScanToUse_Upload;
@@ -512,7 +512,7 @@ BEGIN
                     PRINT 'Committed EXCEL_FOR_KVK refresh before STATS_FOR_UPLOAD.';
                 END
 
-				-- ✅ CRITICAL: Force commit visibility before next step
+				-- âœ… CRITICAL: Force commit visibility before next step
                 PRINT 'Forcing commit flush via CHECKPOINT...';
                 CHECKPOINT;
                 WAITFOR DELAY '00:00:00.100';  -- 100ms safety buffer
@@ -571,7 +571,7 @@ BEGIN
         PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms (includes checkpoint)';
 
         ----------------------------------------------------------------
-        -- ⚡⚡⚡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD ⚡⚡⚡
+        -- âš¡âš¡âš¡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD âš¡âš¡âš¡
         ----------------------------------------------------------------
         SET @CurrentAuditPhase = N'update_all2_all_stats_dashboard';
         SET @StepStart = SYSUTCDATETIME();
@@ -677,7 +677,7 @@ BEGIN
         
         DECLARE @RowsInserted INT = @@ROWCOUNT;
         
-        -- ⚡ OPTIMIZATION: Update statistics after bulk insert
+        -- âš¡ OPTIMIZATION: Update statistics after bulk insert
         UPDATE STATISTICS dbo.ALL_STATS_FOR_DASHBAORD WITH FULLSCAN;
         
         SET @StepEnd = SYSUTCDATETIME();
@@ -948,10 +948,10 @@ BEGIN
                 2000
             );
 
-		-- ✅ capture transaction state before doing anything
+		-- âœ… capture transaction state before doing anything
 		DECLARE @XState INT = XACT_STATE();
 
-		-- ✅ if a transaction exists, you MUST rollback first (especially if @XState = -1)
+		-- âœ… if a transaction exists, you MUST rollback first (especially if @XState = -1)
 		IF @XState <> 0
 			ROLLBACK;
 
@@ -965,7 +965,7 @@ BEGIN
             -- Never mask the original UPDATE_ALL2 failure.
         END CATCH;
 
-		-- ✅ now you're in autocommit, logging is allowed
+		-- âœ… now you're in autocommit, logging is allowed
 		BEGIN TRY
 			INSERT INTO dbo.ErrorAudit (
 				ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo
@@ -985,4 +985,3 @@ BEGIN
 		THROW;
 	END CATCH
 END
-
