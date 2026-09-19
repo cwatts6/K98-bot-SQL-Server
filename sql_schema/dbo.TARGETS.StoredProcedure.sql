@@ -164,7 +164,3 @@ BEGIN
         RAISERROR('TARGETS procedure failed: %s', @ErrSeverity, @ErrState, @ErrMsg);
     END CATCH
 END
-
-
-
-             
