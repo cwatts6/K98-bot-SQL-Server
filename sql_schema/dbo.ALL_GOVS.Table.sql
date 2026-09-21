@@ -36,8 +36,8 @@ CREATE TABLE [dbo].[ALL_GOVS](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
-	[CityHallLevel] [float] NULL
+	[CityHallLevel] [float] NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ALL_GOVS]') AND name = N'IX_ALL_GOVS_GovernorID')
