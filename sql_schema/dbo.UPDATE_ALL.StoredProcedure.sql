@@ -7,7 +7,7 @@ END
 ALTER PROCEDURE [dbo].[UPDATE_ALL]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL,
-    @CompletedFileName [nvarchar](260)
+	@CompletedFileName [nvarchar](260)
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -726,4 +726,3 @@ SET ANSI_WARNINGS ON;
         THROW;
     END CATCH
 END;
-
