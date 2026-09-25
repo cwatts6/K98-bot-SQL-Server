@@ -1711,3 +1711,38 @@ All writer implementations must understand the third owner before admitting it. 
 is admission stop and reconciliation/forward fix; never drop evidence or release by age.
 Separate Changes / Deep off review and final offline validation remain pending.
 Prior S10D closeout material above remains part of this actual SQL implementation change.
+
+
+## S11 PR #89 review corrections — 2026-09-25
+
+Migration 20260924_001 now rejects first installation when either evidence-role
+name already exists, before installation DDL or grants. Exact-schema reapply
+continues to preserve explicitly provisioned G4 membership. Session closure now
+rejects incomplete output enrollments tied to that session, including closed-phase
+intervals; enrollment admission takes a transaction-duration session lock to
+serialize with close. Both authoritative procedure snapshots and the migration's
+installation and exact-definition copies agree.
+
+Offline contract checks: 188 assertions passed. ScriptDom parsed all three changed
+SQL files with zero errors. Bot's separately authored enrollment transaction case
+now checks close rejection both before its first stream and between closed phases.
+These are source/authoring results, not installation or SQL-engine proof.
+
+Exact G4 installation regression plan (not executed): use a separate approved,
+new disposable target with validated S10 prerequisites and backup/actual-restore
+receipts for each collision case. Before migration 001, prepare: (1) dbo-owned
+Authority with a stale direct user member, (2) Authority with a nested role member,
+(3) empty Authority, (4) Reader only, and (5) wrong type/owner under either name.
+Capture principal IDs, membership edges, permissions and object inventory. Each
+attempt must raise 51700 and leave no S11 objects or new grants; retain all fixture
+principals and evidence. Do not remove a collision and blindly retry the same target.
+On a separate clean target, install successfully, explicitly provision only the
+approved authority/reader members, retain a synthetic session row, then reapply
+identical SQL: all memberships and row bytes must remain unchanged. Also interleave
+enrollment begin and session close on two connections: close-first rejects admission;
+admission-first prevents close until enrollment completion. Retain claims on error.
+
+Changes / Deep off review targets the correction from published SQL head
+c106867fe8278b9d1d341a77a0b6f5b71ce94de6. No installation, provider/Discord operation,
+activation, merge, deployment or predecessor rerun is authorized by this correction.
+Forward-fix installed SQL; never drop evidence, rewrite receipts or release uncertainty.

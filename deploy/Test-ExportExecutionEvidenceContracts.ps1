@@ -85,11 +85,24 @@ foreach ($fragment in @('@S11Existing NOT IN (0,11)', 'PreValidationQuery:', 'Po
     Assert-Contract ($migration.Contains($fragment)) "Missing installation guard: $fragment"
 }
 Assert-Contract (-not ($migration -match '(?i)ALTER\s+ROLE\s+\w+\s+ADD\s+MEMBER|CREATE\s+LOGIN|TRUNCATE|DROP\s+TABLE')) 'Migration must not map principals, activate or erase history'
+$roleGuard = @'
+IF @S11Existing=0 AND
+ (DATABASE_PRINCIPAL_ID(N'ExportExecutionAuthority') IS NOT NULL
+  OR DATABASE_PRINCIPAL_ID(N'ExportExecutionReader') IS NOT NULL)
+ THROW 51700,'Existing evidence role names are not adopted; preserve and reconcile.',1;
+'@
+Assert-Contract ($migration.Contains($roleGuard.Trim())) 'Fresh evidence installation must not adopt either role name'
+Assert-Contract ($migration.IndexOf($roleGuard.Trim()) -lt $migration.IndexOf('CREATE TABLE #S11_')) 'Role collision must reject before installation DDL'
+$session = Read-Source 'sql_schema/dbo.usp_ExportExecutionSessionTransition.StoredProcedure.sql'
+foreach ($fragment in @("ConsumerKind='config' AND State<>'completed'", "JSON_VALUE(RequestJson,'$.purpose')='output_enrollment'", "TRY_CONVERT(uniqueidentifier,JSON_VALUE(GenerationJson,'$.session_id'))=@SessionID", 'Enrollment completion is unproven; retain the open session and claims.')) {
+    Assert-Contract ($session.Contains($fragment)) "Missing enrollment session closure guard: $fragment"
+}
 $origin = Read-Source 'sql_schema/dbo.ExportManagedFileOrigin.Table.sql'
 $enrollment = Read-Source 'sql_schema/dbo.usp_ExportOutputEnrollmentTransition.StoredProcedure.sql'
 foreach ($fragment in @('PRIMARY KEY (FileID,Stage)', 'UNIQUE (PreparationID,Ordinal,Stage)', 'UNIQUE (CreationRequestID,Stage)', 'FK_ExportManagedFileOrigin_Parent', 'FK_ExportManagedFileOrigin_Creation', 'FK_ExportManagedFileOrigin_Response', 'FK_ExportManagedFileOrigin_Verification')) {
     Assert-Contract ($origin.Contains($fragment)) "Missing append-only origin identity: $fragment"
 }
+Assert-Contract ($enrollment.Contains("dbo.ExportExecutionSession WITH (UPDLOCK,HOLDLOCK) WHERE SessionID=@SessionID")) 'Enrollment admission must serialize with session closure'
 Assert-Contract (-not ($enrollment -match '(?i)(UPDATE|DELETE)\s+(dbo\.)?ExportManagedFileOrigin')) 'Origins must be append-only'
 foreach ($fragment in @('Existing work or enrollment prevents fresh admission.', 'Enrollment resource owner/fence/version conflict.', 'Exact successful closed creation required.', 'Enrollment history contains unclosed or uncertain requests.', 'Every origin requires grant and complete fixed readback.', 'Returned identity has existing history; never adopt.', 'ORDER BY ResourceKey', 'ClaimVersion=@ExpectedVersion', "State='completed'")) {
     if ($fragment -eq "State='completed'") { continue } # completion uses one CAS CASE expression

@@ -31,6 +31,12 @@ EXEC @S11LockResult=sys.sp_getapplock @Resource=N'K98:S11:schema',@LockMode='Exc
 IF @S11LockResult<0 THROW 51700,'S11 schema installation busy.',1;
 DECLARE @S11Existing int=(SELECT COUNT(*) FROM sys.objects WHERE schema_id=SCHEMA_ID(N'dbo') AND name IN (N'ExportExecutionSession',N'ExportExecutionStream',N'ExportProviderRequest',N'ExportProviderRequestEvent',N'ExportReconciliationProof',N'ExportManagedFileOrigin',N'usp_ExportExecutionSessionTransition',N'usp_ExportExecutionStreamTransition',N'usp_ExportProviderRequestEventAppend',N'usp_ExportReconciliationProofIssue',N'usp_ExportOutputEnrollmentTransition'));
 IF @S11Existing NOT IN (0,11) THROW 51700,'Partial S11 schema; preserve and forward-fix.',1;
+-- First installation must create its own empty roles. Never adopt a principal,
+-- including an empty or nested role; exact reapply preserves later G4 membership.
+IF @S11Existing=0 AND
+ (DATABASE_PRINCIPAL_ID(N'ExportExecutionAuthority') IS NOT NULL
+  OR DATABASE_PRINCIPAL_ID(N'ExportExecutionReader') IS NOT NULL)
+ THROW 51700,'Existing evidence role names are not adopted; preserve and reconcile.',1;
 CREATE TABLE #S11_dbo_ExportJob
 (
     JobID uniqueidentifier NOT NULL,
@@ -767,6 +773,11 @@ BEGIN
  BEGIN
   IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE SessionID=@SessionID AND State<>''closed'')
     THROW 51700,''Provider stream closure is unproven.'',1;
+  IF EXISTS (SELECT 1 FROM dbo.ExportPreparation
+    WHERE ConsumerKind=''config'' AND State<>''completed''
+     AND JSON_VALUE(RequestJson,''$.purpose'')=''output_enrollment''
+     AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(GenerationJson,''$.session_id''))=@SessionID)
+    THROW 51700,''Enrollment completion is unproven; retain the open session and claims.'',1;
   UPDATE dbo.ExportExecutionSession SET State=''closed'',Version=Version+1,ClosedUTC=SYSUTCDATETIME()
   WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State=''open'' AND Version=@ExpectedVersion;
   IF @@ROWCOUNT<>1 THROW 51700,''Session CAS lost.'',1;
@@ -1401,7 +1412,7 @@ BEGIN
  SET @LockKey=N''k98-export:''+LOWER(CONVERT(varchar(64),HASHBYTES(''SHA2_256'',@AccountResource),2));
  EXEC @LockResult=sys.sp_getapplock @Resource=@LockKey,@LockMode=''Exclusive'',@LockOwner=''Transaction'',@LockTimeout=0;
  IF @LockResult<0 THROW 51700,''Export admission busy.'',1;
- IF NOT EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State=''open'')
+ IF NOT EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WITH (UPDLOCK,HOLDLOCK) WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State=''open'')
   THROW 51700,''Exact open authority session required.'',1;
  IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE ActiveAccountKey=@AccountKey)
   THROW 51700,''Enrollment requires closed owned children.'',1;
@@ -1706,6 +1717,11 @@ BEGIN
  BEGIN
   IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE SessionID=@SessionID AND State<>''closed'')
     THROW 51700,''Provider stream closure is unproven.'',1;
+  IF EXISTS (SELECT 1 FROM dbo.ExportPreparation
+    WHERE ConsumerKind=''config'' AND State<>''completed''
+     AND JSON_VALUE(RequestJson,''$.purpose'')=''output_enrollment''
+     AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(GenerationJson,''$.session_id''))=@SessionID)
+    THROW 51700,''Enrollment completion is unproven; retain the open session and claims.'',1;
   UPDATE dbo.ExportExecutionSession SET State=''closed'',Version=Version+1,ClosedUTC=SYSUTCDATETIME()
   WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State=''open'' AND Version=@ExpectedVersion;
   IF @@ROWCOUNT<>1 THROW 51700,''Session CAS lost.'',1;
@@ -2348,7 +2364,7 @@ BEGIN
  SET @LockKey=N''k98-export:''+LOWER(CONVERT(varchar(64),HASHBYTES(''SHA2_256'',@AccountResource),2));
  EXEC @LockResult=sys.sp_getapplock @Resource=@LockKey,@LockMode=''Exclusive'',@LockOwner=''Transaction'',@LockTimeout=0;
  IF @LockResult<0 THROW 51700,''Export admission busy.'',1;
- IF NOT EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State=''open'')
+ IF NOT EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WITH (UPDLOCK,HOLDLOCK) WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State=''open'')
   THROW 51700,''Exact open authority session required.'',1;
  IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE ActiveAccountKey=@AccountKey)
   THROW 51700,''Enrollment requires closed owned children.'',1;

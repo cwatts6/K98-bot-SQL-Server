@@ -30,6 +30,11 @@ BEGIN
  BEGIN
   IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE SessionID=@SessionID AND State<>'closed')
     THROW 51700,'Provider stream closure is unproven.',1;
+  IF EXISTS (SELECT 1 FROM dbo.ExportPreparation
+    WHERE ConsumerKind='config' AND State<>'completed'
+     AND JSON_VALUE(RequestJson,'$.purpose')='output_enrollment'
+     AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(GenerationJson,'$.session_id'))=@SessionID)
+    THROW 51700,'Enrollment completion is unproven; retain the open session and claims.',1;
   UPDATE dbo.ExportExecutionSession SET State='closed',Version=Version+1,ClosedUTC=SYSUTCDATETIME()
   WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State='open' AND Version=@ExpectedVersion;
   IF @@ROWCOUNT<>1 THROW 51700,'Session CAS lost.',1;
