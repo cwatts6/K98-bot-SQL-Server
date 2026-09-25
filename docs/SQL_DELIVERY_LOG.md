@@ -1,6 +1,347 @@
 # SQL Delivery Log
 
-## Current S10D merged closeout — 2026-09-15
+## S11 approved NULL guard correction — 2026-09-24
+
+The operator approved the local correction scope and continued closure of remaining S11
+implementation gaps. The uninstalled 20260924_001 draft now rejects a NULL request-event
+ExpectedVersion and unavailable definitions for each of its five evidence APIs. Its exact
+embedded payload and installed-body comparison remain aligned with the source snapshot.
+The narrow disposable fixture rejects unknown permission and administrator-token observations.
+The source checker validates all concrete guards and both copies of every procedure body.
+
+These are source corrections only. No SQL execution, installation, grant/key/proxy operation,
+provider request or deployment occurred. Existing business modules and 20260924_002 remain
+unchanged. The six corrected SQL paths are this document, the other delivery document,
+migrations/20260924_001_export_execution_evidence.sql,
+sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql,
+deploy/Test-ExportExecutionEvidenceContracts.ps1 and
+validation/kvk_source/s11_export_execution_evidence.sql.
+
+The earlier completed Changes review is tied to its exact pre-correction digest. The corrected
+SQL source requires a new separate Changes review, Deep off. The authored negative/positive
+engine cases remain unexecuted and operator-owned G4 work with exact target, backup/actual
+restore, restricted identity and retained-row evidence. Preserve all SQL closeout history;
+include these documents in the next actual authorized SQL implementation PR, separately
+from Bot. No standalone documentation publication or predecessor rerun.
+
+Before installation rollback is continued non-installation. If the draft is found installed
+or published, do not edit deployed history; scope an additive forward fix. Retain all claims,
+evidence rows, certificates, uncertain publications and earlier S6/S8 artifacts.
+
+
+## S11 approved legacy module permission authoring — 2026-09-24
+
+The operator approved the additional local source/static/offline permission-isolation
+scope. This is authored source, not SQL installation or evidence of production failure.
+Existing procedure bodies, merged migrations, configuration queries and retained data
+remain unchanged. The current implementation consists of these exact new SQL paths:
+
+- migrations/20260924_002_export_legacy_module_permissions.sql
+- migrations/rollback/20260924_002_export_legacy_module_permissions_rollback.sql
+- deploy/export_legacy_module_permission_manifest.json
+- deploy/Test-ExportLegacyModulePermissionContracts.ps1
+- validation/kvk_source/s11_export_legacy_module_permissions.sql
+
+The manifest pins 37 procedures plus dbo.fn_NormalizeGovernorNameKey. Only UPDATE_ALL2,
+sp_TARGETS_MASTER and SP_Stats_for_Upload receive root signatures. Twenty-three matching
+child countersignatures preserve the required capability through their reviewed call
+chains; a countersignature gives no privilege to a direct caller. Existing EXECUTE AS
+OWNER on ACQUIRE_KS4_IMPORT_LOCK and sp_Upsert_ProcConfig_From_Staging remains unchanged.
+The three fixed KVK ingest/recompute/export roots receive no elevated signature.
+
+The three public-only certificates have separate import/target/stats capabilities.
+Import/target certificate users need schema ALTER plus CREATE TABLE/VIEW and schema
+SELECT/INSERT because existing modules create and replace numeric-season output objects.
+These capabilities are never granted to the Bot. Import alone gets CHECKPOINT and the
+master certificate-mapped login's bulk/performance permissions; master certificate-user
+EXECUTE is limited to xp_cmdshell and xp_fileexist. No sysadmin, CONTROL SERVER, signing
+key, proxy credential, xp enablement, Bot login or application role membership is added.
+The newly created ExportLegacyEntryReader role has exactly the seven public entry grants.
+Metadata visibility and the Bot's other existing fixed-table grants require their own
+exact G4 principal plan; this is not a whole-application permission certificate.
+
+Installation is restricted to SQL Server 2022 and ROK_TRACKER, which existing source
+explicitly names. The source-equivalence hash normalizes CRLF, outer whitespace and the
+CREATE/ALTER introducer only. Independently approved signature blobs still bind the exact
+installed bytes. Session-local #S11LegacyDeployment and #S11LegacySignatures inputs must
+match the fixed manifest; they are release inputs, not embedded sample credentials.
+Certificates must already be independently provisioned as public-only; the import public
+encoding must be byte-identical in ROK_TRACKER and master. Unknown names, source drift,
+partial state, added signatures, inherited signing roles or changed grants refuse.
+Exact reapplication validates the existing delivery; it never signs newly observed code.
+
+Before G4, keep admission closed and obtain exact backup plus actual restore evidence,
+source/installed definition and dependency/output-shape comparison, approved public keys
+and signature blobs, principal visibility/grant plan, proxy identity and Windows file
+ACL evidence. The Bot observation uses the producer's own connection and binds its
+database/default schema, effective permissions, source bodies and certificate metadata.
+Missing or extra metadata refuses before the legacy producer is entered. Source metadata
+checks do not prove nested execution, transactions, provider behavior or deployment.
+
+The separate disabled Bot SQL fixture requires an explicitly named disposable SQL
+instance with database ROK_TRACKER; the ordinary K98_S11_Disposable_* database fixture
+is unchanged. It authors restricted-login child/evidence denial checks and the original
+configuration helper's denied-TRUNCATE/DELETE fallback, caller-owned transaction state
+and rollback under both XACT_ABORT settings. No result is claimed until G4 executes it.
+Actual root/nested calls, bulk/proxy behavior and complete output/dependency contracts
+remain separate operator-owned cases, with exact resources and retained evidence.
+
+Before installation rollback is continued non-installation. The authored inverse requires
+the original packet with action rollback, exact unchanged signatures/grants and delivery
+marker, and no remaining entry-role membership. G4 first closes admission and completes
+owned drain/reconciliation. Reversal removes only this delivery's signatures, grants and
+principals; certificates, signature inputs, all claims/journals and both uncertain S6
+publications remain. Drift needs a reviewed reverse/forward plan, never blind revocation.
+Migration-history handling and actual restore evidence are part of that exact G4 plan.
+
+SQL Changes review, Deep off, is required for this separate permission-bearing delta once
+the SQL patch is settled. Static parsing/checkers and offline Bot tests are not deployment
+approval. All pending SQL closeout documents accompany the next actual authorized SQL
+implementation PR separately from Bot delivery; no standalone documentation PR.
+
+## S11 approved fresh-file enrollment source — 2026-09-24
+
+The operator approved local enrollment authoring. Add dbo.ExportManagedFileOrigin and
+dbo.usp_ExportOutputEnrollmentTransition; extend the pending stream/admission/request/proof APIs,
+uninstalled 20260924_001_export_execution_evidence migration, static checker and disabled fixture.
+This adds one evidence entity/procedure to the preceding five/four and changes no merged migration.
+Migration checks require either none or all eleven S11 objects, exact definitions/metadata and
+separate authority/reader permissions; incompatible installations require reviewed forward fixes.
+
+Enrollment starts a new typed output_enrollment preparation under account/resource/owner CAS;
+it cannot adopt a configuration claim or overtake ready/uncertain work. A fixed creation request
+must succeed and close before the returned FileID is bound under current ownership. Existing
+resource/origin/registered identities are refused. Created and eligible origin rows append without
+updates, with unique file/stage, ordinal/stage and request/stage identities and non-cascading FKs.
+Eligibility seals one closed grant/private-readback transcript for the entire 3–17-file plan.
+Eight-pool capacity includes unregistered plans; incomplete plans retain all ownership/evidence.
+
+Origin preparation streams enter the complete catalogue even before a file ID existed. SQL proof
+issue requires eligible origins, as does Bot settlement within its existing locked transaction.
+Private-byte/provider interpretation remains the narrow trusted parent responsibility. Schema,
+role text and source checks are not installation, effective-permission, transaction, provider,
+OS-containment or actual restore evidence. Every new live fixture remains opt-in and unexecuted.
+
+Exact SQL changes: sql_schema/dbo.ExportManagedFileOrigin.Table.sql;
+sql_schema/dbo.usp_ExportOutputEnrollmentTransition.StoredProcedure.sql;
+sql_schema/dbo.ExportExecutionStream.Table.sql;
+sql_schema/dbo.usp_ExportExecutionStreamTransition.StoredProcedure.sql;
+sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql;
+sql_schema/dbo.usp_ExportReconciliationProofIssue.StoredProcedure.sql;
+migrations/20260924_001_export_execution_evidence.sql;
+validation/kvk_source/s11_export_execution_evidence.sql;
+deploy/Test-ExportExecutionEvidenceContracts.ps1; these two existing SQL documents.
+
+No SQL/provider/Discord execution, credential provisioning, publication, predecessor rerun or
+deployment occurred. Complete issuer/caller composition and settled separate SQL Changes review
+(Deep off) remain pending. Retain all prior documents and the S6/S8 uncertainties/evidence. Include
+these SQL closeouts with the next actual authorized SQL implementation PR, separately from Bot;
+no standalone documentation PR. Rollback now is non-installation; later retain all evidence and
+use a reviewed forward fix, never reset versions, erase unknown files or restore a direct writer.
+
+
+## S11 Bot foundation installation-contract alignment — 2026-09-24
+
+No SQL executable source changed in this continuation. Approved Bot source now reads the actual
+SchemaMigrationHistory columns MigrationId/ChecksumSha256/Status and fixed metadata for 28 required
+coordination/evidence/dependency objects, covering S10A/C/D/E plus S11. All 28 object reference files
+and five migration files were located in this authoritative repository; nine fixed SELECT batches
+were captured with a fake connection and parsed by ScriptDom. No SQL connection or execution took
+place. Prior static authoring evidence is retained as history, not installation evidence.
+
+The explicit authority launcher requires a protected approved sql_contract and checks installation,
+target/principal, role membership and effective evidence-table/procedure permissions before a
+session/store/provider host can be created. Installed metadata must match independently reviewed
+expected hashes; startup never accepts its own observation as its expected contract. Evidence
+tables must not be directly writable, and Bot readers must not execute authority procedures.
+Source tests cannot establish real SQL metadata semantics, permissions, DDL exclusion, isolation
+or installation. Those require the exact G4 target/operation approval and retained measurements.
+
+Bot's affected offline suite passed 747 tests with six gated skips. Complete trusted ProofID
+production, caller/shared-writer and registration/storage bindings and remaining deployment gates
+are still unfinished and disabled. Separate settled Bot/SQL Changes reviews require Deep off.
+Both pending SQL closeout documents remain in the next genuine SQL implementation PR separately
+from the mandatory Bot union. No Git publication, installation, provider action or deployment was
+performed; G4/G5 and preserved predecessor uncertainty remain operator-owned.
+
+
+## S11 interrupted-owner probe source checkpoint — 2026-09-24
+
+The approved uninstalled S11 stream admission/event pre-dispatch source now permits the exact
+retirement interruption transition: the uncertain job remains at its current owner/fence/version,
+while its retained owned nested journal is exactly one version earlier. This exception requires
+Purpose='probe'; mutations still need the current nested version. Arbitrarily older versions,
+running-job adoption and altered owner/token/registration/resource membership remain rejected.
+
+Exact SQL edits: migrations/20260924_001_export_execution_evidence.sql;
+sql_schema/dbo.usp_ExportExecutionStreamTransition.StoredProcedure.sql;
+sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql; and
+deploy/Test-ExportExecutionEvidenceContracts.ps1. Merged predecessors are unchanged. No SQL
+installation, procedure execution, principal mapping or transaction fixture was performed.
+
+Fresh checks: 125 source assertions passed; ScriptDom parsed 11 inputs; four weakened nested-owner
+predicates plus eight catalogue and six closing-probe variants were rejected. Bot's affected
+offline suite passed 689 tests with six opt-in skips. The Bot fixed publication evaluator preserves
+receipt bytes and verifies fresh readback again from the closed private transcript. It issues no
+ProofID and does not establish excluded external writers or deployment coverage.
+
+Complete trusted issuer/readiness/caller composition, separate SQL Changes security review with
+Deep off, and exact G4 installation/role/transaction/concurrency/provider evidence remain pending.
+Both pending SQL closeout docs belong to the next genuine authorized SQL implementation PR,
+separate from the Bot union. G4/G5 remain operator-owned. Keep all inherited evidence/uncertainty;
+rollback preserves the uninstalled patch now and uses reviewed forward repair after installation.
+
+
+## S11 complete recorded-catalogue checkpoint — 2026-09-24
+
+The approved uninstalled S11 proof-issue source now independently enumerates every account stream
+touching the registered file set, checks exact closed membership and verifies the complete v2
+count/hash plus the fresh snapshot/registration-bound probe. The bounded receipt does not cap or
+truncate retained history. Absence separately rejects any dispatched mutation from the probe's
+exact publication job, including former nested owners and files outside the current scope.
+Older successful jobs remain in catalogue coverage without being treated as this job's dispatch.
+
+Exact SQL source paths: migrations/20260924_001_export_execution_evidence.sql;
+sql_schema/dbo.usp_ExportReconciliationProofIssue.StoredProcedure.sql; and
+deploy/Test-ExportExecutionEvidenceContracts.ps1. Merged predecessors are unchanged. An already
+installed incompatible S11 definition is refused and needs reviewed forward repair. No schema,
+permission, transaction, provider or deployment operation was executed.
+
+Fresh validation: 121 static assertions; 11 ScriptDom inputs parsed; eight weakened catalogue
+variants and six closing-probe variants rejected. Bot's affected offline suite: 653 passed,
+six live-only opt-ins skipped. Python pins a hash vector; SQL cross-engine execution, catalogue
+contention/lock duration and effective rights remain G4 evidence gaps. Bot consumes proofs under
+the same owning settlement transaction and rejects later recorded writers, even already closed.
+
+This is recorded S11 history coverage, not proof of pre-S11 finality or excluded external writers.
+Trusted outcome issuance, immutable readiness and full production composition remain incomplete
+and disabled. Separate SQL Changes review, Deep off, remains required on the settled patch.
+Both SQL closeout documents remain in the next genuine SQL implementation PR separately from
+the mandatory Bot document union. G4/G5 remain operator-owned; preserve all retained uncertainties.
+
+
+## S11 actual-adapter read contract checkpoint — 2026-09-24
+
+Under the existing local source approval, the uninstalled S11 evidence migration and
+sql_schema/dbo.ExportProviderRequest.Table.sql now classify sheets.values.batchGet as a read,
+matching the actual new-source export verification helper. The fixed operation list assertion in
+deploy/Test-ExportExecutionEvidenceContracts.ps1 covers this contract. No predecessor migration,
+installed database, transaction, permission or provider state was changed.
+
+Fresh source validation: 108 assertions passed; 11 ScriptDom inputs parsed; six weakened source
+variants rejected. Bot's affected offline suite passed 611 cases, with six opt-in SQL/Windows
+cases skipped. Bot additionally closes delivery/retirement/recovery streams before release/reuse;
+that DAL ordering uses the already-authored evidence table and introduces no further SQL schema
+change. These checks are not installation, SQL transaction, containment or provider proof.
+
+Complete trusted historical coverage/readback/proof issuance, immutable readiness and full
+production composition remain incomplete and disabled. Separate SQL Changes review, Deep off,
+remains for the settled patch. Preserve both pending SQL closeout docs with the next genuine SQL
+implementation PR separately from Bot. No Git publication or predecessor execution occurred;
+G4/G5 remain operator-owned and all retained data/uncertainties stay intact.
+
+
+## S11 closing-operation probe continuation — 2026-09-24
+
+Under the existing local source implementation approval, the uninstalled S11 stream contract
+now retains null OwnerID/Fence 0 only for an operation's read-only closing probe. Admission and
+request pre-dispatch repeat exact resource versions, closing pool reservation/registration/epoch
+and closing/draining operation CAS. No new worker owner, claim release, fair-ticket advancement
+or mutation authority is created. Sorted resource locks precede the pool lock and operation row.
+
+Exact executable source changes: migrations/20260924_001_export_execution_evidence.sql;
+sql_schema/dbo.ExportExecutionStream.Table.sql;
+sql_schema/dbo.usp_ExportExecutionStreamTransition.StoredProcedure.sql;
+sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql; and
+deploy/Test-ExportExecutionEvidenceContracts.ps1. The migration's prerequisite metadata check
+now includes KVK.SourceOutputPool. This revises uninstalled S11 authoring only; merged predecessor
+scripts are untouched. An already installed incompatible S11 shape would be refused and require
+a separately reviewed forward fix, not an automatic schema rewrite.
+
+Offline checker: 107 assertions passed; ScriptDom: 11 source files parsed; six weakened source
+variants rejected. Bot affected suite: 344 passed, six opt-in SQL/Windows cases skipped. The Bot
+SQL fixture optionally accepts closing_probe_scope in its exact approved disposable-target
+packet and retains synthetic evidence. Its read is recorded not_sent, never provider success;
+the fixture cannot supply real closure/finality evidence. It was authored, not executed.
+
+No SQL connection, installation, transactions, provider/Discord call, predecessor fixture rerun
+or Git publication occurred. Complete trusted historical coverage/readback/proof issuance,
+immutable readiness and all-caller composition remain incomplete and disabled. Separate SQL
+Changes review, Deep off, remains pending for the settled patch. Preserve both pending SQL
+closeout documents with the next actual authorized SQL implementation PR, separately from Bot.
+G4 and G5 remain operator-owned; all retained uncertainties, claims and evidence remain intact.
+
+
+## S11 proof-consumption continuation — 2026-09-24
+
+The uninstalled S11 evidence migration and exact table/procedure snapshots now constrain Outcome
+by ProofKind, including completed for rollover_complete. The proof-issue procedure requires body
+state/snapshot agreement and an actual successful read in the matching closed probe. Exact SQL
+executable changes: migrations/20260924_001_export_execution_evidence.sql,
+sql_schema/dbo.ExportReconciliationProof.Table.sql, and
+sql_schema/dbo.usp_ExportReconciliationProofIssue.StoredProcedure.sql.
+
+Offline checker: 87 assertions passed; ScriptDom: 11 source files parsed. No database connection,
+installation, transaction/provider execution or predecessor rerun. Bot now consumes ProofID in six
+existing settlement transactions and verifies private journals; its complete proof issuer, launcher
+and all-caller composition remain incomplete and disabled. Separate Changes security review with
+Deep off remains pending. Preserve all historical records and the separate SQL PR grouping.
+
+## S11 evidence implementation checkpoint — 2026-09-24
+
+Operator approval covers local source implementation of the additive independent-authority evidence
+proposal. Authored paths: migrations/20260924_001_export_execution_evidence.sql; five table snapshots
+(ExportExecutionSession, ExportExecutionStream, ExportProviderRequest, ExportProviderRequestEvent,
+ExportReconciliationProof); four procedure snapshots (usp_ExportExecutionSessionTransition,
+usp_ExportExecutionStreamTransition, usp_ExportProviderRequestEventAppend,
+usp_ExportReconciliationProofIssue); validation/kvk_source/s11_export_execution_evidence.sql; and
+deploy/Test-ExportExecutionEvidenceContracts.ps1. All nine objects use the dbo schema.
+
+Offline checker: 87 assertions passed. ScriptDom parsed all 11 SQL source files. No SQL connection,
+installation, transaction/permission/concurrency execution, predecessor rerun or provider operation
+occurred. The guarded disposable-target fixture is opt-in and covers only its authored cases;
+it does not establish the full stream/request/proof acceptance matrix. Bot trusted proof production,
+settlement integration and complete closed composition remain unfinished. Source is not release-ready.
+Separate SQL Changes review with Deep off remains pending on the settled patch. G4/G5 stay operator-owned.
+
+Keep these two previously pending SQL closeout documents with the next genuine authorized SQL
+implementation PR, separately from Bot documentation. No Git publication occurred. Do not remove
+retained claims, receipts, request history or either uncertain publication; no historical evidence is
+backfilled. Current rollback is non-installation and preservation of local source/evidence.
+
+## Current S10E merged closeout — 2026-09-15
+
+[SQL PR #88](https://github.com/cwatts6/K98-bot-SQL-Server/pull/88) merged at 20:30:08 UTC
+as `2352a898881d4b74d6eec153bb3cb381d6162041`; local main/origin main match. Reviewed head:
+`c19c37988c9854d0474369244608962e1a053698`. All eight filename/content identities were verified
+against the reviewed manifest, merged PR and local refs. Both pending SQL documentation edits
+were delivered. Production Bot #587 and mirror #280 also merged; local Bot mirror was synchronized.
+**No changes have been pulled to the bot machine.**
+
+S10E operation/resource ownership authoring and review are complete. Static checker: 428 assertions;
+T-SQL syntax checks and independently stale owner/fence/version fixture controls passed. The guarded
+transaction fixture remains authored and unexecuted. SQL C/D/E installation, actual transactions,
+provider/Discord behavior, bot deployment and activation are not established by merges or CI.
+Corrective Changes review `909679f7-d8ff-41f5-900b-8b6a2ed9797d`, Deep off, has zero findings;
+Bot's final reviewed recovery correction uses these same SQL contracts without another SQL delta.
+
+Next is S11 Controlled Release and Acceptance, initial review/scope in Bot. The authoritative Bot
+handoff is named s10e_closeout_and_s11_handoff.md in its KVK migration reference directory. It
+records exact delivered/pending identities, source/static-versus-runtime limits and the new pack.
+S11 must assess real composition/installation gaps and propose exact targets/operations before
+approval; no SQL/provider action or predecessor rerun is authorized by this closeout.
+
+These new closeout edits to `docs/SQL_DELIVERY_LOG.md` and `migrations/README.md` MUST travel in the
+next genuine authorized SQL implementation PR, separately from all Bot documents. If S11 has no
+actual authorized SQL delta, retain both pending. No standalone docs PR, mixed histories or
+manufactured SQL work. Verify exact filenames/content at head and merge, not counts. Preserve all
+S6/S8 data, uncertain publications, original 50-document recovery hashes/ZIPs and updated manifests.
+
+Documentation-only security skip: this exact two-Markdown-file patch at the SQL merge above changes
+no schema, executable fixture, configuration, data access or deployment behavior. No installation,
+execution or runtime gate is closed. Earlier current/next-slice blocks below are historical.
+
+## Historical S10D merged closeout — 2026-09-15
 
 [SQL PR #87](https://github.com/cwatts6/K98-bot-SQL-Server/pull/87) merged at 10:57:04 UTC
 as `80353a6280e523f30c27e724f71e7b47dadadd16`; local main/origin main match. Final PR head:
@@ -1370,3 +1711,66 @@ All writer implementations must understand the third owner before admitting it. 
 is admission stop and reconciliation/forward fix; never drop evidence or release by age.
 Separate Changes / Deep off review and final offline validation remain pending.
 Prior S10D closeout material above remains part of this actual SQL implementation change.
+
+
+## S11 PR #89 review corrections — 2026-09-25
+
+Migration 20260924_001 now rejects first installation when either evidence-role
+name already exists, before installation DDL or grants. Exact-schema reapply
+continues to preserve explicitly provisioned G4 membership. Session closure now
+rejects incomplete output enrollments tied to that session, including closed-phase
+intervals; enrollment admission takes a transaction-duration session lock to
+serialize with close. Both authoritative procedure snapshots and the migration's
+installation and exact-definition copies agree.
+
+Offline contract checks: 188 assertions passed. ScriptDom parsed all three changed
+SQL files with zero errors. Bot's separately authored enrollment transaction case
+now checks close rejection both before its first stream and between closed phases.
+These are source/authoring results, not installation or SQL-engine proof.
+
+Exact G4 installation regression plan (not executed): use a separate approved,
+new disposable target with validated S10 prerequisites and backup/actual-restore
+receipts for each collision case. Before migration 001, prepare: (1) dbo-owned
+Authority with a stale direct user member, (2) Authority with a nested role member,
+(3) empty Authority, (4) Reader only, and (5) wrong type/owner under either name.
+Capture principal IDs, membership edges, permissions and object inventory. Each
+attempt must raise 51700 and leave no S11 objects or new grants; retain all fixture
+principals and evidence. Do not remove a collision and blindly retry the same target.
+On a separate clean target, install successfully, explicitly provision only the
+approved authority/reader members, retain a synthetic session row, then reapply
+identical SQL: all memberships and row bytes must remain unchanged. Also interleave
+enrollment begin and session close on two connections: close-first rejects admission;
+admission-first prevents close until enrollment completion. Retain claims on error.
+
+Changes / Deep off review targets the correction from published SQL head
+c106867fe8278b9d1d341a77a0b6f5b71ce94de6. No installation, provider/Discord operation,
+activation, merge, deployment or predecessor rerun is authorized by this correction.
+Forward-fix installed SQL; never drop evidence, rewrite receipts or release uncertainty.
+
+
+## S11 PR #89 additional review corrections — 2026-09-25
+
+Stream closure now rejects any request without a terminal succeeded/not_sent/unknown
+append. The existing account transaction lock serializes that check with EventAppend;
+exact session/account/child/version/sequence closure predicates remain unchanged. Frozen
+streams can still record legal terminal evidence; unknown never proves reconciliation
+finality. The procedure snapshot and both migration copies are identical.
+
+All 14 scan-query source paths now use forward slashes. The byte-hashed manifest has an
+explicit LF checkout rule. Its SHA-256 is
+28992d9cd48c796b6bed76d380f1924f4990364019aa5922f2165d79e00957d1,
+pinned consistently by forward migration, rollback and metadata validation. Module,
+query, signature, source-hash and permission content is unchanged.
+
+Offline evidence checks: 193 assertions; permission checks: 454 assertions; ScriptDom:
+five changed SQL files parsed with zero errors. Bot PR #281 authors the gated transaction
+regression: close must reject prepared/dispatch_intent without any row or event mutation,
+then accept closure only after the legal terminal append. Its separate 681-pass/12-skip
+offline run does not execute SQL or prove concurrency/installation. Exact G4 live tests
+remain operator-owned, including serialized close versus terminal append and rejection
+of unknown evidence by proof issuance. No predecessor rerun or provider operation occurred.
+
+Changes review uses only this correction from SQL head
+70d1916c39359c4bf5cf990552c3b1e57850b2c4, Deep off. Preserve prior closeouts and all evidence;
+stop admission and reconcile on rollback, and forward-fix installed SQL without erasing
+requests, dispositions or receipts. These remain separate actual SQL implementation files.
