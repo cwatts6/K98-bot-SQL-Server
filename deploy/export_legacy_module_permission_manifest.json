@@ -762,7 +762,7 @@
       "object": "dbo.KS",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.KS.Table.sql",
+      "source": "sql_schema/dbo.KS.Table.sql",
       "sha256": "865e98130af4a2c1382d2165b98850a2fa567c4ddadd60e81d714c21c73bf923"
     },
     {
@@ -771,7 +771,7 @@
       "object": "dbo.POWER_BY_MONTH",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.POWER_BY_MONTH.Table.sql",
+      "source": "sql_schema/dbo.POWER_BY_MONTH.Table.sql",
       "sha256": "8f801915741f11d37094f64254c4469f9881d6f2416888071538edf191315966"
     },
     {
@@ -780,7 +780,7 @@
       "object": "dbo.ALL_STATS_FOR_DASHBAORD",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.ALL_STATS_FOR_DASHBAORD.Table.sql",
+      "source": "sql_schema/dbo.ALL_STATS_FOR_DASHBAORD.Table.sql",
       "sha256": "6c3da1bb4f34ba70d049102d6c90b9bbeef326991e5d96a681509c4c47c5f579"
     },
     {
@@ -789,7 +789,7 @@
       "object": "dbo.STATS_FOR_UPLOAD",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.STATS_FOR_UPLOAD.Table.sql",
+      "source": "sql_schema/dbo.STATS_FOR_UPLOAD.Table.sql",
       "sha256": "16bf2a6d6fb0a3fdc98d78957405aba9c884e6f74b8f6b1024fc2a651320c387"
     },
     {
@@ -798,7 +798,7 @@
       "object": "dbo.RALLY_EXPORT",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.RALLY_EXPORT.Table.sql",
+      "source": "sql_schema/dbo.RALLY_EXPORT.Table.sql",
       "sha256": "5ddd6f6ce142c3a154fc897cc0ea7b139448f1676ef7822b06aaa0d3416f0dfd"
     },
     {
@@ -807,7 +807,7 @@
       "object": "dbo.SUMMARY_CHANGE_EXPORT",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.SUMMARY_CHANGE_EXPORT.Table.sql",
+      "source": "sql_schema/dbo.SUMMARY_CHANGE_EXPORT.Table.sql",
       "sha256": "9deed7e6b86c446f98ed083dd47b3506e9f883ce172aac63580795208861c003"
     },
     {
@@ -816,7 +816,7 @@
       "object": "dbo.ALL_GOVS",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.ALL_GOVS.Table.sql",
+      "source": "sql_schema/dbo.ALL_GOVS.Table.sql",
       "sha256": "eff354927ca5d1b9bbb17de090561076426efba6b78c214ac70e3c2623e1b2c6"
     },
     {
@@ -825,7 +825,7 @@
       "object": "dbo.ALL_GOVS_NAMES",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.ALL_GOVS_NAMES.Table.sql",
+      "source": "sql_schema/dbo.ALL_GOVS_NAMES.Table.sql",
       "sha256": "056def27e0a24ff11724aa5cfec6b9d07d94358466991d3db742af074629d8d0"
     },
     {
@@ -834,7 +834,7 @@
       "object": "dbo.ALL_GOVS_ALLIANCES",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.ALL_GOVS_ALLIANCES.Table.sql",
+      "source": "sql_schema/dbo.ALL_GOVS_ALLIANCES.Table.sql",
       "sha256": "e37190ed2d92445fe8e907d6be91b4675211c862be96e1ca0f2ef8acf6c3dbe3"
     },
     {
@@ -843,7 +843,7 @@
       "object": "dbo.v_TARGETS_FOR_UPLOAD",
       "explicit_database": null,
       "explicit_schema": true,
-      "source": "sql_schema\\dbo.v_TARGETS_FOR_UPLOAD.View.sql",
+      "source": "sql_schema/dbo.v_TARGETS_FOR_UPLOAD.View.sql",
       "sha256": "e047e79c92fb2e0fb55254f1b25a544af5d8120a36a7388c034d5e2d0b79742f"
     },
     {
@@ -852,7 +852,7 @@
       "object": "dbo.INACTIVE_GOVERNORS",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.INACTIVE_GOVERNORS.Table.sql",
+      "source": "sql_schema/dbo.INACTIVE_GOVERNORS.Table.sql",
       "sha256": "948dac365a2dea6bcbc7824e39737673df136e6fd80f740e9676beb1d52290eb"
     },
     {
@@ -861,7 +861,7 @@
       "object": "dbo.SCAN_LIST",
       "explicit_database": null,
       "explicit_schema": false,
-      "source": "sql_schema\\dbo.SCAN_LIST.Table.sql",
+      "source": "sql_schema/dbo.SCAN_LIST.Table.sql",
       "sha256": "63e1c62f0d018f55e452ab32bed05f1fbcdab1de3faf79cfc54cb800ae1ae3cf"
     },
     {
@@ -870,7 +870,7 @@
       "object": "dbo.ALL_GOVS",
       "explicit_database": "ROK_TRACKER",
       "explicit_schema": true,
-      "source": "sql_schema\\dbo.ALL_GOVS.Table.sql",
+      "source": "sql_schema/dbo.ALL_GOVS.Table.sql",
       "sha256": "eff354927ca5d1b9bbb17de090561076426efba6b78c214ac70e3c2623e1b2c6"
     },
     {
@@ -879,7 +879,7 @@
       "object": "dbo.v_PlayerAccounts_Migrate",
       "explicit_database": "ROK_TRACKER",
       "explicit_schema": true,
-      "source": "sql_schema\\dbo.v_PlayerAccounts_Migrate.View.sql",
+      "source": "sql_schema/dbo.v_PlayerAccounts_Migrate.View.sql",
       "sha256": "a92ac5085d5f9aedc36cda86ec7213bebe4442ba7b4f4c27995b09feb3af6e0a"
     }
   ],

@@ -37,6 +37,10 @@ foreach ($name in $procedures) {
 $append = Read-Source 'sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql'
 Assert-Contract ($append.Contains("IF @ExpectedVersion IS NULL OR @Version IS NULL OR @Version<>@ExpectedVersion OR @StreamState='closed'")) 'NULL must not disable the exact event stream CAS'
 $stream = Read-Source 'sql_schema/dbo.usp_ExportExecutionStreamTransition.StoredProcedure.sql'
+foreach ($fragment in @('dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID', 'AND NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e', "e.RequestID=r.RequestID AND e.State IN ('succeeded','not_sent','unknown')", 'Nonterminal request evidence prevents stream closure.')) {
+    Assert-Contract ($stream.Contains($fragment)) "Missing terminal stream closure guard: $fragment"
+}
+Assert-Contract ($stream.IndexOf('Nonterminal request evidence prevents stream closure.') -lt $stream.IndexOf("UPDATE dbo.ExportExecutionStream SET State='closed'")) 'Terminal evidence must be checked before releasing the active account'
 $proof = Read-Source 'sql_schema/dbo.usp_ExportReconciliationProofIssue.StoredProcedure.sql'
 $streamTable = Read-Source 'sql_schema/dbo.ExportExecutionStream.Table.sql'
 $requestTable = Read-Source 'sql_schema/dbo.ExportProviderRequest.Table.sql'

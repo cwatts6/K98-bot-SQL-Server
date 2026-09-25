@@ -979,6 +979,11 @@ BEGIN
   ELSE IF @Action=''close'' AND DATALENGTH(@Action)=5 AND @ClosureHash IS NOT NULL AND @ChildIdentity IS NOT NULL
     AND @ClosureReference IS NOT NULL AND @EventDigest IS NOT NULL AND @LastSequence IS NOT NULL
   BEGIN
+   -- Frozen streams remain writable only for legal terminal evidence.
+   IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID
+    AND NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e
+     WHERE e.RequestID=r.RequestID AND e.State IN (''succeeded'',''not_sent'',''unknown'')))
+    THROW 51700,''Nonterminal request evidence prevents stream closure.'',1;
    -- Trusted parent supplies OS-handle closure evidence, not a caller Boolean.
    UPDATE dbo.ExportExecutionStream SET State=''closed'',ActiveAccountKey=NULL,Version=Version+1,ClosureHash=@ClosureHash,ClosureReference=@ClosureReference,EventDigest=@EventDigest,ClosedUTC=SYSUTCDATETIME()
    WHERE StreamID=@StreamID AND SessionID=@SessionID AND AccountKey=@AccountKey AND Version=@ExpectedVersion
@@ -1925,6 +1930,11 @@ BEGIN
   ELSE IF @Action=''close'' AND DATALENGTH(@Action)=5 AND @ClosureHash IS NOT NULL AND @ChildIdentity IS NOT NULL
     AND @ClosureReference IS NOT NULL AND @EventDigest IS NOT NULL AND @LastSequence IS NOT NULL
   BEGIN
+   -- Frozen streams remain writable only for legal terminal evidence.
+   IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID
+    AND NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e
+     WHERE e.RequestID=r.RequestID AND e.State IN (''succeeded'',''not_sent'',''unknown'')))
+    THROW 51700,''Nonterminal request evidence prevents stream closure.'',1;
    -- Trusted parent supplies OS-handle closure evidence, not a caller Boolean.
    UPDATE dbo.ExportExecutionStream SET State=''closed'',ActiveAccountKey=NULL,Version=Version+1,ClosureHash=@ClosureHash,ClosureReference=@ClosureReference,EventDigest=@EventDigest,ClosedUTC=SYSUTCDATETIME()
    WHERE StreamID=@StreamID AND SessionID=@SessionID AND AccountKey=@AccountKey AND Version=@ExpectedVersion

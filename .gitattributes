@@ -2,3 +2,5 @@
 * text=auto
 *.sql text eol=crlf
 *.ps1 text eol=crlf
+# This manifest is hashed byte-for-byte by all three permission scripts.
+deploy/export_legacy_module_permission_manifest.json text eol=lf

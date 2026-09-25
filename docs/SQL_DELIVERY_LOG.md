@@ -1746,3 +1746,31 @@ Changes / Deep off review targets the correction from published SQL head
 c106867fe8278b9d1d341a77a0b6f5b71ce94de6. No installation, provider/Discord operation,
 activation, merge, deployment or predecessor rerun is authorized by this correction.
 Forward-fix installed SQL; never drop evidence, rewrite receipts or release uncertainty.
+
+
+## S11 PR #89 additional review corrections — 2026-09-25
+
+Stream closure now rejects any request without a terminal succeeded/not_sent/unknown
+append. The existing account transaction lock serializes that check with EventAppend;
+exact session/account/child/version/sequence closure predicates remain unchanged. Frozen
+streams can still record legal terminal evidence; unknown never proves reconciliation
+finality. The procedure snapshot and both migration copies are identical.
+
+All 14 scan-query source paths now use forward slashes. The byte-hashed manifest has an
+explicit LF checkout rule. Its SHA-256 is
+28992d9cd48c796b6bed76d380f1924f4990364019aa5922f2165d79e00957d1,
+pinned consistently by forward migration, rollback and metadata validation. Module,
+query, signature, source-hash and permission content is unchanged.
+
+Offline evidence checks: 193 assertions; permission checks: 454 assertions; ScriptDom:
+five changed SQL files parsed with zero errors. Bot PR #281 authors the gated transaction
+regression: close must reject prepared/dispatch_intent without any row or event mutation,
+then accept closure only after the legal terminal append. Its separate 681-pass/12-skip
+offline run does not execute SQL or prove concurrency/installation. Exact G4 live tests
+remain operator-owned, including serialized close versus terminal append and rejection
+of unknown evidence by proof issuance. No predecessor rerun or provider operation occurred.
+
+Changes review uses only this correction from SQL head
+70d1916c39359c4bf5cf990552c3b1e57850b2c4, Deep off. Preserve prior closeouts and all evidence;
+stop admission and reconcile on rollback, and forward-fix installed SQL without erasing
+requests, dispositions or receipts. These remain separate actual SQL implementation files.
