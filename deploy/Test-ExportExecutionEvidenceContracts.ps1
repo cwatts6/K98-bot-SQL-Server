@@ -91,6 +91,7 @@ IF @S11Existing=0 AND
   OR DATABASE_PRINCIPAL_ID(N'ExportExecutionReader') IS NOT NULL)
  THROW 51700,'Existing evidence role names are not adopted; preserve and reconcile.',1;
 '@
+$roleGuard = $roleGuard.Replace("`r`n", "`n")
 Assert-Contract ($migration.Contains($roleGuard.Trim())) 'Fresh evidence installation must not adopt either role name'
 Assert-Contract ($migration.IndexOf($roleGuard.Trim()) -lt $migration.IndexOf('CREATE TABLE #S11_')) 'Role collision must reject before installation DDL'
 $session = Read-Source 'sql_schema/dbo.usp_ExportExecutionSessionTransition.StoredProcedure.sql'
