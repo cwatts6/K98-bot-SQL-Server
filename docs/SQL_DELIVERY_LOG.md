@@ -1,5 +1,35 @@
 # SQL Delivery Log
 
+## S11 merged source closeout — 2026-09-25
+
+SQL PR #89 is merged at `aa7b01381e2e451368c9b7118891a9b960bed9d9`;
+reviewed head `0aab5d74e116291bde9b027e44ca819fa35db03c`. Local main/origin main match.
+All original delivery filenames/blobs, including both SQL delivery documents, were verified
+against the retained final publication manifest. Final source evidence: 193 evidence assertions,
+454 permission assertions and five error-free ScriptDom parses; portable manifest paths and
+LF hash pins verified. Separate correction Changes review, Deep off,
+`6637beed-5f86-408a-b777-0aa1c7e9c561` completed with zero findings. These are source/static
+results, not SQL installation, actual restore, transaction/concurrency or provider proof.
+
+Bot mirror #281 and production Bot #588 are also merged. The operator reports nothing updated
+on the bot machine. The [companion Bot-mirror PR #282](https://github.com/cwatts6/K98-bot-mirror/pull/282)
+contains the source closeout and new S11 G4 planning/controlled rollout/G5 pack and starter.
+Those documents control the next phase: **G4 plan
+development only**, with exact targets, operations, prerequisites, evidence, rollback and
+approval checkpoints. Live read-only inventory also needs exact target approval. Later rollout
+executes only approved operations; G5 acceptance remains operator-owned. No SQL execution,
+provisioning, deployment, activation or predecessor rerun is authorized by this closeout.
+
+On 2026-09-25 the operator explicitly authorized a separate SQL documentation closeout PR for
+`docs/SQL_DELIVERY_LOG.md` and `migrations/README.md`, alongside the Bot-mirror repair/handoff PR
+for parallel review. This supersedes the earlier deferral until an implementation PR for these
+two entries. No SQL code changes are introduced. Security scan and SQL execution are skipped
+precisely for the Markdown-only delta; existing runtime review evidence is preserved. Earlier
+dated sections below retain their historical scope/status and do not reopen implementation.
+Preserve all S6/S8 gates, both uncertain publications, data, receipts and ownership evidence.
+Rollback remains closed admission and drain/reconciliation, with forward fixes for installed SQL;
+never blind retry or release claims by age/job state.
+
 ## S11 approved NULL guard correction — 2026-09-24
 
 The operator approved the local correction scope and continued closure of remaining S11
