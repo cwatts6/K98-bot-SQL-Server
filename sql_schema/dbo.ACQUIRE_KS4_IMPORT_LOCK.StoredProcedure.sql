@@ -1,10 +1,12 @@
-SET ANSI_NULLS ON
-GO
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-GO
-CREATE OR ALTER PROCEDURE [dbo].[ACQUIRE_KS4_IMPORT_LOCK]
-    @LockTimeout [int] = 60000,
-    @LockResult [int] OUTPUT
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ACQUIRE_KS4_IMPORT_LOCK]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[ACQUIRE_KS4_IMPORT_LOCK] AS' 
+END
+ALTER PROCEDURE [dbo].[ACQUIRE_KS4_IMPORT_LOCK]
+	@LockTimeout [int] = 60000,
+	@LockResult [int] OUTPUT
 WITH EXECUTE AS OWNER
 AS
 BEGIN
@@ -24,4 +26,3 @@ BEGIN
         @LockTimeout = @LockTimeout,
         @DbPrincipal = N'K98ImportLockPrincipal';
 END
-GO
