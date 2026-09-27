@@ -1,8 +1,8 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-GO
-CREATE OR ALTER VIEW dbo.v_KVK_TARGETS_FOR_BOT
-AS
+IF NOT EXISTS (SELECT * FROM sys.views WHERE object_id = OBJECT_ID(N'[dbo].[v_KVK_TARGETS_FOR_BOT]'))
+EXECUTE dbo.sp_executesql N'
+CREATE VIEW [dbo].[v_KVK_TARGETS_FOR_BOT]  AS 
 SELECT
     p.PublicationId,
     p.KVK_NO,
@@ -28,4 +28,6 @@ FROM dbo.KVK_Target_Publication AS p
 JOIN dbo.KVK_Target_Publication_Row AS r
   ON r.PublicationId = p.PublicationId
 WHERE p.IsCurrent = 1;
-GO
+
+
+'

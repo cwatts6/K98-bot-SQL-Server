@@ -1,4 +1,4 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]') AND type in (N'U'))
 BEGIN
@@ -41,15 +41,15 @@ ALTER TABLE [dbo].[ImportAuditPhase] ADD  CONSTRAINT [DF_ImportAuditPhase_Create
 END
 
 IF NOT EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ImportAuditPhase_Batch]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
-ALTER TABLE [dbo].[ImportAuditPhase] WITH CHECK ADD CONSTRAINT [FK_ImportAuditPhase_Batch] FOREIGN KEY([ImportAuditBatchId])
+ALTER TABLE [dbo].[ImportAuditPhase]  WITH CHECK ADD  CONSTRAINT [FK_ImportAuditPhase_Batch] FOREIGN KEY([ImportAuditBatchId])
 REFERENCES [dbo].[ImportAuditBatch] ([ImportAuditBatchId])
-IF EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ImportAuditPhase_Batch]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
+IF  EXISTS (SELECT * FROM sys.foreign_keys WHERE object_id = OBJECT_ID(N'[dbo].[FK_ImportAuditPhase_Batch]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
 ALTER TABLE [dbo].[ImportAuditPhase] CHECK CONSTRAINT [FK_ImportAuditPhase_Batch]
-IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
-ALTER TABLE [dbo].[ImportAuditPhase] WITH CHECK ADD CONSTRAINT [CK_ImportAuditPhase_Status] CHECK (([PhaseStatus]=N'rolled_back' OR [PhaseStatus]=N'cancelled' OR [PhaseStatus]=N'duplicate' OR [PhaseStatus]=N'skipped' OR [PhaseStatus]=N'failed' OR [PhaseStatus]=N'completed' OR [PhaseStatus]=N'started'))
-IF EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
-ALTER TABLE [dbo].[ImportAuditPhase] CHECK CONSTRAINT [CK_ImportAuditPhase_Status]
 IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_DetailsJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
-ALTER TABLE [dbo].[ImportAuditPhase] WITH CHECK ADD CONSTRAINT [CK_ImportAuditPhase_DetailsJson] CHECK (([DetailsJson] IS NULL OR isjson([DetailsJson])=(1)))
-IF EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_DetailsJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
+ALTER TABLE [dbo].[ImportAuditPhase]  WITH CHECK ADD  CONSTRAINT [CK_ImportAuditPhase_DetailsJson] CHECK  (([DetailsJson] IS NULL OR isjson([DetailsJson])=(1)))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_DetailsJson]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
 ALTER TABLE [dbo].[ImportAuditPhase] CHECK CONSTRAINT [CK_ImportAuditPhase_DetailsJson]
+IF NOT EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
+ALTER TABLE [dbo].[ImportAuditPhase]  WITH CHECK ADD  CONSTRAINT [CK_ImportAuditPhase_Status] CHECK  (([PhaseStatus]=N'rolled_back' OR [PhaseStatus]=N'cancelled' OR [PhaseStatus]=N'duplicate' OR [PhaseStatus]=N'skipped' OR [PhaseStatus]=N'failed' OR [PhaseStatus]=N'completed' OR [PhaseStatus]=N'started'))
+IF  EXISTS (SELECT * FROM sys.check_constraints WHERE object_id = OBJECT_ID(N'[dbo].[CK_ImportAuditPhase_Status]') AND parent_object_id = OBJECT_ID(N'[dbo].[ImportAuditPhase]'))
+ALTER TABLE [dbo].[ImportAuditPhase] CHECK CONSTRAINT [CK_ImportAuditPhase_Status]
