@@ -10,7 +10,6 @@ AS
 BEGIN
     SET NOCOUNT ON;
 
-    -- Dedupe to latest record per player (by ImportedAt)
     ;WITH Latest AS (
         SELECT
             CAST(player_id AS BIGINT) AS GovernorID,
@@ -36,14 +35,12 @@ BEGIN
 
     IF @SrcCount = 0
     BEGIN
-        -- Nothing to import: leave PlayerLocation unchanged
         RETURN;
     END
 
     BEGIN TRY
         BEGIN TRAN;
 
-        -- Full replace semantics
         TRUNCATE TABLE dbo.PlayerLocation;
 
         INSERT INTO dbo.PlayerLocation
@@ -53,13 +50,11 @@ BEGIN
 
         COMMIT TRAN;
 
-        -- Return counts for logging
         SELECT @SrcCount AS ImportedRows,
                (SELECT COUNT(*) FROM dbo.PlayerLocation) AS TotalTracked;
     END TRY
     BEGIN CATCH
         IF XACT_STATE() <> 0 ROLLBACK TRAN;
-        -- Re-throw with original error info
         THROW;
     END CATCH
 END;
