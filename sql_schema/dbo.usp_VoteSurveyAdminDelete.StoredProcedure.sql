@@ -1,18 +1,18 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_VoteSurveyAdminDelete]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_VoteSurveyAdminDelete] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_VoteSurveyAdminDelete] AS' 
 END
 ALTER PROCEDURE [dbo].[usp_VoteSurveyAdminDelete]
-    @ContentKind [varchar](20),
-    @VotePostID [bigint] = NULL,
-    @SurveyID [bigint] = NULL,
-    @DryRun [bit] = 1,
-    @ConfirmDelete [bit] = 0,
-    @Reason [nvarchar](500) = NULL,
-    @DeletedBy [nvarchar](128) = NULL,
-    @BreakGlassProductionDelete [bit] = 0
+	@ContentKind [varchar](20),
+	@VotePostID [bigint] = NULL,
+	@SurveyID [bigint] = NULL,
+	@DryRun [bit] = 1,
+	@ConfirmDelete [bit] = 0,
+	@Reason [nvarchar](500) = NULL,
+	@DeletedBy [nvarchar](128) = NULL,
+	@BreakGlassProductionDelete [bit] = 0
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -410,4 +410,5 @@ BEGIN
     WHERE ContentKind = CASE WHEN @NormalizedContentKind = 'VOTE' THEN 'Vote' ELSE 'Survey' END
       AND ContentID = @ContentID
     ORDER BY DeletionAuditID DESC;
-END
+END;
+

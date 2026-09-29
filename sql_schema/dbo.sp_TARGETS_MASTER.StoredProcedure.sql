@@ -1,13 +1,13 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_TARGETS_MASTER]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_TARGETS_MASTER] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[sp_TARGETS_MASTER] AS' 
 END
 ALTER PROCEDURE [dbo].[sp_TARGETS_MASTER]
-    @KVK [int] = NULL,
-    @ForceRepublish [bit] = 0,
-    @RepublishReason [nvarchar](400) = NULL
+	@KVK [int] = NULL,
+	@ForceRepublish [bit] = 0,
+	@RepublishReason [nvarchar](400) = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -569,3 +569,5 @@ BEGIN
         THROW;
     END CATCH;
 END
+
+
