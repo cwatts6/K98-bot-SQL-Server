@@ -193,4 +193,3 @@ EXEC sp_executesql @SQL, @Params, @Scan = @ScanOrder;
         RAISERROR('TARGETS procedure failed: %s', 16, 1, @ErrMsg);
     END CATCH
 END
-
