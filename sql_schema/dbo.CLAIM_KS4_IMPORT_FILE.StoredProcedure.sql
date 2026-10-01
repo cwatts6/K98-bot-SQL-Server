@@ -1,14 +1,14 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CLAIM_KS4_IMPORT_FILE]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[CLAIM_KS4_IMPORT_FILE] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[CLAIM_KS4_IMPORT_FILE] AS' 
 END
 ALTER PROCEDURE [dbo].[CLAIM_KS4_IMPORT_FILE]
-    @CompletedFileName [nvarchar](260),
-    @FileDigest [binary](32) OUTPUT,
-    @ClaimedPath [nvarchar](4000) OUTPUT,
-    @ArchivePath [nvarchar](4000) OUTPUT
+	@CompletedFileName [nvarchar](260),
+	@FileDigest [binary](32) OUTPUT,
+	@ClaimedPath [nvarchar](4000) OUTPUT,
+	@ArchivePath [nvarchar](4000) OUTPUT
 WITH EXECUTE AS CALLER
 AS
 BEGIN
