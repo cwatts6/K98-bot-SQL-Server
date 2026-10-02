@@ -112,6 +112,9 @@ BEGIN
    FROM dbo.ExportPreparation WHERE PreparationID=@ObjectID;
   IF @Purpose='enrollment'
   BEGIN
+   IF JSON_VALUE(@EnrollmentPlan,'$.version') IN ('2','3') AND @State='prepared' AND
+      (@RequestKind IS NULL OR @Operation IS NULL OR @RequestKind<>'read' OR @Operation NOT IN ('drive.files.get','drive.permissions.list','sheets.get','sheets.values.batchGet'))
+    THROW 51700,'Manual registration admits read-only provider requests.',1;
    IF JSON_VALUE(@EnrollmentPlan,'$.purpose') IS NULL OR JSON_VALUE(@EnrollmentPlan,'$.purpose')<>'output_enrollment'
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id')) IS NULL
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id'))<>@SessionID

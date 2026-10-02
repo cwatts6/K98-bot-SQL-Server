@@ -50,7 +50,7 @@ BEGIN
  DECLARE @Targets TABLE (FileID varchar(128) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY);
  IF (SELECT COUNT(*) FROM OPENJSON(@MembershipJson,'$.targets')) NOT BETWEEN 1 AND 17
  OR EXISTS (SELECT 1 FROM OPENJSON(@MembershipJson,'$.targets') WHERE type<>1 OR DATALENGTH(value) NOT BETWEEN 6 AND 256
-  OR value COLLATE Latin1_General_100_BIN2 LIKE '%[^A-Za-z0-9_-]%')
+  OR value COLLATE Latin1_General_100_BIN2 LIKE '%[^-A-Za-z0-9_]%')
   THROW 51700,'Bounded exact registered targets required.',1;
  IF EXISTS (SELECT 1 FROM (SELECT value,LAG(value) OVER (ORDER BY CONVERT(int,[key])) AS Previous
   FROM OPENJSON(@MembershipJson,'$.targets')) q WHERE Previous COLLATE Latin1_General_100_BIN2>=value COLLATE Latin1_General_100_BIN2)
@@ -76,7 +76,7 @@ BEGIN
   THROW 51700,'Canonical historical count/hash and probe identity required.',1;
  -- A blank current file is not a creation history. Only sealed managed origins
  -- can enter automatic finality. Old/unproven files remain operator reconciliation.
- IF EXISTS(SELECT 1 FROM @Targets t WHERE NOT EXISTS(SELECT 1 FROM dbo.ExportManagedFileOrigin o
+ IF EXISTS(SELECT 1 FROM @Targets t WHERE NOT EXISTS(SELECT 1 FROM (SELECT FileID,Stage,PreparationID FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,Stage,PreparationID FROM dbo.ExportManualFileOrigin) o
    JOIN dbo.ExportPreparation p ON p.PreparationID=o.PreparationID
    WHERE o.FileID=t.FileID AND o.Stage='eligible' AND p.AccountKey=@AccountKey AND p.State='completed'))
   THROW 51700,'Complete authenticated managed-file origins required.',1;
@@ -85,8 +85,8 @@ BEGIN
  WHERE s.AccountKey=@AccountKey AND (EXISTS (SELECT 1 FROM OPENJSON(s.ScopeJson,'$.resources')
   WITH (ResourceKey varchar(256) '$.key') r JOIN @Targets t
   ON r.ResourceKey COLLATE Latin1_General_100_BIN2=('destination:'+t.FileID) COLLATE Latin1_General_100_BIN2)
- OR EXISTS(SELECT 1 FROM dbo.ExportManagedFileOrigin o JOIN @Targets t ON t.FileID=o.FileID
-  WHERE o.PreparationID=s.PreparationID AND o.Stage='created'));
+ OR EXISTS(SELECT 1 FROM (SELECT FileID,Stage,PreparationID FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,Stage,PreparationID FROM dbo.ExportManualFileOrigin) o JOIN @Targets t ON t.FileID=o.FileID
+  WHERE o.PreparationID=s.PreparationID AND o.Stage IN ('created','registered')));
  IF NOT EXISTS (SELECT 1 FROM @Members) THROW 51700,'Empty evidence is not proof of historical coverage.',1;
  IF EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
    WHERE s.State<>'closed' OR s.ActiveAccountKey IS NOT NULL OR s.ClosureHash IS NULL OR s.EventDigest IS NULL)
@@ -143,3 +143,4 @@ BEGIN
   THROW;
  END CATCH;
 END;
+GO
