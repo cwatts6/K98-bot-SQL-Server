@@ -1,6 +1,7 @@
 /*
 MigrationId: 20261001_008_manual_file_id_constraint
 Purpose: Align manual origin FileID constraint with the corrected literal hyphen class
+Author: cwatts
 CreatedUtc: 2026-10-01
 RequiresBackup: Yes
 RiskLevel: High
