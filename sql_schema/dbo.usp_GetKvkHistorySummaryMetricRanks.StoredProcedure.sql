@@ -1,8 +1,12 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_GetKvkHistorySummaryMetricRanks
-    @GovernorID bigint,
-    @FinalizedKvkNos dbo.IntList READONLY
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_GetKvkHistorySummaryMetricRanks]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_GetKvkHistorySummaryMetricRanks] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_GetKvkHistorySummaryMetricRanks]
+	@GovernorID [bigint],
+	@FinalizedKvkNos [dbo].[IntList] READONLY
 WITH EXECUTE AS CALLER
 AS
 BEGIN
@@ -78,3 +82,4 @@ BEGIN
     WHERE Gov_ID = @GovernorID
     ORDER BY Metric, KVK_NO;
 END;
+

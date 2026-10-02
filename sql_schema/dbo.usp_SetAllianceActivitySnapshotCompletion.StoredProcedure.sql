@@ -1,20 +1,25 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
-CREATE OR ALTER PROCEDURE dbo.usp_SetAllianceActivitySnapshotCompletion
-    @SnapshotID bigint,
-    @CompletionState nvarchar(24),
-    @ExpectedGovernorCount int,
-    @ObservedGovernorCount int,
-    @MissingExpectedGovernorCount int,
-    @InvalidMetricCount int,
-    @ValidatedAtUtc datetime2(0) = NULL,
-    @MissingMetricCount int = 0,
-    @CompletionBasis nvarchar(32) = N'SOURCE_VALIDATED'
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_SetAllianceActivitySnapshotCompletion]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_SetAllianceActivitySnapshotCompletion] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_SetAllianceActivitySnapshotCompletion]
+	@SnapshotID [bigint],
+	@CompletionState [nvarchar](24),
+	@ExpectedGovernorCount [int],
+	@ObservedGovernorCount [int],
+	@MissingExpectedGovernorCount [int],
+	@InvalidMetricCount [int],
+	@ValidatedAtUtc [datetime2](0) = NULL,
+	@MissingMetricCount [int] = 0,
+	@CompletionBasis [nvarchar](32) = N'SOURCE_VALIDATED'
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
+
     IF @SnapshotID <= 0
         THROW 51101, 'Alliance Activity completion requires a valid SnapshotID.', 1;
     IF @CompletionState NOT IN (N'COMPLETE', N'PARTIAL')
@@ -79,4 +84,5 @@ BEGIN
             ROLLBACK TRANSACTION;
         THROW;
     END CATCH;
-END
+END;
+

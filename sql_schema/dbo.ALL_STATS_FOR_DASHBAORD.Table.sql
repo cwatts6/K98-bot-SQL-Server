@@ -49,7 +49,6 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
 	[KillPoints] [bigint] NULL,
 	[KILLS_OUTSIDE_KVK] [bigint] NOT NULL,
 	[DEADS_OUTSIDE_KVK] [bigint] NOT NULL,
@@ -66,7 +65,8 @@ CREATE TABLE [dbo].[ALL_STATS_FOR_DASHBAORD](
 	[Max_PreKvk_Points] [bigint] NULL,
 	[Max_HonorPoints] [bigint] NULL,
 	[PreKvk_Rank] [int] NULL,
-	[Honor_Rank] [int] NULL
+	[Honor_Rank] [int] NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[ALL_STATS_FOR_DASHBAORD]') AND name = N'IX_ALL_STATS_FOR_DASHBAORD_KVK_Rank')
