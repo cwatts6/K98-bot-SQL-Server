@@ -1,5 +1,73 @@
 # SQL Migrations
 
+## Local production compatibility preparation — 2026-10-02
+
+Chris approved the focused local compatibility delta after the bounded MINI_AMD definitions were reconciled. The 38 original source hashes remain; 27 finite equivalent script hashes are reconstructed from pinned source plus explicit reviewed line-edit recipes in deploy/export_legacy_module_compatibility_forms.json. Installation, validation and rollback use the same module-bound list; owner, SET options, execution context, public certificate, exact installed-byte signature and restricted-token guards stay mandatory. No legacy business module is rewritten. New raw permission manifest SHA256: b6762ab0d396fd0173c579bb276fcd6d859e2f5f839af9644a805eaa2c4dca23; Bot canonical source pin: 026de91d412b31f12d8bb45908ca65b60e59f999b7bc6141eddc9b7fc0dbaf68. Old dated hashes/seals below remain historical.
+
+Chris accepted and authorized publication of this compatibility delta into existing PR #91 and companion Bot #284. Separate Changes reviews completed with no findings (SQL b647f4a1-b403-4478-9f33-171871cd3c36, Bot 0bbdf242-de30-486e-bc81-ee36c180ef78); reviewed executable bytes are unchanged. Hosted CI/review readbacks and final publication hashes are retained as additive evidence. The later reference/status correction is documentation-only; no executable security surface changes. PR #91 and companion Bot #284 remain unmerged; merge/promotion, installation/signing/mapping, deployment/restart, enrollment/export writes and activation are separate decisions. The offline source checker passed 863 assertions; companion focused Bot suite passed 382 tests. These are not engine/signature installation proofs. The minimum missing-only chain and unresolved bindings are documented in the [companion Bot compatibility result](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-15e4b2b01579f7660c46504558af5565d5f8d2276ab61e92bcc1c1eea8944ac7). Do not install all 540 objects, run default batch mode, replay superseded entrypoints, copy observed hashes as expectations or modify retained recovery/evidence.
+
+
+## Published review checkpoint — 2026-10-02
+
+[SQL PR #91](https://github.com/cwatts6/K98-bot-SQL-Server/pull/91) and companion [Bot PR #284](https://github.com/cwatts6/K98-bot-mirror/pull/284) are open and ready for review, explicitly authorized by Chris. **Leave both unmerged.** The local implementation review is closed; bounded production inventory/staged rollout preparation is approved. Installation, grants/signatures, deployment/restart, enrollment/export writes and G5 activation remain separate decisions.
+
+PR review found that default filename ordering could execute superseded S11 migrations. The runner now rejects batch mode and the six superseded IDs **before helper loading, SQL/backup checks or audit writes**. Select one exact replacement in the documented order and explicitly supply ServerName/DatabaseName for the October 1 chain. The runner does not automatically substitute or record a predecessor as applied. This fail-closed behavior intentionally prevents a later default run from replaying obsolete scripts; installation readiness and exact target approval must still be established. Invalid/path-shaped/unknown IDs are rejected before helper loading and any audit/backup SQL. The permissions migration recognizes exactly the original or corrected Applied evidence-migration ID, with all other role/manifest/signature checks unchanged. The pure offline selection regression has 40 cases and never invokes the deployment runner or SQL.
+
+Publication fixes also repair Bot cross-repository links and add the missing Author header to migration 008. The manual-origin reference snapshot now has the standard SET/comment header; its table body and installation migration are unchanged. The permissions prerequisite has the reviewed exact-ID alternative described above; preserved original bytes remain in Git and local evidence. Do not rewrite installed history/checksums or rerun an already applied permissions migration merely to match this source. The initial local CI wrapper masked a validator failure and is not accepted as a successful validation; explicit-root validation and hosted CI at header-fix commit `be597e2` passed. Final follow-up guard review/check status and exact final PR heads are retained in the separate local publication evidence `C:\Users\cwatt\Documents\Codex\s11-pr-publication-20261002` and the Bot PR checkpoint. Current Bot 540-object canonical source-list digest is `73c23c1391471e829c6a835be0f7371239e11d9880071c079fbfdb3c157c1555` (raw JSON SHA256 `343e1fa220b639bd620ccb8bb789d9c3e8f183bd49bdb6020d788d606f95d3bd`); all member hashes were checked individually. Older publication/draft/status/hash statements below describe their original dates.
+
+
+## Local review accepted; production inventory approved — 2026-10-02
+
+Chris accepted and CLOSED the local S11 implementation review and APPROVED bounded production inventory and staged rollout preparation. See the [current Bot/SQL handoff](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-3473a728a58f477314d3de2c298b19a64d0751d90d3e900e8753322bfeca0bf7) and [handover task](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-1229f004e3c1f62d6f80ab475fe4e1829df371fcc3c581648878fbf60a5c0230). The next stage may prepare and execute exact bounded read-only production inventory under this approval; do not repeat the general approval request. No SQL installation, grant/certificate mutation, Bot deployment/restart or G5/activation is authorized yet.
+
+SQL source and prior repair/rehearsal results remain unchanged. The Bot's accepted version 5 operator-control amendment requires no SQL schema change. Preserve the complete/partial SQL security-review qualifications documented in the Bot readiness report; source evidence is not production installation. Chris subsequently authorized separate ready-for-review Bot and SQL PRs, review/fixes and exact-state handoff updates, with both PRs left unmerged. The companion [Bot PR #284](https://github.com/cwatts6/K98-bot-mirror/pull/284) is open. This SQL implementation/document union is the authorized publication; merge and production mutation remain separate decisions. Preserve the corrected substitution order below, retained databases/media/receipts and all pending files. Older statements below describe their original dates.
+
+## Current development repair and retest — 2026-10-01
+
+The operator-approved isolated installation/rehearsal on `9SX2VF4\K98DEV` / `K98_S11_Disposable_20260929_CV01` (database 23) is now evidenced across preserved reconciled attempts. The installation and functional failures were corrected; v3 positive/negative cases, v2 compatibility, permission checks, lock contention and final correction reapplication completed. Retained database 22 stays ONLINE/RESTRICTED_USER/read-only/Broker-disabled. Nothing was published or deployed to production.
+
+**Use the explicit substitution order below, never an indiscriminate date-sorted run.** Keep original files for evidence. Entries 001–006 replace the named original entrypoints on the minimal prerequisite chain; 007–010 are forward corrections. Do not rerun a predecessor after its successor.
+
+| Corrected entrypoint | Replaces | Correction |
+|---|---|---|
+| `20261001_001_legacy_export_preparation_installation.sql` | `20260914_002` | Compile dependent constraints after adding the column |
+| `20261001_002_kvk_output_pool_installation.sql` | `20260915_001` | Expected metadata follows the actual appended column order |
+| `20261001_003_kvk_output_operation_installation.sql` | `20260915_002` | Appended column order and dependent compilation boundaries |
+| `20261001_004_export_execution_evidence_installation.sql` | `20260924_001` | Expected resource column order across the preceding installs |
+| `20261001_005_manual_export_registration_installation.sql` | `20260929_001` | Explicit metadata collation and SQL Server's stored procedure header representation |
+| `20261001_006_manual_public_viewer_installation.sql` | `20260929_002` | Exact stored header comparison while preserving executable CREATE OR ALTER |
+| `20261001_007_manual_file_id_characters.sql` | Forward correction after 006 | Literal hyphen/underscore in Unicode JSON file IDs |
+| `20261001_008_manual_file_id_constraint.sql` | Forward correction after 007 | Align trusted manual-origin CHECK with the same character rule |
+| `20261001_009_manual_resource_membership_order.sql` | Forward correction after 008 | Create unclaimed resource, insert membership, then claim, inside the existing locks/transaction |
+| `20261001_010_reconciliation_file_id_characters.sql` | Forward correction after 009 | Same valid file-ID class in reconciliation JSON targets |
+
+Exact commands, hashes, failed attempts, budgets, recovery boundaries and test qualifications are in the [Bot repair checkpoint](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-6adca8884420d008c4f2ad780964773719deffe1c6467a4d0c031a9315a087c0) and `.codex_artifacts/s11-main-repair-20261001/`. Final SQL Changes review `7fc6e83f-5ef1-4b60-a772-3697b2287386`: 16 source files, zero findings, Deep off. The source list remains 540 objects, digest `f082cd0cbf28261cddf966a954a4564d34a81a552d796707eb90dc75a6baf3cf`. This is SQL synthetic evidence only; real exports, seven complete typed G4 proofs, production rollout and G5 remain separate. Older uninstalled/source-pin statements below describe their dates.
+
+
+## Public Viewer policy correction — current 2026-09-29
+
+The operator approved public-link Viewer access for manually created output files. Additive `20260929_002_manual_public_viewer_policy.sql` follows preserved `20260929_001_manual_export_registration.sql`, adds exact plan-v3 policy admission/completion and extends the manual read-only provider guard to v3. Original private-v2 lineage remains readable. No table/data/receipt mutation; both changed definitions are exact-predecessor/postimage checked and mixed installs/signatures stop. Do not rerun the predecessor after this successor.
+
+New migration SHA256 `8baddf1297238be7b4c2630445102e694912f98b5eb159c5f4163208b5bbc142`; final SQL Changes review `ebc0ccdc-98b5-4f0d-bf71-968449bfd6a4`, zero findings, Deep off. Offline parsing and source checks passed, not SQL engine acceptance. Bot 540-object source-list pin is `eb27e166822e1a95a97031306177f215408ba48a373fe77720eaf4b1760d5dc7`. Local source is pending/unpublished and uninstalled. A new disjoint disposable target and explicit execution approval remain required; retain recovery database22 and all historical files. See the companion [Bot implementation note](https://github.com/cwatts6/K98-bot-mirror/blob/codex/s11-manual-pool-readiness/docs/reference/kvk_source_migration/s11_g4_public_viewer_implementation_20260929.md) and new local implementation artifact directory for exact source/document seals. Older private-only/source-pin statements below are historical.
+
+
+## Current S11 handoff — 2026-09-29
+
+The local manual-registration source is complete and remains uninstalled/unpublished. Final migration SHA256: `dcd5ecc18829bb0469aa5356b865bd6cf3b32302d717955e2ba2aab464f9d770`. Both predecessor definition literals and all three new installed/postimage pairs match exact bytes, including required CRLF/trailing newlines. Final SQL Changes review `a87cb75f-c10b-4a4c-99bd-55c22921102b` covered five source files with zero security findings, Deep off. Offline parsing/source checks are not engine integration evidence.
+
+Current next-chat context: [Bot validation handoff](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-5281fd8fcbdc44dca184899b0c0ac701c31d894f51331e3032b095eaeab85776) and [new starter](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-5bcbc0a52cfe583f21dc59de9944b93c5b147274424d3fea22345659fe970566). Prepare a bounded minimal-prerequisite rehearsal on a separately approved disjoint target. Keep retained database 22 `S11_G4_Recovery_20260928_97337` read-only/restricted/Broker-disabled and preserve all 119 media files. Actual historical restore/CHECKDB and the selected 15-table baseline are evidenced; they do not prove the new installation. The 540-object source manifest is a source contract, never permission to install every missing object.
+
+Manual fixed-file Sheets setup, existing service account and one Windows account are settled. All seven typed G4 proofs, live validation, rollout and G5 remain incomplete/unapproved. The old maintenance window expired 2026-09-29T09:23:23Z. No live action, publication or new task follows from documentation. Earlier dated delivery text below remains historical.
+
+
+## Manual output registration — 2026-09-29 local authoring
+
+The operator approved focused local source changes for manually created, reused output Sheets and the existing service account. New migration `20260929_001_manual_export_registration.sql` and its two new snapshots add honest manual-origin registration and eligibility. Provider-event and reconciliation snapshots gain the corresponding read-only verification guard and lineage handling. Historical migrations and origin records are preserved. The migration refuses partial installation, source drift and unreadable existing definitions.
+
+This is local, uninstalled source. No SQL engine execution, installation, role membership, credential provisioning, provider operation, Bot deployment, Git publication or activation is authorized by this entry. The restored G4 database remains read-only and retained. Use a separately approved disjoint integration target before considering deployment; retain all existing S6/S8 uncertainty and evidence. Forward correction remains the installed rollback model; before installation, leave the candidate uninstalled.
+
+Offline parser, focused Bot tests, source equivalence and separate Changes review evidence are retained in the Bot workspace `.codex_artifacts/s11-manual-pool-implementation-20260929`. The Bot note [s11_g4_manual_pool_implementation_20260929.md](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-f2d7ee91dc10043b73f098c0cc742107f5ace8c02a97debc5d30e1987b7c4cec) defines the versioned manual plan, existing-identity record, candidate source pins and remaining installation/provider proofs. Earlier dated sections below are historical, not current approval.
+
 ## S11 merged source closeout — 2026-09-25
 
 SQL PR #89 is merged at `aa7b01381e2e451368c9b7118891a9b960bed9d9`;

@@ -1,0 +1,707 @@
+{
+  "version": 1,
+  "purpose": "Finite reviewed source-to-equivalent-script edit recipes; never executed as SQL; exact hash acceptance only.",
+  "forms": [
+    {
+      "module": "KVK.sp_KVK_AllPlayers_Ingest",
+      "source_definition_sha256": "d574dfbd2896f5491e59923be165901fb658d6ee5b766a70f3c97c24767c9a20",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "\t@IngestToken [uniqueidentifier],\n",
+            "\t@ScanTimestampUTC [datetime2](0),\n",
+            "\t@SourceFileName [nvarchar](255),\n",
+            "\t@FileHash [varbinary](32),\n",
+            "\t@UploaderDiscordID [bigint] = NULL,\n",
+            "\t@OutKVK_NO [int] OUTPUT,\n",
+            "\t@OutScanID [int] OUTPUT,\n",
+            "\t@OutRowCount [int] OUTPUT,\n",
+            "\t@SchemaVersion [nvarchar](64) = NULL,\n",
+            "\t@SourceSheetName [nvarchar](128) = NULL,\n",
+            "\t@SourceColumnHash [char](64) = NULL,\n",
+            "\t@SourceColumnCount [int] = NULL,\n",
+            "\t@SourceRowCount [int] = NULL\n"
+          ],
+          "after": [
+            "    @IngestToken [uniqueidentifier],\n",
+            "    @ScanTimestampUTC [datetime2](0),\n",
+            "    @SourceFileName [nvarchar](255),\n",
+            "    @FileHash [varbinary](32),\n",
+            "    @UploaderDiscordID [bigint] = NULL,\n",
+            "    @OutKVK_NO [int] OUTPUT,\n",
+            "    @OutScanID [int] OUTPUT,\n",
+            "    @OutRowCount [int] OUTPUT,\n",
+            "    @SchemaVersion [nvarchar](64) = NULL,\n",
+            "    @SourceSheetName [nvarchar](128) = NULL,\n",
+            "    @SourceColumnHash [char](64) = NULL,\n",
+            "    @SourceColumnCount [int] = NULL,\n",
+            "    @SourceRowCount [int] = NULL\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "KVK.sp_KVK_Get_Exports",
+      "source_definition_sha256": "545952ae65e57b0f592e5b9c1e9a5c0f1a1b74b354d96ff6764357e28cade29b",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "\t@KVK_NO [int]\n"
+          ],
+          "after": [
+            "    @KVK_NO [int]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.ACQUIRE_KS4_IMPORT_LOCK",
+      "source_definition_sha256": "b600e0d4cac9ebda6fe1657386cd61fe105d3f597192e10e776788f77cb0c10c",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[ACQUIRE_KS4_IMPORT_LOCK]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[ACQUIRE_KS4_IMPORT_LOCK]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.CREATE_DELTA_TABLES",
+      "source_definition_sha256": "e4c9150e8f8d5434f77cc2238e444891a56f02e5aa312eab182e7f4b0f0591ab",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[CREATE_DELTA_TABLES]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[CREATE_DELTA_TABLES]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.DEADSSUMMARY_PROC",
+      "source_definition_sha256": "3688d1adbc52dbf6f2686080fa789d2cb94522f0053b9c72120943994e2e6277",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[DEADSSUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[DEADSSUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.HEALEDSUMMARY_PROC",
+      "source_definition_sha256": "bdb4dc1e56b9bf2b4fdf50d03ebf068551d630c87ce2ab55b31f809e60e6bfed",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[HEALEDSUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[HEALEDSUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.KILLPOINTSSUMMARY_PROC",
+      "source_definition_sha256": "294bee151bf87885b1500c1ac7274f53e6e4d600513c9b457b4c2e475c8f72ae",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[KILLPOINTSSUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[KILLPOINTSSUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.KILLSSUMMARY_PROC",
+      "source_definition_sha256": "ff8798becd4c3cd300e2eddee1592066bd626a15fc69db4c81cf57b77ae8fbc2",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[KILLSSUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[KILLSSUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.KT4SUMMARY_PROC",
+      "source_definition_sha256": "34d3a01a15f6b05e7eee503ea760f493dd5086d548a0ff7eb5de29e6b6cf979c",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[KT4SUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[KT4SUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.KT5SUMMARY_PROC",
+      "source_definition_sha256": "56288be469a924d16f821a40c3885bd12e07f80bfa6af29f781bca9d507c24d5",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[KT5SUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[KT5SUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.POWERSUMMARY_PROC",
+      "source_definition_sha256": "1259508d96b6267e6b8b8508a3b069301254329d26fcb3a6871fb88247b64c3e",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[POWERSUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[POWERSUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.RANGEDSUMMARY_PROC",
+      "source_definition_sha256": "786ca62850c9f55270844dace6782278f0dbca3451e46e6d4f47b56fb9848c79",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[RANGEDSUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[RANGEDSUMMARY_PROC]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.Refresh_PlayerScanMeta",
+      "source_definition_sha256": "c5e6b156de73e9271b9545897ad77836e4b1ce3d34bc08f641ae73d97e9d6187",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[Refresh_PlayerScanMeta]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[Refresh_PlayerScanMeta]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.SP_Stats_for_Upload",
+      "source_definition_sha256": "f027787931efdc66e8302a8576241aa046fd7b1512ecfcd31a3d186be53965ac",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[SP_Stats_for_Upload]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[SP_Stats_for_Upload]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.SUMMARY_PROC",
+      "source_definition_sha256": "a4c1af34ff6c8d959375b77b1ee68294adb896379ff0d777e517170a8ffd78a1",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[SUMMARY_PROC]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[SUMMARY_PROC]\n"
+          ]
+        },
+        {
+          "start": 160,
+          "before": [
+            "        SELECT \n"
+          ],
+          "after": [
+            "        SELECT\n"
+          ]
+        },
+        {
+          "start": 237,
+          "before": [
+            "        SELECT \n"
+          ],
+          "after": [
+            "        SELECT\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.UPDATE_ALL2",
+      "source_definition_sha256": "d89d8cdd46020f3a464baf5cb0cbc1f30fb5734efe36316865dac88cabd24b68",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 54,
+          "before": [
+            "        -- Phase A: Import → KS5 → (maybe) KS4  [commit early]\n"
+          ],
+          "after": [
+            "        -- Phase A: Import â†’ KS5 â†’ (maybe) KS4  [commit early]\n"
+          ]
+        },
+        {
+          "start": 312,
+          "before": [
+            "        COMMIT;  -- ✅ Import is now durable even if later steps fail\n"
+          ],
+          "after": [
+            "        COMMIT;  -- âœ… Import is now durable even if later steps fail\n"
+          ]
+        },
+        {
+          "start": 331,
+          "before": [
+            "        -- ⚡ OPTIMIZED SECTION ⚡\n"
+          ],
+          "after": [
+            "        -- âš¡ OPTIMIZED SECTION âš¡\n"
+          ]
+        },
+        {
+          "start": 419,
+          "before": [
+            "        -- ⚡ OPTIMIZATION: Update statistics on newly built table\n"
+          ],
+          "after": [
+            "        -- âš¡ OPTIMIZATION: Update statistics on newly built table\n"
+          ]
+        },
+        {
+          "start": 487,
+          "before": [
+            "                -- ✅ LIFT: Call sp_ExcelOutput_ByKVK directly here\n"
+          ],
+          "after": [
+            "                -- âœ… LIFT: Call sp_ExcelOutput_ByKVK directly here\n"
+          ]
+        },
+        {
+          "start": 508,
+          "before": [
+            "\t\t\t\t-- ✅ CRITICAL: Force commit visibility before next step\n"
+          ],
+          "after": [
+            "\t\t\t\t-- âœ… CRITICAL: Force commit visibility before next step\n"
+          ]
+        },
+        {
+          "start": 567,
+          "before": [
+            "        -- ⚡⚡⚡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD ⚡⚡⚡\n"
+          ],
+          "after": [
+            "        -- âš¡âš¡âš¡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD âš¡âš¡âš¡\n"
+          ]
+        },
+        {
+          "start": 673,
+          "before": [
+            "        -- ⚡ OPTIMIZATION: Update statistics after bulk insert\n"
+          ],
+          "after": [
+            "        -- âš¡ OPTIMIZATION: Update statistics after bulk insert\n"
+          ]
+        },
+        {
+          "start": 944,
+          "before": [
+            "\t\t-- ✅ capture transaction state before doing anything\n"
+          ],
+          "after": [
+            "\t\t-- âœ… capture transaction state before doing anything\n"
+          ]
+        },
+        {
+          "start": 947,
+          "before": [
+            "\t\t-- ✅ if a transaction exists, you MUST rollback first (especially if @XState = -1)\n"
+          ],
+          "after": [
+            "\t\t-- âœ… if a transaction exists, you MUST rollback first (especially if @XState = -1)\n"
+          ]
+        },
+        {
+          "start": 961,
+          "before": [
+            "\t\t-- ✅ now you're in autocommit, logging is allowed\n"
+          ],
+          "after": [
+            "\t\t-- âœ… now you're in autocommit, logging is allowed\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.fn_NormalizeGovernorNameKey",
+      "source_definition_sha256": "46e14cc25edf211145d2cfa64e125ecd5286e6de44605ac6d4fc68a2bdb2cfac",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE FUNCTION dbo.fn_NormalizeGovernorNameKey\n"
+          ],
+          "after": [
+            "CREATE   FUNCTION dbo.fn_NormalizeGovernorNameKey\n"
+          ]
+        },
+        {
+          "start": 17,
+          "before": [
+            "END"
+          ],
+          "after": [
+            "END;"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_Create_Excel_For_Kvk_Indexes",
+      "source_definition_sha256": "c4860487e09f82e0ceba3dbafd36df203f1506ca2af95d62832af86b10cd4f5f",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "\t@FullTableName [nvarchar](260),\n",
+            "\t@TableBase [sysname]\n"
+          ],
+          "after": [
+            "    @FullTableName nvarchar(260), -- e.g. [dbo].[EXCEL_FOR_KVK_3] or dbo.EXCEL_FOR_KVK_3\n",
+            "    @TableBase sysname            -- e.g. EXCEL_FOR_KVK_3\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_ExcelOutput_ByKVK",
+      "source_definition_sha256": "ecc7ae0efcb942e159459d51088bea281efcee6a3c711f9123dacef8d67c50fc",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[sp_ExcelOutput_ByKVK]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[sp_ExcelOutput_ByKVK]\n"
+          ]
+        },
+        {
+          "start": 9,
+          "before": [
+            "    DECLARE \n"
+          ],
+          "after": [
+            "    DECLARE\n"
+          ]
+        },
+        {
+          "start": 60,
+          "before": [
+            "    SET @LatestScanToUse = CASE \n"
+          ],
+          "after": [
+            "    SET @LatestScanToUse = CASE\n"
+          ]
+        },
+        {
+          "start": 135,
+          "before": [
+            "\t\tksd.[T4&T5_KILLS], \n",
+            "\t\tksd.[HealedTroops], \n"
+          ],
+          "after": [
+            "\t\tksd.[T4&T5_KILLS],\n",
+            "\t\tksd.[HealedTroops],\n"
+          ]
+        },
+        {
+          "start": 222,
+          "before": [
+            "    SELECT \n"
+          ],
+          "after": [
+            "    SELECT\n"
+          ]
+        },
+        {
+          "start": 249,
+          "before": [
+            "    SELECT \n"
+          ],
+          "after": [
+            "    SELECT\n"
+          ]
+        },
+        {
+          "start": 289,
+          "before": [
+            "\t----------------------------------------------- \n",
+            "\t-- 5. KillPointsDelta aggregation (use same window as other deltas) \n",
+            "\t----------------------------------------------- \n"
+          ],
+          "after": [
+            "\t-----------------------------------------------\n",
+            "\t-- 5. KillPointsDelta aggregation (use same window as other deltas)\n",
+            "\t-----------------------------------------------\n"
+          ]
+        },
+        {
+          "start": 301,
+          "before": [
+            "\tWHERE kp.DeltaOrder > @PRE_PASS_4_SCAN AND kp.DeltaOrder <= @KVK_END_SCAN \n"
+          ],
+          "after": [
+            "\tWHERE kp.DeltaOrder > @PRE_PASS_4_SCAN AND kp.DeltaOrder <= @KVK_END_SCAN\n"
+          ]
+        },
+        {
+          "start": 456,
+          "before": [
+            "\t\t, COALESCE(s.RangedPoints, 0)             AS RangedPoints        \n"
+          ],
+          "after": [
+            "\t\t, COALESCE(s.RangedPoints, 0)             AS RangedPoints\n"
+          ]
+        },
+        {
+          "start": 493,
+          "before": [
+            "\tLEFT JOIN #Ranged      ran ON ran.GovernorID = s.GovernorID   \n"
+          ],
+          "after": [
+            "\tLEFT JOIN #Ranged      ran ON ran.GovernorID = s.GovernorID\n"
+          ]
+        },
+        {
+          "start": 512,
+          "before": [
+            "    SELECT GovernorID, MAX(T4_Deads) AS [T4 Deads], MAX(T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER \n"
+          ],
+          "after": [
+            "    SELECT GovernorID, MAX(T4_Deads) AS [T4 Deads], MAX(T5_Deads) AS [T5 Deads], MAX(KVK_START_SCANORDER) AS SCANORDER\n"
+          ]
+        },
+        {
+          "start": 514,
+          "before": [
+            "    FROM dbo.HoH_Deads \n"
+          ],
+          "after": [
+            "    FROM dbo.HoH_Deads\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_Prep_ExcelExportTable",
+      "source_definition_sha256": "e79bf39bdbf265eac79cf54c00ac15a6240becc74f3fc9fc685de12eaec0c6f2",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "\t@KVK [int]\n",
+            "WITH EXECUTE AS CALLER\n"
+          ],
+          "after": [
+            "    @KVK INT\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_Prep_ExcelOutputTable",
+      "source_definition_sha256": "249a81e94fdac9f17bb927e9845c2bc4642c66e0455b44dc0c631b471a754f8d",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "\t@KVK [int],\n",
+            "\t@Scan [int]\n",
+            "WITH EXECUTE AS CALLER\n"
+          ],
+          "after": [
+            "    @KVK INT,\n",
+            "    @Scan INT\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_Prep_TargetTable",
+      "source_definition_sha256": "14dc95d4380b2fe1af03c8615d9284d82bb0c3f326c4ba5389058537a063537a",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "\t@KVK [int],\n",
+            "\t@Scan [int]\n",
+            "WITH EXECUTE AS CALLER\n"
+          ],
+          "after": [
+            "    @KVK  INT,\n",
+            "    @Scan INT\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_Rebuild_ExcelForDashboard",
+      "source_definition_sha256": "6759004fe3110f5648c6825abacbe2b14d70f333dd9091a4239a23c54d986b45",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[sp_Rebuild_ExcelForDashboard]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[sp_Rebuild_ExcelForDashboard]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_RefreshInactiveGovernors",
+      "source_definition_sha256": "21a85705ff145f064a133bc42ccb5edb415fa7eb8543ae4ccec464bf04bcc994",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 1,
+          "before": [
+            "WITH EXECUTE AS CALLER\n"
+          ],
+          "after": []
+        }
+      ]
+    },
+    {
+      "module": "dbo.sp_TARGETS_MASTER",
+      "source_definition_sha256": "d20e2dc29c7d6455a17ebfcb59e78210e1c10aa20145974293ac5f417822ec20",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE [dbo].[sp_TARGETS_MASTER]\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE [dbo].[sp_TARGETS_MASTER]\n"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.usp_RecordKvkFinalReportCompletion",
+      "source_definition_sha256": "195d14e5dc42d17a8e4fa8bd632e61fbfe5f6ad43ec7e54bf1ef5fce61a441a7",
+      "classification": "SCRIPT_FORM_EQUIVALENCE_WITH_RECORDED_METADATA",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE dbo.usp_RecordKvkFinalReportCompletion\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE dbo.usp_RecordKvkFinalReportCompletion\n"
+          ]
+        },
+        {
+          "start": 10,
+          "before": [],
+          "after": [
+            "\n"
+          ]
+        },
+        {
+          "start": 62,
+          "before": [
+            "END"
+          ],
+          "after": [
+            "END;"
+          ]
+        }
+      ]
+    },
+    {
+      "module": "dbo.usp_UpsertGovernorNameHistoryForScan",
+      "source_definition_sha256": "568b9d55e04a660c75571e136d4e33d59901f357f51d6d8e2b20a9dd59442ab6",
+      "classification": "WHITESPACE_OR_COMMENT_ONLY",
+      "edits": [
+        {
+          "start": 0,
+          "before": [
+            "CREATE PROCEDURE dbo.usp_UpsertGovernorNameHistoryForScan\n"
+          ],
+          "after": [
+            "CREATE   PROCEDURE dbo.usp_UpsertGovernorNameHistoryForScan\n"
+          ]
+        }
+      ]
+    }
+  ]
+}

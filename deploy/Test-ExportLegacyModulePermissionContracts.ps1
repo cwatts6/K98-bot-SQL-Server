@@ -24,6 +24,13 @@ Assert-Contract ($manifest.version -eq 1 -and $manifest.database -ceq 'ROK_TRACK
 $expectedRoots = @('dbo.UPDATE_ALL2','dbo.SP_Stats_for_Upload','dbo.sp_TARGETS_MASTER','dbo.sp_Upsert_ProcConfig_From_Staging','KVK.sp_KVK_AllPlayers_Ingest','KVK.sp_KVK_Recompute_Windows','KVK.sp_KVK_Get_Exports')
 Assert-Contract (($manifest.roots -join '|') -ceq ($expectedRoots -join '|')) 'Exact root identities/order differ'
 Assert-Contract ($manifest.modules.Count -eq 38 -and $manifest.signatures.Count -eq 26) 'Module/signature inventory shape changed; re-review exact identities'
+$formsPath = Join-Path $RepositoryRoot $manifest.compatibility_forms
+Assert-Contract ((Get-HexHash ([IO.File]::ReadAllBytes($formsPath))) -ceq $manifest.compatibility_forms_sha256) 'Equivalent script edit recipe drift'
+$forms = (Get-Content -Raw -LiteralPath $formsPath | ConvertFrom-Json).forms
+Assert-Contract ($forms.Count -eq 27 -and @($forms.module | Select-Object -Unique).Count -eq 27) 'Exact 27 equivalent script recipes required'
+foreach ($form in $forms) {
+    Assert-Contract (@($manifest.modules | Where-Object name -CEQ $form.module).Count -eq 1) 'Unknown equivalent script module'
+}
 foreach ($module in $manifest.modules) {
     $sourceBytes = [IO.File]::ReadAllBytes((Join-Path $RepositoryRoot $module.path))
     Assert-Contract ((Get-HexHash $sourceBytes) -ceq $module.source_sha256) "Source byte drift: $($module.name)"
@@ -33,6 +40,29 @@ foreach ($module in $manifest.modules) {
     $definition = [regex]::Replace($raw.Substring($match.Index), '(?im)^GO\s*\z', '').Trim([char[]]" `t`r`n")
     $definition = [regex]::Replace($definition, '^(ALTER|CREATE OR ALTER)\b', 'CREATE')
     Assert-Contract ((Get-HexHash ([Text.Encoding]::Unicode.GetBytes($definition))) -ceq $module.definition_sha256) "Canonical definition drift: $($module.name)"
+    $form = @($forms | Where-Object module -CEQ $module.name)
+    Assert-Contract (@($module.compatible_definition_sha256 | Where-Object { $null -ne $_ }).Count -eq $form.Count) "Equivalent script count differs: $($module.name)"
+    if ($form.Count -eq 1) {
+        Assert-Contract ($form[0].source_definition_sha256 -ceq $module.definition_sha256) 'Equivalent script base source drift'
+        $lines = [Collections.Generic.List[string]]::new()
+        foreach ($line in [regex]::Matches($definition, '[^\n]*\n|[^\n]+$')) { $lines.Add($line.Value) }
+        foreach ($edit in @($form[0].edits | Sort-Object start -Descending)) {
+            $offset = [int]$edit.start
+            Assert-Contract ($offset -ge 0 -and $offset + $edit.before.Count -le $lines.Count) 'Equivalent script edit outside source'
+            for ($i=0; $i -lt $edit.before.Count; $i++) {
+                Assert-Contract ($lines[$offset+$i] -ceq $edit.before[$i]) 'Equivalent script preimage differs'
+            }
+            $lines.RemoveRange($offset, $edit.before.Count)
+            $lines.InsertRange($offset, [string[]]@($edit.after))
+        }
+        $variantHash = Get-HexHash ([Text.Encoding]::Unicode.GetBytes(($lines -join '')))
+        Assert-Contract ($variantHash -ceq $module.compatible_definition_sha256[0]) 'Equivalent script source-derived hash differs'
+        $variantRow = "(N'$($module.name)',0x$variantHash)"
+        foreach ($script in @($forward,$reverse,$validation)) {
+            Assert-Contract ($script.Contains($variantRow)) 'Equivalent script SQL allowlist differs'
+            Assert-Contract ($script.Contains('AND NOT EXISTS(SELECT 1 FROM @CompatibleDefinitions WHERE ModuleName=@ModuleName')) 'Missing exact module-bound compatibility guard'
+        }
+    }
     $context = if ($null -eq $module.execute_as) { 'NULL' } else { [string]$module.execute_as }
     $row = "(N'$($module.name)',0x$($module.definition_sha256),'$($module.object_type)',$context)"
     foreach ($script in @($forward,$reverse,$validation)) {

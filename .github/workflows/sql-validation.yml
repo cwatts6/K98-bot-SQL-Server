@@ -17,6 +17,10 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Test offline migration selection policy
+        shell: pwsh
+        run: .\deploy\Test-MigrationSelectionPolicy.ps1
+
       - name: Run SQL repository validator
         shell: pwsh
         run: .\deploy\Validate-SqlRepo.ps1

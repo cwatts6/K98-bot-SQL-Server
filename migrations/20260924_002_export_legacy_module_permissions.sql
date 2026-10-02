@@ -30,7 +30,7 @@ SET NOCOUNT ON;
 SET XACT_ABORT ON;
 DECLARE @Action varchar(16)='install';
 
-DECLARE @ManifestHash char(64)='28992d9cd48c796b6bed76d380f1924f4990364019aa5922f2165d79e00957d1';
+DECLARE @ManifestHash char(64)='b6762ab0d396fd0173c579bb276fcd6d859e2f5f839af9644a805eaa2c4dca23';
 IF DB_NAME() COLLATE Latin1_General_100_BIN2<>N'ROK_TRACKER'
  OR TRY_CONVERT(int,SERVERPROPERTY('ProductMajorVersion'))<>16
  THROW 51730,'Exact SQL Server 2022 ROK_TRACKER target required.',1;
@@ -82,6 +82,36 @@ INSERT @Modules VALUES
 (N'dbo.sp_Upsert_ProcConfig_From_Staging',0x1ab729a83b8e8674ef087f767e862b641841f2a89dc1ed30c618d7d8011476a6,'P',-2),
 (N'dbo.usp_RecordKvkFinalReportCompletion',0x195d14e5dc42d17a8e4fa8bd632e61fbfe5f6ad43ec7e54bf1ef5fce61a441a7,'P',NULL),
 (N'dbo.usp_UpsertGovernorNameHistoryForScan',0x568b9d55e04a660c75571e136d4e33d59901f357f51d6d8e2b20a9dd59442ab6,'P',NULL);
+-- Finite equivalent scripts generated from pinned source and reviewed edit recipes.
+DECLARE @CompatibleDefinitions table(ModuleName nvarchar(257) COLLATE Latin1_General_100_BIN2, DefinitionHash binary(32), PRIMARY KEY(ModuleName,DefinitionHash));
+INSERT @CompatibleDefinitions VALUES
+(N'KVK.sp_KVK_AllPlayers_Ingest',0x4e4955c323d86e2c9e81e291e9810aded77bcfed892d4edca3c59fd573b9623e),
+(N'KVK.sp_KVK_Get_Exports',0x474067e3369edaca6161f84e3c9364206a4fa44acffa0588a59883a5e0ec0ce8),
+(N'dbo.ACQUIRE_KS4_IMPORT_LOCK',0x6e8921159a22e1f06dacac81dcca9af85722e524ae9c78f680299e9881d0df5b),
+(N'dbo.CREATE_DELTA_TABLES',0xff21ecb032b929abf1333b4f699b360a5a033bf3a2e10166aa38035f0b2dc6d8),
+(N'dbo.DEADSSUMMARY_PROC',0x5105a600f8d628726b039217081b0fbe8c33a8a9c90570a97f4c23daf7d170a3),
+(N'dbo.HEALEDSUMMARY_PROC',0x01df5a9769a90c78831e84463ab5c889f0dcf7c1c33ce31f740fe393dfd54d28),
+(N'dbo.KILLPOINTSSUMMARY_PROC',0x72222f1fc92ad53cf3daa148068579d59205926fdf0f74e12014474ac9385d5b),
+(N'dbo.KILLSSUMMARY_PROC',0xebe4551b755d36e22c8fc4c548e5985f5370bd04c31d80868e750abaa49f1143),
+(N'dbo.KT4SUMMARY_PROC',0x8153007c15b8b9108144f1411e9103f6c6bffd8142f6fbd4f1a5a54260371a12),
+(N'dbo.KT5SUMMARY_PROC',0xdef6dcc8f40e17f1ecff3a669ce15a2d29aa97756a15596e32ba06dfe7f47acf),
+(N'dbo.POWERSUMMARY_PROC',0xd3ad66170f6f70cd679b03b18ed46b6e75c4ccf4a77015493f594d971dbdaf2d),
+(N'dbo.RANGEDSUMMARY_PROC',0x60081f590a2b49438e44c7d1e60dd461a78b6f568b72a4fd6c7c2f7636078bae),
+(N'dbo.Refresh_PlayerScanMeta',0x62266c69f1daf40c2150a6d0369a8ffa93fc1f3ada7f48d66ebb6b4b3f03ccd1),
+(N'dbo.SP_Stats_for_Upload',0x39c63023c69c8d1bf54088e58dc8949d3271768b1512fe02877efcb09e917d92),
+(N'dbo.SUMMARY_PROC',0x73d9af67cd5516e870ed755542439d5977f6dff51da8dc1795434af1da3411e5),
+(N'dbo.UPDATE_ALL2',0xcbe4077f8f1f2f92bccede963f19919665f4fcefe63def90fd834bf92a723cc9),
+(N'dbo.fn_NormalizeGovernorNameKey',0xc462b37844e58e2a9e91ed119d984c48cafe0f4df7cf426092cb0e18d190cec1),
+(N'dbo.sp_Create_Excel_For_Kvk_Indexes',0xe4e25af8f320f7a6c5638a301ea7017c215a1d490a869b89645d56aea13a4999),
+(N'dbo.sp_ExcelOutput_ByKVK',0x019081cad5a1769bef54e908debfbbf84b4cbe0ab247621c50d0d4f912e31406),
+(N'dbo.sp_Prep_ExcelExportTable',0xec723069c9a743650fcee2e3f5f48f6d0db7b89b2b6bf787226694d78bef1194),
+(N'dbo.sp_Prep_ExcelOutputTable',0x13398d6e860dd2a052bba3147f2d4b733b0ab88944ab685a2bfd9fd0328a548f),
+(N'dbo.sp_Prep_TargetTable',0xdb7bf19c90d092c516744b3fb5b3cdbdcd3d5307c7e2d69fb19fb5600d429299),
+(N'dbo.sp_Rebuild_ExcelForDashboard',0xb83ffcc7e576baa116a7085ed97522991713eef8655e233e46665c6b9f3894a6),
+(N'dbo.sp_RefreshInactiveGovernors',0x323e66e9a12a033012f5d03d28789df67a04562a95346c5e8280fd4cc6c009f4),
+(N'dbo.sp_TARGETS_MASTER',0xf298271b8e7a57e5cce55bca88cd2aa21a1243ebce0a5c0a9559fce1fd600a3e),
+(N'dbo.usp_RecordKvkFinalReportCompletion',0x3ada96d3bcc82eb5beb9d2c5989c0e4482f0335008dce6d7f79444565f79562c),
+(N'dbo.usp_UpsertGovernorNameHistoryForScan',0xf420251839fa87b4e358a892a64e5f830f4ac945b0d72eeff411a4418877e97f);
 DECLARE @ExpectedSignatures table(ModuleName nvarchar(257) COLLATE Latin1_General_100_BIN2,
  CertificateName sysname COLLATE Latin1_General_100_BIN2,CryptType char(4),PRIMARY KEY(ModuleName,CertificateName));
 INSERT @ExpectedSignatures VALUES
@@ -155,6 +185,8 @@ BEGIN
  IF LEFT(@Definition,15) COLLATE Latin1_General_100_BIN2=N'CREATE OR ALTER' SET @Definition=STUFF(@Definition,1,15,N'CREATE');
  ELSE IF LEFT(@Definition,5) COLLATE Latin1_General_100_BIN2=N'ALTER' SET @Definition=STUFF(@Definition,1,5,N'CREATE');
  IF HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Definition))<>@ExpectedHash
+ AND NOT EXISTS(SELECT 1 FROM @CompatibleDefinitions WHERE ModuleName=@ModuleName
+ AND DefinitionHash=HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Definition)))
  THROW 51730,'Module definition differs from independently approved source; never sign installed drift.',1;
  FETCH NEXT FROM definitions INTO @ModuleName,@ExpectedHash,@ObjectType,@ExecuteAs;
 END;
@@ -197,7 +229,7 @@ INSERT @ExpectedGrants VALUES
 (N'master',N'S11LegacyImportUser',N'OBJECT',N'dbo.xp_fileexist',N'EXECUTE');
 
 IF DATABASE_PRINCIPAL_ID(N'ExportExecutionAuthority') IS NULL OR DATABASE_PRINCIPAL_ID(N'ExportExecutionReader') IS NULL
- OR NOT EXISTS(SELECT 1 FROM dbo.SchemaMigrationHistory WHERE MigrationId='20260924_001_export_execution_evidence' AND Status='Applied')
+ OR NOT EXISTS(SELECT 1 FROM dbo.SchemaMigrationHistory WHERE MigrationId IN ('20260924_001_export_execution_evidence','20261001_004_export_execution_evidence_installation') AND Status='Applied')
  THROW 51730,'Prior S11 evidence installation is required; this is not an alternative privilege path.',1;
 DECLARE @OwnTransaction bit=CASE WHEN @@TRANCOUNT=0 THEN 1 ELSE 0 END;
 IF @OwnTransaction=1 BEGIN TRANSACTION;
