@@ -1,5 +1,14 @@
 # SQL Delivery Log
 
+## Published review checkpoint — 2026-10-02
+
+[SQL PR #91](https://github.com/cwatts6/K98-bot-SQL-Server/pull/91) and companion [Bot PR #284](https://github.com/cwatts6/K98-bot-mirror/pull/284) are open and ready for review, explicitly authorized by Chris. **Leave both unmerged.** The local implementation review is closed; bounded production inventory/staged rollout preparation is approved. Installation, grants/signatures, deployment/restart, enrollment/export writes and G5 activation remain separate decisions.
+
+PR review found that default filename ordering could execute superseded S11 migrations. The runner now rejects batch mode and the six superseded IDs **before helper loading, SQL/backup checks or audit writes**. Select one exact replacement in the documented order and explicitly supply ServerName/DatabaseName for the October 1 chain. The runner does not automatically substitute or record a predecessor as applied. This fail-closed behavior intentionally prevents a later default run from replaying obsolete scripts; installation readiness and exact target approval must still be established. The pure offline selection regression has 35 cases and never invokes the deployment runner or SQL.
+
+Publication fixes also repair Bot cross-repository links and add the missing Author header to migration 008. Executable SQL remains unchanged. The initial local CI wrapper masked a validator failure and is not accepted as a successful validation; explicit-root validation and hosted CI at header-fix commit `be597e2` passed. Final follow-up guard review/check status and exact final PR heads are retained in the separate local publication evidence `C:\Users\cwatt\Documents\Codex\s11-pr-publication-20261002` and the Bot PR checkpoint. Older publication/draft/status statements below describe their original dates.
+
+
 ## Local review accepted; production inventory approved — 2026-10-02
 
 Chris accepted and CLOSED the local S11 implementation review and APPROVED bounded production inventory and staged rollout preparation. See the [current Bot/SQL handoff](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-3473a728a58f477314d3de2c298b19a64d0751d90d3e900e8753322bfeca0bf7) and [handover task](https://github.com/cwatts6/K98-bot-mirror/pull/284/files#diff-1229f004e3c1f62d6f80ab475fe4e1829df371fcc3c581648878fbf60a5c0230). The next stage may prepare and execute exact bounded read-only production inventory under this approval; do not repeat the general approval request. No SQL installation, grant/certificate mutation, Bot deployment/restart or G5/activation is authorized yet.

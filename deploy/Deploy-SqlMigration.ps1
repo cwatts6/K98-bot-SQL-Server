@@ -13,6 +13,34 @@ param(
     [string]$Reason
 )
 
+# Pure selection policy runs before helper loading, backup checks, SQL or audit writes.
+# S11 replacements cannot safely be applied in filename order with their predecessors.
+function Assert-K98ExplicitMigrationSelection {
+    param([string]$MigrationId, [bool]$ExplicitTarget)
+    $replacements = @{
+        '20260914_002_legacy_export_preparation' = '20261001_001_legacy_export_preparation_installation'
+        '20260915_001_kvk_output_pool_rollover' = '20261001_002_kvk_output_pool_installation'
+        '20260915_002_kvk_output_operation_ownership' = '20261001_003_kvk_output_operation_installation'
+        '20260924_001_export_execution_evidence' = '20261001_004_export_execution_evidence_installation'
+        '20260929_001_manual_export_registration' = '20261001_005_manual_export_registration_installation'
+        '20260929_002_manual_public_viewer_policy' = '20261001_006_manual_public_viewer_installation'
+    }
+    if ([string]::IsNullOrWhiteSpace($MigrationId)) {
+        throw 'Batch deployment is disabled: select one exact -MigrationId using the reviewed substitution order. No SQL executed.'
+    }
+    if ($replacements.ContainsKey($MigrationId)) {
+        throw "Superseded migration $MigrationId is blocked; review replacement $($replacements[$MigrationId]). No SQL executed."
+    }
+    if ($MigrationId -match '^20261001_(00[1-9]|010)_' -and -not $ExplicitTarget) {
+        throw 'S11 corrected migrations require explicit -ServerName and -DatabaseName. No SQL executed.'
+    }
+}
+
+Assert-K98ExplicitMigrationSelection -MigrationId $MigrationId -ExplicitTarget (
+    $PSBoundParameters.ContainsKey('ServerName') -and -not [string]::IsNullOrWhiteSpace($ServerName) -and
+    $PSBoundParameters.ContainsKey('DatabaseName') -and -not [string]::IsNullOrWhiteSpace($DatabaseName)
+)
+
 . "$PSScriptRoot\SqlDeploy.Common.ps1"
 
 # S8A input is a separately reviewed SQL prelude, not arbitrary automatic discovery.
