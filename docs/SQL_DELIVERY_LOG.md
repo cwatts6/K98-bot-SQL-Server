@@ -1,5 +1,12 @@
 # SQL Delivery Log
 
+## Local production compatibility preparation — 2026-10-02
+
+Chris approved the focused local compatibility delta after the bounded MINI_AMD definitions were reconciled. The 38 original source hashes remain; 27 finite equivalent script hashes are reconstructed from pinned source plus explicit reviewed line-edit recipes in deploy/export_legacy_module_compatibility_forms.json. Installation, validation and rollback use the same module-bound list; owner, SET options, execution context, public certificate, exact installed-byte signature and restricted-token guards stay mandatory. No legacy business module is rewritten. New raw permission manifest SHA256: b6762ab0d396fd0173c579bb276fcd6d859e2f5f839af9644a805eaa2c4dca23; Bot canonical source pin: 026de91d412b31f12d8bb45908ca65b60e59f999b7bc6141eddc9b7fc0dbaf68. Old dated hashes/seals below remain historical.
+
+This is uncommitted local source, requiring a new separate Changes review before publication into existing PR #91. PR #91 and companion Bot #284 remain unmerged; merge/promotion, installation/signing/mapping, deployment/restart, enrollment/export writes and activation are separate decisions. The offline source checker passed 863 assertions; companion focused Bot suite passed 382 tests. These are not engine/signature installation proofs. The minimum missing-only chain and unresolved bindings are documented in the Bot source file docs/reference/kvk_source_migration/s11_g4_production_compatibility_preparation_20261002.md. Do not install all 540 objects, run default batch mode, replay superseded entrypoints, copy observed hashes as expectations or modify retained recovery/evidence.
+
+
 ## Published review checkpoint — 2026-10-02
 
 [SQL PR #91](https://github.com/cwatts6/K98-bot-SQL-Server/pull/91) and companion [Bot PR #284](https://github.com/cwatts6/K98-bot-mirror/pull/284) are open and ready for review, explicitly authorized by Chris. **Leave both unmerged.** The local implementation review is closed; bounded production inventory/staged rollout preparation is approved. Installation, grants/signatures, deployment/restart, enrollment/export writes and G5 activation remain separate decisions.

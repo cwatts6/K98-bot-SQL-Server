@@ -9,7 +9,7 @@ Rollback: Forward Fix Only
 TransactionMode: Auto
 DataChange: No
 */
--- Apply after corrected public-viewer installation006; no table/receipt changes.
+-- Apply after corrected public-viewer installation 006; no table/receipt changes.
 -- The hyphen is first in the SQL LIKE bracket class to remain a literal.
 -- Exact old/new stored body hashes derive from reviewed source, not runtime discovery.
 SET NOCOUNT ON; SET XACT_ABORT ON; SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;

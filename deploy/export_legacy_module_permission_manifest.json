@@ -22,7 +22,10 @@
       "definition_sha256": "d574dfbd2896f5491e59923be165901fb658d6ee5b766a70f3c97c24767c9a20",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "4e4955c323d86e2c9e81e291e9810aded77bcfed892d4edca3c59fd573b9623e"
+      ]
     },
     {
       "name": "KVK.sp_KVK_Get_Exports",
@@ -31,7 +34,10 @@
       "definition_sha256": "545952ae65e57b0f592e5b9c1e9a5c0f1a1b74b354d96ff6764357e28cade29b",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "474067e3369edaca6161f84e3c9364206a4fa44acffa0588a59883a5e0ec0ce8"
+      ]
     },
     {
       "name": "KVK.sp_KVK_Recompute_Windows",
@@ -51,6 +57,9 @@
       "execute_as": -2,
       "calls": [
         "sys.sp_getapplock"
+      ],
+      "compatible_definition_sha256": [
+        "6e8921159a22e1f06dacac81dcca9af85722e524ae9c78f680299e9881d0df5b"
       ]
     },
     {
@@ -104,6 +113,9 @@
         "sp_executesql",
         "sys.sp_getapplock",
         "sys.sp_releaseapplock"
+      ],
+      "compatible_definition_sha256": [
+        "ff21ecb032b929abf1333b4f699b360a5a033bf3a2e10166aa38035f0b2dc6d8"
       ]
     },
     {
@@ -122,7 +134,10 @@
       "definition_sha256": "3688d1adbc52dbf6f2686080fa789d2cb94522f0053b9c72120943994e2e6277",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "5105a600f8d628726b039217081b0fbe8c33a8a9c90570a97f4c23daf7d170a3"
+      ]
     },
     {
       "name": "dbo.GOVERNOR_NAMES_PROC",
@@ -151,7 +166,10 @@
       "definition_sha256": "bdb4dc1e56b9bf2b4fdf50d03ebf068551d630c87ce2ab55b31f809e60e6bfed",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "01df5a9769a90c78831e84463ab5c889f0dcf7c1c33ce31f740fe393dfd54d28"
+      ]
     },
     {
       "name": "dbo.IMPORT_STAGING_PROC_CORE",
@@ -175,7 +193,10 @@
       "definition_sha256": "294bee151bf87885b1500c1ac7274f53e6e4d600513c9b457b4c2e475c8f72ae",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "72222f1fc92ad53cf3daa148068579d59205926fdf0f74e12014474ac9385d5b"
+      ]
     },
     {
       "name": "dbo.KILLSSUMMARY_PROC",
@@ -184,7 +205,10 @@
       "definition_sha256": "ff8798becd4c3cd300e2eddee1592066bd626a15fc69db4c81cf57b77ae8fbc2",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "ebe4551b755d36e22c8fc4c548e5985f5370bd04c31d80868e750abaa49f1143"
+      ]
     },
     {
       "name": "dbo.KT4SUMMARY_PROC",
@@ -193,7 +217,10 @@
       "definition_sha256": "34d3a01a15f6b05e7eee503ea760f493dd5086d548a0ff7eb5de29e6b6cf979c",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "8153007c15b8b9108144f1411e9103f6c6bffd8142f6fbd4f1a5a54260371a12"
+      ]
     },
     {
       "name": "dbo.KT5SUMMARY_PROC",
@@ -202,7 +229,10 @@
       "definition_sha256": "56288be469a924d16f821a40c3885bd12e07f80bfa6af29f781bca9d507c24d5",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "def6dcc8f40e17f1ecff3a669ce15a2d29aa97756a15596e32ba06dfe7f47acf"
+      ]
     },
     {
       "name": "dbo.POWERSUMMARY_PROC",
@@ -211,7 +241,10 @@
       "definition_sha256": "1259508d96b6267e6b8b8508a3b069301254329d26fcb3a6871fb88247b64c3e",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "d3ad66170f6f70cd679b03b18ed46b6e75c4ccf4a77015493f594d971dbdaf2d"
+      ]
     },
     {
       "name": "dbo.RANGEDSUMMARY_PROC",
@@ -220,7 +253,10 @@
       "definition_sha256": "786ca62850c9f55270844dace6782278f0dbca3451e46e6d4f47b56fb9848c79",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "60081f590a2b49438e44c7d1e60dd461a78b6f568b72a4fd6c7c2f7636078bae"
+      ]
     },
     {
       "name": "dbo.Refresh_PlayerScanMeta",
@@ -229,7 +265,10 @@
       "definition_sha256": "c5e6b156de73e9271b9545897ad77836e4b1ce3d34bc08f641ae73d97e9d6187",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "62266c69f1daf40c2150a6d0369a8ffa93fc1f3ada7f48d66ebb6b4b3f03ccd1"
+      ]
     },
     {
       "name": "dbo.SP_Stats_for_Upload",
@@ -242,6 +281,9 @@
         "dbo.ACQUIRE_KS4_IMPORT_LOCK",
         "sys.sp_executesql",
         "sys.sp_getapplock"
+      ],
+      "compatible_definition_sha256": [
+        "39c63023c69c8d1bf54088e58dc8949d3271768b1512fe02877efcb09e917d92"
       ]
     },
     {
@@ -260,6 +302,9 @@
         "dbo.KT5SUMMARY_PROC",
         "dbo.POWERSUMMARY_PROC",
         "dbo.RANGEDSUMMARY_PROC"
+      ],
+      "compatible_definition_sha256": [
+        "73d9af67cd5516e870ed755542439d5977f6dff51da8dc1795434af1da3411e5"
       ]
     },
     {
@@ -285,6 +330,9 @@
         "dbo.sp_RefreshInactiveGovernors",
         "dbo.usp_UpsertGovernorNameHistoryForScan",
         "sp_executesql"
+      ],
+      "compatible_definition_sha256": [
+        "cbe4077f8f1f2f92bccede963f19919665f4fcefe63def90fd834bf92a723cc9"
       ]
     },
     {
@@ -294,7 +342,10 @@
       "definition_sha256": "46e14cc25edf211145d2cfa64e125ecd5286e6de44605ac6d4fc68a2bdb2cfac",
       "object_type": "FN",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "c462b37844e58e2a9e91ed119d984c48cafe0f4df7cf426092cb0e18d190cec1"
+      ]
     },
     {
       "name": "dbo.sp_Build_Prekvk_And_Honor_Rankings",
@@ -314,6 +365,9 @@
       "execute_as": null,
       "calls": [
         "sp_executesql"
+      ],
+      "compatible_definition_sha256": [
+        "e4e25af8f320f7a6c5638a301ea7017c215a1d490a869b89645d56aea13a4999"
       ]
     },
     {
@@ -329,6 +383,9 @@
         "dbo.sp_Refresh_View_EXCEL_FOR_KVK_All",
         "dbo.usp_RecordKvkFinalReportCompletion",
         "sp_executesql"
+      ],
+      "compatible_definition_sha256": [
+        "019081cad5a1769bef54e908debfbbf84b4cbe0ab247621c50d0d4f912e31406"
       ]
     },
     {
@@ -340,6 +397,9 @@
       "execute_as": null,
       "calls": [
         "sys.sp_executesql"
+      ],
+      "compatible_definition_sha256": [
+        "ec723069c9a743650fcee2e3f5f48f6d0db7b89b2b6bf787226694d78bef1194"
       ]
     },
     {
@@ -349,7 +409,10 @@
       "definition_sha256": "249a81e94fdac9f17bb927e9845c2bc4642c66e0455b44dc0c631b471a754f8d",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "13398d6e860dd2a052bba3147f2d4b733b0ab88944ab685a2bfd9fd0328a548f"
+      ]
     },
     {
       "name": "dbo.sp_Prep_TargetTable",
@@ -360,6 +423,9 @@
       "execute_as": null,
       "calls": [
         "sys.sp_executesql"
+      ],
+      "compatible_definition_sha256": [
+        "db7bf19c90d092c516744b3fb5b3cdbdcd3d5307c7e2d69fb19fb5600d429299"
       ]
     },
     {
@@ -371,6 +437,9 @@
       "execute_as": null,
       "calls": [
         "sp_executesql"
+      ],
+      "compatible_definition_sha256": [
+        "b83ffcc7e576baa116a7085ed97522991713eef8655e233e46665c6b9f3894a6"
       ]
     },
     {
@@ -380,7 +449,10 @@
       "definition_sha256": "21a85705ff145f064a133bc42ccb5edb415fa7eb8543ae4ccec464bf04bcc994",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "323e66e9a12a033012f5d03d28789df67a04562a95346c5e8280fd4cc6c009f4"
+      ]
     },
     {
       "name": "dbo.sp_Refresh_View_EXCEL_FOR_KVK_All",
@@ -409,6 +481,9 @@
         "sys.sp_executesql",
         "sys.sp_getapplock",
         "sys.sp_releaseapplock"
+      ],
+      "compatible_definition_sha256": [
+        "f298271b8e7a57e5cce55bca88cd2aa21a1243ebce0a5c0a9559fce1fd600a3e"
       ]
     },
     {
@@ -427,7 +502,10 @@
       "definition_sha256": "195d14e5dc42d17a8e4fa8bd632e61fbfe5f6ad43ec7e54bf1ef5fce61a441a7",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "3ada96d3bcc82eb5beb9d2c5989c0e4482f0335008dce6d7f79444565f79562c"
+      ]
     },
     {
       "name": "dbo.usp_UpsertGovernorNameHistoryForScan",
@@ -436,7 +514,10 @@
       "definition_sha256": "568b9d55e04a660c75571e136d4e33d59901f357f51d6d8e2b20a9dd59442ab6",
       "object_type": "P",
       "execute_as": null,
-      "calls": []
+      "calls": [],
+      "compatible_definition_sha256": [
+        "f420251839fa87b4e358a892a64e5f830f4ac945b0d72eeff411a4418877e97f"
+      ]
     }
   ],
   "signatures": [
@@ -895,5 +976,7 @@
     "Ordinary Bot and authority cannot create/alter modules or schemas, impersonate certificate principals or control certificates; no db_owner/sysadmin/CONTROL SERVER, credential fallback or authority membership for the Bot.",
     "Configuration TRUNCATE denial/DELETE fallback and actual transaction outcome remain unproven until the separately authorized disposable SQL test.",
     "Do not rerun import, summary, predecessor, provider or deployment operations as a metadata check."
-  ]
+  ],
+  "compatibility_forms": "deploy/export_legacy_module_compatibility_forms.json",
+  "compatibility_forms_sha256": "2d20b6878f26bd90266b05bcf3048d885ebfdd729e89f0c20ef012f8253d5527"
 }
