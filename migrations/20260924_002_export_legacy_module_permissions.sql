@@ -197,7 +197,7 @@ INSERT @ExpectedGrants VALUES
 (N'master',N'S11LegacyImportUser',N'OBJECT',N'dbo.xp_fileexist',N'EXECUTE');
 
 IF DATABASE_PRINCIPAL_ID(N'ExportExecutionAuthority') IS NULL OR DATABASE_PRINCIPAL_ID(N'ExportExecutionReader') IS NULL
- OR NOT EXISTS(SELECT 1 FROM dbo.SchemaMigrationHistory WHERE MigrationId='20260924_001_export_execution_evidence' AND Status='Applied')
+ OR NOT EXISTS(SELECT 1 FROM dbo.SchemaMigrationHistory WHERE MigrationId IN ('20260924_001_export_execution_evidence','20261001_004_export_execution_evidence_installation') AND Status='Applied')
  THROW 51730,'Prior S11 evidence installation is required; this is not an alternative privilege path.',1;
 DECLARE @OwnTransaction bit=CASE WHEN @@TRANCOUNT=0 THEN 1 ELSE 0 END;
 IF @OwnTransaction=1 BEGIN TRANSACTION;

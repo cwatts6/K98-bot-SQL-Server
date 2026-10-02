@@ -1,3 +1,6 @@
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+-- S11 reference snapshot. Install the reviewed migration, never this file.
 CREATE TABLE dbo.ExportManualFileOrigin
 (
  FileID varchar(128) COLLATE Latin1_General_100_BIN2 NOT NULL,

@@ -16,7 +16,7 @@ param(
 # Pure selection policy runs before helper loading, backup checks, SQL or audit writes.
 # S11 replacements cannot safely be applied in filename order with their predecessors.
 function Assert-K98ExplicitMigrationSelection {
-    param([string]$MigrationId, [bool]$ExplicitTarget)
+    param([string]$MigrationId, [bool]$ExplicitTarget, [string]$MigrationDirectory)
     $replacements = @{
         '20260914_002_legacy_export_preparation' = '20261001_001_legacy_export_preparation_installation'
         '20260915_001_kvk_output_pool_rollover' = '20261001_002_kvk_output_pool_installation'
@@ -31,12 +31,21 @@ function Assert-K98ExplicitMigrationSelection {
     if ($replacements.ContainsKey($MigrationId)) {
         throw "Superseded migration $MigrationId is blocked; review replacement $($replacements[$MigrationId]). No SQL executed."
     }
+    if ($MigrationId -notmatch '^[0-9]{8}_[0-9]{3}_[A-Za-z0-9_]+$' -or
+        [string]::IsNullOrWhiteSpace($MigrationDirectory)) {
+        throw 'Invalid exact migration selection. No SQL executed.'
+    }
+    $selectedPath = Join-Path $MigrationDirectory ($MigrationId + '.sql')
+    if (-not (Test-Path -LiteralPath $selectedPath -PathType Leaf)) {
+        throw "Migration not found: $MigrationId. No SQL executed."
+    }
     if ($MigrationId -match '^20261001_(00[1-9]|010)_' -and -not $ExplicitTarget) {
         throw 'S11 corrected migrations require explicit -ServerName and -DatabaseName. No SQL executed.'
     }
 }
 
-Assert-K98ExplicitMigrationSelection -MigrationId $MigrationId -ExplicitTarget (
+$selectionRoot = if ([string]::IsNullOrWhiteSpace($RepoPath)) { Split-Path -Parent $PSScriptRoot } else { $RepoPath }
+Assert-K98ExplicitMigrationSelection -MigrationId $MigrationId -MigrationDirectory (Join-Path $selectionRoot 'migrations') -ExplicitTarget (
     $PSBoundParameters.ContainsKey('ServerName') -and -not [string]::IsNullOrWhiteSpace($ServerName) -and
     $PSBoundParameters.ContainsKey('DatabaseName') -and -not [string]::IsNullOrWhiteSpace($DatabaseName)
 )
