@@ -5,3 +5,6 @@
 # This manifest is hashed byte-for-byte by all three permission scripts.
 deploy/export_legacy_module_permission_manifest.json text eol=lf
 deploy/export_legacy_module_compatibility_forms.json text eol=lf
+
+# Direct installation pin is the SHA256 of these exact LF bytes.
+deploy/export_legacy_direct_permission_manifest.json text eol=lf
