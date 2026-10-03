@@ -1,14 +1,14 @@
-SET ANSI_NULLS ON
+﻿SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[IMPORT_STAGING_PROC_CORE]') AND type in (N'P', N'PC'))
 BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE] AS'
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE] AS' 
 END
 ALTER PROCEDURE [dbo].[IMPORT_STAGING_PROC_CORE]
-    @CompletedFileName [nvarchar](260),
-    @ImportFileDigest [binary](32) = NULL OUTPUT,
-    @ArchivePath [nvarchar](4000) = NULL OUTPUT,
-    @ImportError [nvarchar](2000) = NULL OUTPUT
+	@CompletedFileName [nvarchar](260),
+	@ImportFileDigest [binary](32) = NULL OUTPUT,
+	@ArchivePath [nvarchar](4000) = NULL OUTPUT,
+	@ImportError [nvarchar](2000) = NULL OUTPUT
 WITH EXECUTE AS CALLER
 AS
 BEGIN
