@@ -10,13 +10,14 @@ TransactionMode: Auto
 DataChange: No
 */
 -- Exact session inputs required; generic filename deployment is insufficient.
+-- ManifestHash binds the LF file bytes, distinct from the Bot canonical JSON source digest.
 -- #S11LegacyDirectDeployment(ExpectedServer nvarchar(128), ExpectedDatabase sysname,
 -- ManifestHash char(64), ApprovalHash binary(32)); exactly one separately approved row.
 SET NOCOUNT ON; SET XACT_ABORT ON; SET LOCK_TIMEOUT 1000;
 IF @@TRANCOUNT<>0 THROW 52117,'Own migration transaction required.',1;
 IF TRY_CONVERT(int,SERVERPROPERTY('ProductMajorVersion'))<>16 OR COALESCE(IS_SRVROLEMEMBER('sysadmin'),0)<>1 THROW 52117,'SQL2022 administrator installation required.',1;
 IF OBJECT_ID(N'tempdb..#S11LegacyDirectDeployment') IS NULL THROW 52117,'Exact approved direct deployment inputs required.',1;
-IF (SELECT COUNT(*) FROM #S11LegacyDirectDeployment)<>1 OR NOT EXISTS(SELECT 1 FROM #S11LegacyDirectDeployment WHERE ExpectedServer COLLATE Latin1_General_100_BIN2=CONVERT(nvarchar(128),SERVERPROPERTY('ServerName')) AND ExpectedDatabase COLLATE Latin1_General_100_BIN2=DB_NAME() AND ManifestHash COLLATE Latin1_General_100_BIN2=N'c018e31d759239840e6f43679c9e05d5f9bddfdad166e9d299d76e3c6b1799e6' AND DATALENGTH(ApprovalHash)=32 AND ApprovalHash<>0x0000000000000000000000000000000000000000000000000000000000000000) THROW 52117,'Approved target/source/decision bindings differ.',1;
+IF (SELECT COUNT(*) FROM #S11LegacyDirectDeployment)<>1 OR NOT EXISTS(SELECT 1 FROM #S11LegacyDirectDeployment WHERE ExpectedServer COLLATE Latin1_General_100_BIN2=CONVERT(nvarchar(128),SERVERPROPERTY('ServerName')) AND ExpectedDatabase COLLATE Latin1_General_100_BIN2=DB_NAME() AND ManifestHash COLLATE Latin1_General_100_BIN2=N'5a61c69adaf0ecb1b7b6e0c87628e0e4289b9d52778e1c8d12a3fd2b9c500277' AND DATALENGTH(ApprovalHash)=32 AND ApprovalHash<>0x0000000000000000000000000000000000000000000000000000000000000000) THROW 52117,'Approved target/source/decision bindings differ.',1;
 IF DATABASE_PRINCIPAL_ID(N'ExportLegacyEntryReader') IS NOT NULL OR EXISTS(SELECT 1 FROM sys.extended_properties WHERE class=0 AND name IN(N'S11LegacyPermissionManifest',N'S11LegacyDirectPermissionManifest')) THROW 52117,'Existing legacy permission delivery is not adopted; reconcile.',1;
 IF EXISTS(SELECT 1 FROM sys.certificates WHERE name IN(N'S11LegacyImport',N'S11LegacyTargets',N'S11LegacyStats')) THROW 52117,'Unexpected legacy signing delivery; do not silently replace.',1;
 IF DATABASE_PRINCIPAL_ID(N'ExportExecutionAuthority') IS NULL THROW 52117,'Prior evidence role installation required.',1;
@@ -128,7 +129,7 @@ BEGIN TRY
  GRANT INSERT ON SCHEMA::[dbo] TO [ExportLegacyEntryReader];
  GRANT SELECT ON SCHEMA::[dbo] TO [ExportLegacyEntryReader];
  GRANT ALTER ON OBJECT::[dbo].[STATS_FOR_UPLOAD] TO [ExportLegacyEntryReader];
- EXEC sys.sp_addextendedproperty @name=N'S11LegacyDirectPermissionManifest',@value=N'c018e31d759239840e6f43679c9e05d5f9bddfdad166e9d299d76e3c6b1799e6';
+ EXEC sys.sp_addextendedproperty @name=N'S11LegacyDirectPermissionManifest',@value=N'5a61c69adaf0ecb1b7b6e0c87628e0e4289b9d52778e1c8d12a3fd2b9c500277';
  COMMIT TRANSACTION;
 END TRY
 BEGIN CATCH
