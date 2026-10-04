@@ -1,29 +1,32 @@
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
--- S11 reference snapshot. Install the reviewed migration, never this file.
-GO
-CREATE PROCEDURE dbo.usp_ExportExecutionStreamTransition
- @SessionID uniqueidentifier,
- @StreamID uniqueidentifier,
- @Action varchar(16),
- @ExpectedVersion bigint,
- @AccountKey varchar(128),
- @OwnerKind varchar(16)=NULL,
- @ObjectID uniqueidentifier=NULL,
- @OwnerID uniqueidentifier=NULL,
- @Fence bigint=NULL,
- @ClaimVersion bigint=NULL,
- @NestedToken uniqueidentifier=NULL,
- @RegistrationHash binary(32)=NULL,
- @Epoch bigint=NULL,
- @SnapshotHash binary(32)=NULL,
- @ScopeJson nvarchar(max)=NULL,
- @Purpose varchar(16)=NULL,
- @ChildIdentity uniqueidentifier=NULL,
- @ClosureHash binary(32)=NULL,
- @ClosureReference uniqueidentifier=NULL,
- @EventDigest binary(32)=NULL,
- @LastSequence bigint=NULL
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ExportExecutionStreamTransition]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ExportExecutionStreamTransition] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_ExportExecutionStreamTransition]
+	@SessionID [uniqueidentifier],
+	@StreamID [uniqueidentifier],
+	@Action [varchar](16),
+	@ExpectedVersion [bigint],
+	@AccountKey [varchar](128),
+	@OwnerKind [varchar](16) = NULL,
+	@ObjectID [uniqueidentifier] = NULL,
+	@OwnerID [uniqueidentifier] = NULL,
+	@Fence [bigint] = NULL,
+	@ClaimVersion [bigint] = NULL,
+	@NestedToken [uniqueidentifier] = NULL,
+	@RegistrationHash [binary](32) = NULL,
+	@Epoch [bigint] = NULL,
+	@SnapshotHash [binary](32) = NULL,
+	@ScopeJson [nvarchar](max) = NULL,
+	@Purpose [varchar](16) = NULL,
+	@ChildIdentity [uniqueidentifier] = NULL,
+	@ClosureHash [binary](32) = NULL,
+	@ClosureReference [uniqueidentifier] = NULL,
+	@EventDigest [binary](32) = NULL,
+	@LastSequence [bigint] = NULL
+WITH EXECUTE AS CALLER
 AS
 BEGIN
  SET NOCOUNT ON;
@@ -210,3 +213,4 @@ BEGIN
   THROW;
  END CATCH;
 END;
+

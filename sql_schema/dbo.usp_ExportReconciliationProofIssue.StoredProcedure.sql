@@ -1,17 +1,20 @@
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
--- S11 reference snapshot. Install the reviewed migration, never this file.
-GO
-CREATE PROCEDURE dbo.usp_ExportReconciliationProofIssue
- @SessionID uniqueidentifier,
- @ProofID uniqueidentifier,
- @AccountKey varchar(128),
- @SnapshotHash binary(32),
- @RegistrationHash binary(32),
- @ProofKind varchar(32),
- @Outcome varchar(16),
- @MembershipJson nvarchar(max),
- @EvidenceJson nvarchar(max)
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ExportReconciliationProofIssue]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ExportReconciliationProofIssue] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_ExportReconciliationProofIssue]
+	@SessionID [uniqueidentifier],
+	@ProofID [uniqueidentifier],
+	@AccountKey [varchar](128),
+	@SnapshotHash [binary](32),
+	@RegistrationHash [binary](32),
+	@ProofKind [varchar](32),
+	@Outcome [varchar](16),
+	@MembershipJson [nvarchar](max),
+	@EvidenceJson [nvarchar](max)
+WITH EXECUTE AS CALLER
 AS
 BEGIN
  SET NOCOUNT ON;
@@ -143,4 +146,3 @@ BEGIN
   THROW;
  END CATCH;
 END;
-GO

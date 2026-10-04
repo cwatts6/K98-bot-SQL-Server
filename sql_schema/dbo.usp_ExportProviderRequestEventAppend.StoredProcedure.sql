@@ -1,22 +1,25 @@
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
--- S11 reference snapshot. Install the reviewed migration, never this file.
-GO
-CREATE PROCEDURE dbo.usp_ExportProviderRequestEventAppend
- @SessionID uniqueidentifier,
- @StreamID uniqueidentifier,
- @AccountKey varchar(128),
- @ExpectedVersion bigint,
- @RequestID uniqueidentifier,
- @EventID uniqueidentifier,
- @State varchar(32),
- @EvidenceHash binary(32),
- @EvidenceReference uniqueidentifier,
- @Operation varchar(64)=NULL,
- @RequestKind varchar(16)=NULL,
- @TargetID varchar(128)=NULL,
- @PayloadHash binary(32)=NULL,
- @PayloadReference uniqueidentifier=NULL
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ExportProviderRequestEventAppend]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ExportProviderRequestEventAppend] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_ExportProviderRequestEventAppend]
+	@SessionID [uniqueidentifier],
+	@StreamID [uniqueidentifier],
+	@AccountKey [varchar](128),
+	@ExpectedVersion [bigint],
+	@RequestID [uniqueidentifier],
+	@EventID [uniqueidentifier],
+	@State [varchar](32),
+	@EvidenceHash [binary](32),
+	@EvidenceReference [uniqueidentifier],
+	@Operation [varchar](64) = NULL,
+	@RequestKind [varchar](16) = NULL,
+	@TargetID [varchar](128) = NULL,
+	@PayloadHash [binary](32) = NULL,
+	@PayloadReference [uniqueidentifier] = NULL
+WITH EXECUTE AS CALLER
 AS
 BEGIN
  SET NOCOUNT ON;

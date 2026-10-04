@@ -621,3 +621,4 @@ SELECT * INTO #DeltaCalculations FROM DeltaCalculations;
     SET NOCOUNT OFF;
 END
 
+
