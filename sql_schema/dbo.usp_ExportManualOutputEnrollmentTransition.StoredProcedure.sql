@@ -1,22 +1,25 @@
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
--- S11 reference snapshot. Install the reviewed migration, never this file.
-GO
-CREATE PROCEDURE dbo.usp_ExportManualOutputEnrollmentTransition
- @SessionID uniqueidentifier,
- @PreparationID uniqueidentifier,
- @Action varchar(16),
- @ExpectedVersion bigint,
- @AccountKey varchar(128),
- @OwnerID uniqueidentifier,
- @Fence bigint=NULL,
- @ResourcesJson nvarchar(max)=NULL,
- @PlanJson nvarchar(max)=NULL,
- @Actor nvarchar(128)=NULL,
- @Reason nvarchar(1024)=NULL,
- @VerificationStreamID uniqueidentifier=NULL,
- @EligibilityHash binary(32)=NULL,
- @EligibilityReference uniqueidentifier=NULL
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ExportManualOutputEnrollmentTransition]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ExportManualOutputEnrollmentTransition] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_ExportManualOutputEnrollmentTransition]
+	@SessionID [uniqueidentifier],
+	@PreparationID [uniqueidentifier],
+	@Action [varchar](16),
+	@ExpectedVersion [bigint],
+	@AccountKey [varchar](128),
+	@OwnerID [uniqueidentifier],
+	@Fence [bigint] = NULL,
+	@ResourcesJson [nvarchar](max) = NULL,
+	@PlanJson [nvarchar](max) = NULL,
+	@Actor [nvarchar](128) = NULL,
+	@Reason [nvarchar](1024) = NULL,
+	@VerificationStreamID [uniqueidentifier] = NULL,
+	@EligibilityHash [binary](32) = NULL,
+	@EligibilityReference [uniqueidentifier] = NULL
+WITH EXECUTE AS CALLER
 AS
 BEGIN
  SET NOCOUNT ON;
@@ -239,4 +242,3 @@ BEGIN
   THROW;
  END CATCH;
 END;
-GO
