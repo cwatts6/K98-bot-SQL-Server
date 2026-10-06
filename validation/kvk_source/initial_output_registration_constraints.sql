@@ -16,6 +16,19 @@ INSERT @FileCases VALUES
  ('too-short',N'ab',0),('too-long',REPLICATE(N'a',129),0),
  ('space',N'abc def',0),('slash',N'abc/def',0),('dot',N'abc.def',0),
  ('unicode',N'abc'+NCHAR(233),0),('percent',N'abc%def',0),('null',NULL,0);
+-- Reproduce the original Unicode BIN2 predicate, not only the corrected one.
+-- Four real IDs fail the old class; the alphanumeric control succeeds in both.
+DECLARE @OriginalRegression TABLE(FileID nvarchar(128),OriginalAccept bit);
+INSERT @OriginalRegression VALUES
+ (N'1oNTj1W2OzdzZP4dpWNwvU3I81qRvnnlcn_uhoI8QVLQ',0),
+ (N'1m6R1p4hInf-CtL9bAK-fzc4emB38XoP8ViJEpuI9jA4',0),
+ (N'1JsMrUOCav1mQu2570M8tQ7RPauJD6fft_ztLhkx61mE',0),
+ (N'1CaOblsUbAbhl3iLEubadilIHympxbsUp9u2JXlc8rpQ',1),
+ (N'1zKq3eSCkVd2BTvGkRCTfXa9GenLc8_gCICcNQuKdHsg',0);
+IF EXISTS(SELECT 1 FROM @OriginalRegression
+ WHERE CASE WHEN FileID NOT LIKE N'%[^A-Za-z0-9_-]%' COLLATE Latin1_General_100_BIN2 THEN 1 ELSE 0 END<>OriginalAccept
+ OR FileID LIKE N'%[^-A-Za-z0-9_]%' COLLATE Latin1_General_100_BIN2)
+ THROW 51726,'Original/corrected Unicode BIN2 regression differs',1;
 DECLARE @Name varchar(64),@File nvarchar(256),@Accept bit,@Accepted bit,@Passed int=0;
 DECLARE F CURSOR LOCAL FAST_FORWARD FOR SELECT CaseName,FileID,Accept FROM @FileCases;
 OPEN F;FETCH NEXT FROM F INTO @Name,@File,@Accept;
