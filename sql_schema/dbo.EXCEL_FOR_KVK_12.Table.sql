@@ -21,7 +21,6 @@ CREATE TABLE [dbo].[EXCEL_FOR_KVK_12](
 	[AOOAvgKill] [bigint] NULL,
 	[AOOAvgDead] [bigint] NULL,
 	[AOOAvgHeal] [bigint] NULL,
-	[Conduct] [decimal](5, 2) NULL,
 	[Starting_T4&T5_KILLS] [bigint] NULL,
 	[T4_KILLS] [bigint] NULL,
 	[T5_KILLS] [bigint] NULL,
@@ -62,7 +61,8 @@ CREATE TABLE [dbo].[EXCEL_FOR_KVK_12](
 	[Max_HonorPoints] [bigint] NULL,
 	[PreKvk_Rank] [bigint] NULL,
 	[Honor_Rank] [bigint] NULL,
-	[KVK_NO] [int] NULL
+	[KVK_NO] [int] NULL,
+	[Conduct] [decimal](5, 2) NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[EXCEL_FOR_KVK_12]') AND name = N'IX_EXCEL_FOR_KVK_12_GovID')

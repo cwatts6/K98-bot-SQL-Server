@@ -1,15 +1,18 @@
-SET ANSI_NULLS ON;
-SET QUOTED_IDENTIFIER ON;
--- S11 reference snapshot. Install the reviewed migration, never this file.
-GO
-CREATE PROCEDURE dbo.usp_ExportExecutionSessionTransition
- @SessionID uniqueidentifier,
- @Action varchar(16),
- @ExpectedVersion bigint,
- @HostIdentity varchar(128)=NULL,
- @BootID uniqueidentifier=NULL,
- @ExecutableHash binary(32)=NULL,
- @ManifestHash binary(32)=NULL
+﻿SET ANSI_NULLS ON
+SET QUOTED_IDENTIFIER ON
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[usp_ExportExecutionSessionTransition]') AND type in (N'P', N'PC'))
+BEGIN
+EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[usp_ExportExecutionSessionTransition] AS' 
+END
+ALTER PROCEDURE [dbo].[usp_ExportExecutionSessionTransition]
+	@SessionID [uniqueidentifier],
+	@Action [varchar](16),
+	@ExpectedVersion [bigint],
+	@HostIdentity [varchar](128) = NULL,
+	@BootID [uniqueidentifier] = NULL,
+	@ExecutableHash [binary](32) = NULL,
+	@ManifestHash [binary](32) = NULL
+WITH EXECUTE AS CALLER
 AS
 BEGIN
  SET NOCOUNT ON;
@@ -48,3 +51,4 @@ BEGIN
   THROW;
  END CATCH;
 END;
+
