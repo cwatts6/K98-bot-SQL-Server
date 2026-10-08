@@ -21,6 +21,12 @@ jobs:
         shell: pwsh
         run: .\deploy\Test-MigrationSelectionPolicy.ps1
 
+      - name: Validate SQL authentication file visibility contract
+        shell: pwsh
+        run: |
+          .\deploy\Test-SqlAuthImportFileVisibility.ps1
+          .\deploy\Test-ExportLegacyDirectPermissionContracts.ps1
+
       - name: Run SQL repository validator
         shell: pwsh
         run: .\deploy\Validate-SqlRepo.ps1
