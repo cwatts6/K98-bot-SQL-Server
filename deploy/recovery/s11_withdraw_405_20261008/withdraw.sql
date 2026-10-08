@@ -45,7 +45,7 @@ BEGIN TRY
  IF NOT EXISTS(SELECT 1 FROM dbo.ExportPreparation WITH (HOLDLOCK)
   WHERE PreparationID='c9831a9d-3031-4954-9da9-79815406ec0b'
   AND State='unavailable' AND Version=6 AND Fence=238
-  AND JSON_VALUE(GenerationJson,'$.operator_reconciliation.recovery_id')='50A5B6E5-D1D0-49DC-BF04-AB566047E152')
+  AND UPPER(JSON_VALUE(GenerationJson,'$.operator_reconciliation.recovery_id'))='50A5B6E5-D1D0-49DC-BF04-AB566047E152')
   THROW 51932,'Prior supersession receipt differs.',1;
  SET @Before=(SELECT PreparationID,EnqueueSequence,State,OwnerID,Fence,Version,RequestHash,CreatedUTC,UpdatedUTC
   FROM dbo.ExportPreparation WHERE PreparationID=@ID FOR JSON PATH,INCLUDE_NULL_VALUES,WITHOUT_ARRAY_WRAPPER);
