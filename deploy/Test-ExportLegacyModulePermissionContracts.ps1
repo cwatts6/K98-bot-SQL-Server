@@ -31,8 +31,21 @@ Assert-Contract ($forms.Count -eq 27 -and @($forms.module | Select-Object -Uniqu
 foreach ($form in $forms) {
     Assert-Contract (@($manifest.modules | Where-Object name -CEQ $form.module).Count -eq 1) 'Unknown equivalent script module'
 }
+# These manifests intentionally describe the historical permission installation.
+# Validate the independently guarded forward migration before reconstructing
+# its exact historical source bytes for the three changed modules. This does
+# not admit new definitions to the historical signing/install allowlists.
+& (Join-Path $RepositoryRoot 'deploy/Test-SqlAuthImportFileVisibility.ps1') -RepositoryRoot $RepositoryRoot
+$fileVisibilityModules = @('dbo.ARCHIVE_IMPORT_STAGING_FILE','dbo.CLAIM_KS4_IMPORT_FILE','dbo.IMPORT_STAGING_PROC_CORE')
 foreach ($module in $manifest.modules) {
     $sourceBytes = [IO.File]::ReadAllBytes((Join-Path $RepositoryRoot $module.path))
+    if ($module.name -cin $fileVisibilityModules) {
+        $current = [Text.Encoding]::UTF8.GetString($sourceBytes).Replace("`r`n", "`n")
+        $current = [regex]::Replace($current,
+            'SET (@\w+) = COALESCE\(\(SELECT file_exists FROM sys\.dm_os_file_exists\((@\w+)\)\), 0\);',
+            'EXEC master.dbo.xp_fileexist $2, $1 OUTPUT;')
+        $sourceBytes = [Text.Encoding]::UTF8.GetBytes($current.Replace("`n", "`r`n"))
+    }
     Assert-Contract ((Get-HexHash $sourceBytes) -ceq $module.source_sha256) "Source byte drift: $($module.name)"
     $raw = [Text.Encoding]::UTF8.GetString($sourceBytes).TrimStart([char]0xfeff).Replace("`r`n", "`n")
     $match = [regex]::Match($raw, '(?im)^(ALTER|CREATE OR ALTER)\s+(PROCEDURE|FUNCTION)\b')

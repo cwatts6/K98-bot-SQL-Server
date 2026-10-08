@@ -125,9 +125,9 @@ BEGIN
             THROW 51879, 'CLAIM_KS4_IMPORT_FILE reconciled an already committed or duplicate claim; no new scan was allocated.', 1;
         END;
 
-        EXEC master.dbo.xp_fileexist @ReadyPath, @ReadyExists OUTPUT;
-        EXEC master.dbo.xp_fileexist @ClaimedPath, @ClaimedExists OUTPUT;
-        EXEC master.dbo.xp_fileexist @ArchivePath, @ArchiveExists OUTPUT;
+        SET @ReadyExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ReadyPath)), 0);
+        SET @ClaimedExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ClaimedPath)), 0);
+        SET @ArchiveExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ArchivePath)), 0);
 
         IF ISNULL(@ArchiveExists, 0) = 1
             THROW 51880, 'CLAIM_KS4_IMPORT_FILE refused an unexpected pre-existing archive destination.', 1;
@@ -151,8 +151,8 @@ BEGIN
 
             SET @ReadyExists = 0;
             SET @ClaimedExists = 0;
-            EXEC master.dbo.xp_fileexist @ReadyPath, @ReadyExists OUTPUT;
-            EXEC master.dbo.xp_fileexist @ClaimedPath, @ClaimedExists OUTPUT;
+            SET @ReadyExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ReadyPath)), 0);
+            SET @ClaimedExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ClaimedPath)), 0);
 
             IF ISNULL(@MoveExitCode, 1) <> 0
                OR ISNULL(@ReadyExists, 0) = 1
@@ -210,7 +210,7 @@ BEGIN
         EXEC @AclExitCode = master.dbo.xp_cmdshell @AclCommand, NO_OUTPUT;
 
         SET @ClaimedExists = 0;
-        EXEC master.dbo.xp_fileexist @ClaimedPath, @ClaimedExists OUTPUT;
+        SET @ClaimedExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ClaimedPath)), 0);
 
         IF ISNULL(@AclExitCode, 1) <> 0
            OR ISNULL(@ClaimedExists, 0) <> 1

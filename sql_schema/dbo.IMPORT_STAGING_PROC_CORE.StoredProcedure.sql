@@ -85,7 +85,7 @@ BEGIN
 
             -- File presence and digest are checked only after the database mutex
             -- is held. The producer cannot mutate the SQL-owned claimed path.
-            EXEC master.dbo.xp_fileexist @CsvPath, @FileExists OUTPUT;
+            SET @FileExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@CsvPath)), 0);
 
             IF @FileExists <> 1
                 THROW 51801, 'IMPORT_STAGING_PROC did not find the claimed file after acquiring the import mutex.', 1;

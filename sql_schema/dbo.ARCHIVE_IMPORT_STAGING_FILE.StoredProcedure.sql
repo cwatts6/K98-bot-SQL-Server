@@ -94,8 +94,8 @@ BEGIN
            )
             THROW 51853, 'ARCHIVE_IMPORT_STAGING_FILE could not bind the duplicate claim to an existing receipt.', 1;
 
-        EXEC master.dbo.xp_fileexist @SourcePath, @SourceExists OUTPUT;
-        EXEC master.dbo.xp_fileexist @ArchivePath, @ArchiveExists OUTPUT;
+        SET @SourceExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@SourcePath)), 0);
+        SET @ArchiveExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ArchivePath)), 0);
 
         -- Reconcile a previous move that completed before its database status
         -- update. The destination digest is authoritative for reconciliation.
@@ -153,8 +153,8 @@ BEGIN
 
         SET @SourceExists = 0;
         SET @ArchiveExists = 0;
-        EXEC master.dbo.xp_fileexist @SourcePath, @SourceExists OUTPUT;
-        EXEC master.dbo.xp_fileexist @ArchivePath, @ArchiveExists OUTPUT;
+        SET @SourceExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@SourcePath)), 0);
+        SET @ArchiveExists = COALESCE((SELECT file_exists FROM sys.dm_os_file_exists(@ArchivePath)), 0);
 
         IF ISNULL(@MoveExitCode, 1) <> 0
            OR ISNULL(@SourceExists, 0) = 1
