@@ -145,7 +145,7 @@ CREATE TABLE #S11ExpectedImportExecution
     SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
     IF LEFT(@Body,6)=N'ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,6,LEN(@Body));
     IF LEFT(@Body,16)=N'CREATE OR ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,16,LEN(@Body));
-    IF HASHBYTES('SHA2_256',@Body) NOT IN (0xd89d8cdd46020f3a464baf5cb0cbc1f30fb5734efe36316865dac88cabd24b68,0xd5a52ea5b2ead249a271bf73a84e966e76fb8ddbe3a1da086bdec9ff1b8df290) OR @Body IS NULL
+    IF HASHBYTES('SHA2_256',@Body) NOT IN (0xd89d8cdd46020f3a464baf5cb0cbc1f30fb5734efe36316865dac88cabd24b68,0x4a5640dbdf811d645ba9ed83062f08408f5d02e6c9c2338585042b031af080bc) OR @Body IS NULL
         THROW 51960, 'UPDATE_ALL2 source differs from reviewed pre/post image.', 1;
     IF EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.UPDATE_ALL2') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1)) OR EXISTS(SELECT 1 FROM sys.crypt_properties WHERE major_id=OBJECT_ID(N'dbo.UPDATE_ALL2')) THROW 51960, 'Unsigned caller module required.', 1;
     EXEC sys.sp_executesql N'ALTER PROCEDURE [dbo].[UPDATE_ALL2]
@@ -1050,17 +1050,19 @@ BEGIN
         PRINT ''Log Backup Triggered: '' + CASE WHEN @LogBackupTriggered = 1 THEN ''Yes'' ELSE ''No (queued for Python)'' END;
         PRINT ''========================================'';
 
+        DECLARE @S11CompletionCounters TABLE (LastRunCounter int NOT NULL);
         INSERT INTO dbo.SP_TaskStatus (TaskName, Status, LastRunTime, LastRunCounter, DurationSeconds)
+        OUTPUT inserted.LastRunCounter INTO @S11CompletionCounters (LastRunCounter)
         VALUES (
             ''UPDATE_ALL2'', ''Complete'', @EndTime,
-            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WHERE TaskName=''UPDATE_ALL2''), 0) + 1,
+            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WITH (UPDLOCK,HOLDLOCK) WHERE TaskName=''UPDATE_ALL2''), 0) + 1,
             @DurationSeconds
         );
 
         IF @ExportPreparationID IS NOT NULL
         BEGIN
             UPDATE dbo.StatsImportExecution SET State=''completed'',
-                LastRunCounter=(SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WHERE TaskName=''UPDATE_ALL2''),
+                LastRunCounter=(SELECT LastRunCounter FROM @S11CompletionCounters),
                 UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
             WHERE PreparationID=@ExportPreparationID AND CompletedFileName=@CompletedFileName AND State=''import_committed'';
             IF @@ROWCOUNT <> 1 THROW 51960, ''Missing exact Phase B execution receipt.'', 1;

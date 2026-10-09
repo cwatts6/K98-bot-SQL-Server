@@ -906,17 +906,19 @@ BEGIN
         PRINT 'Log Backup Triggered: ' + CASE WHEN @LogBackupTriggered = 1 THEN 'Yes' ELSE 'No (queued for Python)' END;
         PRINT '========================================';
 
+        DECLARE @S11CompletionCounters TABLE (LastRunCounter int NOT NULL);
         INSERT INTO dbo.SP_TaskStatus (TaskName, Status, LastRunTime, LastRunCounter, DurationSeconds)
+        OUTPUT inserted.LastRunCounter INTO @S11CompletionCounters (LastRunCounter)
         VALUES (
             'UPDATE_ALL2', 'Complete', @EndTime,
-            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WHERE TaskName='UPDATE_ALL2'), 0) + 1,
+            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WITH (UPDLOCK,HOLDLOCK) WHERE TaskName='UPDATE_ALL2'), 0) + 1,
             @DurationSeconds
         );
 
         IF @ExportPreparationID IS NOT NULL
         BEGIN
             UPDATE dbo.StatsImportExecution SET State='completed',
-                LastRunCounter=(SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WHERE TaskName='UPDATE_ALL2'),
+                LastRunCounter=(SELECT LastRunCounter FROM @S11CompletionCounters),
                 UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
             WHERE PreparationID=@ExportPreparationID AND CompletedFileName=@CompletedFileName AND State='import_committed';
             IF @@ROWCOUNT <> 1 THROW 51960, 'Missing exact Phase B execution receipt.', 1;

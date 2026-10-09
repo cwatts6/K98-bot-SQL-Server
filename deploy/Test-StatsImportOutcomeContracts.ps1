@@ -33,6 +33,11 @@ foreach ($name in @('dbo.UPDATE_ALL2','dbo.usp_S11RunStatsImport')) {
         if ((Get-OutcomeHash $before) -cne $old.source_sha256) { throw 'Outcome amendment changes unrelated legacy source' }
         if ($text.IndexOf("State='import_committed', ScanOrder=@AllocatedScanOrder") -gt $text.IndexOf('Import is now durable')) { throw 'Phase A receipt is outside its transaction' }
         if (-not $text.Contains("State='completed',")) { throw 'Exact completion marker missing' }
+        if (-not $text.Contains('OUTPUT inserted.LastRunCounter INTO @S11CompletionCounters (LastRunCounter)') -or
+            -not $text.Contains('LastRunCounter=(SELECT LastRunCounter FROM @S11CompletionCounters)') -or
+            -not $text.Contains("MAX(LastRunCounter) FROM dbo.SP_TaskStatus WITH (UPDLOCK,HOLDLOCK) WHERE TaskName='UPDATE_ALL2'")) {
+            throw 'Completion counter must be atomically allocated and bound to this inserted status row'
+        }
     }
 }
 foreach ($module in $historical.modules | Where-Object name -CNE 'dbo.UPDATE_ALL2') {
