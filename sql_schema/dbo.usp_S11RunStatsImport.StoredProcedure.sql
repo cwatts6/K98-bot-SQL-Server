@@ -16,7 +16,7 @@ BEGIN
     IF @LockResult < 0 THROW 51960, 'Exact import execution is already active.', 1;
     BEGIN TRY
         -- A prepared receipt is single-use. It cannot rerun a failed/committed import.
-        UPDATE e SET State='running', UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
+        UPDATE e SET State='running', UpdatedUTC=SYSUTCDATETIME(), Version=e.Version+1
         FROM dbo.StatsImportExecution e
         JOIN dbo.ExportPreparation p ON p.PreparationID=e.PreparationID
         WHERE e.PreparationID=@PreparationID AND e.CompletedFileName=@CompletedFileName

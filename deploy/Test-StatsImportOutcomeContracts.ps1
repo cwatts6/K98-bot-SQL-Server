@@ -30,6 +30,13 @@ foreach ($name in @('dbo.UPDATE_ALL2','dbo.usp_S11RunStatsImport')) {
     $start = [regex]::Match($text,'(?m)^(ALTER PROCEDURE|CREATE OR ALTER PROCEDURE)')
     $body = $text.Substring($start.Index).Trim([char[]]" `t`r`n")
     if ((Get-OutcomeHash $body -Definition) -cne $module[0].definition_sha256) { throw "Definition hash differs: $name" }
+    if ($name -ceq 'dbo.usp_S11RunStatsImport') {
+        $compiled = $body.Replace('CREATE OR ALTER PROCEDURE', 'CREATE   PROCEDURE')
+        $compiledHash = Get-OutcomeHash $compiled -Definition
+        if (@($module[0].compatible_definition_sha256).Count -ne 1 -or
+            $module[0].compatible_definition_sha256[0] -cne $compiledHash -or
+            -not $migration.Contains("0x$compiledHash")) { throw 'Exact SQL Server stored-header fingerprint required' }
+    }
     if (@($bodies | Where-Object { $_.Groups['body'].Value.Replace("''","'") -ceq $body }).Count -ne 1) { throw "Migration body differs: $name" }
     if ($name -ceq 'dbo.UPDATE_ALL2') {
         $old = @($historical.modules | Where-Object name -CEQ $name)[0]

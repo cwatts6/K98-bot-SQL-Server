@@ -1160,7 +1160,7 @@ END';
     IF OBJECT_ID(N'dbo.usp_S11RunStatsImport') IS NOT NULL AND @Body IS NULL THROW 51960, 'Existing S11 wrapper definition is unavailable.', 1;
     SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
     IF LEFT(@Body,16)=N'CREATE OR ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,16,LEN(@Body));
-    IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body)<>0x47c438a8dc4a48c83eb327299e4df63b2d8d78f098916a7aebe3bcd84317ead1 THROW 51960, 'Existing S11 wrapper differs.', 1;
+    IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0xf11f8395fd4837e4decd4b5573b9dc7d1573abf4c8bf24944265d78e8fcf0c68,0x034ca049c92a8b8ea654edca21f03269afae4884d398ea7d26e7ab0aade0b81e) THROW 51960, 'Existing S11 wrapper differs.', 1;
     EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.usp_S11RunStatsImport
     @PreparationID uniqueidentifier,
     @CompletedFileName nvarchar(260),
@@ -1177,7 +1177,7 @@ BEGIN
     IF @LockResult < 0 THROW 51960, ''Exact import execution is already active.'', 1;
     BEGIN TRY
         -- A prepared receipt is single-use. It cannot rerun a failed/committed import.
-        UPDATE e SET State=''running'', UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
+        UPDATE e SET State=''running'', UpdatedUTC=SYSUTCDATETIME(), Version=e.Version+1
         FROM dbo.StatsImportExecution e
         JOIN dbo.ExportPreparation p ON p.PreparationID=e.PreparationID
         WHERE e.PreparationID=@PreparationID AND e.CompletedFileName=@CompletedFileName
