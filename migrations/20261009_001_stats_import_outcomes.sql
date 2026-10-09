@@ -1157,6 +1157,7 @@ BEGIN
 	END CATCH
 END';
     SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_S11RunStatsImport'));
+    IF OBJECT_ID(N'dbo.usp_S11RunStatsImport') IS NOT NULL AND @Body IS NULL THROW 51960, 'Existing S11 wrapper definition is unavailable.', 1;
     SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
     IF LEFT(@Body,16)=N'CREATE OR ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,16,LEN(@Body));
     IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body)<>0x47c438a8dc4a48c83eb327299e4df63b2d8d78f098916a7aebe3bcd84317ead1 THROW 51960, 'Existing S11 wrapper differs.', 1;

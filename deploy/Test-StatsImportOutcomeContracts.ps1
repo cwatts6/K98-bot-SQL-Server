@@ -16,6 +16,10 @@ if (($source.roots -join '|') -cne ((@($historical.roots) + 'dbo.usp_S11RunStats
 $expectedGrants = @($historical.grants) + [pscustomobject]@{database='ROK_TRACKER';principal='ExportLegacyEntryReader';securable_class='OBJECT';target='dbo.usp_S11RunStatsImport';permission='EXECUTE'}
 if (($source.grants | ConvertTo-Json -Depth 64 -Compress) -cne ($expectedGrants | ConvertTo-Json -Depth 64 -Compress)) { throw 'Unrelated grants changed' }
 $migration = [IO.File]::ReadAllText((Join-Path $RepositoryRoot 'migrations/20261009_001_stats_import_outcomes.sql'))
+$opaqueGuard = "IF OBJECT_ID(N'dbo.usp_S11RunStatsImport') IS NOT NULL AND @Body IS NULL THROW"
+if (-not $migration.Contains($opaqueGuard) -or $migration.IndexOf($opaqueGuard) -gt $migration.IndexOf("EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.usp_S11RunStatsImport")) {
+    throw 'Existing unreadable wrapper must be rejected before module replacement'
+}
 $bodies = [regex]::Matches($migration,"EXEC sys\.sp_executesql N'(?<body>(?:[^']|'')*)';",[Text.RegularExpressions.RegexOptions]::Singleline)
 if ($bodies.Count -ne 2) { throw 'Exactly two outcome module bodies required' }
 foreach ($name in @('dbo.UPDATE_ALL2','dbo.usp_S11RunStatsImport')) {
