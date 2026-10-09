@@ -1,10 +1,154 @@
-SET ANSI_NULLS ON
-SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL2]') AND type in (N'P', N'PC'))
-BEGIN
-EXEC dbo.sp_executesql @statement = N'CREATE PROCEDURE [dbo].[UPDATE_ALL2] AS' 
-END
-ALTER PROCEDURE [dbo].[UPDATE_ALL2]
+/*
+MigrationId: 20261009_001_stats_import_outcomes
+Purpose: Exact non-replayable import execution and transaction outcome receipts
+Author: cwatts
+CreatedUtc: 2026-10-09
+RequiresBackup: Yes
+RiskLevel: High
+Rollback: Forward Fix Only
+TransactionMode: Auto
+DataChange: No
+*/
+-- Stop/drain the protected pair, install, rebuild approved SQL source contracts.
+-- No historical backfill, import replay, resource settlement or activation.
+SET NOCOUNT ON;
+SET XACT_ABORT ON;
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+IF DB_NAME() COLLATE Latin1_General_100_BIN2 <> N'ROK_TRACKER' THROW 51960, 'ROK_TRACKER required.', 1;
+IF @@TRANCOUNT <> 0 THROW 51960, 'Own migration transaction required.', 1;
+BEGIN TRANSACTION;
+BEGIN TRY
+    DECLARE @Lock int;
+    EXEC @Lock = sys.sp_getapplock @Resource=N'K98:S11:schema', @LockMode='Exclusive', @LockOwner='Transaction', @LockTimeout=0;
+    IF @Lock < 0 THROW 51960, 'Schema busy.', 1;
+    IF EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WHERE State <> 'closed')
+        THROW 51960, 'Execution sessions must be closed.', 1;
+    IF OBJECT_ID(N'dbo.StatsImportExecution',N'U') IS NULL
+    BEGIN
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+CREATE TABLE dbo.StatsImportExecution
+(
+    PreparationID uniqueidentifier NOT NULL,
+    CompletedFileName nvarchar(260) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    OwnerID uniqueidentifier NOT NULL,
+    Fence bigint NOT NULL,
+    State varchar(24) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    ScanOrder int NULL,
+    LastRunCounter int NULL,
+    ErrorNumber int NULL,
+    ErrorProcedure nvarchar(128) NULL,
+    ErrorLine int NULL,
+    Resolution varchar(24) COLLATE Latin1_General_100_BIN2 NULL,
+    ResolvedBy nvarchar(128) NULL,
+    ResolutionReason nvarchar(512) NULL,
+    ResolvedUTC datetime2(3) NULL,
+    CreatedUTC datetime2(3) NOT NULL CONSTRAINT DF_StatsImportExecution_Created DEFAULT SYSUTCDATETIME(),
+    UpdatedUTC datetime2(3) NOT NULL CONSTRAINT DF_StatsImportExecution_Updated DEFAULT SYSUTCDATETIME(),
+    Version bigint NOT NULL CONSTRAINT DF_StatsImportExecution_Version DEFAULT 1,
+    CONSTRAINT PK_StatsImportExecution PRIMARY KEY (PreparationID),
+    CONSTRAINT FK_StatsImportExecution_Preparation FOREIGN KEY (PreparationID) REFERENCES dbo.ExportPreparation(PreparationID),
+    CONSTRAINT UQ_StatsImportExecution_File UNIQUE (CompletedFileName),
+    CONSTRAINT CK_StatsImportExecution_State CHECK (State IN ('prepared','running','import_committed','completed','rolled_back','partial')),
+    CONSTRAINT CK_StatsImportExecution_Counters CHECK (Fence > 0 AND Version > 0 AND UpdatedUTC >= CreatedUTC),
+    CONSTRAINT CK_StatsImportExecution_Receipt CHECK ((State NOT IN ('import_committed','completed','partial') OR ScanOrder IS NOT NULL) AND (State <> 'completed' OR LastRunCounter IS NOT NULL)),
+    CONSTRAINT CK_StatsImportExecution_Resolution CHECK ((Resolution IS NULL AND ResolvedBy IS NULL AND ResolutionReason IS NULL AND ResolvedUTC IS NULL) OR (Resolution IN ('release_failure','supersede_partial') AND ResolvedBy IS NOT NULL AND ResolutionReason IS NOT NULL AND ResolvedUTC IS NOT NULL)),
+    CONSTRAINT CK_StatsImportExecution_File CHECK (DATALENGTH(CompletedFileName)=96 AND CompletedFileName LIKE N'stats[_]%.ready.csv' AND SUBSTRING(CompletedFileName,7,32) NOT LIKE N'%[^0-9a-f]%')
+);
+CREATE INDEX IX_StatsImportExecution_State ON dbo.StatsImportExecution(State,UpdatedUTC,PreparationID);
+
+    END;
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+CREATE TABLE #S11ExpectedImportExecution
+(
+    PreparationID uniqueidentifier NOT NULL,
+    CompletedFileName nvarchar(260) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    OwnerID uniqueidentifier NOT NULL,
+    Fence bigint NOT NULL,
+    State varchar(24) COLLATE Latin1_General_100_BIN2 NOT NULL,
+    ScanOrder int NULL,
+    LastRunCounter int NULL,
+    ErrorNumber int NULL,
+    ErrorProcedure nvarchar(128) COLLATE DATABASE_DEFAULT NULL,
+    ErrorLine int NULL,
+    Resolution varchar(24) COLLATE Latin1_General_100_BIN2 NULL,
+    ResolvedBy nvarchar(128) COLLATE DATABASE_DEFAULT NULL,
+    ResolutionReason nvarchar(512) COLLATE DATABASE_DEFAULT NULL,
+    ResolvedUTC datetime2(3) NULL,
+    CreatedUTC datetime2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
+    UpdatedUTC datetime2(3) NOT NULL DEFAULT SYSUTCDATETIME(),
+    Version bigint NOT NULL DEFAULT 1,
+    PRIMARY KEY (PreparationID),
+    UNIQUE (CompletedFileName),
+    CHECK (State IN ('prepared','running','import_committed','completed','rolled_back','partial')),
+    CHECK (Fence > 0 AND Version > 0 AND UpdatedUTC >= CreatedUTC),
+    CHECK ((State NOT IN ('import_committed','completed','partial') OR ScanOrder IS NOT NULL) AND (State <> 'completed' OR LastRunCounter IS NOT NULL)),
+    CHECK ((Resolution IS NULL AND ResolvedBy IS NULL AND ResolutionReason IS NULL AND ResolvedUTC IS NULL) OR (Resolution IN ('release_failure','supersede_partial') AND ResolvedBy IS NOT NULL AND ResolutionReason IS NOT NULL AND ResolvedUTC IS NOT NULL)),
+    CHECK (DATALENGTH(CompletedFileName)=96 AND CompletedFileName LIKE N'stats[_]%.ready.csv' AND SUBSTRING(CompletedFileName,7,32) NOT LIKE N'%[^0-9a-f]%')
+);
+
+
+    -- Compare parsed metadata with an independently declared expected temporary
+    -- table, so reruns cannot accept same-name columns or weakened CHECKs.
+    DECLARE @Actual int=OBJECT_ID(N'dbo.StatsImportExecution'),
+            @Expected int=OBJECT_ID(N'tempdb..#S11ExpectedImportExecution');
+    SELECT name,system_type_id,max_length,precision,scale,is_nullable,collation_name,is_identity,is_computed
+    INTO #S11ActualColumns FROM sys.columns WHERE object_id=@Actual;
+    SELECT name,system_type_id,max_length,precision,scale,is_nullable,collation_name,is_identity,is_computed
+    INTO #S11ExpectedColumns FROM tempdb.sys.columns WHERE object_id=@Expected;
+    IF EXISTS(SELECT * FROM #S11ActualColumns EXCEPT SELECT * FROM #S11ExpectedColumns)
+       OR EXISTS(SELECT * FROM #S11ExpectedColumns EXCEPT SELECT * FROM #S11ActualColumns)
+        THROW 51960, 'StatsImportExecution column contract differs.', 1;
+    IF EXISTS(SELECT definition FROM sys.check_constraints WHERE parent_object_id=@Actual
+              EXCEPT SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=@Expected)
+       OR EXISTS(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=@Expected
+              EXCEPT SELECT definition FROM sys.check_constraints WHERE parent_object_id=@Actual)
+       OR (SELECT COUNT(*) FROM sys.check_constraints WHERE parent_object_id=@Actual)<>5
+       OR EXISTS(SELECT 1 FROM sys.check_constraints WHERE parent_object_id=@Actual AND (is_disabled=1 OR is_not_trusted=1 OR is_not_for_replication=1))
+        THROW 51960, 'StatsImportExecution CHECK contract differs.', 1;
+    IF EXISTS(SELECT c.name,d.definition FROM sys.default_constraints d JOIN sys.columns c ON c.object_id=d.parent_object_id AND c.column_id=d.parent_column_id WHERE d.parent_object_id=@Actual
+              EXCEPT SELECT c.name,d.definition FROM tempdb.sys.default_constraints d JOIN tempdb.sys.columns c ON c.object_id=d.parent_object_id AND c.column_id=d.parent_column_id WHERE d.parent_object_id=@Expected)
+       OR EXISTS(SELECT c.name,d.definition FROM tempdb.sys.default_constraints d JOIN tempdb.sys.columns c ON c.object_id=d.parent_object_id AND c.column_id=d.parent_column_id WHERE d.parent_object_id=@Expected
+              EXCEPT SELECT c.name,d.definition FROM sys.default_constraints d JOIN sys.columns c ON c.object_id=d.parent_object_id AND c.column_id=d.parent_column_id WHERE d.parent_object_id=@Actual)
+        THROW 51960, 'StatsImportExecution default contract differs.', 1;
+    IF (SELECT COUNT(*) FROM sys.foreign_keys WHERE parent_object_id=@Actual)<>1
+       OR NOT EXISTS(SELECT 1 FROM sys.foreign_keys f JOIN sys.foreign_key_columns c ON c.constraint_object_id=f.object_id
+         WHERE f.parent_object_id=@Actual AND f.referenced_object_id=OBJECT_ID(N'dbo.ExportPreparation')
+          AND COL_NAME(@Actual,c.parent_column_id)=N'PreparationID' AND COL_NAME(f.referenced_object_id,c.referenced_column_id)=N'PreparationID'
+          AND f.is_disabled=0 AND f.is_not_trusted=0 AND f.is_not_for_replication=0 AND f.delete_referential_action=0 AND f.update_referential_action=0)
+       OR EXISTS(SELECT 1 FROM sys.triggers WHERE parent_id=@Actual)
+        THROW 51960, 'StatsImportExecution FK/trigger contract differs.', 1;
+    IF (SELECT COUNT(*) FROM sys.indexes WHERE object_id=@Actual)<>3
+       OR NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=@Actual AND is_primary_key=1 AND is_disabled=0)
+       OR NOT EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=@Actual AND is_unique_constraint=1 AND is_disabled=0)
+       OR EXISTS(SELECT 1 FROM sys.indexes WHERE object_id=@Actual AND (has_filter=1 OR is_disabled=1 OR ignore_dup_key=1))
+        THROW 51960, 'StatsImportExecution index contract differs.', 1;
+    SELECT i.name AS IndexName,i.type,i.is_unique,i.is_primary_key,i.is_unique_constraint,
+           c.name AS ColumnName,ic.key_ordinal,ic.is_descending_key,ic.is_included_column
+    INTO #S11ActualIndexes FROM sys.indexes i JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id
+      JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id WHERE i.object_id=@Actual;
+    SELECT * INTO #S11ExpectedIndexes FROM (VALUES
+      (N'PK_StatsImportExecution',1,1,1,0,N'PreparationID',1,0,0),
+      (N'UQ_StatsImportExecution_File',2,1,0,1,N'CompletedFileName',1,0,0),
+      (N'IX_StatsImportExecution_State',2,0,0,0,N'State',1,0,0),
+      (N'IX_StatsImportExecution_State',2,0,0,0,N'UpdatedUTC',2,0,0),
+      (N'IX_StatsImportExecution_State',2,0,0,0,N'PreparationID',3,0,0)
+    ) e(IndexName,type,is_unique,is_primary_key,is_unique_constraint,ColumnName,key_ordinal,is_descending_key,is_included_column);
+    IF EXISTS(SELECT * FROM #S11ActualIndexes EXCEPT SELECT * FROM #S11ExpectedIndexes)
+       OR EXISTS(SELECT * FROM #S11ExpectedIndexes EXCEPT SELECT * FROM #S11ActualIndexes)
+        THROW 51960, 'StatsImportExecution index keys differ.', 1;
+    DROP TABLE #S11ActualIndexes,#S11ExpectedIndexes;
+    DROP TABLE #S11ActualColumns,#S11ExpectedColumns,#S11ExpectedImportExecution;
+    DECLARE @Body nvarchar(max)=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.UPDATE_ALL2'));
+    SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
+    IF LEFT(@Body,6)=N'ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,6,LEN(@Body));
+    IF LEFT(@Body,16)=N'CREATE OR ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,16,LEN(@Body));
+    IF HASHBYTES('SHA2_256',@Body) NOT IN (0xd89d8cdd46020f3a464baf5cb0cbc1f30fb5734efe36316865dac88cabd24b68,0x4a5640dbdf811d645ba9ed83062f08408f5d02e6c9c2338585042b031af080bc) OR @Body IS NULL
+        THROW 51960, 'UPDATE_ALL2 source differs from reviewed pre/post image.', 1;
+    IF EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.UPDATE_ALL2') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1)) OR EXISTS(SELECT 1 FROM sys.crypt_properties WHERE major_id=OBJECT_ID(N'dbo.UPDATE_ALL2')) THROW 51960, 'Unsigned caller module required.', 1;
+    EXEC sys.sp_executesql N'ALTER PROCEDURE [dbo].[UPDATE_ALL2]
 	@param1 [float] = NULL,
 	@param2 [nvarchar](100) = NULL,
     @CompletedFileName [nvarchar](260),
@@ -23,15 +167,15 @@ BEGIN
     SET NUMERIC_ROUNDABORT OFF;
 
     IF @@TRANCOUNT <> 0
-        THROW 51818, 'UPDATE_ALL2 refuses caller-owned transactions; execute the public entry point with no active transaction.', 1;
+        THROW 51818, ''UPDATE_ALL2 refuses caller-owned transactions; execute the public entry point with no active transaction.'', 1;
 
     IF @ExportPreparationID IS NOT NULL
     BEGIN
-        DECLARE @ExecutionResource nvarchar(255)=N'S11:stats-import:' + LOWER(CONVERT(nvarchar(36),@ExportPreparationID));
-        IF COALESCE(APPLOCK_MODE(N'public',@ExecutionResource,N'Session'),N'NoLock') <> N'Exclusive'
+        DECLARE @ExecutionResource nvarchar(255)=N''S11:stats-import:'' + LOWER(CONVERT(nvarchar(36),@ExportPreparationID));
+        IF COALESCE(APPLOCK_MODE(N''public'',@ExecutionResource,N''Session''),N''NoLock'') <> N''Exclusive''
            OR NOT EXISTS (SELECT 1 FROM dbo.StatsImportExecution WHERE PreparationID=@ExportPreparationID
-               AND CompletedFileName=@CompletedFileName AND State='running' AND Resolution IS NULL)
-            THROW 51960, 'Exact S11 wrapper session and running receipt required.', 1;
+               AND CompletedFileName=@CompletedFileName AND State=''running'' AND Resolution IS NULL)
+            THROW 51960, ''Exact S11 wrapper session and running receipt required.'', 1;
     END;
 
     SET XACT_ABORT ON;
@@ -45,7 +189,7 @@ BEGIN
     DECLARE @ImportArchivePath NVARCHAR(4000);
     DECLARE @ImportError NVARCHAR(2000);
     DECLARE @ArchiveReturnCode INT;
-    DECLARE @CurrentAuditPhase NVARCHAR(64) = N'update_all2_start';
+    DECLARE @CurrentAuditPhase NVARCHAR(64) = N''update_all2_start'';
     DECLARE @UpdateAll2PhaseAudit TABLE (
         SequenceNo INT IDENTITY(1,1) NOT NULL,
         PhaseName NVARCHAR(64) NOT NULL,
@@ -77,7 +221,7 @@ BEGIN
             @LockResult = @ImportLockResult OUTPUT;
 
         IF @ImportLockResult < 0
-            THROW 51810, 'UPDATE_ALL2 could not acquire the KingdomScanData4 import mutex within 60000 ms; Phase A was not started.', 1;
+            THROW 51810, ''UPDATE_ALL2 could not acquire the KingdomScanData4 import mutex within 60000 ms; Phase A was not started.'', 1;
 
         -- Get deterministic defaults from KS. Choose "latest" row by [Last Update] if present.
         DECLARE @actual_param1 FLOAT = NULL,
@@ -85,13 +229,13 @@ BEGIN
 
         SELECT TOP (1)
             @actual_param1 = COALESCE(@param1, KINGDOM_RANK, 0),
-            @actual_param2 = COALESCE(@param2, KINGDOM_SEED, N'')
+            @actual_param2 = COALESCE(@param2, KINGDOM_SEED, N'''')
         FROM dbo.KS
         WHERE KINGDOM_RANK IS NOT NULL OR KINGDOM_SEED IS NOT NULL
         ORDER BY [Last Update] DESC; 
 
         IF @actual_param1 IS NULL SET @actual_param1 = COALESCE(@param1, 0);
-        IF @actual_param2 IS NULL SET @actual_param2 = COALESCE(@param2, N'');
+        IF @actual_param2 IS NULL SET @actual_param2 = COALESCE(@param2, N'''');
 
         DECLARE @StartTime DATETIME = GETDATE();
 
@@ -105,7 +249,7 @@ BEGIN
         BEGIN
             SET @ImportError = COALESCE(
                 @ImportError,
-                N'UPDATE_ALL2 stopped because IMPORT_STAGING_PROC failed without returning error detail.'
+                N''UPDATE_ALL2 stopped because IMPORT_STAGING_PROC failed without returning error detail.''
             );
             THROW 51819, @ImportError, 1;
         END
@@ -118,7 +262,7 @@ BEGIN
         IF @AllocatedScanOrder IS NULL
            OR @AllocatedScanOrder <> (SELECT MAX(SCANORDER) FROM dbo.IMPORT_STAGING)
            OR @StagedRows <> (SELECT COUNT(DISTINCT [Governor ID]) FROM dbo.IMPORT_STAGING)
-            THROW 51811, 'UPDATE_ALL2 rejected empty, mixed-scan, or duplicate-governor canonical staging.', 1;
+            THROW 51811, ''UPDATE_ALL2 rejected empty, mixed-scan, or duplicate-governor canonical staging.'', 1;
 
         IF EXISTS
         (
@@ -126,7 +270,7 @@ BEGIN
             FROM dbo.KingdomScanData5
             WHERE SCANORDER = @AllocatedScanOrder
         )
-            THROW 51812, 'UPDATE_ALL2 refused to reuse an existing KingdomScanData5 SCANORDER.', 1;
+            THROW 51812, ''UPDATE_ALL2 refused to reuse an existing KingdomScanData5 SCANORDER.'', 1;
 
         -- 2) Insert into KingdomScanData5
         INSERT INTO dbo.KingdomScanData5 (
@@ -143,9 +287,9 @@ BEGIN
             , [Governor ID]
             , NULLIF(
 				  LTRIM(RTRIM(
-					REPLACE(REPLACE(CONVERT(nvarchar(255), [Alliance]), CHAR(13), ''), CHAR(10), '')
+					REPLACE(REPLACE(CONVERT(nvarchar(255), [Alliance]), CHAR(13), ''''), CHAR(10), '''')
 				  )),
-				  N''
+				  N''''
 			  ) AS Alliance
             , [Power]
             , [Total Kill Points]
@@ -164,7 +308,7 @@ BEGIN
 
         IF @rowsKS5 = 0
         BEGIN
-            RAISERROR('No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).', 16, 1);
+            RAISERROR(''No rows inserted into KingdomScanData5 (IMPORT_STAGING was empty).'', 16, 1);
         END
 
         IF @rowsKS5 <> @StagedRows
@@ -176,20 +320,20 @@ BEGIN
                   GROUP BY SCANORDER, GovernorID
                   HAVING COUNT_BIG(*) > 1
               )
-            THROW 51813, 'UPDATE_ALL2 KingdomScanData5 row-count or duplicate-key validation failed.', 1;
+            THROW 51813, ''UPDATE_ALL2 KingdomScanData5 row-count or duplicate-key validation failed.'', 1;
 
         -- SMART INDEX MAINTENANCE: Only update stats for KS5 (lightweight)
         -- Full index rebuild happens nightly via maintenance job
-        PRINT 'Updating statistics for KingdomScanData5 (quick sample)...';
+        PRINT ''Updating statistics for KingdomScanData5 (quick sample)...'';
         UPDATE STATISTICS dbo.KingdomScanData5 WITH SAMPLE 20 PERCENT;
-        PRINT 'KingdomScanData5 statistics refreshed.';
+        PRINT ''KingdomScanData5 statistics refreshed.'';
 
         -- Cache MAX(SCANORDER) values to avoid repeated scans
         DECLARE @MaxScanOrder5 INT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData5 ORDER BY SCANORDER DESC);
         DECLARE @MaxScanOrder4 INT = (SELECT TOP 1 SCANORDER FROM dbo.KingdomScanData4 ORDER BY SCANORDER DESC);
 
         IF @MaxScanOrder5 <> @AllocatedScanOrder
-            THROW 51814, 'UPDATE_ALL2 allocated scan does not match the latest KingdomScanData5 scan.', 1;
+            THROW 51814, ''UPDATE_ALL2 allocated scan does not match the latest KingdomScanData5 scan.'', 1;
 
         -- 3) Promote to KS4 if newer
         IF @MaxScanOrder5 > @MaxScanOrder4
@@ -200,7 +344,7 @@ BEGIN
                 FROM dbo.KingdomScanData4
                 WHERE SCANORDER = @AllocatedScanOrder
             )
-                THROW 51815, 'UPDATE_ALL2 refused to reuse an existing KingdomScanData4 SCANORDER.', 1;
+                THROW 51815, ''UPDATE_ALL2 refused to reuse an existing KingdomScanData4 SCANORDER.'', 1;
 
             INSERT INTO dbo.KingdomScanData4 (
                   PowerRank, GovernorName, GovernorID, Alliance, [Power], KillPoints, Deads
@@ -212,7 +356,7 @@ BEGIN
             )
             SELECT
                   PowerRank, GovernorName, GovernorID,
-                  NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), ''),
+                  NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), ''''),
                   [Power], KillPoints, Deads
                 , T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS], TOTAL_KILLS
                 , Rss_Gathered, RSSASSISTANCE, Helps, ScanDate, SCANORDER
@@ -233,7 +377,7 @@ BEGIN
                       GROUP BY SCANORDER, GovernorID
                       HAVING COUNT_BIG(*) > 1
                   )
-                THROW 51816, 'UPDATE_ALL2 KingdomScanData4 row-count or duplicate-key validation failed.', 1;
+                THROW 51816, ''UPDATE_ALL2 KingdomScanData4 row-count or duplicate-key validation failed.'', 1;
 
             ----------------------------------------------------------------
             -- SMART INDEX MAINTENANCE for KS4: Check fragmentation first
@@ -242,7 +386,7 @@ BEGIN
             --   - REORGANIZE if 10-30% fragmentation (online, low impact)
             --   - REBUILD if > 30% fragmentation
             ----------------------------------------------------------------
-            PRINT 'Checking KingdomScanData4 index fragmentation...';
+            PRINT ''Checking KingdomScanData4 index fragmentation...'';
             
             DECLARE @IndexMaintLog TABLE (
                 IndexName NVARCHAR(128),
@@ -261,18 +405,18 @@ BEGIN
                     ips.avg_fragmentation_in_percent AS Fragmentation
                 FROM sys.dm_db_index_physical_stats(
                     DB_ID(), 
-                    OBJECT_ID('dbo.KingdomScanData4'), 
-                    NULL, NULL, 'LIMITED'
+                    OBJECT_ID(''dbo.KingdomScanData4''), 
+                    NULL, NULL, ''LIMITED''
                 ) AS ips
                 INNER JOIN sys.indexes AS i 
                     ON ips.object_id = i.object_id 
                     AND ips.index_id = i.index_id
                 WHERE 
                     i.name IN (
-                        'CIX_KS4_ScanOrder_Governor',
-                        'IX_KSD4_Governor_ScanOrder', 
-                        'IX_KS4_Governor_ScanDate',
-                        'IX_KSD4_Gov_ScanOrder'
+                        ''CIX_KS4_ScanOrder_Governor'',
+                        ''IX_KSD4_Governor_ScanOrder'', 
+                        ''IX_KS4_Governor_ScanDate'',
+                        ''IX_KSD4_Gov_ScanOrder''
                     )
                     AND ips.avg_fragmentation_in_percent IS NOT NULL;
 
@@ -284,24 +428,24 @@ BEGIN
                 IF @Fragmentation < 10
                 BEGIN
                     -- Skip - fragmentation is low
-                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, 'SKIPPED');
-                    PRINT '  ' + @IndexName + ': ' + CAST(@Fragmentation AS VARCHAR(10)) + '% - Skipped';
+                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, ''SKIPPED'');
+                    PRINT ''  '' + @IndexName + '': '' + CAST(@Fragmentation AS VARCHAR(10)) + ''% - Skipped'';
                 END
                 ELSE IF @Fragmentation < 30
                 BEGIN
                     -- REORGANIZE - medium fragmentation, online operation
-                    SET @SQL = N'ALTER INDEX [' + @IndexName + N'] ON dbo.KingdomScanData4 REORGANIZE;';
+                    SET @SQL = N''ALTER INDEX ['' + @IndexName + N''] ON dbo.KingdomScanData4 REORGANIZE;'';
                     EXEC sp_executesql @SQL;
-                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, 'REORGANIZED');
-                    PRINT '  ' + @IndexName + ': ' + CAST(@Fragmentation AS VARCHAR(10)) + '% - Reorganized';
+                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, ''REORGANIZED'');
+                    PRINT ''  '' + @IndexName + '': '' + CAST(@Fragmentation AS VARCHAR(10)) + ''% - Reorganized'';
                 END
                 ELSE
                 BEGIN
                     -- REBUILD - high fragmentation
-                    SET @SQL = N'ALTER INDEX [' + @IndexName + N'] ON dbo.KingdomScanData4 REBUILD WITH (SORT_IN_TEMPDB = ON, MAXDOP = 0);';
+                    SET @SQL = N''ALTER INDEX ['' + @IndexName + N''] ON dbo.KingdomScanData4 REBUILD WITH (SORT_IN_TEMPDB = ON, MAXDOP = 0);'';
                     EXEC sp_executesql @SQL;
-                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, 'REBUILT');
-                    PRINT '  ' + @IndexName + ': ' + CAST(@Fragmentation AS VARCHAR(10)) + '% - Rebuilt';
+                    INSERT INTO @IndexMaintLog VALUES (@IndexName, @Fragmentation, ''REBUILT'');
+                    PRINT ''  '' + @IndexName + '': '' + CAST(@Fragmentation AS VARCHAR(10)) + ''% - Rebuilt'';
                 END
 
                 FETCH NEXT FROM idx_cursor INTO @IndexName, @Fragmentation;
@@ -312,7 +456,7 @@ BEGIN
 
             -- Always update statistics after any index maintenance
             UPDATE STATISTICS dbo.KingdomScanData4 WITH SAMPLE 25 PERCENT;
-            PRINT 'KingdomScanData4 statistics refreshed.';
+            PRINT ''KingdomScanData4 statistics refreshed.'';
 
 			EXEC [dbo].[Refresh_PlayerScanMeta] @MinScanOrder = @MaxScanOrder5
 			UPDATE STATISTICS dbo.PlayerScanMeta WITH SAMPLE 25 PERCENT;
@@ -328,10 +472,10 @@ BEGIN
 
         IF @ExportPreparationID IS NOT NULL
         BEGIN
-            UPDATE dbo.StatsImportExecution SET State='import_committed', ScanOrder=@AllocatedScanOrder,
+            UPDATE dbo.StatsImportExecution SET State=''import_committed'', ScanOrder=@AllocatedScanOrder,
                 UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
-            WHERE PreparationID=@ExportPreparationID AND CompletedFileName=@CompletedFileName AND State='running';
-            IF @@ROWCOUNT <> 1 THROW 51960, 'Missing exact Phase A execution receipt.', 1;
+            WHERE PreparationID=@ExportPreparationID AND CompletedFileName=@CompletedFileName AND State=''running'';
+            IF @@ROWCOUNT <> 1 THROW 51960, ''Missing exact Phase A execution receipt.'', 1;
         END;
         COMMIT;  -- ✅ Import is now durable even if later steps fail
 
@@ -339,7 +483,7 @@ BEGIN
             @CompletedFileName = @CompletedFileName;
 
         IF @ArchiveReturnCode <> 0
-            THROW 51817, 'UPDATE_ALL2 committed Phase A but the immutable-file archive handoff did not complete.', 1;
+            THROW 51817, ''UPDATE_ALL2 committed Phase A but the immutable-file archive handoff did not complete.'', 1;
 
         -- Return / Log Phase A summary values
         SELECT
@@ -379,7 +523,7 @@ BEGIN
                     LogSpaceUsedPercent DECIMAL(5,2),
                     Status INT
                 );
-                INSERT INTO #LogSpace EXEC('DBCC SQLPERF(LOGSPACE)');
+                INSERT INTO #LogSpace EXEC(''DBCC SQLPERF(LOGSPACE)'');
                 SELECT @CurrentLogUsedPct = LogSpaceUsedPercent 
                 FROM #LogSpace 
                 WHERE DatabaseName = DB_NAME();
@@ -399,28 +543,28 @@ BEGIN
             SET @LogReuse = NULL;
         END CATCH
 
-        PRINT 'Phase B Start - Log Usage: ' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), 'unknown') + 
-              '%, Reuse Wait: ' + ISNULL(@LogReuse, 'unknown');
+        PRINT ''Phase B Start - Log Usage: '' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), ''unknown'') + 
+              ''%, Reuse Wait: '' + ISNULL(@LogReuse, ''unknown'');
 
         -- If log usage is high (>70%), force checkpoint before continuing
         IF @CurrentLogUsedPct IS NOT NULL AND @CurrentLogUsedPct > 70.0
         BEGIN
-            PRINT 'Log usage elevated (' + CAST(@CurrentLogUsedPct AS VARCHAR(10)) + 
-                  '%); executing CHECKPOINT before Phase B operations...';
+            PRINT ''Log usage elevated ('' + CAST(@CurrentLogUsedPct AS VARCHAR(10)) + 
+                  ''%); executing CHECKPOINT before Phase B operations...'';
             CHECKPOINT;
             
             -- Log this event for monitoring
             INSERT INTO dbo.ErrorAudit (ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo)
             VALUES (
-                GETDATE(), 'UPDATE_ALL2', 0, 
-                'Elevated log usage detected at Phase B start', 0,
-                'Log usage: ' + CAST(@CurrentLogUsedPct AS VARCHAR(10)) + 
-                '%, Reuse wait: ' + ISNULL(@LogReuse, 'unknown')
+                GETDATE(), ''UPDATE_ALL2'', 0, 
+                ''Elevated log usage detected at Phase B start'', 0,
+                ''Log usage: '' + CAST(@CurrentLogUsedPct AS VARCHAR(10)) + 
+                ''%, Reuse wait: '' + ISNULL(@LogReuse, ''unknown'')
             );
         END
 
         -- Step 1: CREATE_THE_AVERAGES
-        SET @CurrentAuditPhase = N'update_all2_create_averages';
+        SET @CurrentAuditPhase = N''update_all2_create_averages'';
         SET @StepStart = SYSUTCDATETIME();
         EXEC dbo.CREATE_THE_AVERAGES;
         SET @StepEnd = SYSUTCDATETIME();
@@ -428,23 +572,23 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"procedure":"CREATE_THE_AVERAGES"}');
-        PRINT 'CREATE_THE_AVERAGES: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"procedure":"CREATE_THE_AVERAGES"}'');
+        PRINT ''CREATE_THE_AVERAGES: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
 
         -- Step 2: Rebuild EXCEL_FOR_DASHBOARD
-        SET @CurrentAuditPhase = N'update_all2_rebuild_excel_dashboard';
+        SET @CurrentAuditPhase = N''update_all2_rebuild_excel_dashboard'';
         SET @StepStart = SYSUTCDATETIME();
-        IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
+        IF OBJECT_ID(''dbo.EXCEL_FOR_DASHBOARD'',''U'') IS NOT NULL
             DROP TABLE dbo.EXCEL_FOR_DASHBOARD;
 
         EXEC dbo.sp_Rebuild_ExcelForDashboard;
         
         -- ⚡ OPTIMIZATION: Update statistics on newly built table
-        IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
+        IF OBJECT_ID(''dbo.EXCEL_FOR_DASHBOARD'',''U'') IS NOT NULL
         BEGIN
             UPDATE STATISTICS dbo.EXCEL_FOR_DASHBOARD WITH SAMPLE 25 PERCENT;
-            PRINT 'EXCEL_FOR_DASHBOARD statistics updated';
+            PRINT ''EXCEL_FOR_DASHBOARD statistics updated'';
         END
         
         SET @StepEnd = SYSUTCDATETIME();
@@ -452,12 +596,12 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"procedure":"sp_Rebuild_ExcelForDashboard","target":"EXCEL_FOR_DASHBOARD"}');
-        PRINT 'sp_Rebuild_ExcelForDashboard: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"procedure":"sp_Rebuild_ExcelForDashboard","target":"EXCEL_FOR_DASHBOARD"}'');
+        PRINT ''sp_Rebuild_ExcelForDashboard: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
 
         -- Step 3: CREATE_DASH2
-        SET @CurrentAuditPhase = N'update_all2_create_dash2';
+        SET @CurrentAuditPhase = N''update_all2_create_dash2'';
         SET @StepStart = SYSUTCDATETIME();
         EXEC dbo.CREATE_DASH2;
         SET @StepEnd = SYSUTCDATETIME();
@@ -465,9 +609,9 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"procedure":"CREATE_DASH2"}');
-        PRINT 'CREATE_DASH2: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"procedure":"CREATE_DASH2"}'');
+        PRINT ''CREATE_DASH2: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
 
         ----------------------------------------------------------------
         -- Step 4a: Refresh EXCEL_FOR_KVK table FIRST (lifted from SP_Stats_for_Upload)
@@ -483,18 +627,18 @@ BEGIN
 
         SELECT TOP 1 @LatestKVK_Upload = KVKVersion
         FROM dbo.ProcConfig
-        WHERE ConfigKey = 'MATCHMAKING_SCAN'
+        WHERE ConfigKey = ''MATCHMAKING_SCAN''
           AND TRY_CAST(ConfigValue AS INT) <= @MaxScan_Upload
         ORDER BY KVKVersion DESC;
 
         IF @LatestKVK_Upload IS NOT NULL
         BEGIN
             SELECT
-                @MatchmakingScan_Upload = MAX(CASE WHEN ConfigKey = 'MATCHMAKING_SCAN' THEN TRY_CAST(ConfigValue AS INT) END),
-                @DraftScan_Upload       = MAX(CASE WHEN ConfigKey = 'DRAFTSCAN'        THEN TRY_CAST(ConfigValue AS INT) END)
+                @MatchmakingScan_Upload = MAX(CASE WHEN ConfigKey = ''MATCHMAKING_SCAN'' THEN TRY_CAST(ConfigValue AS INT) END),
+                @DraftScan_Upload       = MAX(CASE WHEN ConfigKey = ''DRAFTSCAN''        THEN TRY_CAST(ConfigValue AS INT) END)
             FROM dbo.ProcConfig
             WHERE KVKVersion = @LatestKVK_Upload
-              AND ConfigKey IN ('MATCHMAKING_SCAN','DRAFTSCAN');
+              AND ConfigKey IN (''MATCHMAKING_SCAN'',''DRAFTSCAN'');
 
             -- Decide which scan to use
             SET @ScanToUse_Upload = NULL;
@@ -505,11 +649,11 @@ BEGIN
 
             IF @ScanToUse_Upload IS NOT NULL
             BEGIN
-                PRINT 'Step 4a: Refreshing EXCEL_FOR_KVK_' + CAST(@LatestKVK_Upload AS VARCHAR(10)) 
-                    + ' with ScanOrder=' + CAST(@ScanToUse_Upload AS VARCHAR(10)) + '...';
+                PRINT ''Step 4a: Refreshing EXCEL_FOR_KVK_'' + CAST(@LatestKVK_Upload AS VARCHAR(10)) 
+                    + '' with ScanOrder='' + CAST(@ScanToUse_Upload AS VARCHAR(10)) + ''...'';
                 
                 -- ✅ LIFT: Call sp_ExcelOutput_ByKVK directly here
-                SET @CurrentAuditPhase = N'update_all2_excel_for_kvk_refresh';
+                SET @CurrentAuditPhase = N''update_all2_excel_for_kvk_refresh'';
                 SET @StepStart = SYSUTCDATETIME();
                 EXEC dbo.sp_ExcelOutput_ByKVK @KVK = @LatestKVK_Upload, @Scan = @ScanToUse_Upload;
                 
@@ -518,26 +662,26 @@ BEGIN
                 INSERT INTO @UpdateAll2PhaseAudit
                     (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
                 VALUES
-                    (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-                     N'{"procedure":"sp_ExcelOutput_ByKVK","kvk":' + CAST(@LatestKVK_Upload AS NVARCHAR(20)) +
-                     N',"scan":' + CAST(@ScanToUse_Upload AS NVARCHAR(20)) + N'}');
-                PRINT 'sp_ExcelOutput_ByKVK: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+                    (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+                     N''{"procedure":"sp_ExcelOutput_ByKVK","kvk":'' + CAST(@LatestKVK_Upload AS NVARCHAR(20)) +
+                     N'',"scan":'' + CAST(@ScanToUse_Upload AS NVARCHAR(20)) + N''}'');
+                PRINT ''sp_ExcelOutput_ByKVK: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
                	
 				IF @@TRANCOUNT > 0
                 BEGIN
                     COMMIT;
-                    PRINT 'Committed EXCEL_FOR_KVK refresh before STATS_FOR_UPLOAD.';
+                    PRINT ''Committed EXCEL_FOR_KVK refresh before STATS_FOR_UPLOAD.'';
                 END
 
 				-- ✅ CRITICAL: Force commit visibility before next step
-                PRINT 'Forcing commit flush via CHECKPOINT...';
+                PRINT ''Forcing commit flush via CHECKPOINT...'';
                 CHECKPOINT;
-                WAITFOR DELAY '00:00:00.100';  -- 100ms safety buffer
+                WAITFOR DELAY ''00:00:00.100'';  -- 100ms safety buffer
 
                 ----------------------------------------------------------------
                 -- Step 4b: Now populate STATS_FOR_UPLOAD (simplified SP)
                 ----------------------------------------------------------------
-                SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+                SET @CurrentAuditPhase = N''update_all2_stats_for_upload'';
                 SET @StepStart = SYSUTCDATETIME();
                 EXEC dbo.SP_Stats_for_Upload;  -- Now just does INSERT, no refresh
                 SET @StepEnd = SYSUTCDATETIME();
@@ -545,52 +689,52 @@ BEGIN
                 INSERT INTO @UpdateAll2PhaseAudit
                     (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
                 VALUES
-                    (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-                     N'{"procedure":"SP_Stats_for_Upload"}');
-                PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+                    (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+                     N''{"procedure":"SP_Stats_for_Upload"}'');
+                PRINT ''SP_Stats_for_Upload: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
 
 				-- Resume Phase B work in a new transaction
                 BEGIN TRANSACTION;
             END
             ELSE
             BEGIN
-                SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+                SET @CurrentAuditPhase = N''update_all2_stats_for_upload'';
                 SET @StepStart = SYSUTCDATETIME();
                 INSERT INTO @UpdateAll2PhaseAudit
                     (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
                 VALUES
-                    (N'update_all2_excel_for_kvk_refresh', N'skipped', @StepStart, @StepStart, 0,
-                     N'{"reason":"no_valid_scan"}'),
-                    (N'update_all2_stats_for_upload', N'skipped', @StepStart, @StepStart, 0,
-                     N'{"reason":"no_valid_scan"}');
-                PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no valid scan available)';
+                    (N''update_all2_excel_for_kvk_refresh'', N''skipped'', @StepStart, @StepStart, 0,
+                     N''{"reason":"no_valid_scan"}''),
+                    (N''update_all2_stats_for_upload'', N''skipped'', @StepStart, @StepStart, 0,
+                     N''{"reason":"no_valid_scan"}'');
+                PRINT ''Step 4: Skipping STATS_FOR_UPLOAD refresh (no valid scan available)'';
             END
         END
         ELSE
         BEGIN
-            SET @CurrentAuditPhase = N'update_all2_stats_for_upload';
+            SET @CurrentAuditPhase = N''update_all2_stats_for_upload'';
             SET @StepStart = SYSUTCDATETIME();
             INSERT INTO @UpdateAll2PhaseAudit
                 (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
             VALUES
-                (N'update_all2_excel_for_kvk_refresh', N'skipped', @StepStart, @StepStart, 0,
-                 N'{"reason":"no_eligible_kvk"}'),
-                (N'update_all2_stats_for_upload', N'skipped', @StepStart, @StepStart, 0,
-                 N'{"reason":"no_eligible_kvk"}');
-            PRINT 'Step 4: Skipping STATS_FOR_UPLOAD refresh (no eligible KVK found)';
+                (N''update_all2_excel_for_kvk_refresh'', N''skipped'', @StepStart, @StepStart, 0,
+                 N''{"reason":"no_eligible_kvk"}''),
+                (N''update_all2_stats_for_upload'', N''skipped'', @StepStart, @StepStart, 0,
+                 N''{"reason":"no_eligible_kvk"}'');
+            PRINT ''Step 4: Skipping STATS_FOR_UPLOAD refresh (no eligible KVK found)'';
         END
 
         CHECKPOINT;
-        WAITFOR DELAY '00:00:00.100';  -- 100ms delay for commit propagation
+        WAITFOR DELAY ''00:00:00.100'';  -- 100ms delay for commit propagation
         
         SET @StepEnd = SYSUTCDATETIME();
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
-        PRINT 'SP_Stats_for_Upload: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms (includes checkpoint)';
+        PRINT ''SP_Stats_for_Upload: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms (includes checkpoint)'';
 
         ----------------------------------------------------------------
         -- ⚡⚡⚡ OPTIMIZED INSERT INTO ALL_STATS_FOR_DASHBAORD ⚡⚡⚡
         ----------------------------------------------------------------
-        SET @CurrentAuditPhase = N'update_all2_all_stats_dashboard';
+        SET @CurrentAuditPhase = N''update_all2_all_stats_dashboard'';
         SET @StepStart = SYSUTCDATETIME();
         
         TRUNCATE TABLE dbo.ALL_STATS_FOR_DASHBAORD;
@@ -620,7 +764,7 @@ BEGIN
             ed.[Rank], 
             ed.[KVK_RANK], 
             ed.[Gov_ID],
-            RTRIM(COALESCE(ed.[Governor_Name], '')) AS [Governor_Name],
+            RTRIM(COALESCE(ed.[Governor_Name], '''')) AS [Governor_Name],
             
             -- Numeric columns with COALESCE (handles NULL efficiently)
             COALESCE(ed.[Starting Power], 0),
@@ -702,14 +846,14 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, RowsOut, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration, @RowsInserted,
-             N'{"target":"ALL_STATS_FOR_DASHBAORD"}');
-        PRINT 'ALL_STATS_FOR_DASHBAORD insert: ' + CAST(@RowsInserted AS VARCHAR(10)) + ' rows, ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration, @RowsInserted,
+             N''{"target":"ALL_STATS_FOR_DASHBAORD"}'');
+        PRINT ''ALL_STATS_FOR_DASHBAORD insert: '' + CAST(@RowsInserted AS VARCHAR(10)) + '' rows, '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
         
         ----------------------------------------------------------------
         -- Continue with POWER_BY_MONTH and remaining steps
         ----------------------------------------------------------------
-        SET @CurrentAuditPhase = N'update_all2_power_by_month';
+        SET @CurrentAuditPhase = N''update_all2_power_by_month'';
         SET @StepStart = SYSUTCDATETIME();
         
         TRUNCATE TABLE dbo.POWER_BY_MONTH;
@@ -750,11 +894,11 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"target":"POWER_BY_MONTH"}');
-        PRINT 'POWER_BY_MONTH: ' + CAST(@StepDuration AS VARCHAR(10)) + 'ms';
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"target":"POWER_BY_MONTH"}'');
+        PRINT ''POWER_BY_MONTH: '' + CAST(@StepDuration AS VARCHAR(10)) + ''ms'';
 
-        SET @CurrentAuditPhase = N'update_all2_refresh_inactive_governors';
+        SET @CurrentAuditPhase = N''update_all2_refresh_inactive_governors'';
         SET @StepStart = SYSUTCDATETIME();
         EXEC dbo.sp_RefreshInactiveGovernors;
         SET @StepEnd = SYSUTCDATETIME();
@@ -762,12 +906,12 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"procedure":"sp_RefreshInactiveGovernors"}');
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"procedure":"sp_RefreshInactiveGovernors"}'');
 
         DECLARE @MAXDATE DATETIME = (SELECT TOP 1 ScanDate FROM dbo.KingdomScanData4 ORDER BY ScanDate DESC);
 
-        SET @CurrentAuditPhase = N'update_all2_ks_summary_insert';
+        SET @CurrentAuditPhase = N''update_all2_ks_summary_insert'';
         SET @StepStart = SYSUTCDATETIME();
         INSERT INTO dbo.KS (
             KINGDOM_POWER, Governors, KP, [KILL], [DEAD], [CH25], 
@@ -787,10 +931,10 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, RowsOut, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration, @RowsInserted,
-             N'{"target":"KS"}');
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration, @RowsInserted,
+             N''{"target":"KS"}'');
 
-        SET @CurrentAuditPhase = N'update_all2_summary_proc';
+        SET @CurrentAuditPhase = N''update_all2_summary_proc'';
         SET @StepStart = SYSUTCDATETIME();
         EXEC dbo.SUMMARY_PROC;
         SET @StepEnd = SYSUTCDATETIME();
@@ -798,10 +942,10 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"procedure":"SUMMARY_PROC"}');
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"procedure":"SUMMARY_PROC"}'');
 
-        SET @CurrentAuditPhase = N'update_all2_governor_names';
+        SET @CurrentAuditPhase = N''update_all2_governor_names'';
         SET @StepStart = SYSUTCDATETIME();
         EXEC dbo.GOVERNOR_NAMES_PROC;
         SET @StepEnd = SYSUTCDATETIME();
@@ -809,10 +953,10 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"procedure":"GOVERNOR_NAMES_PROC"}');
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"procedure":"GOVERNOR_NAMES_PROC"}'');
 
-        SET @CurrentAuditPhase = N'update_all2_scan_list';
+        SET @CurrentAuditPhase = N''update_all2_scan_list'';
         SET @StepStart = SYSUTCDATETIME();
         TRUNCATE TABLE dbo.SCAN_LIST;
 
@@ -826,26 +970,26 @@ BEGIN
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, RowsOut, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration, @RowsInserted,
-             N'{"target":"SCAN_LIST"}');
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration, @RowsInserted,
+             N''{"target":"SCAN_LIST"}'');
 
         ----------------------------------------------------------------
         -- *** NEW: Phase B Completion - Log Management ***
         ----------------------------------------------------------------
         
         -- Force checkpoint to write dirty pages and minimize recovery time
-        SET @CurrentAuditPhase = N'update_all2_checkpoint_log';
+        SET @CurrentAuditPhase = N''update_all2_checkpoint_log'';
         SET @StepStart = SYSUTCDATETIME();
-        PRINT 'Executing CHECKPOINT to flush dirty pages...';
+        PRINT ''Executing CHECKPOINT to flush dirty pages...'';
         CHECKPOINT;
         SET @StepEnd = SYSUTCDATETIME();
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
         INSERT INTO @UpdateAll2PhaseAudit
             (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
         VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"operation":"CHECKPOINT"}');
-        PRINT 'CHECKPOINT complete.';
+            (@CurrentAuditPhase, N''completed'', @StepStart, @StepEnd, @StepDuration,
+             N''{"operation":"CHECKPOINT"}'');
+        PRINT ''CHECKPOINT complete.'';
 
         -- Get final log usage
         DECLARE @FinalLogUsedPct DECIMAL(5,2) = NULL;
@@ -862,7 +1006,7 @@ BEGIN
                     LogSpaceUsedPercent DECIMAL(5,2),
                     Status INT
                 );
-                INSERT INTO #LogSpaceFinal EXEC('DBCC SQLPERF(LOGSPACE)');
+                INSERT INTO #LogSpaceFinal EXEC(''DBCC SQLPERF(LOGSPACE)'');
                 SELECT @FinalLogUsedPct = LogSpaceUsedPercent 
                 FROM #LogSpaceFinal 
                 WHERE DatabaseName = DB_NAME();
@@ -874,7 +1018,7 @@ BEGIN
         END CATCH
 
         -- Insert signal record for Python bot to detect
-        IF OBJECT_ID('dbo.LogBackupTriggerQueue', 'U') IS NOT NULL
+        IF OBJECT_ID(''dbo.LogBackupTriggerQueue'', ''U'') IS NOT NULL
         BEGIN
             INSERT INTO dbo.LogBackupTriggerQueue (
                 TriggerTime, 
@@ -884,44 +1028,44 @@ BEGIN
             )
             VALUES (
                 SYSDATETIME(), 
-                'UPDATE_ALL2', 
-                'post_heavy_operation',
+                ''UPDATE_ALL2'', 
+                ''post_heavy_operation'',
                 @FinalLogUsedPct
             );
-            PRINT 'Log backup trigger queued (log usage: ' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), 'unknown') + '%).';
+            PRINT ''Log backup trigger queued (log usage: '' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), ''unknown'') + ''%).'';
         END
 
         -- Attempt to trigger log backup job (non-blocking, best effort)
         DECLARE @LogBackupTriggered BIT = 0;
-        PRINT 'Log backup trigger queued for Python processing.';
+        PRINT ''Log backup trigger queued for Python processing.'';
 
         DECLARE @EndTime DATETIME = GETDATE();
         DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);
         DECLARE @PhaseBDuration INT = DATEDIFF(MILLISECOND, @PhaseBStart, SYSUTCDATETIME());
 
-        PRINT '========================================';
-        PRINT 'Phase B Total: ' + CAST(@PhaseBDuration AS VARCHAR(10)) + 'ms';
-        PRINT 'Log Usage: Initial=' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), 'unknown') + 
-              '%, Final=' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), 'unknown') + '%';
-        PRINT 'Log Backup Triggered: ' + CASE WHEN @LogBackupTriggered = 1 THEN 'Yes' ELSE 'No (queued for Python)' END;
-        PRINT '========================================';
+        PRINT ''========================================'';
+        PRINT ''Phase B Total: '' + CAST(@PhaseBDuration AS VARCHAR(10)) + ''ms'';
+        PRINT ''Log Usage: Initial='' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), ''unknown'') + 
+              ''%, Final='' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), ''unknown'') + ''%'';
+        PRINT ''Log Backup Triggered: '' + CASE WHEN @LogBackupTriggered = 1 THEN ''Yes'' ELSE ''No (queued for Python)'' END;
+        PRINT ''========================================'';
 
         DECLARE @S11CompletionCounters TABLE (LastRunCounter int NOT NULL);
         INSERT INTO dbo.SP_TaskStatus (TaskName, Status, LastRunTime, LastRunCounter, DurationSeconds)
         OUTPUT inserted.LastRunCounter INTO @S11CompletionCounters (LastRunCounter)
         VALUES (
-            'UPDATE_ALL2', 'Complete', @EndTime,
-            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WITH (UPDLOCK,HOLDLOCK) WHERE TaskName='UPDATE_ALL2'), 0) + 1,
+            ''UPDATE_ALL2'', ''Complete'', @EndTime,
+            ISNULL((SELECT MAX(LastRunCounter) FROM dbo.SP_TaskStatus WITH (UPDLOCK,HOLDLOCK) WHERE TaskName=''UPDATE_ALL2''), 0) + 1,
             @DurationSeconds
         );
 
         IF @ExportPreparationID IS NOT NULL
         BEGIN
-            UPDATE dbo.StatsImportExecution SET State='completed',
+            UPDATE dbo.StatsImportExecution SET State=''completed'',
                 LastRunCounter=(SELECT LastRunCounter FROM @S11CompletionCounters),
                 UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
-            WHERE PreparationID=@ExportPreparationID AND CompletedFileName=@CompletedFileName AND State='import_committed';
-            IF @@ROWCOUNT <> 1 THROW 51960, 'Missing exact Phase B execution receipt.', 1;
+            WHERE PreparationID=@ExportPreparationID AND CompletedFileName=@CompletedFileName AND State=''import_committed'';
+            IF @@ROWCOUNT <> 1 THROW 51960, ''Missing exact Phase B execution receipt.'', 1;
         END;
         COMMIT;
 
@@ -949,7 +1093,7 @@ BEGIN
             @CurrentLogUsedPct AS LogUsedPctBefore,
             @FinalLogUsedPct AS LogUsedPctAfter,
             @LogBackupTriggered AS LogBackupTriggered,
-            'SUCCESS' AS Status;
+            ''SUCCESS'' AS Status;
 
     END TRY
 	BEGIN CATCH
@@ -962,14 +1106,14 @@ BEGIN
                 COALESCE(
                     @ImportError,
                     CONCAT(
-                        N'Error ',
+                        N''Error '',
                         ERROR_NUMBER(),
-                        N' in ',
-                        COALESCE(ERROR_PROCEDURE(), N'UPDATE_ALL2'),
-                        N' line ',
+                        N'' in '',
+                        COALESCE(ERROR_PROCEDURE(), N''UPDATE_ALL2''),
+                        N'' line '',
                         ERROR_LINE(),
-                        N': ',
-                        COALESCE(ERROR_MESSAGE(), N'(no message)')
+                        N'': '',
+                        COALESCE(ERROR_MESSAGE(), N''(no message)'')
                     )
                 ),
                 2000
@@ -986,30 +1130,87 @@ BEGIN
             UPDATE dbo.KS4_ImportFileClaim
             SET LastError = @PersistedImportError
             WHERE CompletedFileName = @CompletedFileName
-              AND ClaimStatus = N'claimed';
+              AND ClaimStatus = N''claimed'';
         END TRY
         BEGIN CATCH
             -- Never mask the original UPDATE_ALL2 failure.
         END CATCH;
 
-		-- ✅ now you're in autocommit, logging is allowed
+		-- ✅ now you''re in autocommit, logging is allowed
 		BEGIN TRY
 			INSERT INTO dbo.ErrorAudit (
 				ErrorTime, ProcedureName, ErrorNumber, ErrorMessage, ErrorLine, AdditionalInfo
 			)
 			VALUES (
-				GETDATE(), ISNULL(@ErrProc, 'UPDATE_ALL2'), @ErrNum, @ErrMsg, @ErrLine,
-				N'XACT_STATE=' + CAST(@XState AS NVARCHAR(10)) +
-				N'; CurrentPhase=' + ISNULL(@CurrentAuditPhase, N'unknown') +
-				N'; Phase info: KS5_Rows=' + ISNULL(CAST(@rowsKS5 AS NVARCHAR(20)), N'NULL') +
-				N', KS4_Rows=' + ISNULL(CAST(@rowsKS4 AS NVARCHAR(20)), N'NULL')
+				GETDATE(), ISNULL(@ErrProc, ''UPDATE_ALL2''), @ErrNum, @ErrMsg, @ErrLine,
+				N''XACT_STATE='' + CAST(@XState AS NVARCHAR(10)) +
+				N''; CurrentPhase='' + ISNULL(@CurrentAuditPhase, N''unknown'') +
+				N''; Phase info: KS5_Rows='' + ISNULL(CAST(@rowsKS5 AS NVARCHAR(20)), N''NULL'') +
+				N'', KS4_Rows='' + ISNULL(CAST(@rowsKS4 AS NVARCHAR(20)), N''NULL'')
 			);
 		END TRY
 		BEGIN CATCH
-			-- If even logging fails, don't mask the original error
+			-- If even logging fails, don''t mask the original error
 		END CATCH;
 
 		THROW;
 	END CATCH
-END
-
+END';
+    SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_S11RunStatsImport'));
+    IF OBJECT_ID(N'dbo.usp_S11RunStatsImport') IS NOT NULL AND @Body IS NULL THROW 51960, 'Existing S11 wrapper definition is unavailable.', 1;
+    SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
+    IF LEFT(@Body,16)=N'CREATE OR ALTER ' SET @Body=N'CREATE'+SUBSTRING(@Body,16,LEN(@Body));
+    IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0xf11f8395fd4837e4decd4b5573b9dc7d1573abf4c8bf24944265d78e8fcf0c68,0x034ca049c92a8b8ea654edca21f03269afae4884d398ea7d26e7ab0aade0b81e) THROW 51960, 'Existing S11 wrapper differs.', 1;
+    EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.usp_S11RunStatsImport
+    @PreparationID uniqueidentifier,
+    @CompletedFileName nvarchar(260),
+    @param1 float = NULL,
+    @param2 nvarchar(100) = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    IF @@TRANCOUNT <> 0 THROW 51960, ''S11 import requires an unowned transaction.'', 1;
+    DECLARE @Entered bit=0;
+    DECLARE @LockResult int, @Resource nvarchar(255) = N''S11:stats-import:'' + LOWER(CONVERT(nvarchar(36),@PreparationID));
+    EXEC @LockResult = sys.sp_getapplock @Resource=@Resource, @LockMode=''Exclusive'', @LockOwner=''Session'', @LockTimeout=0;
+    IF @LockResult < 0 THROW 51960, ''Exact import execution is already active.'', 1;
+    BEGIN TRY
+        -- A prepared receipt is single-use. It cannot rerun a failed/committed import.
+        UPDATE e SET State=''running'', UpdatedUTC=SYSUTCDATETIME(), Version=e.Version+1
+        FROM dbo.StatsImportExecution e
+        JOIN dbo.ExportPreparation p ON p.PreparationID=e.PreparationID
+        WHERE e.PreparationID=@PreparationID AND e.CompletedFileName=@CompletedFileName
+          AND e.State=''prepared'' AND p.State=''writing'' AND p.ConsumerKind=''scan_data''
+          AND p.OwnerID=e.OwnerID AND p.Fence=e.Fence AND p.JobID IS NULL AND p.SpoolKey IS NULL
+          AND EXISTS (SELECT 1 FROM dbo.ExportResource r WHERE r.ResourceKey=''sql_snapshot:legacy_outputs''
+            AND r.ActivePreparationID=p.PreparationID AND r.OwnerID=p.OwnerID AND r.Fence=p.Fence
+            AND r.ActiveJobID IS NULL AND r.ActiveOutputOperationID IS NULL AND r.BlockedReason IS NULL);
+        IF @@ROWCOUNT <> 1 THROW 51960, ''Exact prepared import ownership required; no replay.'', 1;
+        SET @Entered=1;
+        EXEC dbo.UPDATE_ALL2 @param1=@param1, @param2=@param2,
+            @CompletedFileName=@CompletedFileName, @ExportPreparationID=@PreparationID;
+        IF NOT EXISTS (SELECT 1 FROM dbo.StatsImportExecution WHERE PreparationID=@PreparationID AND State=''completed'')
+            THROW 51960, ''Import returned without its exact completion receipt.'', 1;
+        EXEC sys.sp_releaseapplock @Resource=@Resource, @LockOwner=''Session'';
+    END TRY
+    BEGIN CATCH
+        -- Attention/disconnection may bypass CATCH: the nonterminal receipt then stays
+        -- unresolved. A terminal receipt and the execution lock are both required.
+        IF XACT_STATE() <> 0 ROLLBACK;
+        UPDATE dbo.StatsImportExecution
+        SET State=CASE State WHEN ''running'' THEN ''rolled_back'' WHEN ''import_committed'' THEN ''partial'' ELSE State END,
+            ErrorNumber=ERROR_NUMBER(), ErrorProcedure=ERROR_PROCEDURE(), ErrorLine=ERROR_LINE(),
+            UpdatedUTC=SYSUTCDATETIME(), Version=Version+1
+        WHERE @Entered=1 AND PreparationID=@PreparationID AND State IN (''running'',''import_committed'',''completed'');
+        EXEC sys.sp_releaseapplock @Resource=@Resource, @LockOwner=''Session'';
+        THROW;
+    END CATCH;
+END;';
+    GRANT EXECUTE ON OBJECT::dbo.usp_S11RunStatsImport TO ExportLegacyEntryReader;
+    COMMIT;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0 ROLLBACK;
+    THROW;
+END CATCH;

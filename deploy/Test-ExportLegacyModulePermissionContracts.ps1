@@ -39,6 +39,12 @@ foreach ($form in $forms) {
 $fileVisibilityModules = @('dbo.ARCHIVE_IMPORT_STAGING_FILE','dbo.CLAIM_KS4_IMPORT_FILE','dbo.IMPORT_STAGING_PROC_CORE')
 foreach ($module in $manifest.modules) {
     $sourceBytes = [IO.File]::ReadAllBytes((Join-Path $RepositoryRoot $module.path))
+    if ($module.name -ceq 'dbo.UPDATE_ALL2') {
+        & (Join-Path $RepositoryRoot 'deploy/Test-StatsImportOutcomeContracts.ps1') -RepositoryRoot $RepositoryRoot
+        . (Join-Path $RepositoryRoot 'deploy/StatsImportOutcome.Source.ps1')
+        $before = Get-S11PreOutcomeSource ([Text.Encoding]::UTF8.GetString($sourceBytes))
+        $sourceBytes = [Text.Encoding]::UTF8.GetBytes($before.Replace("`n", "`r`n"))
+    }
     if ($module.name -cin $fileVisibilityModules) {
         $current = [Text.Encoding]::UTF8.GetString($sourceBytes).Replace("`r`n", "`n")
         $current = [regex]::Replace($current,

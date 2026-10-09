@@ -8,3 +8,8 @@ deploy/export_legacy_module_compatibility_forms.json text eol=lf
 
 # Direct installation pin is the SHA256 of these exact LF bytes.
 deploy/export_legacy_direct_permission_manifest.json text eol=lf
+deploy/export_stats_import_outcome_source.json text eol=lf
+migrations/20261009_001_stats_import_outcomes.sql text eol=lf
+sql_schema/dbo.StatsImportExecution.Table.sql text eol=lf
+sql_schema/dbo.usp_S11RunStatsImport.StoredProcedure.sql text eol=lf
+sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql text eol=lf
