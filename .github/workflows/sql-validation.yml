@@ -29,6 +29,7 @@ jobs:
         shell: powershell
         run: |
           .\deploy\Test-SqlFileEncoding.ps1
+          .\deploy\Test-ModuleReleaseProfile.ps1
           .\deploy\Test-StatsImportEncodingContracts.ps1
           python .\validation\test_stats_postimage_source.py
 
@@ -84,6 +85,12 @@ jobs:
           )
           $matches = Select-String -Path $paths -Pattern $pattern -ErrorAction SilentlyContinue |
             Where-Object { $allowed -notcontains $_.Path.Substring((Get-Location).Path.Length + 1) } |
+            # These exact declarations use integrated authentication only; retain
+            # credential scanning for every other line in the new runner.
+            Where-Object { -not ($_.Path.EndsWith('\deploy\SqlDeploy.ModuleRelease.ps1') -and $_.Line.Trim() -cin @(
+              ('$builder=[Data.SqlClient.SqlConnection' + 'StringBuilder]::new()'),
+              ('$connection=[Data.SqlClient.SqlConnection]::new($builder.Connection' + 'String)')
+            )) } |
             Where-Object { $_.Line -notmatch '^\s*\$pattern\s*=' }
 
           if ($matches) {

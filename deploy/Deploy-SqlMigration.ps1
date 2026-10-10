@@ -10,8 +10,30 @@ param(
     [switch]$ValidationOnly,
     [switch]$SkipBackupCheck,
     [switch]$AllowNonMainBranch,
-    [string]$Reason
+    [string]$Reason,
+    [string]$ProfilePath,
+    [string]$ProfileSHA256,
+    [string]$ExpectedCommit,
+    [string]$ReleaseId,
+    [ValidateSet('Preflight','Status','Verify','Apply')][string]$Operation='Apply'
 )
+
+# The normal combined updater uses an explicit bounded declarative migration.
+# Historical arbitrary SQL execution retains its existing, separate semantics.
+if($ProfilePath) {
+    if(-not $PSBoundParameters.ContainsKey('ServerName') -or -not $PSBoundParameters.ContainsKey('DatabaseName') -or
+       [string]::IsNullOrWhiteSpace($ServerName) -or [string]::IsNullOrWhiteSpace($DatabaseName) -or
+       $S8AInputFile -or $S8AInputSha256 -or $S8BInputFile -or $S8BInputSha256 -or $RepoPath -or $ValidationOnly -or $SkipBackupCheck -or $AllowNonMainBranch -or $Reason){throw 'Module profile requires explicit SQL target and does not accept legacy override switches'}
+    . "$PSScriptRoot\SqlDeploy.ModuleRelease.ps1"
+    try {
+        $result=Invoke-K98ModuleRelease -ServerName $ServerName -DatabaseName $DatabaseName -MigrationId $MigrationId -ProfilePath $ProfilePath -ProfileSHA256 $ProfileSHA256 -ExpectedCommit $ExpectedCommit -ReleaseId $ReleaseId -Operation $Operation
+        exit $result
+    }catch {
+        Write-Error ('SQL release '+$MigrationId+' '+$Operation+' refused: '+$_.Exception.Message+' Retain the updater transcript; run Update-K98.ps1 -Status. No force/replay or hash replacement is supported.') -ErrorAction Continue
+        exit 20
+    }
+}
+if($ProfileSHA256 -or $ExpectedCommit -or $ReleaseId -or $PSBoundParameters.ContainsKey('Operation')){throw 'ProfilePath is required for the combined release protocol'}
 
 # Pure selection policy runs before helper loading, backup checks, SQL or audit writes.
 # S11 replacements cannot safely be applied in filename order with their predecessors.
