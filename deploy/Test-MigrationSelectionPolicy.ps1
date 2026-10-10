@@ -39,6 +39,7 @@ Assert-Blocked '20990101_001_not_present' $true 'Migration not found'
 $corrected = @(Get-ChildItem (Join-Path $PSScriptRoot '../migrations/20261001_*.sql') -File)
 if ($corrected.Count -ne 10) { throw 'Expected ten corrected/forward migration files' }
 $corrected += Get-Item -LiteralPath (Join-Path $migrationDirectory '20261010_002_stats_import_outcomes_encoding.sql')
+$corrected += Get-Item -LiteralPath (Join-Path $migrationDirectory '20261010_003_stats_import_outcome_postimages.sql')
 foreach ($file in $corrected) {
     Assert-Blocked $file.BaseName $false 'explicit -ServerName and -DatabaseName'
     Assert-K98ExplicitMigrationSelection -MigrationId $file.BaseName -ExplicitTarget $true -MigrationDirectory $migrationDirectory

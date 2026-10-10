@@ -30,6 +30,7 @@ jobs:
         run: |
           .\deploy\Test-SqlFileEncoding.ps1
           .\deploy\Test-StatsImportEncodingContracts.ps1
+          python .\validation\test_stats_postimage_source.py
 
       - name: Validate SQL authentication file visibility contract
         shell: pwsh

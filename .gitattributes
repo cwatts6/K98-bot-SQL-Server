@@ -18,3 +18,4 @@ sql_schema/dbo.usp_S11RunStatsImport.StoredProcedure.sql text eol=lf
 sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql text eol=lf
 
 migrations/20261010_002_stats_import_outcomes_encoding.sql text eol=lf
+migrations/20261010_003_stats_import_outcome_postimages.sql text eol=lf
