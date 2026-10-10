@@ -117,7 +117,7 @@ def run():
     )
     counter = 0
 
-    def outer(path, operation, expected):
+    def outer(path, operation, expected, *, release_id=None):
         nonlocal counter
         counter += 1
         mid = json.loads(path.read_text())["migration_id"]
@@ -143,7 +143,7 @@ def run():
                 "-ExpectedCommit",
                 commit,
                 "-ReleaseId",
-                release,
+                release if release_id is None else release_id,
                 "-Operation",
                 operation,
             ],
@@ -164,6 +164,13 @@ def run():
     assert '"state":"unstarted"' in outer(path, "Status", 10)
     outer(path, "Apply", 0)
     outer(path, "Apply", 0)
+    outer(path, "Verify", 0)
+    assert c.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval() == 1
+    # An Applied row belongs to its original release, even when every SQL byte
+    # and commit pin matches. All observation/apply paths must reject adoption.
+    wrong_release = str(uuid.uuid4())
+    for operation in ("Preflight", "Status", "Verify", "Apply"):
+        outer(path, operation, 20, release_id=wrong_release)
     outer(path, "Verify", 0)
     assert c.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval() == 1
     assert (
@@ -298,6 +305,7 @@ def run():
         collation_mismatch_exercised=True,
         rollback_retained=True,
         committed_drift_not_replayed=True,
+        committed_wrong_release_rejected=True,
         real_process_death_before_and_after_commit=True,
         live_owner_blocks_second_runner=True,
         production_touched=False,

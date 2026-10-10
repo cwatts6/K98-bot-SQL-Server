@@ -37,6 +37,14 @@ it. Review exact preimages independently; never replace expected hashes with
 current observations to bypass a refusal. Required history must exist before the
 release starts; it may explicitly preserve a known Failed predecessor.
 
+Profile JSON is pinned to LF by `.gitattributes`. For every new byte-hashed module
+file, add an explicit `migrations/<module_filename>.sql text eol=lf` attribute
+before calculating its checksum; the repository's general SQL rule uses CRLF.
+Hash the exact committed Git blob bytes and verify a fresh checkout reproduces
+them. Do not change historical migration attributes or normalize bytes at runtime.
+The Bot preparer reads exact blobs from the pinned SQL commit, so its packaged
+bytes must agree with these reviewed hashes and any standalone runner checkout.
+
 Modules must already exist, be unsigned P/V objects with ANSI_NULLS and
 QUOTED_IDENTIFIER on, and use ordinary schema/object names. The file begins with
 exact `CREATE OR ALTER PROCEDURE [schema].[name]` or VIEW and contains one driver
@@ -56,8 +64,9 @@ recovery. No backup, schema creation, data migration or external effect is perfo
 An exclusive session application lock serializes this profile. Apply records an
 attempt, then changes modules/grants and writes Applied plus Succeeded in the same
 transaction. Rollback leaves the prior attempt, including Failed history, intact.
-Status obtains the same lock: an exact Applied identity plus exact postimages is
-committed; absent Applied plus exact preimages and matching prior attempts proves
+Status obtains the same lock: an exact Applied identity, its linked Succeeded
+attempt with the same release UUID, and exact postimages prove committed;
+absent Applied plus exact preimages and matching prior attempts proves
 rollback. A live owner, mismatched history or drift is unresolved and never replayed.
 The bounded history query refuses more than 256 attempts.
 

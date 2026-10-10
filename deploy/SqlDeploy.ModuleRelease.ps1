@@ -137,9 +137,13 @@ WHERE o.object_id=OBJECT_ID(@name) AND p.name=@principal;
 }
 function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,[string]$ReleaseId) {
     $p=$Loaded.Profile
-    $rows=Invoke-K98ModuleQuery $Connection $null 'SELECT Status,ChecksumSha256,GitCommit FROM dbo.SchemaMigrationHistory WHERE MigrationId=@id;' @{id=$p.migration_id}
+    $rows=Invoke-K98ModuleQuery $Connection $null 'SELECT Status,ChecksumSha256,GitCommit,DeploymentId FROM dbo.SchemaMigrationHistory WHERE MigrationId=@id;' @{id=$p.migration_id}
     if($rows.Count) {
         if($rows.Count -ne 1 -or $rows[0].Status -cne 'Applied' -or $rows[0].ChecksumSha256 -cne $Hash -or $rows[0].GitCommit -cne $Commit){throw ('Migration history differs: '+$p.migration_id+' expected=Applied/'+$Hash+'/'+$Commit+'; preserve Failed history and use a reviewed corrective identity.')}
+        $completed=Invoke-K98ModuleQuery $Connection $null "SELECT Status,GitCommit,ErrorMessage FROM dbo.DeploymentRunHistory WHERE DeploymentId=@attempt AND BranchName=N'module_grants_v1';" @{attempt=$rows[0].DeploymentId}
+        if($completed.Count -ne 1 -or $completed[0].Status -cne 'Succeeded' -or $completed[0].GitCommit -cne $Commit){throw ('Committed migration attempt differs: '+$p.migration_id+'; retain history and inspect its linked deployment attempt.')}
+        $binding=$completed[0].ErrorMessage|ConvertFrom-Json
+        if($binding.migration_id -cne $p.migration_id -or $binding.profile_sha256 -cne $Hash -or $binding.sql_commit -cne $Commit -or $binding.release_id -cne $ReleaseId){throw ('Committed migration release differs: '+$p.migration_id+' expected_release='+$ReleaseId+' observed_release='+$binding.release_id+'; resume the original release, do not replay or adopt its receipt.')}
         Assert-K98ModuleImages $Connection $null $Loaded $true
         return 'committed'
     }
