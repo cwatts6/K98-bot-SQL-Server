@@ -1,0 +1,13 @@
+# Exact outcome predecessor and SQL file decoding
+
+The first outcome replacement rejected a deployed UPDATE_ALL2 spelling that was already explicitly approved by export_legacy_direct_permission_manifest.json. Its compatibility fingerprint is independently reproducible from the repository predecessor by decoding UTF-8 bytes as Windows-1252. Eleven comment lines differ; executable SQL is unchanged. Preflight accepted that exact spelling while the migration omitted it.
+
+The new immutable migration 20261010_002_stats_import_outcomes_encoding aligns that finite preimage check, preserves the two previous migration files, and installs the same reviewed procedure bodies. It verifies their exact installed postimages before transaction commit. No arbitrary character normalization or observed-hash substitution is allowed. Both prior migration IDs are blocked in deployment selection; select the reviewed replacement explicitly.
+
+The SqlClient fallback now decodes SQL explicitly using a strict UTF-8 decoder, while retaining explicit Unicode BOM support. Previously Windows PowerShell 5.1 Get-Content could decode BOM-less source through the machine ANSI code page. Invalid text stops before opening SQL. The Invoke-Sqlcmd branch is unchanged.
+
+Offline Windows PowerShell 5.1 checks passed: four file-decoding cases, 46 migration-selection cases, and independent predecessor fingerprints/comment-only differences/unchanged module bodies. CI runs these checks on Windows. The new source hash remains a file pin, not proof of installation.
+
+The explicitly executed local rehearsal validation/test_stats_outcome_encoding.py uses a fresh synthetic K98DEV database and the actual Windows PowerShell 5.1 SqlClient file loader. It reproduced the old source mismatch, rejected and rolled back corrupted installed text, installed the correct definitions, repeated their metadata checks, and retained both synthetic Failed receipts unchanged. No import or business procedure ran. Final fixture K98_S11_Encoding_20261010_r2 is READ_ONLY. The earlier r1 fixture is also retained READ_ONLY after verifying rollback; its test assertion failed because PowerShell wrapped an expected error across lines. The assertion now compares whitespace-normalized diagnostics.
+
+This rehearsal covers the actual file loader and SQL transaction. It does not claim to exercise the outer backup/Git/ledger orchestration runner or certify production deployment. The selected release needs separate reviewed control-record reconciliation and Bot migration-lineage support; do not retry either failed migration or edit its ledger row.

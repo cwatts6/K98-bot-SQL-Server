@@ -18,7 +18,8 @@ param(
 function Assert-K98ExplicitMigrationSelection {
     param([string]$MigrationId, [bool]$ExplicitTarget, [string]$MigrationDirectory)
     $replacements = @{
-        '20261009_001_stats_import_outcomes' = '20261010_001_stats_import_outcomes_collation'
+        '20261009_001_stats_import_outcomes' = '20261010_002_stats_import_outcomes_encoding'
+        '20261010_001_stats_import_outcomes_collation' = '20261010_002_stats_import_outcomes_encoding'
         '20260914_002_legacy_export_preparation' = '20261001_001_legacy_export_preparation_installation'
         '20260915_001_kvk_output_pool_rollover' = '20261001_002_kvk_output_pool_installation'
         '20260915_002_kvk_output_operation_ownership' = '20261001_003_kvk_output_operation_installation'
@@ -41,7 +42,7 @@ function Assert-K98ExplicitMigrationSelection {
         throw "Migration not found: $MigrationId. No SQL executed."
     }
     if (($MigrationId -match '^20261001_(00[1-9]|010)_' -or
-         $MigrationId -eq '20261010_001_stats_import_outcomes_collation') -and -not $ExplicitTarget) {
+         $MigrationId -eq '20261010_002_stats_import_outcomes_encoding') -and -not $ExplicitTarget) {
         throw 'S11 corrected migrations require explicit -ServerName and -DatabaseName. No SQL executed.'
     }
 }

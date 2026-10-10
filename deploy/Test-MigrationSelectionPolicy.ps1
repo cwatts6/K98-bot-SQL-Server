@@ -23,6 +23,7 @@ function Assert-Blocked([string]$Id, [bool]$Target, [string]$Message) {
 foreach ($id in @('', '   ')) { Assert-Blocked $id $true 'Batch deployment is disabled' }
 $superseded = @(
     '20261009_001_stats_import_outcomes',
+    '20261010_001_stats_import_outcomes_collation',
     '20260914_002_legacy_export_preparation', '20260915_001_kvk_output_pool_rollover',
     '20260915_002_kvk_output_operation_ownership', '20260924_001_export_execution_evidence',
     '20260929_001_manual_export_registration', '20260929_002_manual_public_viewer_policy'
@@ -37,7 +38,7 @@ foreach ($id in @('../20261001_001_legacy_export_preparation_installation', '*',
 Assert-Blocked '20990101_001_not_present' $true 'Migration not found'
 $corrected = @(Get-ChildItem (Join-Path $PSScriptRoot '../migrations/20261001_*.sql') -File)
 if ($corrected.Count -ne 10) { throw 'Expected ten corrected/forward migration files' }
-$corrected += Get-Item -LiteralPath (Join-Path $migrationDirectory '20261010_001_stats_import_outcomes_collation.sql')
+$corrected += Get-Item -LiteralPath (Join-Path $migrationDirectory '20261010_002_stats_import_outcomes_encoding.sql')
 foreach ($file in $corrected) {
     Assert-Blocked $file.BaseName $false 'explicit -ServerName and -DatabaseName'
     Assert-K98ExplicitMigrationSelection -MigrationId $file.BaseName -ExplicitTarget $true -MigrationDirectory $migrationDirectory

@@ -25,6 +25,12 @@ jobs:
         shell: pwsh
         run: python .\deploy\test_source_checkout.py
 
+      - name: Verify Windows PowerShell SQL text decoding
+        shell: powershell
+        run: |
+          .\deploy\Test-SqlFileEncoding.ps1
+          .\deploy\Test-StatsImportEncodingContracts.ps1
+
       - name: Validate SQL authentication file visibility contract
         shell: pwsh
         run: |
