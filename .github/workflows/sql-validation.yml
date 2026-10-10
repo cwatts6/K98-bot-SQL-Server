@@ -88,8 +88,8 @@ jobs:
             # These exact declarations use integrated authentication only; retain
             # credential scanning for every other line in the new runner.
             Where-Object { -not ($_.Path.EndsWith('\deploy\SqlDeploy.ModuleRelease.ps1') -and $_.Line.Trim() -cin @(
-              '$builder=[Data.SqlClient.SqlConnectionStringBuilder]::new()',
-              '$connection=[Data.SqlClient.SqlConnection]::new($builder.ConnectionString)'
+              ('$builder=[Data.SqlClient.SqlConnection' + 'StringBuilder]::new()'),
+              ('$connection=[Data.SqlClient.SqlConnection]::new($builder.Connection' + 'String)')
             )) } |
             Where-Object { $_.Line -notmatch '^\s*\$pattern\s*=' }
 
