@@ -11,6 +11,8 @@ deploy/export_legacy_direct_permission_manifest.json text eol=lf
 deploy/export_stats_import_outcome_source.json text eol=lf
 migrations/20261009_001_stats_import_outcomes.sql text eol=lf
 migrations/20261010_001_stats_import_outcomes_collation.sql text eol=lf
+# Preserve the historical mixed-newline evidence blob without Git conversion.
+deploy/recovery/s11_withdraw_405_20261008/withdraw.sql -text
 sql_schema/dbo.StatsImportExecution.Table.sql text eol=lf
 sql_schema/dbo.usp_S11RunStatsImport.StoredProcedure.sql text eol=lf
 sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql text eol=lf

@@ -21,6 +21,10 @@ jobs:
         shell: pwsh
         run: .\deploy\Test-MigrationSelectionPolicy.ps1
 
+      - name: Verify clean checkout and historical byte custody
+        shell: pwsh
+        run: python .\deploy\test_source_checkout.py
+
       - name: Validate SQL authentication file visibility contract
         shell: pwsh
         run: |
