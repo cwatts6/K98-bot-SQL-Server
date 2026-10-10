@@ -40,7 +40,8 @@ function Assert-K98ExplicitMigrationSelection {
     if (-not (Test-Path -LiteralPath $selectedPath -PathType Leaf)) {
         throw "Migration not found: $MigrationId. No SQL executed."
     }
-    if ($MigrationId -match '^20261001_(00[1-9]|010)_' -and -not $ExplicitTarget) {
+    if (($MigrationId -match '^20261001_(00[1-9]|010)_' -or
+         $MigrationId -eq '20261010_001_stats_import_outcomes_collation') -and -not $ExplicitTarget) {
         throw 'S11 corrected migrations require explicit -ServerName and -DatabaseName. No SQL executed.'
     }
 }
