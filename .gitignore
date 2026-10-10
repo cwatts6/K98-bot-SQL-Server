@@ -6,6 +6,7 @@ exports/*
 !exports/.gitkeep
 deploy/sql_deploy_config.json
 *.sqlplan
+validation/artifacts/
 
 # Operator-held KingdomScanData4 raw evidence stays local; reviewed summaries
 # and hashes remain in the tracked Markdown manifests.
