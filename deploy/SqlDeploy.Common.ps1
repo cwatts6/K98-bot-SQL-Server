@@ -207,7 +207,10 @@ function Invoke-K98SqlFileWithSqlClient {
         [int]$QueryTimeout = 0
     )
 
-    $sqlText = Get-Content -Raw -Path $InputFile
+    # Windows PowerShell 5.1 defaults BOM-less Get-Content to the ANSI code page.
+    # Decode SQL explicitly before opening a connection; invalid UTF-8 must stop.
+    # ReadAllText still honors explicit Unicode BOMs in historical source files.
+    $sqlText = [IO.File]::ReadAllText((Resolve-Path -LiteralPath $InputFile).ProviderPath, [Text.UTF8Encoding]::new($false, $true))
     if ($sqlText -match "(?m)^\s*:") {
         throw "SQLCMD directives are not supported by the SqlClient fallback. Use plain migration SQL or install the SqlServer module."
     }
