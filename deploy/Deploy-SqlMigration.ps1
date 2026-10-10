@@ -42,7 +42,7 @@ function Assert-K98ExplicitMigrationSelection {
         throw "Migration not found: $MigrationId. No SQL executed."
     }
     if (($MigrationId -match '^20261001_(00[1-9]|010)_' -or
-         $MigrationId -eq '20261010_002_stats_import_outcomes_encoding') -and -not $ExplicitTarget) {
+         $MigrationId -in @('20261010_002_stats_import_outcomes_encoding', '20261010_003_stats_import_outcome_postimages')) -and -not $ExplicitTarget) {
         throw 'S11 corrected migrations require explicit -ServerName and -DatabaseName. No SQL executed.'
     }
 }

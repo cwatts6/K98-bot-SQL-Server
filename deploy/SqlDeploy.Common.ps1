@@ -179,7 +179,10 @@ function Split-K98SqlBatches {
 
     $batches = New-Object System.Collections.Generic.List[string]
     $current = New-Object System.Text.StringBuilder
-    foreach ($line in ($SqlText -split "\r?\n")) {
+    # Retain each original terminator. AppendLine rewrote reviewed LF procedure
+    # literals as CRLF on Windows, changing the installed raw metadata contract.
+    foreach ($match in [regex]::Matches($SqlText, '[^\n]*(?:\n|$)')) {
+        $line = $match.Value
         if ($line -match "^\s*GO\s*(?:--.*)?$") {
             $batch = $current.ToString().Trim()
             if (-not [string]::IsNullOrWhiteSpace($batch)) {
@@ -188,7 +191,7 @@ function Split-K98SqlBatches {
             $current.Clear() | Out-Null
         }
         else {
-            [void]$current.AppendLine($line)
+            [void]$current.Append($line)
         }
     }
 
