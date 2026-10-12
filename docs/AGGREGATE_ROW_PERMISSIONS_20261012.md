@@ -50,8 +50,8 @@ change alone. Ordering is drain, grant amendment, promoted bot source from priva
 main, reviewed startup-contract amendment, start once, readiness verification.
 Keep the application stopped if any step fails; do not start with mixed contracts.
 
-The companion bot document
-`docs/reference/kvk_source_migration/aggregate_permission_contract_amendment_20261012.md`
+The companion bot document `aggregate_permission_contract_amendment_20261012.md`
+in [bot PR 328](https://github.com/cwatts6/K98-bot-mirror/pull/328)
 defines the exact allowed permission-observation changes and contract fields.
 Capture observations as the real application login, not a sysadmin session, and
 compare them to the independently derived expected postimage before installation.
