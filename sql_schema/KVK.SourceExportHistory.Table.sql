@@ -1,6 +1,7 @@
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
--- Reference only; deploy reviewed migration.
+
+-- S2 reference snapshot; deploy the reviewed migration, not this file.
 CREATE TABLE KVK.SourceExportHistory
 (
     IntentID uniqueidentifier NOT NULL,
