@@ -157,8 +157,9 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
         Assert-K98ModuleImages $Connection $null $Loaded $true
         return 'committed'
     }
-    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName=@profile AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id;profile=$p.profile}
+    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
     foreach($a in $attempts) {
+        if($a.BranchName -cne $p.profile){throw ('Migration profile identity differs: '+$p.migration_id+'; retain the original attempt and use a reviewed corrective identity.')}
         $b=$a.ErrorMessage|ConvertFrom-Json
         if($b.profile_sha256 -cne $Hash -or $b.sql_commit -cne $Commit -or $b.release_id -cne $ReleaseId -or $a.Status -cnotin @('Started','Failed')){throw ('Migration attempt identity/outcome differs: '+$p.migration_id)}
     }

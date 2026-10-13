@@ -46,6 +46,9 @@ absent preimages and a retained attempt; the same release may retry after provin
 rollback. A committed receipt and exact postimages allow continuation without
 reapplying. A different release, partial schema, altered metadata or unknown owner
 is refused. Schema is retained on Bot rollback; no automatic DROP or database restore.
+Migration identities are shared across both supported profile families: a retained
+module-profile attempt also prevents reusing that identity for additive tables,
+and conversely. A different profile requires a reviewed corrective identity.
 
 `validation/build_history_release_profile.py` generates the first two-table report
 profile using explicit observed collations and compatibility. It performs no SQL

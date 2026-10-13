@@ -231,6 +231,17 @@ def run(database):
     )
     assert attempts(invalid) == 1
 
+    # A prior attempt under the other supported profile owns the migration ID
+    # too. Simulate that retained historical receipt with absent table preimages.
+    execute(
+        "UPDATE dbo.DeploymentRunHistory SET BranchName='module_grants_v1' "
+        "WHERE JSON_VALUE(ErrorMessage,'$.migration_id')=?",
+        invalid["migration_id"],
+    )
+    outer(bad_path, "Status", 20)
+    outer(bad_path, "Apply", 20)
+    assert attempts(invalid) == 1
+
     # Exact entrypoint, instrumented library only for deterministic real process death.
     for when in ("before_commit", "after_commit"):
         death = fixture(when)
