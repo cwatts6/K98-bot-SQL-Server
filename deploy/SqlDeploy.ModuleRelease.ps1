@@ -14,6 +14,11 @@ function Read-K98ModuleProfile([string]$Path,[string]$Expected,[string]$Migratio
     $raw=[IO.File]::ReadAllBytes($Path)
     if($raw.Length -gt 1MB -or $Expected -cnotmatch '^[a-f0-9]{64}$' -or (Get-K98ModuleHash $raw) -cne $Expected){throw 'Profile checksum/size differs'}
     $p=[Text.UTF8Encoding]::new($false,$true).GetString($raw)|ConvertFrom-Json
+    if($p.profile -ceq 'additive_tables_v1') {
+        if($p.migration_id -cne $MigrationId){throw 'Exact additive migration identity required'}
+        . "$PSScriptRoot\SqlDeploy.TableRelease.ps1"
+        return Read-K98TableProfile $p
+    }
     Assert-K98ModuleFields $p @('version','profile','migration_id','database_collation','tempdb_collation','compatibility_level','modules','grants','requires')
     if($p.version -ne 1 -or $p.profile -cne 'module_grants_v1' -or $p.migration_id -cne $MigrationId -or $MigrationId -cnotmatch '^[0-9]{8}_[0-9]{3}_[a-z0-9_]+$'){throw 'Unsupported exact migration/profile'}
     if($p.database_collation -cnotmatch '^[A-Za-z0-9_]{1,128}$' -or $p.tempdb_collation -cnotmatch '^[A-Za-z0-9_]{1,128}$' -or $p.compatibility_level -notin @(130,140,150,160)){throw 'Exact SQL collation/compatibility required'}
@@ -110,6 +115,11 @@ IF (SELECT recovery_model_desc FROM sys.databases WHERE database_id=DB_ID())<>'S
     }
 }
 function Assert-K98ModuleImages($Connection,$Transaction,$Loaded,[bool]$After) {
+    if($Loaded.Profile.profile -ceq 'additive_tables_v1') {
+        . "$PSScriptRoot\SqlDeploy.TableRelease.ps1"
+        Assert-K98TableImages $Connection $Transaction $Loaded $After
+        return
+    }
     foreach($m in $Loaded.Profile.modules) {
         $key=$m.schema+'.'+$m.name
         $rows=Invoke-K98ModuleQuery $Connection $Transaction @'
@@ -140,14 +150,14 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
     $rows=Invoke-K98ModuleQuery $Connection $null 'SELECT Status,ChecksumSha256,GitCommit,DeploymentId FROM dbo.SchemaMigrationHistory WHERE MigrationId=@id;' @{id=$p.migration_id}
     if($rows.Count) {
         if($rows.Count -ne 1 -or $rows[0].Status -cne 'Applied' -or $rows[0].ChecksumSha256 -cne $Hash -or $rows[0].GitCommit -cne $Commit){throw ('Migration history differs: '+$p.migration_id+' expected=Applied/'+$Hash+'/'+$Commit+'; preserve Failed history and use a reviewed corrective identity.')}
-        $completed=Invoke-K98ModuleQuery $Connection $null "SELECT Status,GitCommit,ErrorMessage FROM dbo.DeploymentRunHistory WHERE DeploymentId=@attempt AND BranchName=N'module_grants_v1';" @{attempt=$rows[0].DeploymentId}
+        $completed=Invoke-K98ModuleQuery $Connection $null "SELECT Status,GitCommit,ErrorMessage FROM dbo.DeploymentRunHistory WHERE DeploymentId=@attempt AND BranchName=@profile;" @{attempt=$rows[0].DeploymentId;profile=$p.profile}
         if($completed.Count -ne 1 -or $completed[0].Status -cne 'Succeeded' -or $completed[0].GitCommit -cne $Commit){throw ('Committed migration attempt differs: '+$p.migration_id+'; retain history and inspect its linked deployment attempt.')}
         $binding=$completed[0].ErrorMessage|ConvertFrom-Json
         if($binding.migration_id -cne $p.migration_id -or $binding.profile_sha256 -cne $Hash -or $binding.sql_commit -cne $Commit -or $binding.release_id -cne $ReleaseId){throw ('Committed migration release differs: '+$p.migration_id+' expected_release='+$ReleaseId+' observed_release='+$binding.release_id+'; resume the original release, do not replay or adopt its receipt.')}
         Assert-K98ModuleImages $Connection $null $Loaded $true
         return 'committed'
     }
-    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName=N'module_grants_v1' AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
+    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName=@profile AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id;profile=$p.profile}
     foreach($a in $attempts) {
         $b=$a.ErrorMessage|ConvertFrom-Json
         if($b.profile_sha256 -cne $Hash -or $b.sql_commit -cne $Commit -or $b.release_id -cne $ReleaseId -or $a.Status -cnotin @('Started','Failed')){throw ('Migration attempt identity/outcome differs: '+$p.migration_id)}
@@ -183,18 +193,22 @@ IF @result<0 THROW 51950,'SQL_RELEASE_BUSY: active or unresolved SQL owner; wait
             $binding=@{migration_id=$MigrationId;profile_sha256=$ProfileSHA256;sql_commit=$ExpectedCommit;release_id=$ReleaseId}|ConvertTo-Json -Compress
             $null=Invoke-K98ModuleQuery $connection $null @'
 INSERT dbo.DeploymentRunHistory(DeploymentId,StartedAtUtc,StartedBy,MachineName,DatabaseName,GitCommit,BranchName,MigrationCount,Status,ErrorMessage)
-VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,N'module_grants_v1',1,N'Started',@binding);
-'@ @{attempt=$attempt;commit=$ExpectedCommit;binding=$binding}
+VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,@profile,1,N'Started',@binding);
+'@ @{attempt=$attempt;commit=$ExpectedCommit;binding=$binding;profile=$loaded.Profile.profile}
             $transaction=$connection.BeginTransaction()
             Assert-K98ModuleImages $connection $transaction $loaded $false
-            foreach($m in $loaded.Profile.modules){$null=Invoke-K98ModuleQuery $connection $transaction $loaded.Texts[($m.schema+'.'+$m.name)]}
-            foreach($g in $loaded.Profile.grants){$null=Invoke-K98ModuleQuery $connection $transaction ('GRANT '+$g.permission+' ON OBJECT::['+$g.schema+'].['+$g.name+'] TO ['+$g.principal+'];')}
+            if($loaded.Profile.profile -ceq 'additive_tables_v1') {
+                foreach($table in $loaded.Tables){$null=Invoke-K98ModuleQuery $connection $transaction $table.Create}
+            }else{
+                foreach($m in $loaded.Profile.modules){$null=Invoke-K98ModuleQuery $connection $transaction $loaded.Texts[($m.schema+'.'+$m.name)]}
+                foreach($g in $loaded.Profile.grants){$null=Invoke-K98ModuleQuery $connection $transaction ('GRANT '+$g.permission+' ON OBJECT::['+$g.schema+'].['+$g.name+'] TO ['+$g.principal+'];')}
+            }
             Assert-K98ModuleImages $connection $transaction $loaded $true
             $null=Invoke-K98ModuleQuery $connection $transaction @'
 INSERT dbo.SchemaMigrationHistory(MigrationId,MigrationFile,ChecksumSha256,AppliedAtUtc,AppliedBy,MachineName,GitCommit,BranchName,DeploymentId,Status,DurationMs)
-VALUES(@id,@file,@hash,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),@commit,N'module_grants_v1',@attempt,N'Applied',0);
+VALUES(@id,@file,@hash,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),@commit,@profile,@attempt,N'Applied',0);
 UPDATE dbo.DeploymentRunHistory SET Status=N'Succeeded',FinishedAtUtc=SYSUTCDATETIME() WHERE DeploymentId=@attempt AND Status=N'Started';
-'@ @{id=$MigrationId;file=($MigrationId+'.release.json');hash=$ProfileSHA256;commit=$ExpectedCommit;attempt=$attempt}
+'@ @{id=$MigrationId;file=($MigrationId+'.release.json');hash=$ProfileSHA256;commit=$ExpectedCommit;attempt=$attempt;profile=$loaded.Profile.profile}
             $commitRequested=$true
             $transaction.Commit();$transaction.Dispose();$transaction=$null
             $state=Get-K98ModuleOutcome $connection $loaded $ProfileSHA256 $ExpectedCommit $ReleaseId
