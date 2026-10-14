@@ -3,7 +3,8 @@
 `additive_tables_v1` extends the existing combined updater's pinned SqlClient
 runner. This is implementation for review, not installation or activation.
 The normal updater selects an exact profile from the pinned SQL commit through
-the reviewed Bot `deploy/k98-release.json`. No arbitrary SQL migration is executed.
+the reviewed Bot descriptor `k98-release.json` in that repository's `deploy`
+directory. No arbitrary SQL migration is executed.
 
 The JSON fields are exactly `version` (1), `profile` (`additive_tables_v1`),
 `migration_id`, `database_collation`, `tempdb_collation`, `compatibility_level`,
