@@ -157,7 +157,9 @@ SELECT m.Name COLLATE Latin1_General_100_BIN2, COUNT(*) FROM @HistoryMap m JOIN 
     THROW 51620, 'History index count shape conflict; preserve history and forward-fix.', 1;
 IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.triggers t ON t.parent_id=m.ActualID)
 OR EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.tables t ON t.object_id=m.ActualID WHERE t.temporal_type<>0 OR t.is_memory_optimized<>0)
-    THROW 51620, 'History unexpected default, trigger or table mode.', 1;
+OR EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.partitions p ON p.object_id=m.ActualID WHERE p.data_compression<>0 OR p.partition_number<>1)
+OR EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID JOIN sys.data_spaces d ON d.data_space_id=i.data_space_id WHERE d.type<>'FG')
+    THROW 51620, 'History unexpected trigger, partition, compression or table mode.', 1;
 -- No defaults are part of this snapshot contract.
 IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, d.parent_column_id, d.definition COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN sys.default_constraints d ON d.parent_object_id=m.ActualID
 EXCEPT

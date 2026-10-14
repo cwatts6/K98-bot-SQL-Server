@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 $root=Join-Path ([IO.Path]::GetTempPath()) ('k98-tables-'+[guid]::NewGuid().ToString('N'))
 $null=[IO.Directory]::CreateDirectory($root)
 $checks=0
-foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','type','collation','duplicate-table','duplicate-column','nullable-key','check-op','check-column','check-literal','check-unicode','future-fk','fk-arity','constraint','version','boolean-version','ledger')){
+foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','type','collation','duplicate-table','duplicate-column','nullable-key','null-key','empty-key-array','key-array','scalar-key','check-op','check-column','check-literal','check-unicode','future-fk','fk-arity','constraint','version','boolean-version','ledger')){
     $p=[IO.File]::ReadAllText($FixturePath)|ConvertFrom-Json
     switch($damage){
         'raw-sql'{$p|Add-Member NoteProperty sql 'DROP TABLE dbo.Example'}
@@ -17,6 +17,10 @@ foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','
         'duplicate-table'{$p.tables+=@($p.tables[0])}
         'duplicate-column'{$p.tables[0].columns+=@($p.tables[0].columns[0])}
         'nullable-key'{$p.tables[0].columns[0].nullable=$true}
+        'null-key'{$p.tables[0].primary_key=$null}
+        'empty-key-array'{$p.tables[0].primary_key=@()}
+        'key-array'{$p.tables[0].primary_key=@($p.tables[0].primary_key)}
+        'scalar-key'{$p.tables[0].primary_key='PK_invalid'}
         'check-op'{$p.tables[0].checks[0].expression.op='execute'}
         'check-column'{$p.tables[0].checks[0].expression.args[0].column='Missing'}
         'check-literal'{$p.tables[0].checks[0].expression.args[0].value=('x'*129)}

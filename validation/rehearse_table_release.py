@@ -186,6 +186,41 @@ def run(database):
         checked.returncode == 0 and b"LEGACY_SHAPE_MATCH" in checked.stdout
     ), checked.stderr.decode(errors="replace")
 
+    # The alternative legacy installation path must also reject physical drift.
+    def legacy_refuses_drift():
+        try:
+            execute(migration)
+        except pyodbc.Error as exc:
+            assert "History unexpected trigger, partition, compression or table mode" in str(exc)
+        else:
+            raise AssertionError("Legacy migration accepted physical table drift")
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+
+    for compression in ("ROW", "PAGE"):
+        execute(
+            f"ALTER INDEX ALL ON [{legacy_schema}].SourceExportHistoryRow "
+            f"REBUILD WITH (DATA_COMPRESSION = {compression});"
+        )
+        legacy_refuses_drift()
+        execute(
+            f"ALTER INDEX ALL ON [{legacy_schema}].SourceExportHistoryRow "
+            "REBUILD WITH (DATA_COMPRESSION = NONE);"
+        )
+        execute(migration)
+    partition = "Updater_" + run_id + "_partition"
+    execute(f"CREATE PARTITION FUNCTION [{partition}] (bigint) AS RANGE RIGHT FOR VALUES (1);")
+    execute(f"CREATE PARTITION SCHEME [{partition}] AS PARTITION [{partition}] ALL TO ([PRIMARY]);")
+    execute(
+        f"ALTER TABLE [{legacy_schema}].SourceExportHistoryRow DROP CONSTRAINT PK_SourceExportHistoryRow;"
+        f"ALTER TABLE [{legacy_schema}].SourceExportHistoryRow ADD CONSTRAINT PK_SourceExportHistoryRow "
+        f"PRIMARY KEY CLUSTERED(IntentID,GuildID,HistoryVersion,Ordinal) ON [{partition}](Ordinal);"
+    )
+    legacy_refuses_drift()
+    (output / "legacy-physical-drift.json").write_text(
+        json.dumps({"ROW": "REFUSED", "PAGE": "REFUSED", "partition_scheme": "REFUSED"}),
+        encoding="utf-8",
+    )
+
     p = fixture("success")
     path = save(p)
     outer(path, "Preflight", 0)

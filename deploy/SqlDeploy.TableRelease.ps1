@@ -86,6 +86,7 @@ function Read-K98TableProfile($Profile) {
             $text+= $(if($c.nullable){' NULL'}else{' NOT NULL'})
             $columns[$c.name]=$c;$parts+=$text
         }
+        if($t.primary_key -isnot [pscustomobject]){throw 'Exactly one primary key object required'}
         foreach($k in @($t.primary_key)+@($t.unique_keys)){
             Assert-K98ModuleFields $k @('name','columns');Assert-K98TableIdentifier $k.name
             $constraint=$t.schema+'.'+$k.name
