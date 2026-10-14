@@ -31,7 +31,7 @@ IF @HistoryLock<0 THROW 51620, 'Export history schema lock unavailable.', 1;
 IF OBJECT_ID(N'KVK.SourceExportIntent',N'U') IS NULL
     THROW 51620, 'SourceExportIntent prerequisite missing.', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes i WHERE i.object_id=OBJECT_ID(N'KVK.SourceExportIntent')
-    AND i.is_unique=1 AND i.is_disabled=0 AND i.has_filter=0
+    AND i.is_unique=1 AND i.is_disabled=0 AND i.is_hypothetical=0 AND i.has_filter=0
     AND (SELECT STRING_AGG(CONVERT(nvarchar(max),c.name),N',') WITHIN GROUP (ORDER BY ic.key_ordinal)
          FROM sys.index_columns ic JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
          WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id AND ic.key_ordinal>0)=N'SourceKey,KVK_NO,IntentID')

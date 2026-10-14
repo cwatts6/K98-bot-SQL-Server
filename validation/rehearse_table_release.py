@@ -165,6 +165,28 @@ def run(database):
     assert attempts(hypothetical) == 0
     assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + ".SourceExportHistory").fetchval() is None
 
+    legacy_hypothetical = (ROOT / "migrations/20261013_001_kvk_export_history.sql").read_text(
+        encoding="utf-8-sig"
+    )
+    legacy_hypothetical = legacy_hypothetical.replace("KVK.", schema + ".").replace(
+        "SCHEMA_ID(N'KVK')", "SCHEMA_ID(N'" + schema + "')"
+    )
+    try:
+        execute(legacy_hypothetical)
+    except pyodbc.Error as exc:
+        assert "SourceExportIntent scoped key missing" in str(exc)
+    else:
+        raise AssertionError("Legacy migration accepted a hypothetical prerequisite index")
+    assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+    assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + ".SourceExportHistory").fetchval() is None
+    assert (
+        c.execute("SELECT OBJECT_ID(?,N'U')", schema + ".SourceExportHistoryRow").fetchval() is None
+    )
+    (output / "legacy-hypothetical-key.json").write_text(
+        json.dumps({"result": "REFUSED_BEFORE_DDL", "transaction_count": 0, "new_tables": 0}),
+        encoding="utf-8",
+    )
+
     # Internal FK targets must be rejected before any Started attempt is written.
     invalid_key = fixture("invalid_key")
     invalid_key["tables"][0]["primary_key"]["columns"] = ["IntentID"]
