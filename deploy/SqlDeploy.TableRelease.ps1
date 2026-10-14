@@ -167,18 +167,20 @@ function Assert-K98TableImages($Connection,$Transaction,$Loaded,[bool]$After) {
             $expected=Get-K98TableImageSql 'tempdb' "OBJECT_ID(N'tempdb..#K98_TableExpected')"
             $actual=Get-K98TableImageSql 'DB_NAME_UNUSED' 'OBJECT_ID(@name)'
             $actual=$actual.Replace('DB_NAME_UNUSED.sys.','sys.')
-            $query="CREATE TABLE #K98_TableExpected ("+$built.Body+");`n"+@"
+            $query=@"
 IF OBJECT_ID(@name,N'U') IS NULL THROW 51950,'Additive postimage table missing.',1;
 IF OBJECT_NAME(OBJECT_ID(@name)) COLLATE Latin1_General_100_BIN2<>@table COLLATE Latin1_General_100_BIN2
  OR OBJECT_SCHEMA_NAME(OBJECT_ID(@name)) COLLATE Latin1_General_100_BIN2<>@schema COLLATE Latin1_General_100_BIN2
  THROW 51950,'Additive object identity differs.',1;
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(@name) AND user_type_id<>system_type_id)
+ OR EXISTS(SELECT 1 FROM sys.masked_columns WHERE object_id=OBJECT_ID(@name) AND is_masked=1)
  OR EXISTS(SELECT 1 FROM sys.tables WHERE object_id=OBJECT_ID(@name) AND (temporal_type<>0 OR is_memory_optimized<>0 OR is_filetable<>0 OR is_replicated<>0 OR is_merge_published<>0 OR is_sync_tran_subscribed<>0 OR is_tracked_by_cdc<>0 OR filestream_data_space_id<>0))
  OR EXISTS(SELECT 1 FROM sys.triggers WHERE parent_id=OBJECT_ID(@name))
  OR EXISTS(SELECT 1 FROM sys.default_constraints WHERE parent_object_id=OBJECT_ID(@name))
  OR EXISTS(SELECT 1 FROM sys.partitions WHERE object_id=OBJECT_ID(@name) AND (data_compression<>0 OR partition_number<>1))
  OR EXISTS(SELECT 1 FROM sys.indexes i JOIN sys.data_spaces d ON d.data_space_id=i.data_space_id WHERE i.object_id=OBJECT_ID(@name) AND d.type<>'FG')
  THROW 51950,'Unsupported additive table metadata.',1;
+CREATE TABLE #K98_TableExpected ($($built.Body));
 SELECT ($expected) AS expected_image,($actual) AS actual_image;
 DROP TABLE #K98_TableExpected;
 "@

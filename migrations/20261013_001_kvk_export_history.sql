@@ -72,6 +72,17 @@ CREATE TABLE #History_SourceExportHistoryRow
     CHECK (ISJSON(PayloadJson)=1 AND DATALENGTH(PayloadJson)<=16384)
 );
 
+-- Validate the referenced columns against compiled child definitions before installation.
+IF EXISTS (SELECT 1 FROM tempdb.sys.columns e
+ LEFT JOIN sys.columns a ON a.object_id=OBJECT_ID(N'KVK.SourceExportIntent')
+ AND a.name COLLATE Latin1_General_100_BIN2=e.name COLLATE Latin1_General_100_BIN2
+ WHERE e.object_id=OBJECT_ID(N'tempdb..#History_SourceExportHistory')
+ AND e.name IN (N'SourceKey',N'KVK_NO',N'IntentID')
+ AND (a.column_id IS NULL OR a.user_type_id<>a.system_type_id OR a.system_type_id<>e.system_type_id
+ OR a.max_length<>e.max_length OR a.precision<>e.precision OR a.scale<>e.scale
+ OR ISNULL(a.collation_name,N'') COLLATE Latin1_General_100_BIN2<>ISNULL(e.collation_name,N'') COLLATE Latin1_General_100_BIN2))
+ THROW 51620, 'SourceExportIntent prerequisite column shape differs.', 1;
+
 IF @HistoryExisting=0
 BEGIN
 -- HISTORY_INSTALL_PAYLOAD_BEGIN
@@ -146,6 +157,8 @@ IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.Actua
  ELSE N'' END) COLLATE Latin1_General_100_BIN2)
  THROW 51620, 'History named index shape conflict; preserve and forward-fix.', 1;
 -- EXCEPT in both directions rejects missing, extra, disabled, untrusted or altered shape.
+IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.masked_columns c ON c.object_id=m.ActualID WHERE c.is_masked=1)
+ THROW 51620, 'History masked column conflict; preserve and forward-fix.', 1;
 IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @HistoryMap m JOIN sys.columns c ON c.object_id=m.ActualID
 EXCEPT
 SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @HistoryMap m JOIN tempdb.sys.columns c ON c.object_id=m.ExpectedID)

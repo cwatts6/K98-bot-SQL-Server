@@ -196,7 +196,8 @@ def run(database):
     assert attempts(invalid_key) == 0
     assert (
         c.execute(
-            "SELECT OBJECT_ID(?,N'U')", invalid_key["tables"][0]["schema"] + ".SourceExportHistory"
+            "SELECT OBJECT_ID(?,N'U')",
+            invalid_key["tables"][0]["schema"] + ".SourceExportHistory",
         ).fetchval()
         is None
     )
@@ -256,6 +257,56 @@ def run(database):
             is None
         )
 
+    prerequisite_results = {}
+    for label, source_type, source_collation, season_type, intent_type in (
+        (
+            "unicode",
+            "nvarchar(32)",
+            "Latin1_General_100_BIN2",
+            "int",
+            "uniqueidentifier",
+        ),
+        ("length", "varchar(31)", "Latin1_General_100_BIN2", "int", "uniqueidentifier"),
+        ("collation", "varchar(32)", "Latin1_General_CI_AS", "int", "uniqueidentifier"),
+        (
+            "season",
+            "varchar(32)",
+            "Latin1_General_100_BIN2",
+            "bigint",
+            "uniqueidentifier",
+        ),
+        ("intent", "varchar(32)", "Latin1_General_100_BIN2", "int", "varchar(36)"),
+    ):
+        prerequisite = fixture("legacy_prerequisite_" + label)
+        schema = prerequisite["tables"][0]["schema"]
+        # This isolated fixture has no children or application data.
+        execute(f"DROP TABLE [{schema}].SourceExportIntent;")
+        execute(
+            f"CREATE TABLE [{schema}].SourceExportIntent("
+            f"SourceKey {source_type} COLLATE {source_collation} NOT NULL,"
+            f"KVK_NO {season_type} NOT NULL,IntentID {intent_type} NOT NULL,"
+            "UNIQUE(SourceKey,KVK_NO,IntentID));"
+        )
+        candidate = (ROOT / "migrations/20261013_001_kvk_export_history.sql").read_text(
+            encoding="utf-8-sig"
+        )
+        candidate = candidate.replace("KVK.", schema + ".").replace(
+            "SCHEMA_ID(N'KVK')", "SCHEMA_ID(N'" + schema + "')"
+        )
+        try:
+            execute(candidate)
+        except pyodbc.Error as exc:
+            assert "SourceExportIntent prerequisite column shape differs" in str(exc)
+        else:
+            raise AssertionError("Legacy migration accepted prerequisite drift: " + label)
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+        for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+            assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + "." + table).fetchval() is None
+        prerequisite_results[label] = "REFUSED_BEFORE_INSTALLATION_DDL"
+    (output / "legacy-prerequisite-shapes.json").write_text(
+        json.dumps(prerequisite_results), encoding="utf-8"
+    )
+
     # Compare the generated contract against the already-reviewed SQL migration,
     # in an isolated schema. Existing matching tables without this profile's
     # own receipt remain non-adoptable by the public runner.
@@ -303,6 +354,27 @@ def run(database):
         checked.returncode == 0 and b"LEGACY_SHAPE_MATCH" in checked.stdout
     ), checked.stderr.decode(errors="replace")
 
+    masked = {}
+    for table, column in (
+        ("SourceExportHistory", "CapturedUTC"),
+        ("SourceExportHistoryRow", "PayloadJson"),
+    ):
+        execute(
+            f"ALTER TABLE [{legacy_schema}].[{table}] ALTER COLUMN [{column}] "
+            "ADD MASKED WITH (FUNCTION='default()');"
+        )
+        try:
+            execute(migration)
+        except pyodbc.Error as exc:
+            assert "History masked column conflict" in str(exc)
+        else:
+            raise AssertionError("Legacy rerun accepted masked column: " + column)
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+        execute(f"ALTER TABLE [{legacy_schema}].[{table}] ALTER COLUMN [{column}] DROP MASKED;")
+        execute(migration)
+        masked[table + "." + column] = "REFUSED_AND_RECOVERED"
+    (output / "legacy-masked-columns.json").write_text(json.dumps(masked), encoding="utf-8")
+
     # Renames must not silently pass the alternative legacy exact-postimage path.
     renamed = {}
     for name, expected_error in (
@@ -310,7 +382,11 @@ def run(database):
         ("PK_SourceExportHistoryRow", "History named index shape conflict"),
         ("UQ_SourceExportHistoryRow_Attempt", "History named index shape conflict"),
     ):
-        execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", legacy_schema + "." + name, name + "_Changed")
+        execute(
+            "EXEC sys.sp_rename ?, ?, 'OBJECT';",
+            legacy_schema + "." + name,
+            name + "_Changed",
+        )
         try:
             execute(migration)
         except pyodbc.Error as exc:
@@ -318,7 +394,11 @@ def run(database):
         else:
             raise AssertionError("Legacy rerun accepted renamed constraint: " + name)
         assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
-        execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", legacy_schema + "." + name + "_Changed", name)
+        execute(
+            "EXEC sys.sp_rename ?, ?, 'OBJECT';",
+            legacy_schema + "." + name + "_Changed",
+            name,
+        )
         execute(migration)
         renamed[name] = "REFUSED"
     (output / "legacy-named-drift.json").write_text(json.dumps(renamed), encoding="utf-8")
@@ -392,8 +472,26 @@ def run(database):
     outer(path, "Verify", 0)
     assert attempts(p) == 1
     schema = p["tables"][0]["schema"]
+    for table, column in (
+        ("SourceExportHistory", "CapturedUTC"),
+        ("SourceExportHistoryRow", "PayloadJson"),
+    ):
+        execute(
+            f"ALTER TABLE [{schema}].[{table}] ALTER COLUMN [{column}] "
+            "ADD MASKED WITH (FUNCTION='default()');"
+        )
+        for operation in ("Verify", "Apply"):
+            outer(path, operation, 20)
+            error = (output / f"{counter:02d}-{operation}.stderr.txt").read_text()
+            assert "Unsupported additive table metadata" in " ".join(error.split())
+        assert attempts(p) == 1
+        execute(f"ALTER TABLE [{schema}].[{table}] ALTER COLUMN [{column}] DROP MASKED;")
+        outer(path, "Verify", 0)
     intent = str(uuid.uuid4())
-    execute(f"INSERT [{schema}].SourceExportIntent VALUES('snapshot_report_v1',16,?);", intent)
+    execute(
+        f"INSERT [{schema}].SourceExportIntent VALUES('snapshot_report_v1',16,?);",
+        intent,
+    )
     execute(
         f"INSERT [{schema}].SourceExportHistory VALUES(?,'123','source_export_history_v1','snapshot_report_v1',16,0x00,SYSUTCDATETIME(),0,0x00);",
         intent,
@@ -437,7 +535,8 @@ def run(database):
     assert '"state":"rolled_back"' in outer(bad_path, "Status", 11)
     assert (
         c.execute(
-            "SELECT OBJECT_ID(?)", invalid["tables"][0]["schema"] + ".SourceExportHistory"
+            "SELECT OBJECT_ID(?)",
+            invalid["tables"][0]["schema"] + ".SourceExportHistory",
         ).fetchval()
         is None
     )
