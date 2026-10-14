@@ -1,0 +1,282 @@
+{
+  "version": 1,
+  "profile": "additive_tables_v1",
+  "migration_id": "20261013_001_kvk_export_history",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "tables": [
+    {
+      "schema": "KVK",
+      "name": "SourceExportHistory",
+      "columns": [
+        {
+          "name": "IntentID",
+          "type": "uniqueidentifier",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "GuildID",
+          "type": "varchar(32)",
+          "nullable": false,
+          "collation": "Latin1_General_100_BIN2"
+        },
+        {
+          "name": "HistoryVersion",
+          "type": "varchar(64)",
+          "nullable": false,
+          "collation": "Latin1_General_100_BIN2"
+        },
+        {
+          "name": "SourceKey",
+          "type": "varchar(32)",
+          "nullable": false,
+          "collation": "Latin1_General_100_BIN2"
+        },
+        {
+          "name": "KVK_NO",
+          "type": "int",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "VectorHash",
+          "type": "binary(32)",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "CapturedUTC",
+          "type": "datetime2(0)",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "AttemptCount",
+          "type": "bigint",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "ContentHash",
+          "type": "binary(32)",
+          "nullable": false,
+          "collation": null
+        }
+      ],
+      "primary_key": {
+        "name": "PK_SourceExportHistory",
+        "columns": [
+          "IntentID",
+          "GuildID",
+          "HistoryVersion"
+        ]
+      },
+      "unique_keys": [],
+      "checks": [
+        {
+          "name": "CK_SourceExportHistory_Scope",
+          "expression": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "column": "SourceKey",
+                "value": "snapshot_report_v1"
+              },
+              {
+                "op": "bytes_eq",
+                "column": "SourceKey",
+                "value": 18
+              },
+              {
+                "op": "gt",
+                "column": "KVK_NO",
+                "value": 0
+              }
+            ]
+          }
+        },
+        {
+          "name": "CK_SourceExportHistory_Guild",
+          "expression": {
+            "op": "and",
+            "args": [
+              {
+                "op": "bytes_between",
+                "column": "GuildID",
+                "value": [
+                  1,
+                  32
+                ]
+              },
+              {
+                "op": "digits",
+                "column": "GuildID",
+                "value": true
+              }
+            ]
+          }
+        },
+        {
+          "name": "CK_SourceExportHistory_Version",
+          "expression": {
+            "op": "and",
+            "args": [
+              {
+                "op": "eq",
+                "column": "HistoryVersion",
+                "value": "source_export_history_v1"
+              },
+              {
+                "op": "bytes_eq",
+                "column": "HistoryVersion",
+                "value": 24
+              }
+            ]
+          }
+        },
+        {
+          "name": "CK_SourceExportHistory_Count",
+          "expression": {
+            "op": "ge",
+            "column": "AttemptCount",
+            "value": 0
+          }
+        }
+      ],
+      "foreign_keys": [
+        {
+          "name": "FK_SourceExportHistory_Intent",
+          "columns": [
+            "SourceKey",
+            "KVK_NO",
+            "IntentID"
+          ],
+          "schema": "KVK",
+          "table": "SourceExportIntent",
+          "target_columns": [
+            "SourceKey",
+            "KVK_NO",
+            "IntentID"
+          ]
+        }
+      ]
+    },
+    {
+      "schema": "KVK",
+      "name": "SourceExportHistoryRow",
+      "columns": [
+        {
+          "name": "IntentID",
+          "type": "uniqueidentifier",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "GuildID",
+          "type": "varchar(32)",
+          "nullable": false,
+          "collation": "Latin1_General_100_BIN2"
+        },
+        {
+          "name": "HistoryVersion",
+          "type": "varchar(64)",
+          "nullable": false,
+          "collation": "Latin1_General_100_BIN2"
+        },
+        {
+          "name": "Ordinal",
+          "type": "bigint",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "AttemptID",
+          "type": "uniqueidentifier",
+          "nullable": false,
+          "collation": null
+        },
+        {
+          "name": "PayloadJson",
+          "type": "nvarchar(max)",
+          "nullable": false,
+          "collation": "Latin1_General_100_BIN2"
+        },
+        {
+          "name": "RowHash",
+          "type": "binary(32)",
+          "nullable": false,
+          "collation": null
+        }
+      ],
+      "primary_key": {
+        "name": "PK_SourceExportHistoryRow",
+        "columns": [
+          "IntentID",
+          "GuildID",
+          "HistoryVersion",
+          "Ordinal"
+        ]
+      },
+      "unique_keys": [
+        {
+          "name": "UQ_SourceExportHistoryRow_Attempt",
+          "columns": [
+            "IntentID",
+            "GuildID",
+            "HistoryVersion",
+            "AttemptID"
+          ]
+        }
+      ],
+      "checks": [
+        {
+          "name": "CK_SourceExportHistoryRow_Ordinal",
+          "expression": {
+            "op": "gt",
+            "column": "Ordinal",
+            "value": 0
+          }
+        },
+        {
+          "name": "CK_SourceExportHistoryRow_Payload",
+          "expression": {
+            "op": "and",
+            "args": [
+              {
+                "op": "json",
+                "column": "PayloadJson",
+                "value": 1
+              },
+              {
+                "op": "bytes_max",
+                "column": "PayloadJson",
+                "value": 16384
+              }
+            ]
+          }
+        }
+      ],
+      "foreign_keys": [
+        {
+          "name": "FK_SourceExportHistoryRow_History",
+          "columns": [
+            "IntentID",
+            "GuildID",
+            "HistoryVersion"
+          ],
+          "schema": "KVK",
+          "table": "SourceExportHistory",
+          "target_columns": [
+            "IntentID",
+            "GuildID",
+            "HistoryVersion"
+          ]
+        }
+      ]
+    }
+  ],
+  "requires": []
+}
