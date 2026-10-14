@@ -718,6 +718,50 @@ def run(database):
         encoding="utf-8",
     )
 
+    # Persisted sampling needs populated statistics; normal row/sample counts
+    # remain outside the schema contract and must not cause false drift.
+    sampling_intent = str(uuid.uuid4())
+    execute(
+        f"INSERT [{schema}].SourceExportIntent VALUES('snapshot_report_v1',16,?);", sampling_intent
+    )
+    execute(
+        f"WITH numbers AS (SELECT TOP (100) ROW_NUMBER() OVER(ORDER BY object_id) n FROM sys.all_objects) "
+        f"INSERT [{schema}].SourceExportHistory "
+        "SELECT ?,CONVERT(varchar(32),n),'source_export_history_v1','snapshot_report_v1',16,"
+        "0x00,SYSUTCDATETIME(),1,0x00 FROM numbers;",
+        sampling_intent,
+    )
+    execute(
+        f"INSERT [{schema}].SourceExportHistoryRow "
+        f"SELECT IntentID,GuildID,HistoryVersion,1,NEWID(),N'{{}}',0x00 FROM [{schema}].SourceExportHistory;"
+    )
+    sampling_results = []
+    for table, index in (
+        ("SourceExportHistory", "PK_SourceExportHistory"),
+        ("SourceExportHistoryRow", "PK_SourceExportHistoryRow"),
+        ("SourceExportHistoryRow", "UQ_SourceExportHistoryRow_Attempt"),
+    ):
+        prefix = f"UPDATE STATISTICS [{schema}].[{table}] [{index}] WITH "
+        execute(prefix + "SAMPLE 10 PERCENT, PERSIST_SAMPLE_PERCENT=ON;")
+        observed = c.execute(
+            "SELECT s.no_recompute,s.has_persisted_sample,p.persisted_sample_percent "
+            "FROM sys.stats s OUTER APPLY sys.dm_db_stats_properties(s.object_id,s.stats_id) p "
+            "WHERE s.object_id=OBJECT_ID(?) AND s.name=?",
+            schema + "." + table,
+            index,
+        ).fetchone()
+        assert tuple(observed) == (False, True, 10.0), observed
+        refuse_postimage("History index shape conflict", "Additive table shape differs")
+        execute(prefix + "FULLSCAN, PERSIST_SAMPLE_PERCENT=OFF;")
+        recovered_postimage()
+        sampling_results.append(table + "." + index)
+    (output / "persisted-sampling-options.json").write_text(
+        json.dumps(sampling_results), encoding="utf-8"
+    )
+    execute(f"DELETE FROM [{schema}].SourceExportHistoryRow;")
+    execute(f"DELETE FROM [{schema}].SourceExportHistory;")
+    execute(f"DELETE FROM [{schema}].SourceExportIntent WHERE IntentID=?;", sampling_intent)
+
     intent = str(uuid.uuid4())
     execute(
         f"INSERT [{schema}].SourceExportIntent VALUES('snapshot_report_v1',16,?);",

@@ -145,9 +145,11 @@ function Get-K98TableImageSql([string]$Catalog,[string]$Id) {
 SELECT (SELECT c.column_id,c.name,c.system_type_id,c.max_length,c.precision,c.scale,c.collation_name,c.is_nullable,c.is_identity,c.is_computed,c.is_rowguidcol,c.is_sparse,c.generated_always_type,c.is_filestream
  FROM $Catalog.sys.columns c WHERE c.object_id=$Id ORDER BY c.column_id FOR JSON PATH) AS columns_json,
  (SELECT i.name,i.type,i.is_unique,i.is_primary_key,i.is_unique_constraint,i.is_disabled,i.ignore_dup_key,i.has_filter,i.filter_definition,i.is_hypothetical,i.fill_factor,i.is_padded,i.allow_row_locks,i.allow_page_locks,s.no_recompute,
+ JSON_VALUE((SELECT s.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.has_persisted_sample') AS has_persisted_sample,
+ COALESCE(TRY_CONVERT(float,JSON_VALUE((SELECT sp.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.persisted_sample_percent')),0) AS persisted_sample_percent,
  JSON_VALUE((SELECT i.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.optimize_for_sequential_key') AS optimize_for_sequential_key,
  JSON_QUERY((SELECT ic.index_column_id,ic.column_id,ic.key_ordinal,ic.is_descending_key,ic.is_included_column FROM $Catalog.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH)) AS key_columns
- FROM $Catalog.sys.indexes i LEFT JOIN $Catalog.sys.stats s ON s.object_id=i.object_id AND s.stats_id=i.index_id WHERE i.object_id=$Id ORDER BY i.name COLLATE Latin1_General_100_BIN2 FOR JSON PATH) AS indexes_json,
+ FROM $Catalog.sys.indexes i LEFT JOIN $Catalog.sys.stats s ON s.object_id=i.object_id AND s.stats_id=i.index_id OUTER APPLY $Catalog.sys.dm_db_stats_properties(i.object_id,i.index_id) sp WHERE i.object_id=$Id ORDER BY i.name COLLATE Latin1_General_100_BIN2 FOR JSON PATH) AS indexes_json,
  (SELECT c.name,c.definition,c.is_disabled,c.is_not_trusted,c.is_not_for_replication FROM $Catalog.sys.check_constraints c WHERE c.parent_object_id=$Id ORDER BY c.name COLLATE Latin1_General_100_BIN2 FOR JSON PATH) AS checks_json
  FOR JSON PATH,WITHOUT_ARRAY_WRAPPER
 "@
