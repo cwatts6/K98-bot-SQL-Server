@@ -54,7 +54,7 @@ and conversely. A different profile requires a reviewed corrective identity.
 profile using explicit observed collations and compatibility. It performs no SQL
 operation and does not overwrite an existing output. The generated definitions
 match `20261013_001_kvk_export_history.sql`. Review and commit the resulting
-`migrations/20261013_001_kvk_export_history.release.json` before pinning it in a Bot
+`20261013_001_kvk_export_history.release.json` in `migrations/` before pinning it in a Bot
 descriptor. Never substitute development observations for production values.
 The historical `.sql` and this profile are alternative installation paths; their
 different receipt/checksum contracts are not interchangeable. If history tables

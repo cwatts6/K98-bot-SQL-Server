@@ -30,6 +30,10 @@ jobs:
         run: |
           .\deploy\Test-SqlFileEncoding.ps1
           .\deploy\Test-ModuleReleaseProfile.ps1
+          $fixture = Join-Path $env:RUNNER_TEMP 'kvk-history-test-profile.json'
+          python .\validation\build_history_release_profile.py --database-collation Latin1_General_CI_AS --tempdb-collation Latin1_General_CI_AS --compatibility-level 160 --output $fixture
+          if ($LASTEXITCODE -ne 0) { throw 'Offline test profile generation failed.' }
+          .\deploy\Test-TableReleaseProfile.ps1 -FixturePath $fixture
           .\deploy\Test-StatsImportEncodingContracts.ps1
           python .\validation\test_stats_postimage_source.py
 
