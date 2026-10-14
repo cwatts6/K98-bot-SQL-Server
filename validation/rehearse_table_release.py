@@ -726,6 +726,41 @@ def run(database):
                 execute(f"DROP SECURITY POLICY [{schema}].HistoryPolicy;")
                 recovered_postimage()
 
+    tracking_was_enabled = bool(
+        c.execute(
+            "SELECT COUNT(*) FROM sys.change_tracking_databases WHERE database_id=DB_ID()"
+        ).fetchval()
+    )
+    if not tracking_was_enabled:
+        execute(
+            f"ALTER DATABASE [{database}] SET CHANGE_TRACKING=ON (CHANGE_RETENTION=2 DAYS,AUTO_CLEANUP=ON)"
+        )
+    tracking_results = []
+    try:
+        for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+            for track_columns in ("OFF", "ON"):
+                execute(
+                    f"ALTER TABLE [{schema}].[{table}] ENABLE CHANGE_TRACKING WITH (TRACK_COLUMNS_UPDATED={track_columns})"
+                )
+                try:
+                    assert c.execute(
+                        "SELECT is_track_columns_updated_on FROM sys.change_tracking_tables WHERE object_id=OBJECT_ID(?)",
+                        schema + "." + table,
+                    ).fetchval() == (track_columns == "ON")
+                    refuse_postimage(
+                        "History change tracking conflict", "Unsupported additive table metadata"
+                    )
+                finally:
+                    execute(f"ALTER TABLE [{schema}].[{table}] DISABLE CHANGE_TRACKING")
+                recovered_postimage()
+                tracking_results.append(table + "." + track_columns)
+    finally:
+        if not tracking_was_enabled:
+            execute(f"ALTER DATABASE [{database}] SET CHANGE_TRACKING=OFF")
+    (output / "change-tracking-drift.json").write_text(
+        json.dumps(tracking_results), encoding="utf-8"
+    )
+
     # Always Encrypted metadata can be created without a real certificate or
     # private key. The dummy CEK bytes are never used for encryption/decryption.
     # No certificate store, external key service, or application rows are used.

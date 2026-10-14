@@ -179,6 +179,7 @@ IF OBJECT_NAME(OBJECT_ID(@name)) COLLATE Latin1_General_100_BIN2<>@table COLLATE
 IF EXISTS(SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(@name) AND user_type_id<>system_type_id)
  OR EXISTS(SELECT 1 FROM sys.columns WHERE object_id=OBJECT_ID(@name) AND encryption_type IS NOT NULL)
  OR EXISTS(SELECT 1 FROM sys.security_predicates WHERE target_object_id=OBJECT_ID(@name))
+ OR EXISTS(SELECT 1 FROM sys.change_tracking_tables WHERE object_id=OBJECT_ID(@name))
  OR EXISTS(SELECT 1 FROM sys.masked_columns WHERE object_id=OBJECT_ID(@name) AND is_masked=1)
  OR EXISTS(SELECT 1 FROM sys.tables WHERE object_id=OBJECT_ID(@name) AND (temporal_type<>0 OR is_memory_optimized<>0 OR is_filetable<>0 OR is_replicated<>0 OR is_merge_published<>0 OR is_sync_tran_subscribed<>0 OR is_tracked_by_cdc<>0 OR filestream_data_space_id<>0))
  OR EXISTS(SELECT 1 FROM sys.triggers WHERE parent_id=OBJECT_ID(@name))

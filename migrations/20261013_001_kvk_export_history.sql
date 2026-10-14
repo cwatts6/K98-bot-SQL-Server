@@ -153,6 +153,8 @@ IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.columns c ON c.object_id=m.Actua
  THROW 51620, 'History encrypted column conflict; preserve and forward-fix.', 1;
 IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.security_predicates p ON p.target_object_id=m.ActualID)
  THROW 51620, 'History security predicate conflict; preserve and forward-fix.', 1;
+IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.change_tracking_tables c ON c.object_id=m.ActualID)
+ THROW 51620, 'History change tracking conflict; preserve and forward-fix.', 1;
 -- Bind names to their exact compiled shape; temp-table constraint names are system generated.
 DECLARE @HistoryCheckNames TABLE (ParentName nvarchar(128),ConstraintName nvarchar(128),ColumnMarker nvarchar(128));
 INSERT @HistoryCheckNames VALUES
