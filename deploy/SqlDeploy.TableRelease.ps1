@@ -11,6 +11,7 @@ function Get-K98TableColumns($Values,$Columns) {
     foreach($name in $Values){
         Assert-K98TableIdentifier $name
         if(-not $Columns.ContainsKey($name) -or $seen.ContainsKey($name)){throw 'Unknown or repeated key column'}
+        if($Columns[$name].name -cne $name){throw 'Key column identifier casing differs from declaration'}
         $seen[$name]=$true;$quoted+=('['+$name+']')
     }
     return ($quoted -join ',')
@@ -26,6 +27,7 @@ function Get-K98TableCheck($Expression,$Columns,[int]$Depth=0) {
     Assert-K98ModuleFields $Expression @('op','column','value')
     Assert-K98TableIdentifier $Expression.column
     if(-not $Columns.ContainsKey($Expression.column)){throw 'Unknown check column'}
+    if($Columns[$Expression.column].name -cne $Expression.column){throw 'Check column identifier casing differs from declaration'}
     $column='['+$Expression.column+']';$value=$Expression.value
     switch -CaseSensitive ($Expression.op) {
         'eq' {
@@ -152,7 +154,7 @@ function Assert-K98TableImages($Connection,$Transaction,$Loaded,[bool]$After) {
     $all=@{};foreach($built in $Loaded.Tables){$all[$built.Table.schema+'.'+$built.Table.name]=$true}
     foreach($built in $Loaded.Tables){
         $t=$built.Table;$key=$t.schema+'.'+$t.name
-        $null=Invoke-K98ModuleQuery $Connection $Transaction "IF SCHEMA_ID(@schema) IS NULL THROW 51950,'Existing schema required.',1;" @{schema=$t.schema}
+        $null=Invoke-K98ModuleQuery $Connection $Transaction "IF SCHEMA_ID(@schema) IS NULL THROW 51950,'Existing schema required.',1; IF SCHEMA_NAME(SCHEMA_ID(@schema)) COLLATE Latin1_General_100_BIN2<>@schema COLLATE Latin1_General_100_BIN2 THROW 51950,'Schema identifier casing differs from catalog.',1;" @{schema=$t.schema}
         if(-not $After){
             $null=Invoke-K98ModuleQuery $Connection $Transaction "IF OBJECT_ID(@name) IS NOT NULL THROW 51950,'Additive preimage must be absent; do not adopt existing tables without a matching receipt.',1;" @{name=$key}
             foreach($constraint in @($t.primary_key)+@($t.unique_keys)+@($t.checks)+@($t.foreign_keys)){
@@ -187,6 +189,12 @@ DROP TABLE #K98_TableExpected;
         foreach($f in $t.foreign_keys){
             $target=$f.schema+'.'+$f.table
             if($After -or -not $all.ContainsKey($target)){
+                $null=Invoke-K98ModuleQuery $Connection $Transaction @'
+IF OBJECT_ID(@name,N'U') IS NOT NULL AND
+ (OBJECT_SCHEMA_NAME(OBJECT_ID(@name,N'U')) COLLATE Latin1_General_100_BIN2<>@schema COLLATE Latin1_General_100_BIN2
+ OR OBJECT_NAME(OBJECT_ID(@name,N'U')) COLLATE Latin1_General_100_BIN2<>@table COLLATE Latin1_General_100_BIN2)
+ THROW 51950,'Referenced table identifier casing differs from catalog.',1;
+'@ @{name=$target;schema=$f.schema;table=$f.table}
                 $keys=Invoke-K98ModuleQuery $Connection $Transaction @'
 SELECT i.index_id,c.name,ic.key_ordinal FROM sys.indexes i
 JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id

@@ -154,10 +154,27 @@ def run(database):
         is None
     )
 
-    for field in ("schema", "table"):
-        mismatched = fixture("internal_case_" + field)
-        target = mismatched["tables"][1]["foreign_keys"][0]
-        target[field] = target[field].swapcase()
+    for field, table_index in (
+        ("schema", 1),
+        ("table", 1),
+        ("schema", 0),
+        ("table", 0),
+        ("columns", 1),
+        ("columns", 0),
+        ("target_columns", 0),
+        ("own_schema", 0),
+    ):
+        mismatched = fixture("case_" + str(table_index) + "_" + field)
+        target = mismatched["tables"][table_index]["foreign_keys"][0]
+        if field == "own_schema":
+            for table in mismatched["tables"]:
+                table["schema"] = table["schema"].swapcase()
+                for fk in table["foreign_keys"]:
+                    fk["schema"] = fk["schema"].swapcase()
+        elif field in ("columns", "target_columns"):
+            target[field][0] = target[field][0].swapcase()
+        else:
+            target[field] = target[field].swapcase()
         mismatch_path = save(mismatched)
         outer(mismatch_path, "Preflight", 20)
         outer(mismatch_path, "Apply", 20)

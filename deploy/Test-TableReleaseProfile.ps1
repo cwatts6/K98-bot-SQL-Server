@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 $root=Join-Path ([IO.Path]::GetTempPath()) ('k98-tables-'+[guid]::NewGuid().ToString('N'))
 $null=[IO.Directory]::CreateDirectory($root)
 $checks=0
-foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','type','collation','duplicate-table','duplicate-column','nullable-key','null-key','empty-key-array','key-array','scalar-key','check-op','check-column','check-literal','check-unicode','future-fk','fk-arity','fk-no-target-key','fk-target-order','fk-target-missing','fk-target-type','fk-target-collation','fk-target-length','fk-schema-case','fk-table-case','constraint','version','boolean-version','ledger')){
+foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','type','collation','duplicate-table','duplicate-column','nullable-key','null-key','empty-key-array','key-array','scalar-key','check-op','check-column','check-literal','check-unicode','future-fk','fk-arity','fk-no-target-key','fk-target-order','fk-target-missing','fk-target-type','fk-target-collation','fk-target-length','fk-schema-case','fk-table-case','fk-local-case','pk-column-case','uq-column-case','check-column-case','constraint','version','boolean-version','ledger')){
     $p=[IO.File]::ReadAllText($FixturePath)|ConvertFrom-Json
     switch($damage){
         'raw-sql'{$p|Add-Member NoteProperty sql 'DROP TABLE dbo.Example'}
@@ -28,6 +28,10 @@ foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','
         'future-fk'{$p.tables=@($p.tables[1],$p.tables[0])}
         'fk-schema-case'{$p.tables[1].foreign_keys[0].schema=$p.tables[1].foreign_keys[0].schema.ToLowerInvariant()}
         'fk-table-case'{$p.tables[1].foreign_keys[0].table=$p.tables[1].foreign_keys[0].table.ToLowerInvariant()}
+        'fk-local-case'{$p.tables[1].foreign_keys[0].columns[0]=$p.tables[1].foreign_keys[0].columns[0].ToLowerInvariant()}
+        'pk-column-case'{$p.tables[0].primary_key.columns[0]=$p.tables[0].primary_key.columns[0].ToLowerInvariant()}
+        'uq-column-case'{$p.tables[1].unique_keys[0].columns[0]=$p.tables[1].unique_keys[0].columns[0].ToLowerInvariant()}
+        'check-column-case'{$p.tables[0].checks[0].expression.args[0].column=$p.tables[0].checks[0].expression.args[0].column.ToLowerInvariant()}
         'fk-arity'{$p.tables[0].foreign_keys[0].target_columns=@('IntentID')}
         'fk-no-target-key'{$p.tables[0].primary_key.columns=@('IntentID')}
         'fk-target-order'{$p.tables[1].foreign_keys[0].target_columns=@('GuildID','IntentID','HistoryVersion')}
