@@ -139,6 +139,20 @@ def run(database):
             p["migration_id"],
         ).fetchval()
 
+    # Internal FK targets must be rejected before any Started attempt is written.
+    invalid_key = fixture("invalid_key")
+    invalid_key["tables"][0]["primary_key"]["columns"] = ["IntentID"]
+    invalid_path = save(invalid_key)
+    outer(invalid_path, "Preflight", 20)
+    outer(invalid_path, "Apply", 20)
+    assert attempts(invalid_key) == 0
+    assert (
+        c.execute(
+            "SELECT OBJECT_ID(?,N'U')", invalid_key["tables"][0]["schema"] + ".SourceExportHistory"
+        ).fetchval()
+        is None
+    )
+
     # Compare the generated contract against the already-reviewed SQL migration,
     # in an isolated schema. Existing matching tables without this profile's
     # own receipt remain non-adoptable by the public runner.

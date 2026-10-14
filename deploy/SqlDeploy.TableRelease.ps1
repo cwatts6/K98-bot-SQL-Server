@@ -114,11 +114,18 @@ function Read-K98TableProfile($Profile) {
             $target=$f.schema+'.'+$f.table
             # New dependencies must precede their consumers; no cycles/self refs.
             foreach($candidate in $Profile.tables){if(($candidate.schema+'.'+$candidate.name) -ieq $target -and -not $seen.ContainsKey($target)){throw 'New referenced table must precede its consumer'}}
+            if($seen.ContainsKey($target)){
+                $parent=$seen[$target];$matches=$false
+                foreach($keySpec in @($parent.primary_key)+@($parent.unique_keys)){
+                    if((@($keySpec.columns) -join ',') -ceq (@($f.target_columns) -join ',')){$matches=$true}
+                }
+                if(-not $matches){throw ('Referenced unique key missing in profile: '+$target)}
+            }
             $targetList=(@($f.target_columns|ForEach-Object {'['+$_+']'}) -join ',')
             $foreign+=('CONSTRAINT ['+$f.name+'] FOREIGN KEY ('+$list+') REFERENCES ['+$f.schema+'].['+$f.table+'] ('+$targetList+')')
         }
         $built+=@{Table=$t;Body=($parts -join ',');Create=('CREATE TABLE ['+$t.schema+'].['+$t.name+'] ('+(@($parts)+@($foreign) -join ',')+');')}
-        $seen[$key]=$true
+        $seen[$key]=$t
     }
     return @{Profile=$Profile;Tables=$built;Texts=@{}}
 }
