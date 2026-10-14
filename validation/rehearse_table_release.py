@@ -154,6 +154,22 @@ def run(database):
         is None
     )
 
+    for field in ("schema", "table"):
+        mismatched = fixture("internal_case_" + field)
+        target = mismatched["tables"][1]["foreign_keys"][0]
+        target[field] = target[field].swapcase()
+        mismatch_path = save(mismatched)
+        outer(mismatch_path, "Preflight", 20)
+        outer(mismatch_path, "Apply", 20)
+        assert attempts(mismatched) == 0
+        assert (
+            c.execute(
+                "SELECT OBJECT_ID(?,N'U')",
+                mismatched["tables"][0]["schema"] + ".SourceExportHistory",
+            ).fetchval()
+            is None
+        )
+
     for label, table_index, column_index, field, value in (
         ("internal_type", 1, 0, "type", "int"),
         ("internal_collation", 1, 1, "collation", "Latin1_General_CI_AS"),
@@ -244,6 +260,30 @@ def run(database):
     (output / "legacy-named-drift.json").write_text(json.dumps(renamed), encoding="utf-8")
 
     # The alternative legacy installation path must also reject physical drift.
+    # Exercise each catalog predicate with a fixed fault injection. Do not enable
+    # database-wide CDC/replication or create server Agent jobs for a guard test.
+    modes = {}
+    for flag in (
+        "is_filetable",
+        "is_replicated",
+        "is_merge_published",
+        "is_sync_tran_subscribed",
+        "is_tracked_by_cdc",
+        "filestream_data_space_id",
+    ):
+        needle = "t." + flag + "<>0"
+        assert migration.count(needle) == 1
+        try:
+            execute(migration.replace(needle, "1<>0"))
+        except pyodbc.Error as exc:
+            assert "History unexpected trigger, partition, compression or table mode" in str(exc)
+        else:
+            raise AssertionError("Legacy mode guard accepted injected " + flag)
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+        execute(migration)
+        modes[flag] = "INJECTED_CATALOG_FLAG_REFUSED"
+    (output / "legacy-mode-guards.json").write_text(json.dumps(modes), encoding="utf-8")
+
     def legacy_refuses_drift():
         try:
             execute(migration)

@@ -116,6 +116,7 @@ function Read-K98TableProfile($Profile) {
             foreach($candidate in $Profile.tables){if(($candidate.schema+'.'+$candidate.name) -ieq $target -and -not $seen.ContainsKey($target)){throw 'New referenced table must precede its consumer'}}
             if($seen.ContainsKey($target)){
                 $parent=$seen[$target];$targetKeyMatches=$false
+                if(($parent.schema+'.'+$parent.name) -cne $target){throw 'Referenced table identifier casing differs from profile'}
                 foreach($keySpec in @($parent.primary_key)+@($parent.unique_keys)){
                     if((@($keySpec.columns) -join ',') -ceq (@($f.target_columns) -join ',')){$targetKeyMatches=$true}
                 }
