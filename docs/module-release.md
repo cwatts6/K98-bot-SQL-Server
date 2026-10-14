@@ -1,5 +1,9 @@
 # Transactional module release profile
 
+The separate [additive table profile](additive-table-release.md) reuses this
+runner's locking and receipt protocol for constrained new-table declarations.
+It does not expand what `module_grants_v1` accepts or make arbitrary SQL resumable.
+
 The normal Bot updater can call `deploy/Deploy-SqlMigration.ps1` with an exact
 profile path/hash, SQL commit, release UUID and explicit server/database. This
 uses `deploy/SqlDeploy.ModuleRelease.ps1`. The historical arbitrary-SQL runner
