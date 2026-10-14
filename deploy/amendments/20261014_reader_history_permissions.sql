@@ -1,4 +1,5 @@
-/* Explicit existing-account amendment. Caller supplies exactly one row in
+/* Operator runbook: docs/READER_HISTORY_PERMISSIONS_20261014.md
+   Explicit existing-account amendment. Caller supplies exactly one row in
    #ReaderHistoryPermissionAmendment(ExpectedServer nvarchar(128),
    ExpectedDatabase nvarchar(128), PrincipalName nvarchar(128),
    LoginSid varbinary(85), Action varchar(8)). Apply or Rollback only.

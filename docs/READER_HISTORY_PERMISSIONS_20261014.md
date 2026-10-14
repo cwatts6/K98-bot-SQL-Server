@@ -1,6 +1,6 @@
-Reader activation: existing-account permission amendment
+# Reader activation: existing-account permission amendment
 
-Entry point: deploy/amendments/20261014_reader_history_permissions.sql
+Entry point: `deploy/amendments/20261014_reader_history_permissions.sql`
 This is a manually reviewed configuration release, not a schema migration.
 The installed 20261013_001 history schema is a prerequisite. Do not reinstall it.
 
