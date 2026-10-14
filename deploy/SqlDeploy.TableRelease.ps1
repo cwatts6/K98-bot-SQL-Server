@@ -199,7 +199,7 @@ IF OBJECT_ID(@name,N'U') IS NOT NULL AND
 SELECT i.index_id,c.name,ic.key_ordinal FROM sys.indexes i
 JOIN sys.index_columns ic ON ic.object_id=i.object_id AND ic.index_id=i.index_id
 JOIN sys.columns c ON c.object_id=ic.object_id AND c.column_id=ic.column_id
-WHERE i.object_id=OBJECT_ID(@name,N'U') AND i.is_unique=1 AND i.is_disabled=0 AND i.has_filter=0 AND ic.key_ordinal>0 ORDER BY i.index_id,ic.key_ordinal;
+WHERE i.object_id=OBJECT_ID(@name,N'U') AND i.is_unique=1 AND i.is_disabled=0 AND i.is_hypothetical=0 AND i.has_filter=0 AND ic.key_ordinal>0 ORDER BY i.index_id,ic.key_ordinal;
 '@ @{name=$target}
                 $match=$false
                 foreach($group in ($keys|Group-Object index_id)) {if((@($group.Group.name) -join ',') -ceq (@($f.target_columns) -join ',')){$match=$true}}

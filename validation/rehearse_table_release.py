@@ -140,6 +140,31 @@ def run(database):
             p["migration_id"],
         ).fetchval()
 
+    hypothetical = fixture("hypothetical")
+    schema = hypothetical["tables"][0]["schema"]
+    key_name = c.execute(
+        "SELECT name FROM sys.key_constraints WHERE parent_object_id=OBJECT_ID(?) AND type='UQ'",
+        schema + ".SourceExportIntent",
+    ).fetchval()
+    assert key_name and "]" not in key_name
+    execute(f"ALTER TABLE [{schema}].[SourceExportIntent] DROP CONSTRAINT [{key_name}]")
+    execute(
+        f"CREATE UNIQUE INDEX [HypotheticalTarget] ON [{schema}].[SourceExportIntent]"
+        "(SourceKey,KVK_NO,IntentID) WITH (STATISTICS_ONLY = -1)"
+    )
+    assert tuple(
+        c.execute(
+            "SELECT is_unique,is_hypothetical FROM sys.indexes WHERE object_id=OBJECT_ID(?) "
+            "AND name='HypotheticalTarget'",
+            schema + ".SourceExportIntent",
+        ).fetchone()
+    ) == (True, True)
+    hypothetical_path = save(hypothetical)
+    outer(hypothetical_path, "Preflight", 20)
+    outer(hypothetical_path, "Apply", 20)
+    assert attempts(hypothetical) == 0
+    assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + ".SourceExportHistory").fetchval() is None
+
     # Internal FK targets must be rejected before any Started attempt is written.
     invalid_key = fixture("invalid_key")
     invalid_key["tables"][0]["primary_key"]["columns"] = ["IntentID"]
