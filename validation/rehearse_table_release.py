@@ -258,6 +258,69 @@ def run(database):
         )
 
     prerequisite_results = {}
+    original_migration = (ROOT / "migrations/20261013_001_kvk_export_history.sql").read_text(
+        encoding="utf-8-sig"
+    )
+
+    def refuse_before_installation(candidate, schema, diagnostic):
+        try:
+            execute(candidate)
+        except pyodbc.Error as exc:
+            assert diagnostic in str(exc)
+        else:
+            raise AssertionError("Legacy migration accepted: " + diagnostic)
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+        for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+            assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + "." + table).fetchval() is None
+
+    for label in ("parent_case", "schema_case"):
+        identity = fixture("legacy_" + label)
+        schema = identity["tables"][0]["schema"]
+        expected_schema = schema.lower() if label == "schema_case" else schema
+        candidate = original_migration.replace("KVK.", expected_schema + ".").replace(
+            "SCHEMA_ID(N'KVK')", "SCHEMA_ID(N'" + expected_schema + "')"
+        )
+        if label == "parent_case":
+            execute(
+                "EXEC sys.sp_rename ?, ?, 'OBJECT';",
+                schema + ".SourceExportIntent",
+                "sourceexportintent",
+            )
+        refuse_before_installation(
+            candidate, schema, "SourceExportIntent prerequisite catalog identity differs"
+        )
+        prerequisite_results[label] = "REFUSED_BEFORE_INSTALLATION_DDL"
+
+    collision = fixture("legacy_constraint_collision")
+    schema = collision["tables"][0]["schema"]
+    candidate = original_migration.replace("KVK.", schema + ".").replace(
+        "SCHEMA_ID(N'KVK')", "SCHEMA_ID(N'" + schema + "')"
+    )
+    execute(f"CREATE TABLE [{schema}].UnrelatedConstraintOwner(Value int NOT NULL);")
+    collision_names = []
+    for table in collision["tables"]:
+        for constraint in (
+            [table["primary_key"]] + table["unique_keys"] + table["checks"] + table["foreign_keys"]
+        ):
+            name = constraint["name"]
+            # Constraint types share the schema object namespace. Lowercase one
+            # name also exercises collisions under the database CI collation.
+            actual_name = name.lower() if not collision_names else name
+            execute(
+                f"ALTER TABLE [{schema}].UnrelatedConstraintOwner ADD CONSTRAINT [{actual_name}] CHECK (Value>0);"
+            )
+            refuse_before_installation(
+                candidate, schema, "Export history constraint name already exists"
+            )
+            execute(
+                f"ALTER TABLE [{schema}].UnrelatedConstraintOwner DROP CONSTRAINT [{actual_name}];"
+            )
+            collision_names.append(name)
+    assert len(collision_names) == 11
+    (output / "legacy-constraint-collisions.json").write_text(
+        json.dumps(collision_names), encoding="utf-8"
+    )
+
     for label, source_type, source_collation, season_type, intent_type in (
         (
             "unicode",
@@ -511,6 +574,47 @@ def run(database):
         execute(success_migration)
         outer(path, "Verify", 0)
 
+    payload = (
+        success_migration.split("-- HISTORY_INSTALL_PAYLOAD_BEGIN\n", 1)[1]
+        .split("-- HISTORY_INSTALL_PAYLOAD_END", 1)[0]
+        .strip()
+    )
+    prefix = "EXEC sys.sp_executesql N'"
+    assert payload.startswith(prefix) and payload.endswith("';")
+    plaintext_ddl = payload[len(prefix) : -2].replace("''", "'")
+
+    def rebuild_empty_history(ddl):
+        for table in ("SourceExportHistoryRow", "SourceExportHistory"):
+            assert c.execute(f"SELECT COUNT(*) FROM [{schema}].[{table}]").fetchval() == 0
+        execute(f"DROP TABLE [{schema}].SourceExportHistoryRow, [{schema}].SourceExportHistory;")
+        execute(ddl)
+
+    index_option_results = []
+    for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+        for option, mutation, recovery in (
+            ("fill_factor", "REBUILD WITH (FILLFACTOR=80)", None),
+            ("is_padded", "REBUILD WITH (PAD_INDEX=ON)", "REBUILD WITH (PAD_INDEX=OFF)"),
+            ("allow_row_locks", "SET (ALLOW_ROW_LOCKS=OFF)", "SET (ALLOW_ROW_LOCKS=ON)"),
+            ("allow_page_locks", "SET (ALLOW_PAGE_LOCKS=OFF)", "SET (ALLOW_PAGE_LOCKS=ON)"),
+            (
+                "optimize_for_sequential_key",
+                "SET (OPTIMIZE_FOR_SEQUENTIAL_KEY=ON)",
+                "SET (OPTIMIZE_FOR_SEQUENTIAL_KEY=OFF)",
+            ),
+        ):
+            prefix = f"ALTER INDEX [PK_{table}] ON [{schema}].[{table}] "
+            execute(prefix + mutation)
+            refuse_postimage("History index shape conflict", "Additive table shape differs")
+            if recovery is None:
+                rebuild_empty_history(plaintext_ddl)
+            else:
+                execute(prefix + recovery)
+            recovered_postimage()
+            index_option_results.append(table + "." + option)
+    (output / "mutable-index-options.json").write_text(
+        json.dumps(index_option_results), encoding="utf-8"
+    )
+
     for table in ("SourceExportHistory", "SourceExportHistoryRow"):
         execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", schema + "." + table, table.lower())
         refuse_postimage("History catalog identity conflict", "Additive object identity differs")
@@ -548,21 +652,6 @@ def run(database):
         f"CREATE COLUMN ENCRYPTION KEY [{key}] WITH VALUES (COLUMN_MASTER_KEY=[{key}],"
         "ALGORITHM='RSA_OAEP',ENCRYPTED_VALUE=0x01);"
     )
-    payload = (
-        success_migration.split("-- HISTORY_INSTALL_PAYLOAD_BEGIN\n", 1)[1]
-        .split("-- HISTORY_INSTALL_PAYLOAD_END", 1)[0]
-        .strip()
-    )
-    prefix = "EXEC sys.sp_executesql N'"
-    assert payload.startswith(prefix) and payload.endswith("';")
-    plaintext_ddl = payload[len(prefix) : -2].replace("''", "'")
-
-    def rebuild_empty_history(ddl):
-        for table in ("SourceExportHistoryRow", "SourceExportHistory"):
-            assert c.execute(f"SELECT COUNT(*) FROM [{schema}].[{table}]").fetchval() == 0
-        execute(f"DROP TABLE [{schema}].SourceExportHistoryRow, [{schema}].SourceExportHistory;")
-        execute(ddl)
-
     for column, encryption in (
         ("VectorHash", "DETERMINISTIC"),
         ("ContentHash", "RANDOMIZED"),

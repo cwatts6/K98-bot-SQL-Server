@@ -30,6 +30,9 @@ EXEC @HistoryLock=sys.sp_getapplock @Resource=N'K98:ExportHistory:schema', @Lock
 IF @HistoryLock<0 THROW 51620, 'Export history schema lock unavailable.', 1;
 IF OBJECT_ID(N'KVK.SourceExportIntent',N'U') IS NULL
     THROW 51620, 'SourceExportIntent prerequisite missing.', 1;
+IF OBJECT_SCHEMA_NAME(OBJECT_ID(N'KVK.SourceExportIntent')) COLLATE Latin1_General_100_BIN2<>PARSENAME(N'KVK.SourceExportIntent',2) COLLATE Latin1_General_100_BIN2
+ OR OBJECT_NAME(OBJECT_ID(N'KVK.SourceExportIntent')) COLLATE Latin1_General_100_BIN2<>PARSENAME(N'KVK.SourceExportIntent',1) COLLATE Latin1_General_100_BIN2
+    THROW 51620, 'SourceExportIntent prerequisite catalog identity differs.', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes i WHERE i.object_id=OBJECT_ID(N'KVK.SourceExportIntent')
     AND i.is_unique=1 AND i.is_disabled=0 AND i.is_hypothetical=0 AND i.has_filter=0
     AND (SELECT STRING_AGG(CONVERT(nvarchar(max),c.name),N',') WITHIN GROUP (ORDER BY ic.key_ordinal)
@@ -40,6 +43,12 @@ IF EXISTS (SELECT 1 FROM sys.objects WHERE schema_id=SCHEMA_ID(N'KVK') AND name 
     THROW 51620, 'Export history object type conflict.', 1;
 DECLARE @HistoryExisting int=(SELECT COUNT(*) FROM sys.tables WHERE schema_id=SCHEMA_ID(N'KVK') AND name IN (N'SourceExportHistory',N'SourceExportHistoryRow'));
 IF @HistoryExisting NOT IN (0,2) THROW 51620, 'Partial export history schema; preserve and forward-fix.', 1;
+IF @HistoryExisting=0 AND EXISTS (SELECT 1 FROM sys.objects WHERE schema_id=SCHEMA_ID(N'KVK') AND name IN (
+ N'PK_SourceExportHistory',N'FK_SourceExportHistory_Intent',N'CK_SourceExportHistory_Scope',
+ N'CK_SourceExportHistory_Guild',N'CK_SourceExportHistory_Version',N'CK_SourceExportHistory_Count',
+ N'PK_SourceExportHistoryRow',N'UQ_SourceExportHistoryRow_Attempt',N'FK_SourceExportHistoryRow_History',
+ N'CK_SourceExportHistoryRow_Ordinal',N'CK_SourceExportHistoryRow_Payload'))
+    THROW 51620, 'Export history constraint name already exists.', 1;
 CREATE TABLE #History_SourceExportHistory
 (
     IntentID uniqueidentifier NOT NULL,
@@ -182,12 +191,13 @@ OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.definition COLLATE L
 EXCEPT
 SELECT m.Name COLLATE Latin1_General_100_BIN2, c.definition COLLATE Latin1_General_100_BIN2, c.is_disabled, c.is_not_trusted, c.is_not_for_replication FROM @HistoryMap m JOIN sys.check_constraints c ON c.parent_object_id=m.ActualID)
     THROW 51620, 'History check constraint shape conflict; preserve history and forward-fix.', 1;
-IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID
+-- JSON metadata tolerates older engines without optimize_for_sequential_key.
+IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.fill_factor, i.is_padded, i.allow_row_locks, i.allow_page_locks, JSON_VALUE((SELECT i.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.optimize_for_sequential_key') COLLATE Latin1_General_100_BIN2, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID
 EXCEPT
-SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM tempdb.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID)
-OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM tempdb.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID
+SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.fill_factor, i.is_padded, i.allow_row_locks, i.allow_page_locks, JSON_VALUE((SELECT i.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.optimize_for_sequential_key') COLLATE Latin1_General_100_BIN2, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM tempdb.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID)
+OR EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.fill_factor, i.is_padded, i.allow_row_locks, i.allow_page_locks, JSON_VALUE((SELECT i.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.optimize_for_sequential_key') COLLATE Latin1_General_100_BIN2, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM tempdb.sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN tempdb.sys.indexes i ON i.object_id=m.ExpectedID
 EXCEPT
-SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID)
+SELECT m.Name COLLATE Latin1_General_100_BIN2, i.type, i.is_unique, i.is_primary_key, i.is_unique_constraint, i.is_disabled, i.ignore_dup_key, i.fill_factor, i.is_padded, i.allow_row_locks, i.allow_page_locks, JSON_VALUE((SELECT i.* FOR JSON PATH,WITHOUT_ARRAY_WRAPPER),'$.optimize_for_sequential_key') COLLATE Latin1_General_100_BIN2, i.filter_definition COLLATE Latin1_General_100_BIN2, (SELECT ic.index_column_id, ic.column_id, ic.key_ordinal, ic.is_descending_key, ic.is_included_column FROM sys.index_columns ic WHERE ic.object_id=i.object_id AND ic.index_id=i.index_id ORDER BY ic.index_column_id FOR JSON PATH) COLLATE Latin1_General_100_BIN2 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID)
     THROW 51620, 'History index shape conflict; preserve history and forward-fix.', 1;
 IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, COUNT(*) FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID GROUP BY m.Name
 EXCEPT
