@@ -615,6 +615,30 @@ def run(database):
         json.dumps(index_option_results), encoding="utf-8"
     )
 
+    statistics_results = []
+    for table, index in (
+        ("SourceExportHistory", "PK_SourceExportHistory"),
+        ("SourceExportHistoryRow", "PK_SourceExportHistoryRow"),
+        ("SourceExportHistoryRow", "UQ_SourceExportHistoryRow_Attempt"),
+    ):
+        prefix = f"ALTER INDEX [{index}] ON [{schema}].[{table}] REBUILD WITH "
+        execute(prefix + "(STATISTICS_NORECOMPUTE=ON)")
+        assert (
+            c.execute(
+                "SELECT no_recompute FROM sys.stats WHERE object_id=OBJECT_ID(?) AND name=?",
+                schema + "." + table,
+                index,
+            ).fetchval()
+            == 1
+        )
+        refuse_postimage("History index shape conflict", "Additive table shape differs")
+        execute(prefix + "(STATISTICS_NORECOMPUTE=OFF)")
+        recovered_postimage()
+        statistics_results.append(table + "." + index)
+    (output / "index-statistics-options.json").write_text(
+        json.dumps(statistics_results), encoding="utf-8"
+    )
+
     for table in ("SourceExportHistory", "SourceExportHistoryRow"):
         execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", schema + "." + table, table.lower())
         refuse_postimage("History catalog identity conflict", "Additive object identity differs")
