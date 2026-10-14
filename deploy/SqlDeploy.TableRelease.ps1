@@ -217,7 +217,7 @@ WHERE i.object_id=OBJECT_ID(@name,N'U') AND i.is_unique=1 AND i.is_disabled=0 AN
                         $null=Invoke-K98ModuleQuery $Connection $Transaction ('CREATE TABLE #K98_TableExpected ('+$built.Body+');'+@'
 IF NOT EXISTS(SELECT 1 FROM tempdb.sys.columns l JOIN sys.columns r
  ON r.object_id=OBJECT_ID(@target,N'U') AND r.name=@target_column
- AND r.user_type_id=r.system_type_id AND l.system_type_id=r.system_type_id
+ AND r.encryption_type IS NULL AND r.user_type_id=r.system_type_id AND l.system_type_id=r.system_type_id
  AND l.max_length=r.max_length AND l.precision=r.precision AND l.scale=r.scale
  AND ISNULL(l.collation_name,N'') COLLATE Latin1_General_100_BIN2=ISNULL(r.collation_name,N'') COLLATE Latin1_General_100_BIN2
  WHERE l.object_id=OBJECT_ID(N'tempdb..#K98_TableExpected') AND l.name=@local_column)

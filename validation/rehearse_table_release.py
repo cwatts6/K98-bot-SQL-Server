@@ -273,6 +273,68 @@ def run(database):
         for table in ("SourceExportHistory", "SourceExportHistoryRow"):
             assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + "." + table).fetchval() is None
 
+    # Only catalog metadata: no real certificate, key service or encrypted data.
+    prerequisite_key = "Updater_" + run_id + "_prerequisite_metadata"
+    execute(
+        f"CREATE COLUMN MASTER KEY [{prerequisite_key}] WITH (KEY_STORE_PROVIDER_NAME=N'MSSQL_CERTIFICATE_STORE',"
+        "KEY_PATH=N'CurrentUser/My/0000000000000000000000000000000000000000');"
+    )
+    execute(
+        f"CREATE COLUMN ENCRYPTION KEY [{prerequisite_key}] WITH VALUES (COLUMN_MASTER_KEY=[{prerequisite_key}],"
+        "ALGORITHM='RSA_OAEP',ENCRYPTED_VALUE=0x01);"
+    )
+    encrypted_prerequisite_results = []
+    for encrypted_column in ("SourceKey", "KVK_NO", "IntentID"):
+        encrypted = fixture("encrypted_parent_" + encrypted_column.lower())
+        schema = encrypted["tables"][0]["schema"]
+        execute(f"DROP TABLE [{schema}].SourceExportIntent;")
+        definitions = []
+        for column, sql_type in (
+            ("SourceKey", "varchar(32) COLLATE Latin1_General_100_BIN2"),
+            ("KVK_NO", "int"),
+            ("IntentID", "uniqueidentifier"),
+        ):
+            definition = column + " " + sql_type
+            if column == encrypted_column:
+                definition += (
+                    f" ENCRYPTED WITH (COLUMN_ENCRYPTION_KEY=[{prerequisite_key}],"
+                    "ENCRYPTION_TYPE=DETERMINISTIC,ALGORITHM='AEAD_AES_256_CBC_HMAC_SHA_256')"
+                )
+            definitions.append(definition + " NOT NULL")
+        execute(
+            f"CREATE TABLE [{schema}].SourceExportIntent("
+            + ",".join(definitions)
+            + ",UNIQUE(SourceKey,KVK_NO,IntentID));"
+        )
+        assert (
+            c.execute(
+                "SELECT encryption_type FROM sys.columns WHERE object_id=OBJECT_ID(?) AND name=?",
+                schema + ".SourceExportIntent",
+                encrypted_column,
+            ).fetchval()
+            == 1
+        )
+        candidate = original_migration.replace("KVK.", schema + ".").replace(
+            "SCHEMA_ID(N'KVK')", "SCHEMA_ID(N'" + schema + "')"
+        )
+        refuse_before_installation(
+            candidate, schema, "SourceExportIntent prerequisite column shape differs"
+        )
+        encrypted_path = save(encrypted)
+        for operation in ("Preflight", "Apply"):
+            outer(encrypted_path, operation, 20)
+            error = (output / f"{counter:02d}-{operation}.stderr.txt").read_text()
+            assert "Foreign key requires identical target types and collations" in " ".join(
+                error.split()
+            )
+        assert attempts(encrypted) == 0
+        for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+            assert c.execute("SELECT OBJECT_ID(?,N'U')", schema + "." + table).fetchval() is None
+        encrypted_prerequisite_results.append(encrypted_column)
+    (output / "encrypted-prerequisite-columns.json").write_text(
+        json.dumps(encrypted_prerequisite_results), encoding="utf-8"
+    )
+
     for label in ("parent_case", "schema_case"):
         identity = fixture("legacy_" + label)
         schema = identity["tables"][0]["schema"]

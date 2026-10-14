@@ -87,7 +87,7 @@ IF EXISTS (SELECT 1 FROM tempdb.sys.columns e
  AND a.name COLLATE Latin1_General_100_BIN2=e.name COLLATE Latin1_General_100_BIN2
  WHERE e.object_id=OBJECT_ID(N'tempdb..#History_SourceExportHistory')
  AND e.name IN (N'SourceKey',N'KVK_NO',N'IntentID')
- AND (a.column_id IS NULL OR a.user_type_id<>a.system_type_id OR a.system_type_id<>e.system_type_id
+ AND (a.column_id IS NULL OR a.encryption_type IS NOT NULL OR a.user_type_id<>a.system_type_id OR a.system_type_id<>e.system_type_id
  OR a.max_length<>e.max_length OR a.precision<>e.precision OR a.scale<>e.scale
  OR ISNULL(a.collation_name,N'') COLLATE Latin1_General_100_BIN2<>ISNULL(e.collation_name,N'') COLLATE Latin1_General_100_BIN2))
  THROW 51620, 'SourceExportIntent prerequisite column shape differs.', 1;
