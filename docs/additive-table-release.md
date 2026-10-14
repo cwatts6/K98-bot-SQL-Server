@@ -30,6 +30,10 @@ Foreign keys specify `name`, `columns`, `schema`, `table`, `target_columns` and
 always use NO ACTION. New referenced tables must precede their consumers within
 the same profile. Existing referenced tables need the exact enabled unfiltered
 unique key. Intra-release dependencies between separate profiles remain unsupported.
+Both new and existing FK targets require identical declared types (including
+length/scale) and collations. This intentionally conservative profile rejects
+SQL-compatible but differently sized character keys rather than broadening its
+admission rules. Nullability may differ. Validation occurs before any attempt.
 
 The runner generates DDL from these declarations. Preflight checks schema, absence,
 constraint collisions, referenced keys, compilation of temporary expected tables,

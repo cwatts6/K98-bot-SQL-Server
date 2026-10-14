@@ -115,11 +115,16 @@ function Read-K98TableProfile($Profile) {
             # New dependencies must precede their consumers; no cycles/self refs.
             foreach($candidate in $Profile.tables){if(($candidate.schema+'.'+$candidate.name) -ieq $target -and -not $seen.ContainsKey($target)){throw 'New referenced table must precede its consumer'}}
             if($seen.ContainsKey($target)){
-                $parent=$seen[$target];$matches=$false
+                $parent=$seen[$target];$targetKeyMatches=$false
                 foreach($keySpec in @($parent.primary_key)+@($parent.unique_keys)){
-                    if((@($keySpec.columns) -join ',') -ceq (@($f.target_columns) -join ',')){$matches=$true}
+                    if((@($keySpec.columns) -join ',') -ceq (@($f.target_columns) -join ',')){$targetKeyMatches=$true}
                 }
-                if(-not $matches){throw ('Referenced unique key missing in profile: '+$target)}
+                if(-not $targetKeyMatches){throw ('Referenced unique key missing in profile: '+$target)}
+                for($n=0;$n -lt @($f.columns).Count;$n++){
+                    $localColumn=$columns[$f.columns[$n]]
+                    $parentColumn=@($parent.columns|Where-Object {$_.name -ceq $f.target_columns[$n]})
+                    if($parentColumn.Count -ne 1 -or $localColumn.type -cne $parentColumn[0].type -or $localColumn.collation -cne $parentColumn[0].collation){throw 'Foreign key requires identical declared types and collations'}
+                }
             }
             $targetList=(@($f.target_columns|ForEach-Object {'['+$_+']'}) -join ',')
             $foreign+=('CONSTRAINT ['+$f.name+'] FOREIGN KEY ('+$list+') REFERENCES ['+$f.schema+'].['+$f.table+'] ('+$targetList+')')
@@ -190,6 +195,23 @@ WHERE i.object_id=OBJECT_ID(@name,N'U') AND i.is_unique=1 AND i.is_disabled=0 AN
                 $match=$false
                 foreach($group in ($keys|Group-Object index_id)) {if((@($group.Group.name) -join ',') -ceq (@($f.target_columns) -join ',')){$match=$true}}
                 if(-not $match){throw ('Referenced unique key missing: '+$target)}
+                if(-not $After){
+                    for($n=0;$n -lt @($f.columns).Count;$n++){
+                        $null=Invoke-K98ModuleQuery $Connection $Transaction ('CREATE TABLE #K98_TableExpected ('+$built.Body+');'+@'
+IF NOT EXISTS(SELECT 1 FROM tempdb.sys.columns l JOIN sys.columns r
+ ON r.object_id=OBJECT_ID(@target,N'U') AND r.name=@target_column
+ AND r.user_type_id=r.system_type_id AND l.system_type_id=r.system_type_id
+ AND l.max_length=r.max_length AND l.precision=r.precision AND l.scale=r.scale
+ AND ISNULL(l.collation_name,N'') COLLATE Latin1_General_100_BIN2=ISNULL(r.collation_name,N'') COLLATE Latin1_General_100_BIN2
+ WHERE l.object_id=OBJECT_ID(N'tempdb..#K98_TableExpected') AND l.name=@local_column)
+BEGIN
+ DROP TABLE #K98_TableExpected;
+ THROW 51950,'Foreign key requires identical target types and collations.',1;
+END;
+DROP TABLE #K98_TableExpected;
+'@) @{target=$target;target_column=$f.target_columns[$n];local_column=$f.columns[$n]}
+                    }
+                }
             }
             for($i=0;$i -lt @($f.columns).Count;$i++){
                 $expectedRows+=($f.name+'|'+($i+1)+'|'+$f.columns[$i]+'|'+$target+'|'+$f.target_columns[$i]+'|0|0|0|0|0')

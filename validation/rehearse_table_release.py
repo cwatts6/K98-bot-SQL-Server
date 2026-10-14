@@ -77,7 +77,8 @@ def run(database):
             f"CREATE TABLE [{schema}].[SourceExportIntent](SourceKey varchar(32) COLLATE Latin1_General_100_BIN2 NOT NULL,"
             "KVK_NO int NOT NULL,IntentID uniqueidentifier NOT NULL,UNIQUE(SourceKey,KVK_NO,IntentID));"
         )
-        p = profile(*env)
+        # Decode as a real profile would be read: no shared in-memory column objects.
+        p = json.loads(json.dumps(profile(*env)))
         p["migration_id"] = "20261013_901_" + run_id + "_" + label
         for table in p["tables"]:
             table["schema"] = schema
@@ -153,6 +154,28 @@ def run(database):
         is None
     )
 
+    for label, table_index, column_index, field, value in (
+        ("internal_type", 1, 0, "type", "int"),
+        ("internal_collation", 1, 1, "collation", "Latin1_General_CI_AS"),
+        ("internal_length", 1, 1, "type", "varchar(31)"),
+        ("external_type", 0, 4, "type", "bigint"),
+        ("external_collation", 0, 3, "collation", "Latin1_General_CI_AS"),
+        ("external_length", 0, 3, "type", "varchar(31)"),
+    ):
+        incompatible = fixture(label)
+        incompatible["tables"][table_index]["columns"][column_index][field] = value
+        incompatible_path = save(incompatible)
+        outer(incompatible_path, "Preflight", 20)
+        outer(incompatible_path, "Apply", 20)
+        assert attempts(incompatible) == 0
+        assert (
+            c.execute(
+                "SELECT OBJECT_ID(?,N'U')",
+                incompatible["tables"][0]["schema"] + ".SourceExportHistory",
+            ).fetchval()
+            is None
+        )
+
     # Compare the generated contract against the already-reviewed SQL migration,
     # in an isolated schema. Existing matching tables without this profile's
     # own receipt remain non-adoptable by the public runner.
@@ -199,6 +222,26 @@ def run(database):
     assert (
         checked.returncode == 0 and b"LEGACY_SHAPE_MATCH" in checked.stdout
     ), checked.stderr.decode(errors="replace")
+
+    # Renames must not silently pass the alternative legacy exact-postimage path.
+    renamed = {}
+    for name, expected_error in (
+        ("CK_SourceExportHistory_Count", "History named check shape conflict"),
+        ("PK_SourceExportHistoryRow", "History named index shape conflict"),
+        ("UQ_SourceExportHistoryRow_Attempt", "History named index shape conflict"),
+    ):
+        execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", legacy_schema + "." + name, name + "_Changed")
+        try:
+            execute(migration)
+        except pyodbc.Error as exc:
+            assert expected_error in str(exc)
+        else:
+            raise AssertionError("Legacy rerun accepted renamed constraint: " + name)
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+        execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", legacy_schema + "." + name + "_Changed", name)
+        execute(migration)
+        renamed[name] = "REFUSED"
+    (output / "legacy-named-drift.json").write_text(json.dumps(renamed), encoding="utf-8")
 
     # The alternative legacy installation path must also reject physical drift.
     def legacy_refuses_drift():
@@ -268,9 +311,25 @@ def run(database):
     assert attempts(partial) == 0
 
     invalid = fixture("rollback")
-    invalid["tables"][1]["foreign_keys"][0]["columns"] = ["Ordinal", "GuildID", "HistoryVersion"]
     bad_path = save(invalid)
-    outer(bad_path, "Apply", 20)
+    # An intentional mid-transaction fault keeps rollback coverage independent
+    # of malformed profiles, which now fail before any attempt is written.
+    fault = output / "rollback-fault"
+    fault.mkdir()
+    for name in ("Deploy-SqlMigration.ps1", "SqlDeploy.TableRelease.ps1"):
+        (fault / name).write_bytes((ROOT / "deploy" / name).read_bytes())
+    hook = "\n$script:queryOriginal=${function:Invoke-K98ModuleQuery}\n"
+    hook += "function Invoke-K98ModuleQuery($Connection,$Transaction,[string]$Sql,[hashtable]$Values=@{}) {\n"
+    hook += (
+        "if($null -ne $Transaction -and $Sql.StartsWith('CREATE TABLE ["
+        + invalid["tables"][0]["schema"]
+        + "].[SourceExportHistoryRow]')){throw 'Intentional fixture rollback fault'}\n"
+    )
+    hook += "$result=& $script:queryOriginal $Connection $Transaction $Sql $Values; return ,$result\n}\n"
+    (fault / "SqlDeploy.ModuleRelease.ps1").write_bytes(
+        (ROOT / "deploy/SqlDeploy.ModuleRelease.ps1").read_bytes() + hook.encode()
+    )
+    outer(bad_path, "Apply", 20, runner=fault / "Deploy-SqlMigration.ps1")
     assert '"state":"rolled_back"' in outer(bad_path, "Status", 11)
     assert (
         c.execute(

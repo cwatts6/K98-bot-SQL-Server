@@ -6,7 +6,7 @@ $ErrorActionPreference='Stop'
 $root=Join-Path ([IO.Path]::GetTempPath()) ('k98-tables-'+[guid]::NewGuid().ToString('N'))
 $null=[IO.Directory]::CreateDirectory($root)
 $checks=0
-foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','type','collation','duplicate-table','duplicate-column','nullable-key','null-key','empty-key-array','key-array','scalar-key','check-op','check-column','check-literal','check-unicode','future-fk','fk-arity','fk-no-target-key','fk-target-order','fk-target-missing','constraint','version','boolean-version','ledger')){
+foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','type','collation','duplicate-table','duplicate-column','nullable-key','null-key','empty-key-array','key-array','scalar-key','check-op','check-column','check-literal','check-unicode','future-fk','fk-arity','fk-no-target-key','fk-target-order','fk-target-missing','fk-target-type','fk-target-collation','fk-target-length','constraint','version','boolean-version','ledger')){
     $p=[IO.File]::ReadAllText($FixturePath)|ConvertFrom-Json
     switch($damage){
         'raw-sql'{$p|Add-Member NoteProperty sql 'DROP TABLE dbo.Example'}
@@ -30,6 +30,9 @@ foreach($damage in @('none','hash','raw-sql','identifier','identifier-newline','
         'fk-no-target-key'{$p.tables[0].primary_key.columns=@('IntentID')}
         'fk-target-order'{$p.tables[1].foreign_keys[0].target_columns=@('GuildID','IntentID','HistoryVersion')}
         'fk-target-missing'{$p.tables[1].foreign_keys[0].target_columns=@('IntentID','GuildID','Missing')}
+        'fk-target-type'{$p.tables[1].columns[0].type='int'}
+        'fk-target-collation'{$p.tables[1].columns[1].collation='Latin1_General_CI_AS'}
+        'fk-target-length'{$p.tables[1].columns[1].type='varchar(31)'}
         'constraint'{$p.tables[0].checks[0].name=$p.tables[0].primary_key.name}
         'version'{$p.version=2}
         'boolean-version'{$p.version=$true}

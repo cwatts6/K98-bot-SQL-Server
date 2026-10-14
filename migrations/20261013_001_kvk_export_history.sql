@@ -125,6 +125,26 @@ INSERT @HistoryFK VALUES
 (N'KVK.SourceExportHistoryRow',N'FK_SourceExportHistoryRow_History',3,N'HistoryVersion',N'KVK.SourceExportHistory',N'HistoryVersion');
 IF EXISTS (SELECT 1 FROM @HistoryMap WHERE ActualID IS NULL)
     THROW 51620, 'History prerequisite/object type conflict; no predecessor execution authorized.', 1;
+-- Bind names to their exact compiled shape; temp-table constraint names are system generated.
+DECLARE @HistoryCheckNames TABLE (ParentName nvarchar(128),ConstraintName nvarchar(128),ColumnMarker nvarchar(128));
+INSERT @HistoryCheckNames VALUES
+(N'KVK.SourceExportHistory',N'CK_SourceExportHistory_Scope',N'[SourceKey]'),
+(N'KVK.SourceExportHistory',N'CK_SourceExportHistory_Guild',N'[GuildID]'),
+(N'KVK.SourceExportHistory',N'CK_SourceExportHistory_Version',N'[HistoryVersion]'),
+(N'KVK.SourceExportHistory',N'CK_SourceExportHistory_Count',N'[AttemptCount]'),
+(N'KVK.SourceExportHistoryRow',N'CK_SourceExportHistoryRow_Ordinal',N'[Ordinal]'),
+(N'KVK.SourceExportHistoryRow',N'CK_SourceExportHistoryRow_Payload',N'[PayloadJson]');
+IF EXISTS (SELECT 1 FROM @HistoryCheckNames n JOIN @HistoryMap m ON m.Name=n.ParentName
+ LEFT JOIN sys.check_constraints a ON a.parent_object_id=m.ActualID AND a.name COLLATE Latin1_General_100_BIN2=n.ConstraintName COLLATE Latin1_General_100_BIN2
+ WHERE a.object_id IS NULL OR NOT EXISTS (SELECT 1 FROM tempdb.sys.check_constraints e WHERE e.parent_object_id=m.ExpectedID
+ AND CHARINDEX(n.ColumnMarker COLLATE Latin1_General_100_BIN2,e.definition COLLATE Latin1_General_100_BIN2)>0
+ AND e.definition COLLATE Latin1_General_100_BIN2=a.definition COLLATE Latin1_General_100_BIN2))
+ THROW 51620, 'History named check shape conflict; preserve and forward-fix.', 1;
+IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.indexes i ON i.object_id=m.ActualID
+ WHERE i.name COLLATE Latin1_General_100_BIN2<>(CASE WHEN i.is_primary_key=1 THEN N'PK_'+PARSENAME(m.Name,1)
+ WHEN i.is_unique_constraint=1 AND m.Name=N'KVK.SourceExportHistoryRow' THEN N'UQ_SourceExportHistoryRow_Attempt'
+ ELSE N'' END) COLLATE Latin1_General_100_BIN2)
+ THROW 51620, 'History named index shape conflict; preserve and forward-fix.', 1;
 -- EXCEPT in both directions rejects missing, extra, disabled, untrusted or altered shape.
 IF EXISTS (SELECT m.Name COLLATE Latin1_General_100_BIN2, c.column_id, c.name COLLATE Latin1_General_100_BIN2, c.system_type_id, c.max_length, c.[precision], c.scale, c.collation_name COLLATE Latin1_General_100_BIN2, c.is_nullable, c.is_identity, c.is_computed, c.is_rowguidcol, c.is_sparse, c.generated_always_type FROM @HistoryMap m JOIN sys.columns c ON c.object_id=m.ActualID
 EXCEPT
