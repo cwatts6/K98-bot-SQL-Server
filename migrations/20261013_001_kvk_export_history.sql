@@ -136,6 +136,14 @@ INSERT @HistoryFK VALUES
 (N'KVK.SourceExportHistoryRow',N'FK_SourceExportHistoryRow_History',3,N'HistoryVersion',N'KVK.SourceExportHistory',N'HistoryVersion');
 IF EXISTS (SELECT 1 FROM @HistoryMap WHERE ActualID IS NULL)
     THROW 51620, 'History prerequisite/object type conflict; no predecessor execution authorized.', 1;
+IF EXISTS (SELECT 1 FROM @HistoryMap WHERE
+ OBJECT_SCHEMA_NAME(ActualID) COLLATE Latin1_General_100_BIN2<>PARSENAME(Name,2) COLLATE Latin1_General_100_BIN2
+ OR OBJECT_NAME(ActualID) COLLATE Latin1_General_100_BIN2<>PARSENAME(Name,1) COLLATE Latin1_General_100_BIN2)
+ THROW 51620, 'History catalog identity conflict; preserve and forward-fix.', 1;
+IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.columns c ON c.object_id=m.ActualID WHERE c.encryption_type IS NOT NULL)
+ THROW 51620, 'History encrypted column conflict; preserve and forward-fix.', 1;
+IF EXISTS (SELECT 1 FROM @HistoryMap m JOIN sys.security_predicates p ON p.target_object_id=m.ActualID)
+ THROW 51620, 'History security predicate conflict; preserve and forward-fix.', 1;
 -- Bind names to their exact compiled shape; temp-table constraint names are system generated.
 DECLARE @HistoryCheckNames TABLE (ParentName nvarchar(128),ConstraintName nvarchar(128),ColumnMarker nvarchar(128));
 INSERT @HistoryCheckNames VALUES

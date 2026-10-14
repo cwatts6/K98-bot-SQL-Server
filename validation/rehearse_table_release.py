@@ -487,6 +487,124 @@ def run(database):
         assert attempts(p) == 1
         execute(f"ALTER TABLE [{schema}].[{table}] ALTER COLUMN [{column}] DROP MASKED;")
         outer(path, "Verify", 0)
+    # Exercise both verifiers against the same real catalog mutations. These
+    # fixtures are empty, isolated, and have exactly one successful receipt.
+    success_migration = migration.replace(legacy_schema + ".", schema + ".").replace(
+        "SCHEMA_ID(N'" + legacy_schema + "')", "SCHEMA_ID(N'" + schema + "')"
+    )
+
+    def refuse_postimage(expected_legacy_error, expected_additive_error):
+        try:
+            execute(success_migration)
+        except pyodbc.Error as exc:
+            assert expected_legacy_error in str(exc)
+        else:
+            raise AssertionError("Legacy migration accepted: " + expected_legacy_error)
+        assert c.execute("SELECT @@TRANCOUNT").fetchval() == 0
+        for operation in ("Verify", "Apply"):
+            outer(path, operation, 20)
+            error = (output / f"{counter:02d}-{operation}.stderr.txt").read_text()
+            assert expected_additive_error in " ".join(error.split())
+        assert attempts(p) == 1
+
+    def recovered_postimage():
+        execute(success_migration)
+        outer(path, "Verify", 0)
+
+    for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+        execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", schema + "." + table, table.lower())
+        refuse_postimage("History catalog identity conflict", "Additive object identity differs")
+        execute("EXEC sys.sp_rename ?, ?, 'OBJECT';", schema + "." + table.lower(), table)
+        recovered_postimage()
+
+    execute(
+        f"CREATE FUNCTION [{schema}].HistoryGate(@guild varchar(32)) RETURNS TABLE "
+        "WITH SCHEMABINDING AS RETURN SELECT 1 AS Allowed WHERE @guild='allowed';"
+    )
+    for table in ("SourceExportHistory", "SourceExportHistoryRow"):
+        for kind in ("FILTER", "BLOCK"):
+            for state in ("ON", "OFF"):
+                suffix = " AFTER INSERT" if kind == "BLOCK" else ""
+                execute(
+                    f"CREATE SECURITY POLICY [{schema}].HistoryPolicy ADD {kind} PREDICATE "
+                    f"[{schema}].HistoryGate(GuildID) ON [{schema}].[{table}]{suffix} "
+                    f"WITH (STATE={state});"
+                )
+                refuse_postimage(
+                    "History security predicate conflict", "Unsupported additive table metadata"
+                )
+                execute(f"DROP SECURITY POLICY [{schema}].HistoryPolicy;")
+                recovered_postimage()
+
+    # Always Encrypted metadata can be created without a real certificate or
+    # private key. The dummy CEK bytes are never used for encryption/decryption.
+    # No certificate store, external key service, or application rows are used.
+    key = "Updater_" + run_id + "_metadata"
+    execute(
+        f"CREATE COLUMN MASTER KEY [{key}] WITH (KEY_STORE_PROVIDER_NAME=N'MSSQL_CERTIFICATE_STORE',"
+        "KEY_PATH=N'CurrentUser/My/0000000000000000000000000000000000000000');"
+    )
+    execute(
+        f"CREATE COLUMN ENCRYPTION KEY [{key}] WITH VALUES (COLUMN_MASTER_KEY=[{key}],"
+        "ALGORITHM='RSA_OAEP',ENCRYPTED_VALUE=0x01);"
+    )
+    payload = (
+        success_migration.split("-- HISTORY_INSTALL_PAYLOAD_BEGIN\n", 1)[1]
+        .split("-- HISTORY_INSTALL_PAYLOAD_END", 1)[0]
+        .strip()
+    )
+    prefix = "EXEC sys.sp_executesql N'"
+    assert payload.startswith(prefix) and payload.endswith("';")
+    plaintext_ddl = payload[len(prefix) : -2].replace("''", "'")
+
+    def rebuild_empty_history(ddl):
+        for table in ("SourceExportHistoryRow", "SourceExportHistory"):
+            assert c.execute(f"SELECT COUNT(*) FROM [{schema}].[{table}]").fetchval() == 0
+        execute(f"DROP TABLE [{schema}].SourceExportHistoryRow, [{schema}].SourceExportHistory;")
+        execute(ddl)
+
+    for column, encryption in (
+        ("VectorHash", "DETERMINISTIC"),
+        ("ContentHash", "RANDOMIZED"),
+        ("RowHash", "DETERMINISTIC"),
+    ):
+        needle = column + " binary(32) NOT NULL"
+        assert plaintext_ddl.count(needle) == 1
+        encrypted_ddl = plaintext_ddl.replace(
+            needle,
+            column
+            + " binary(32) ENCRYPTED WITH (COLUMN_ENCRYPTION_KEY=["
+            + key
+            + "]"
+            + ",ENCRYPTION_TYPE="
+            + encryption
+            + ",ALGORITHM='AEAD_AES_256_CBC_HMAC_SHA_256') NOT NULL",
+        )
+        rebuild_empty_history(encrypted_ddl)
+        observed = c.execute(
+            "SELECT encryption_type FROM sys.columns WHERE object_id=OBJECT_ID(?) AND name=?",
+            schema
+            + "."
+            + ("SourceExportHistoryRow" if column == "RowHash" else "SourceExportHistory"),
+            column,
+        ).fetchval()
+        assert observed == (1 if encryption == "DETERMINISTIC" else 2)
+        refuse_postimage("History encrypted column conflict", "Unsupported additive table metadata")
+        rebuild_empty_history(plaintext_ddl)
+        recovered_postimage()
+    (output / "security-catalog-drift.json").write_text(
+        json.dumps(
+            {
+                "table_case": 2,
+                "filter_block_enabled_disabled": 8,
+                "encrypted_columns": 3,
+                "result": "BOTH_VERIFIERS_REFUSED_AND_RECOVERED",
+                "extra_attempts": 0,
+            }
+        ),
+        encoding="utf-8",
+    )
+
     intent = str(uuid.uuid4())
     execute(
         f"INSERT [{schema}].SourceExportIntent VALUES('snapshot_report_v1',16,?);",
