@@ -897,6 +897,7 @@ BEGIN
   IF @ReplacementID IS NULL AND (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK) WHERE RetiredByReplacementID IS NULL)+
    (SELECT COUNT_BIG(*) FROM dbo.ExportPreparation p WITH(UPDLOCK,HOLDLOCK)
     WHERE JSON_VALUE(p.RequestJson,''$.purpose'')=''output_enrollment''
+     AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementVerification v WHERE v.PreparationID=p.PreparationID AND v.PlanHash=p.RequestHash)
      AND NOT EXISTS(SELECT 1 FROM (SELECT FileID,PreparationID,Stage,Ordinal FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,PreparationID,Stage,Ordinal FROM dbo.ExportManualFileOrigin) o JOIN KVK.SourceOutputPool pool ON pool.IndexFileID=o.FileID
       WHERE o.PreparationID=p.PreparationID AND o.Stage=''eligible'' AND o.Ordinal=0))>=8
    THROW 51700,''Eight-pool enrollment capacity is exhausted.'',1;
@@ -990,7 +991,7 @@ SET @Installed=CASE
  WHEN LEFT(@Installed,LEN(N'CREATE   PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE   PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE   PROCEDURE'),N'CREATE PROCEDURE')
  WHEN LEFT(@Installed,LEN(N'ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'ALTER PROCEDURE'),N'CREATE PROCEDURE')
  ELSE @Installed END;
-IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0xf428a00a48b6ffb89ac0813eebbb78a41f72a8adb01f9b8c65fe581a7f494b54
+IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0xe968287e1816d157099b85bf031d61347b66526b01d3c908554a08eae332ae6d
  THROW 51730,'Exact reviewed replacement postimage required.',1;
 SET @ObjectID=OBJECT_ID(N'dbo.usp_ExportOutputEnrollmentTransition',N'P');
 SET @Installed=REPLACE(OBJECT_DEFINITION(@ObjectID),NCHAR(13)+NCHAR(10),NCHAR(10));
@@ -1063,7 +1064,7 @@ BEGIN
    OR JSON_VALUE(@PlanJson,''$.account'') COLLATE Latin1_General_100_BIN2<>@AccountKey COLLATE Latin1_General_100_BIN2
    OR DATALENGTH(JSON_VALUE(@PlanJson,''$.account''))<>2*DATALENGTH(@AccountKey)
    OR DATALENGTH(JSON_VALUE(@PlanJson,''$.purpose''))<>34
-   OR JSON_VALUE(@PlanJson,''$.storage_owner'') COLLATE Latin1_General_100_BIN2 LIKE ''%[^A-Za-z0-9_.@:-]%''
+   OR JSON_VALUE(@PlanJson,''$.storage_owner'') COLLATE Latin1_General_100_BIN2 LIKE ''%[^-A-Za-z0-9_.@:]%''
    OR DATALENGTH(JSON_VALUE(@PlanJson,''$.storage_owner'')) NOT BETWEEN 2 AND 256
    OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PlanJson,''$.plan_id'')) IS NULL
    OR DATALENGTH(JSON_VALUE(@PlanJson,''$.plan_id''))<>72
@@ -1144,6 +1145,7 @@ BEGIN
   IF (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK) WHERE RetiredByReplacementID IS NULL)+
    (SELECT COUNT_BIG(*) FROM dbo.ExportPreparation p WITH(UPDLOCK,HOLDLOCK)
     WHERE JSON_VALUE(p.RequestJson,''$.purpose'')=''output_enrollment''
+     AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementVerification v WHERE v.PreparationID=p.PreparationID AND v.PlanHash=p.RequestHash)
      AND NOT EXISTS(SELECT 1 FROM dbo.ExportManagedFileOrigin o JOIN KVK.SourceOutputPool pool ON pool.IndexFileID=o.FileID
       WHERE o.PreparationID=p.PreparationID AND o.Stage=''eligible'' AND o.Ordinal=0))>=8
    THROW 51700,''Eight-pool enrollment capacity is exhausted.'',1;
@@ -1251,7 +1253,7 @@ SET @Installed=CASE
  WHEN LEFT(@Installed,LEN(N'CREATE   PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE   PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE   PROCEDURE'),N'CREATE PROCEDURE')
  WHEN LEFT(@Installed,LEN(N'ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'ALTER PROCEDURE'),N'CREATE PROCEDURE')
  ELSE @Installed END;
-IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0x1d40d50497da654d224dcdafeaf36fe138e67d8bf5dfdd937f25541ec8483e2d
+IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0x8248d1a8c490bac1c1cc13c3ee1bfef0c21fb36465e163c15d994afc7ea8d2ab
  THROW 51730,'Exact reviewed replacement postimage required.',1;
 SET @ObjectID=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition',N'P');
 SET @Installed=REPLACE(OBJECT_DEFINITION(@ObjectID),NCHAR(13)+NCHAR(10),NCHAR(10));

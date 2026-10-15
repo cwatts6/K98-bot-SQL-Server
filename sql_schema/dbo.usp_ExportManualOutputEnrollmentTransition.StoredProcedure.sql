@@ -186,6 +186,7 @@ BEGIN
   IF @ReplacementID IS NULL AND (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK) WHERE RetiredByReplacementID IS NULL)+
    (SELECT COUNT_BIG(*) FROM dbo.ExportPreparation p WITH(UPDLOCK,HOLDLOCK)
     WHERE JSON_VALUE(p.RequestJson,'$.purpose')='output_enrollment'
+     AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementVerification v WHERE v.PreparationID=p.PreparationID AND v.PlanHash=p.RequestHash)
      AND NOT EXISTS(SELECT 1 FROM (SELECT FileID,PreparationID,Stage,Ordinal FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,PreparationID,Stage,Ordinal FROM dbo.ExportManualFileOrigin) o JOIN KVK.SourceOutputPool pool ON pool.IndexFileID=o.FileID
       WHERE o.PreparationID=p.PreparationID AND o.Stage='eligible' AND o.Ordinal=0))>=8
    THROW 51700,'Eight-pool enrollment capacity is exhausted.',1;
