@@ -119,7 +119,7 @@ BEGIN
    JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
    WHERE NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID
      AND (e.State IN ('succeeded','not_sent') OR
-       (s.StreamID<>@ProbeID AND s.Purpose='probe' AND r.RequestKind='read' AND e.State='unknown'))))
+       (s.StreamID<>@ProbeID AND s.Purpose='probe' AND r.RequestKind='read' AND e.State IN ('prepared','dispatch_intent','unknown')))))
   THROW 51700,'Request gaps or unknown outcomes cannot become proof.',1;
  -- Older successful jobs stay in the complete catalogue, but do not imply that
  -- this publication dispatched a mutation. Cover every stream of its exact job,

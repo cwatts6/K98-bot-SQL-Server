@@ -37,3 +37,26 @@ They exercise scoped reads, concurrent claims, lost commit acknowledgements,
 stale revisions and durable action state. SQL Server does not enforce FKs on temp
 tables, so these tests do not establish persistent FK installation or deployment.
 Those remain mandatory release acceptance work, not deferred optimisation.
+
+## Complete sealed read prefixes
+
+Companion branch `codex/guided-read-journal` adds migration
+`20261015_003_read_prefix_history`, after `20261015_001_failed_read_history`.
+It accepts a historical closed probe's read prefix ending at `prepared` or
+`dispatch_intent` without treating it as a successful fresh provider observation.
+The authority must still validate the complete private request/event journal and
+exact positive child closure before issuing any proof. Unknown mutations, fresh
+failed probes, missing private evidence and live writers remain rejected.
+
+The migration pins the exact predecessor and postimage, rejects unexpected module
+signatures, holds the schema application lock and changes no grants or data.
+Deploy with the matching Bot/authority verifier and refreshed protected SQL/source
+contracts. Do not deploy the reference schema snapshot directly. Roll forward;
+retain all existing streams, proofs, incidents and action history.
+
+Local acceptance executes the actual procedure postimage as a session-local
+temporary procedure and its historical-request predicate over disposable CTE rows.
+Cases include both read prefixes, unknown reads, every fresh failed read, unknown
+mutation and purpose/kind mismatches. This establishes predicate/metadata behavior,
+not persistent production migration installation or end-to-end provider acceptance.
+Remaining recovery packages stay required in the Bot delivery tracker.
