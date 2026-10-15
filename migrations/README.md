@@ -1222,3 +1222,14 @@ Run `deploy/Test-OutputOperationOwnershipContracts.ps1` for offline text contrac
 disposable target, backup and actual restore approval; it has not been executed.
 Upgrade all resource readers/writers before operation admission. Do not activate by merely
 installing SQL or setting flags. Preserve claims/history and forward-fix on uncertainty.
+
+## Guided failed-publication verification (2026-10-15)
+
+`20261015_004_failed_publication_probe.sql` permits failed jobs to enter a read-only
+execution probe. Mutation streams remain running-only; resource/session/owner/version
+checks are unchanged. Deploy with the matching Bot recovery change and refreshed protected
+source/module pins. Separate retry requires fresh authority absence proof with no dispatched
+mutation, positive closed-child evidence, current registration and retained quarantine.
+This migration does not release work or issue provider calls. Validate the exact predecessor,
+take the required backup and use the normal reviewed deployment process. Local verification
+uses temporary SQL objects only.
