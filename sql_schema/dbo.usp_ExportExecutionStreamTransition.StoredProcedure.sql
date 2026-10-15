@@ -28,7 +28,8 @@ AS
 BEGIN
  SET NOCOUNT ON;
  SET XACT_ABORT ON;
- IF @@TRANCOUNT<>0 THROW 51700,'Evidence transition requires its own short transaction.',1;
+ IF (@Action='contain_read' AND @@TRANCOUNT<>1) OR (@Action<>'contain_read' AND @@TRANCOUNT<>0)
+  THROW 51700,'Read containment requires the exact outer recovery transaction; other transitions require their own transaction.',1;
  IF IS_ROLEMEMBER(N'ExportExecutionAuthority')<>1 OR IS_ROLEMEMBER(N'ExportExecutionAuthority') IS NULL
    THROW 51700,'Evidence authority role required.',1;
  BEGIN TRANSACTION;
@@ -38,7 +39,43 @@ BEGIN
  EXEC @LockResult=sys.sp_getapplock @Resource=@LockKey,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0;
  IF @LockResult<0 THROW 51700,'Export admission busy.',1;
 
- IF @Action='open' AND DATALENGTH(@Action)=4 AND @ExpectedVersion=0
+ IF @Action='contain_read' AND DATALENGTH(@Action)=12
+ BEGIN
+  -- A distinct dispatch fence, never an OS-closure or provider-success assertion.
+  -- The authority has sealed the SQL ledger and the outer transaction compares
+  -- the complete preparation/resources before calling this protected transition.
+  IF @ClosureHash IS NULL OR @ClosureReference IS NULL OR @EventDigest IS NULL
+   OR @LastSequence IS NULL OR @ChildIdentity IS NULL OR @ObjectID IS NULL
+   OR @OwnerID IS NULL OR @Fence IS NULL OR @ClaimVersion IS NULL
+   THROW 51700,'Complete read containment binding required.',1;
+  IF NOT EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WITH (UPDLOCK,HOLDLOCK)
+   WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State IN ('open','closed'))
+   THROW 51700,'Exact original authority session required.',1;
+  IF NOT EXISTS (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK)
+   WHERE PreparationID=@ObjectID AND AccountKey=@AccountKey AND OwnerID=@OwnerID AND Fence=@Fence
+    AND ConsumerKind='config' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+    AND State IN ('preflight','uncertain')
+    AND Version=@ClaimVersion+CASE WHEN State='uncertain' THEN 1 ELSE 0 END
+    AND ISNULL(JSON_VALUE(RequestJson,'$.purpose'),'')<>'output_enrollment')
+   THROW 51700,'Exact unfinished configuration preparation required.',1;
+  IF (SELECT COUNT_BIG(*) FROM dbo.ExportProviderRequest WITH (UPDLOCK,HOLDLOCK) WHERE StreamID=@StreamID)<>@LastSequence
+   OR EXISTS (SELECT 1 FROM dbo.ExportProviderRequest WITH (UPDLOCK,HOLDLOCK) WHERE StreamID=@StreamID
+    AND (Sequence<1 OR Sequence>@LastSequence OR RequestKind<>'read'
+     OR Operation NOT IN ('sheets.get','sheets.values.get','sheets.values.batchGet','drive.files.get','drive.permissions.list')))
+   THROW 51700,'Only complete typed read membership can be contained.',1;
+  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID
+   AND (NOT EXISTS(SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID AND e.EventSequence=1 AND e.State='prepared')
+    OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID AND e.State NOT IN ('prepared','dispatch_intent','succeeded','not_sent','unknown'))))
+   THROW 51700,'Complete read event membership required.',1;
+  UPDATE dbo.ExportExecutionStream SET State='read_contained',ActiveAccountKey=NULL,Version=Version+1,
+   ClosureHash=@ClosureHash,ClosureReference=@ClosureReference,EventDigest=@EventDigest,ClosedUTC=SYSUTCDATETIME()
+   WHERE StreamID=@StreamID AND SessionID=@SessionID AND AccountKey=@AccountKey AND Version=@ExpectedVersion
+    AND PreparationID=@ObjectID AND OwnerID=@OwnerID AND Fence=@Fence AND ClaimVersion=@ClaimVersion
+    AND ChildIdentity=@ChildIdentity AND Purpose='probe' AND State IN ('open','frozen','closed')
+    AND JobID IS NULL AND OutputOperationID IS NULL AND NestedToken IS NULL AND Epoch IS NULL AND LastSequence=@LastSequence;
+  IF @@ROWCOUNT<>1 THROW 51700,'Read containment CAS lost.',1;
+ END
+ ELSE IF @Action='open' AND DATALENGTH(@Action)=4 AND @ExpectedVersion=0
  BEGIN
 
  -- Account lock precedes sorted resource locks; stream row is locked last.

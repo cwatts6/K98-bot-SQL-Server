@@ -176,7 +176,7 @@ BEGIN
  SELECT @StreamState=State,@LastSequence=LastSequence,@Version=Version
  FROM dbo.ExportExecutionStream WITH (UPDLOCK,HOLDLOCK)
  WHERE StreamID=@StreamID AND SessionID=@SessionID AND AccountKey=@AccountKey;
- IF @ExpectedVersion IS NULL OR @Version IS NULL OR @Version<>@ExpectedVersion OR @StreamState='closed'
+ IF @ExpectedVersion IS NULL OR @Version IS NULL OR @Version<>@ExpectedVersion OR @StreamState NOT IN ('open','frozen')
   THROW 51700,'Request stream CAS lost or closed.',1;
  IF @State IS NULL OR DATALENGTH(@State)<>LEN(@State) THROW 51700,'Canonical event state required.',1;
  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent WHERE EventID=@EventID)

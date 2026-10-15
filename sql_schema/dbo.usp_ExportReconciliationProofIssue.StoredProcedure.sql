@@ -89,7 +89,9 @@ BEGIN
   WHERE o.PreparationID=s.PreparationID AND o.Stage IN ('created','registered')));
  IF NOT EXISTS (SELECT 1 FROM @Members) THROW 51700,'Empty evidence is not proof of historical coverage.',1;
  IF EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
-   WHERE s.State<>'closed' OR s.ActiveAccountKey IS NOT NULL OR s.ClosureHash IS NULL OR s.EventDigest IS NULL)
+   WHERE s.State NOT IN ('closed','read_contained') OR s.ActiveAccountKey IS NOT NULL OR s.ClosureHash IS NULL OR s.EventDigest IS NULL
+    OR (s.State='read_contained' AND (s.Purpose<>'probe' OR s.PreparationID IS NULL OR s.JobID IS NOT NULL OR s.OutputOperationID IS NOT NULL
+     OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=s.StreamID AND r.RequestKind<>'read'))))
   THROW 51700,'Exact closed request-stream membership required.',1;
  DECLARE @CatalogueHash binary(32)=HASHBYTES('SHA2_256',CONVERT(varbinary(max),'K98-S11-CATALOGUE-1')),
   @CatalogueCount bigint=0,@CatalogueID uniqueidentifier,@CatalogueVersion bigint,@CatalogueEvents binary(32);
@@ -110,7 +112,7 @@ BEGIN
  IF @CatalogueCount<>@ExpectedCount OR @CatalogueHash<>CONVERT(binary(32),@HistoryHashText,2)
   THROW 51700,'Historical writer catalogue changed around the fresh probe.',1;
  IF NOT EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
-   WHERE s.StreamID=@ProbeID AND s.Version=@ProbeVersion AND s.Purpose='probe'
+   WHERE s.StreamID=@ProbeID AND s.Version=@ProbeVersion AND s.Purpose='probe' AND s.State='closed'
    AND s.SnapshotHash=@SnapshotHash AND s.RegistrationHash=@RegistrationHash
    AND EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r JOIN dbo.ExportProviderRequestEvent e ON e.RequestID=r.RequestID
      WHERE r.StreamID=s.StreamID AND r.RequestKind='read' AND e.State='succeeded'))

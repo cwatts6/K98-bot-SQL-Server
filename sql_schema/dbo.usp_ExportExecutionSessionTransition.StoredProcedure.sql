@@ -28,7 +28,7 @@ BEGIN
  END
  ELSE IF @Action='close' AND DATALENGTH(@Action)=5 AND @ExpectedVersion=@Existing
  BEGIN
-  IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE SessionID=@SessionID AND State<>'closed')
+  IF EXISTS (SELECT 1 FROM dbo.ExportExecutionStream WHERE SessionID=@SessionID AND State NOT IN ('closed','read_contained'))
     THROW 51700,'Provider stream closure is unproven.',1;
   IF EXISTS (SELECT 1 FROM dbo.ExportPreparation
     WHERE ConsumerKind='config' AND State<>'completed'
