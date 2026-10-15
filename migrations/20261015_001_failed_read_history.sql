@@ -22,6 +22,13 @@ EXEC @Lock=sys.sp_getapplock @Resource=N'K98:S11:schema',@LockMode='Exclusive',@
 IF @Lock<0 THROW 51725,'Schema busy.',1;
 DECLARE @ObjectID int=OBJECT_ID(N'dbo.usp_ExportReconciliationProofIssue',N'P');
 DECLARE @Installed nvarchar(max)=REPLACE(OBJECT_DEFINITION(@ObjectID),NCHAR(13)+NCHAR(10),NCHAR(10));
+-- SQL Server may preserve CREATE OR ALTER as CREATE followed by three spaces.
+-- Normalise only known declaration prefixes; the entire remaining body stays hash-pinned.
+SET @Installed=CASE
+ WHEN LEFT(@Installed,LEN(N'CREATE OR ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE OR ALTER PROCEDURE'),N'CREATE PROCEDURE')
+ WHEN LEFT(@Installed,LEN(N'CREATE   PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE   PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE   PROCEDURE'),N'CREATE PROCEDURE')
+ WHEN LEFT(@Installed,LEN(N'ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'ALTER PROCEDURE'),N'CREATE PROCEDURE')
+ ELSE @Installed END;
 IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed)) NOT IN (0xd8459a5ea0b393b900e173f22d6dda5415277bc62b34700fbff7ea6fa9119364,0xb3bcf377f9c5710042134e0b08c71219ee4451ff810b8c5d58e85f778a72a4b8)
  THROW 51725,'Exact reviewed proof-issue predecessor/postimage required.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=@ObjectID)
@@ -175,6 +182,13 @@ END;';
 EXEC sys.sp_executesql @Apply;
 END;
 SET @Installed=REPLACE(OBJECT_DEFINITION(@ObjectID),NCHAR(13)+NCHAR(10),NCHAR(10));
+-- SQL Server may preserve CREATE OR ALTER as CREATE followed by three spaces.
+-- Normalise only known declaration prefixes; the entire remaining body stays hash-pinned.
+SET @Installed=CASE
+ WHEN LEFT(@Installed,LEN(N'CREATE OR ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE OR ALTER PROCEDURE'),N'CREATE PROCEDURE')
+ WHEN LEFT(@Installed,LEN(N'CREATE   PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE   PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE   PROCEDURE'),N'CREATE PROCEDURE')
+ WHEN LEFT(@Installed,LEN(N'ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'ALTER PROCEDURE'),N'CREATE PROCEDURE')
+ ELSE @Installed END;
 IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0xb3bcf377f9c5710042134e0b08c71219ee4451ff810b8c5d58e85f778a72a4b8
  THROW 51725,'Exact reviewed proof-issue postimage required.',1;
 COMMIT;
