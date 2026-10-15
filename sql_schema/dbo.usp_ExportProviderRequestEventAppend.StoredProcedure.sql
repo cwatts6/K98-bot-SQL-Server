@@ -182,6 +182,11 @@ BEGIN
  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent WHERE EventID=@EventID)
   THROW 51700,'Event already exists; read immutable event before retry.',1;
  DECLARE @Previous varchar(32),@EventSequence int;
+ IF (@State='prepared' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+  OR (@State='dispatch_intent' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID))
+  THROW 51700,'Permanently isolated target: provider dispatch is forbidden.',1;
+
  IF @State='prepared'
  BEGIN
   IF @StreamState<>'open' OR (@Purpose='probe' AND @RequestKind<>'read')
