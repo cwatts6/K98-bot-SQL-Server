@@ -153,7 +153,7 @@ BEGIN
   IF @Purpose='enrollment'
   BEGIN
    IF JSON_VALUE(@EnrollmentPlan,'$.purpose') IS NULL OR JSON_VALUE(@EnrollmentPlan,'$.purpose')<>'output_enrollment'
-    OR (DATALENGTH(@ScopeJson)>65536 AND ISNULL(JSON_VALUE(@EnrollmentPlan,'$.version'),'')<>'4')
+    OR (DATALENGTH(@ScopeJson)>65536 AND ISNULL(JSON_VALUE(@EnrollmentPlan,'$.version'),'') NOT IN ('4','5'))
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id')) IS NULL
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id'))<>@SessionID
     OR @RegistrationHash<>@EnrollmentHash OR @SnapshotHash<>@EnrollmentHash

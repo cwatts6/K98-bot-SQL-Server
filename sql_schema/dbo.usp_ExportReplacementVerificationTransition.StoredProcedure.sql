@@ -57,7 +57,7 @@ BEGIN
    OR EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key] NOT IN
     ('version','purpose','account','storage_owner','owner_email','editor_email','project_id','credential_profile_sha256','manifest_sha256','file_count','plan_id','replacement_id','files'))
    OR EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key] NOT IN ('version','file_count','files') AND (type<>1 OR LEN(value)=0))
-   OR NOT EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key]='version' AND type=2 AND value=N'4' AND DATALENGTH(value)=2)
+   OR NOT EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key]='version' AND type=2 AND value IN (N'4',N'5') AND DATALENGTH(value)=2)
    OR NOT EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key]='file_count' AND type=2 AND TRY_CONVERT(int,value) BETWEEN 1 AND 1024 AND value=CONVERT(varchar(4),TRY_CONVERT(int,value)))
    OR NOT EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key]='files' AND type=4)
    OR JSON_VALUE(@PlanJson,'$.plan_id') COLLATE Latin1_General_100_BIN2<>LOWER(CONVERT(varchar(36),@VerificationID)) COLLATE Latin1_General_100_BIN2
@@ -70,7 +70,7 @@ BEGIN
    OR EXISTS(SELECT 1 FROM OPENJSON(@PlanJson) WHERE [key] IN ('manifest_sha256','credential_profile_sha256')
     AND (DATALENGTH(value)<>128 OR value COLLATE Latin1_General_100_BIN2 LIKE '%[^0-9a-f]%'))
    THROW 51728,'Exact replacement read plan required.',1;
-  IF JSON_VALUE(@PlanJson,'$.version')<>'4' OR JSON_VALUE(@PlanJson,'$.purpose')<>'output_enrollment'
+  IF JSON_VALUE(@PlanJson,'$.version') NOT IN ('4','5') OR JSON_VALUE(@PlanJson,'$.purpose')<>'output_enrollment'
    OR JSON_VALUE(@PlanJson,'$.account') COLLATE Latin1_General_100_BIN2<>@AccountKey COLLATE Latin1_General_100_BIN2
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.account'))<>2*DATALENGTH(@AccountKey)
    OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PlanJson,'$.plan_id'))<>@VerificationID
@@ -86,6 +86,15 @@ BEGIN
    OR NOT EXISTS(SELECT 1 FROM dbo.ExportExecutionSession WHERE SessionID=@SessionID
     AND LOWER(CONVERT(varchar(64),ManifestHash,2)) COLLATE Latin1_General_100_BIN2=JSON_VALUE(@PlanJson,'$.manifest_sha256') COLLATE Latin1_General_100_BIN2)
    THROW 51728,'Replacement read plan does not bind the complete proposal and session.',1;
+  IF JSON_VALUE(@PlanJson,'$.version')='5' AND EXISTS(
+   SELECT 1 FROM OPENJSON(@PlanJson,'$.files') f WHERE f.type<>5
+    OR (SELECT COUNT(*) FROM OPENJSON(f.value))<>4
+    OR (SELECT COUNT(DISTINCT [key]) FROM OPENJSON(f.value))<>4
+    OR EXISTS(SELECT 1 FROM OPENJSON(f.value) WHERE [key] NOT IN ('file_id','audience','editors','kind'))
+    OR NOT EXISTS(SELECT 1 FROM OPENJSON(f.value) WHERE [key]='kind' AND type=1
+     AND ((value COLLATE Latin1_General_100_BIN2=N'output' AND DATALENGTH(value)=12)
+      OR (value COLLATE Latin1_General_100_BIN2=N'configuration_output' AND DATALENGTH(value)=40))))
+   THROW 51728,'Exact configuration or output verification role required.',1;
   IF EXISTS(SELECT 1 FROM dbo.ExportExecutionStream WHERE ActiveAccountKey=@AccountKey)
    OR EXISTS(SELECT 1 FROM dbo.ExportPreparation WHERE AccountKey=@AccountKey AND State IN ('pending','preflight','sql_pending','writing','committed','uncertain'))
    OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperation WHERE AccountKey=@AccountKey AND State IN ('closing','ready','running','uncertain'))
@@ -138,7 +147,7 @@ BEGIN
     AND p.PreparationID=@PreparationID AND p.AccountKey=@AccountKey AND p.OwnerID=@OwnerID AND p.State='preflight' AND p.Version=1
     AND p.JobID IS NULL AND p.SpoolKey IS NULL AND p.ConsumerKind='config' AND p.KVK_NO IS NULL AND p.RequestHash=v.PlanHash;
   IF @StoredPlan IS NULL OR @StoredHash<>HASHBYTES('SHA2_256',CONVERT(varbinary(max),@StoredPlan))
-   OR JSON_VALUE(@StoredPlan,'$.version')<>'4' OR JSON_VALUE(@StoredPlan,'$.purpose')<>'output_enrollment'
+   OR JSON_VALUE(@StoredPlan,'$.version') NOT IN ('4','5') OR JSON_VALUE(@StoredPlan,'$.purpose')<>'output_enrollment'
    OR NOT EXISTS(SELECT 1 FROM dbo.ExportExecutionSession WHERE SessionID=@OriginalSession AND AuthorityPrincipal=USER_NAME())
    OR EXISTS(SELECT ResourceKey FROM dbo.ExportPreparationResource WHERE PreparationID=@PreparationID EXCEPT SELECT ResourceKey FROM @Resources)
    OR EXISTS(SELECT ResourceKey FROM @Resources EXCEPT SELECT ResourceKey FROM dbo.ExportPreparationResource WHERE PreparationID=@PreparationID)
@@ -168,7 +177,9 @@ BEGIN
     THROW 51728,'Complete typed read-only verification ledger required.',1;
    IF @Action='verify'
    BEGIN
-    IF @LastSequence<>5*TRY_CONVERT(int,JSON_VALUE(@StoredPlan,'$.file_count'))
+    IF @LastSequence<>(SELECT SUM(CASE WHEN JSON_VALUE(@StoredPlan,'$.version')='5'
+      AND JSON_VALUE(value,'$.kind')='configuration_output' THEN 19 ELSE 5 END)
+      FROM OPENJSON(@StoredPlan,'$.files'))
      OR NOT EXISTS(SELECT 1 FROM dbo.ExportExecutionStream WHERE StreamID=@StreamID AND State='closed' AND ActiveAccountKey IS NULL AND ClosureHash IS NOT NULL AND EventDigest=@EventDigest)
      OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID AND NOT EXISTS
       (SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID AND e.State='succeeded'))
