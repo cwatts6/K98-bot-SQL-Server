@@ -80,7 +80,13 @@ BEGIN
  -- can enter automatic finality. Old/unproven files remain operator reconciliation.
  IF EXISTS(SELECT 1 FROM @Targets t WHERE NOT EXISTS(SELECT 1 FROM (SELECT FileID,Stage,PreparationID FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,Stage,PreparationID FROM dbo.ExportManualFileOrigin) o
    JOIN dbo.ExportPreparation p ON p.PreparationID=o.PreparationID
-   WHERE o.FileID=t.FileID AND o.Stage='eligible' AND p.AccountKey=@AccountKey AND p.State='completed'))
+   WHERE o.FileID=t.FileID AND o.Stage='eligible' AND p.AccountKey=@AccountKey AND p.State='completed')
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementActivation a
+    JOIN dbo.ExportReplacementTarget replacement ON replacement.ReplacementID=a.ReplacementID
+    JOIN dbo.ExportReplacementVerification v ON v.VerificationID=a.VerificationID AND v.ReplacementID=a.ReplacementID
+    JOIN dbo.ExportPreparation prep ON prep.PreparationID=v.PreparationID
+    WHERE replacement.NewFileID=t.FileID AND a.AccountKey=@AccountKey AND a.NewPoolID IS NOT NULL
+     AND v.State='verified' AND v.Version=2 AND prep.State='completed' AND prep.AccountKey=a.AccountKey AND prep.RequestHash=v.PlanHash))
   THROW 51700,'Complete authenticated managed-file origins required.',1;
  DECLARE @Members TABLE (StreamID uniqueidentifier NOT NULL PRIMARY KEY,Version bigint NOT NULL);
  INSERT @Members SELECT s.StreamID,s.Version FROM dbo.ExportExecutionStream s WITH (UPDLOCK,HOLDLOCK)
@@ -92,7 +98,7 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM @Members) THROW 51700,'Empty evidence is not proof of historical coverage.',1;
  IF EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
    WHERE s.State NOT IN ('closed','read_contained') OR s.ActiveAccountKey IS NOT NULL OR s.ClosureHash IS NULL OR s.EventDigest IS NULL
-    OR (s.State='read_contained' AND (s.Purpose<>'probe' OR s.PreparationID IS NULL OR s.JobID IS NOT NULL OR s.OutputOperationID IS NOT NULL
+    OR (s.State='read_contained' AND (s.Purpose NOT IN ('probe','enrollment') OR s.PreparationID IS NULL OR s.JobID IS NOT NULL OR s.OutputOperationID IS NOT NULL
      OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=s.StreamID AND r.RequestKind<>'read'))))
   THROW 51700,'Exact closed request-stream membership required.',1;
  DECLARE @CatalogueHash binary(32)=HASHBYTES('SHA2_256',CONVERT(varbinary(max),'K98-S11-CATALOGUE-1')),

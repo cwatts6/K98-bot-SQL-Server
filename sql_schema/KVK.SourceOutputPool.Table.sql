@@ -27,9 +27,9 @@ CREATE TABLE KVK.SourceOutputPool
     UpdatedUTC datetime2(0) NOT NULL,
     RegistrationHash binary(32) NOT NULL,
     RegistrationJson nvarchar(max) NOT NULL,
+    RetiredByReplacementID uniqueidentifier NULL,
     CONSTRAINT PK_SourceOutputPool PRIMARY KEY (PoolID),
     CONSTRAINT UQ_SourceOutputPool_Index UNIQUE (IndexFileID),
-    CONSTRAINT UQ_SourceOutputPool_Registration UNIQUE (RegistrationNo),
     CONSTRAINT UQ_SourceOutputPool_Account UNIQUE (PoolID, AccountKey),
     CONSTRAINT UQ_SourceOutputPool_File UNIQUE (PoolID, IndexFileID),
     CONSTRAINT CK_SourceOutputPool_Index CHECK (IndexFileKind = 'index' AND DATALENGTH(IndexFileKind) = 5),
@@ -40,11 +40,13 @@ CREATE TABLE KVK.SourceOutputPool
     CONSTRAINT CK_SourceOutputPool_State CHECK (PoolState IN ('active','closing','closed','setup','blocked') AND DATALENGTH(PoolState) = LEN(PoolState)),
     CONSTRAINT CK_SourceOutputPool_Ownership CHECK ((OwnerID IS NULL AND Fence >= 0 AND PoolState <> 'closing') OR (OwnerID IS NOT NULL AND Fence > 0 AND PoolState <> 'closed')),
     CONSTRAINT CK_SourceOutputPool_Blocked CHECK ((PoolState = 'blocked' AND BlockedReason IS NOT NULL AND LEN(BlockedReason) > 0) OR (PoolState <> 'blocked' AND BlockedReason IS NULL)),
+    CONSTRAINT CK_SourceOutputPool_RetiredReplacement CHECK (RetiredByReplacementID IS NULL OR (PoolState='blocked' AND OwnerID IS NULL AND BlockedReason=N'Targets permanently isolated; verified replacements required')),
     CONSTRAINT CK_SourceOutputPool_Counters CHECK (Epoch > 0 AND Version > 0 AND UpdatedUTC >= CreatedUTC),
     CONSTRAINT CK_SourceOutputPool_Audience CHECK (ISJSON(AudienceJson) = 1 AND DATALENGTH(AudienceJson) <= 65536),
     CONSTRAINT CK_SourceOutputPool_Evidence CHECK (ISJSON(RegistrationJson) = 1 AND DATALENGTH(RegistrationJson) <= 65536)
 );
 CREATE INDEX IX_SourceOutputPool_State ON KVK.SourceOutputPool (AccountKey, PoolState, PoolID);
+CREATE UNIQUE INDEX UX_SourceOutputPool_CurrentRegistration ON KVK.SourceOutputPool(RegistrationNo) WHERE RetiredByReplacementID IS NULL;
 ALTER TABLE KVK.SourceOutputPool WITH CHECK ADD CONSTRAINT FK_SourceOutputPool_Index FOREIGN KEY (IndexFileID, IndexFileKind) REFERENCES KVK.SourceOutputFile (FileID, FileKind);
 ALTER TABLE KVK.SourceOutputPool WITH CHECK ADD CONSTRAINT FK_SourceOutputPool_Account FOREIGN KEY (AccountResourceKey) REFERENCES dbo.ExportResource (ResourceKey);
 ALTER TABLE KVK.SourceOutputPool WITH CHECK ADD CONSTRAINT FK_SourceOutputPool_Choice FOREIGN KEY (ActiveKVK, SourceKey, ChoiceID) REFERENCES KVK.SeasonSource (KVK_NO, SourceKey, ChoiceID);

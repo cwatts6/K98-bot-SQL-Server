@@ -141,7 +141,7 @@ BEGIN
  BEGIN
   -- Count registered pools and still-unregistered enrollment plans once each.
   -- Range locks prevent concurrent enrollment/registration from overbooking eight.
-  IF (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK))+
+  IF (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK) WHERE RetiredByReplacementID IS NULL)+
    (SELECT COUNT_BIG(*) FROM dbo.ExportPreparation p WITH(UPDLOCK,HOLDLOCK)
     WHERE JSON_VALUE(p.RequestJson,'$.purpose')='output_enrollment'
      AND NOT EXISTS(SELECT 1 FROM dbo.ExportManagedFileOrigin o JOIN KVK.SourceOutputPool pool ON pool.IndexFileID=o.FileID

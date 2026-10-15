@@ -64,7 +64,23 @@ BEGIN
   EXEC @LockResult=sys.sp_getapplock @Resource=@LockKey,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0;
   IF @LockResult<0 THROW 51727,'Replacement destination busy.',1;
   IF EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WHERE FileID=SUBSTRING(@ResourceKey,13,128))
-   OR EXISTS(SELECT 1 FROM dbo.ExportResource WITH(UPDLOCK,HOLDLOCK) WHERE ResourceKey=@ResourceKey)
+   OR EXISTS(SELECT 1 FROM dbo.ExportResource r WITH(UPDLOCK,HOLDLOCK) WHERE r.ResourceKey=@ResourceKey AND
+    (r.OwnerID IS NOT NULL OR r.ActiveJobID IS NOT NULL OR r.ActivePreparationID IS NOT NULL
+     OR r.ActiveOutputOperationID IS NOT NULL OR r.BlockedReason IS NOT NULL
+     OR NOT EXISTS(SELECT 1 FROM dbo.ExportPreparationResource m
+      JOIN dbo.ExportReplacementVerification v ON v.PreparationID=m.PreparationID
+      JOIN dbo.ExportReplacementPlan p ON p.ReplacementID=v.ReplacementID
+      WHERE m.ResourceKey=r.ResourceKey AND p.ContainmentID=@ContainmentID AND p.AccountKey=@AccountKey
+       AND v.State IN ('verified','discarded') AND NOT EXISTS
+        (SELECT 1 FROM dbo.ExportReplacementActivation a WHERE a.ReplacementID=p.ReplacementID))))
+   OR EXISTS(SELECT 1 FROM dbo.ExportPreparationResource m WHERE m.ResourceKey=@ResourceKey AND NOT EXISTS
+    (SELECT 1 FROM dbo.ExportReplacementVerification v JOIN dbo.ExportReplacementPlan p ON p.ReplacementID=v.ReplacementID
+     WHERE v.PreparationID=m.PreparationID AND p.ContainmentID=@ContainmentID AND p.AccountKey=@AccountKey
+      AND v.State IN ('verified','discarded') AND NOT EXISTS
+       (SELECT 1 FROM dbo.ExportReplacementActivation a WHERE a.ReplacementID=p.ReplacementID)))
+   OR EXISTS(SELECT 1 FROM dbo.ExportJobResource WHERE ResourceKey=@ResourceKey)
+   OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperationResource WHERE ResourceKey=@ResourceKey)
+   OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequest WHERE TargetID=SUBSTRING(@ResourceKey,13,128) AND RequestKind<>'read')
    OR EXISTS(SELECT 1 FROM dbo.ExportManagedFileOrigin WHERE FileID=SUBSTRING(@ResourceKey,13,128))
    OR EXISTS(SELECT 1 FROM dbo.ExportManualFileOrigin WHERE FileID=SUBSTRING(@ResourceKey,13,128))
    OR EXISTS(SELECT 1 FROM KVK.SourceOutputPool WHERE IndexFileID=SUBSTRING(@ResourceKey,13,128))

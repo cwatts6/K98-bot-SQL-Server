@@ -19,7 +19,7 @@ CREATE TABLE dbo.RecoveryIncident
     AlertAttemptUTC datetime2(3) NULL,
     CONSTRAINT UQ_RecoveryIncident_Source UNIQUE (ScopeKey,SourceKind,SourceID),
     CONSTRAINT CK_RecoveryIncident_State CHECK (State IN ('open','resolved')),
-    CONSTRAINT CK_RecoveryIncident_Evidence CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=32768),
+    CONSTRAINT CK_RecoveryIncident_Evidence CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=CASE WHEN SourceKind='export_job' THEN 1048576 ELSE 32768 END),
     CONSTRAINT CK_RecoveryIncident_Revision CHECK (Revision>0 AND AlertedRevision>=0 AND AlertedRevision<=Revision),
     CONSTRAINT CK_RecoveryIncident_Alert CHECK ((AlertMessageID IS NULL AND AlertChannelID IS NULL) OR (AlertMessageID IS NOT NULL AND AlertChannelID IS NOT NULL AND AlertMessageID>0 AND AlertChannelID>0))
 );

@@ -85,7 +85,7 @@ BEGIN
  OR @OwnerKind NOT IN ('job','preparation','operation') OR @OwnerKind IS NULL
  OR DATALENGTH(@OwnerKind)<>LEN(@OwnerKind) OR @ObjectID IS NULL
  OR @Purpose NOT IN ('mutation','probe','enrollment') OR @Purpose IS NULL OR DATALENGTH(@Purpose)<>LEN(@Purpose)
- OR ISJSON(@ScopeJson)<>1 OR @ScopeJson IS NULL OR DATALENGTH(@ScopeJson)>65536
+ OR ISJSON(@ScopeJson)<>1 OR @ScopeJson IS NULL OR DATALENGTH(@ScopeJson)>CASE WHEN @Purpose='enrollment' THEN 524288 ELSE 65536 END
  THROW 51700,'Complete typed stream scope required.',1;
  DECLARE @Resources TABLE (ResourceKey varchar(256) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY,Version bigint NOT NULL);
  IF JSON_QUERY(@ScopeJson,'$.resources') IS NULL THROW 51700,'Complete resource membership required.',1;
@@ -153,6 +153,7 @@ BEGIN
   IF @Purpose='enrollment'
   BEGIN
    IF JSON_VALUE(@EnrollmentPlan,'$.purpose') IS NULL OR JSON_VALUE(@EnrollmentPlan,'$.purpose')<>'output_enrollment'
+    OR (DATALENGTH(@ScopeJson)>65536 AND ISNULL(JSON_VALUE(@EnrollmentPlan,'$.version'),'')<>'4')
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id')) IS NULL
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id'))<>@SessionID
     OR @RegistrationHash<>@EnrollmentHash OR @SnapshotHash<>@EnrollmentHash

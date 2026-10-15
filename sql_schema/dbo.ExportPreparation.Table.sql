@@ -32,7 +32,7 @@ CREATE TABLE dbo.ExportPreparation
  CONSTRAINT CK_ExportPreparation_Owner CHECK ((OwnerID IS NULL AND Fence=0 AND State='pending') OR (OwnerID IS NOT NULL AND Fence>0 AND State<>'pending')),
  CONSTRAINT CK_ExportPreparation_Counters CHECK (Version>0 AND EnqueueSequence>0 AND UpdatedUTC>=CreatedUTC),
  CONSTRAINT CK_ExportPreparation_Text CHECK (LEN(AccountKey)>0 AND DATALENGTH(AccountKey)=DATALENGTH(LTRIM(RTRIM(AccountKey))) AND LEN(StorageOwner)>0 AND DATALENGTH(StorageOwner)=DATALENGTH(LTRIM(RTRIM(StorageOwner))) AND LEN(Actor)>0 AND LEN(Reason)>0),
- CONSTRAINT CK_ExportPreparation_Request CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=65536),
+ CONSTRAINT CK_ExportPreparation_Request CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=CASE WHEN ConsumerKind='config' AND JSON_VALUE(RequestJson,'$.purpose')='output_enrollment' AND JSON_VALUE(RequestJson,'$.version')='4' THEN 2097152 ELSE 65536 END),
  CONSTRAINT CK_ExportPreparation_Generation CHECK ((GenerationJson IS NULL AND State NOT IN ('committed','captured','materialized')) OR (GenerationJson IS NOT NULL AND ISJSON(GenerationJson)=1 AND DATALENGTH(GenerationJson)<=65536)),
  CONSTRAINT CK_ExportPreparation_Spool CHECK ((SpoolKey IS NULL AND SpoolBytes IS NULL AND SpoolHash IS NULL AND State NOT IN ('captured','materialized')) OR (SpoolKey IS NOT NULL AND SpoolBytes IS NOT NULL AND SpoolHash IS NOT NULL AND SpoolBytes>0 AND LEN(SpoolKey)>0 AND DATALENGTH(SpoolKey)=DATALENGTH(LTRIM(RTRIM(SpoolKey))) AND SpoolKey NOT LIKE '%[^a-zA-Z0-9_-]%' COLLATE Latin1_General_100_BIN2)),
  CONSTRAINT CK_ExportPreparation_Job CHECK ((JobID IS NULL AND State<>'materialized') OR (JobID IS NOT NULL AND State='materialized' AND ConsumerKind<>'config')),
