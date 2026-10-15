@@ -21,6 +21,6 @@ CREATE TABLE dbo.RecoveryIncident
     CONSTRAINT CK_RecoveryIncident_State CHECK (State IN ('open','resolved')),
     CONSTRAINT CK_RecoveryIncident_Evidence CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=32768),
     CONSTRAINT CK_RecoveryIncident_Revision CHECK (Revision>0 AND AlertedRevision>=0 AND AlertedRevision<=Revision),
-    CONSTRAINT CK_RecoveryIncident_Alert CHECK ((AlertMessageID IS NULL AND AlertChannelID IS NULL) OR (AlertMessageID>0 AND AlertChannelID>0))
+    CONSTRAINT CK_RecoveryIncident_Alert CHECK ((AlertMessageID IS NULL AND AlertChannelID IS NULL) OR (AlertMessageID IS NOT NULL AND AlertChannelID IS NOT NULL AND AlertMessageID>0 AND AlertChannelID>0))
 );
 CREATE INDEX IX_RecoveryIncident_Pending ON dbo.RecoveryIncident(ScopeKey,State,LastSeenUTC,IncidentID);
