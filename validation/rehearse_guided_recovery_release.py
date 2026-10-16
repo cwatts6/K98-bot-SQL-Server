@@ -24,7 +24,9 @@ PROFILE_ID = "20261016_003_guided_recovery_release"
 OUTPUT = Path(tempfile.mkdtemp(prefix="K98_P0a_Release_"))
 NAMES = sorted(
     path.removeprefix("sql_schema/").rsplit(".", 2)[0]
-    for path in fixture.git("diff", "--name-only", fixture.BASE, fixture.HEAD, "--", "sql_schema")
+    for path in fixture.git(
+        "diff", "--name-only", fixture.BASE, fixture.HEAD, "--", "sql_schema"
+    )
     .decode()
     .splitlines()
 )
@@ -51,6 +53,36 @@ APPLICATION_GRANTS = {
 
 
 def install_application_baseline(connection):
+    # Reproduce existing object-level evidence role permissions from immutable
+    # installation source. The adapter fingerprints these grants as well as DDL.
+    # Select only literal statements for this fixture's existing affected objects;
+    # never execute the historical installation scripts or infer grants from live SQL.
+    selected = []
+    for path, count in (
+        ("20261001_004_export_execution_evidence_installation.sql", 15),
+        ("20261001_005_manual_export_registration_installation.sql", 2),
+    ):
+        source = fixture.source(fixture.BASE, "migrations/" + path)
+        statements = re.findall(
+            r"(?m)^(?:GRANT|DENY) [A-Z ,]+ ON OBJECT::([A-Za-z_][A-Za-z0-9_]*\.[A-Za-z_][A-Za-z0-9_]*) TO (?:public|ExportExecutionAuthority|ExportExecutionReader);$",
+            source,
+        )
+        admitted = [name for name in statements if name in NAMES]
+        assert len(admitted) == count, (path, admitted)
+        lines = [
+            line
+            for line in source.splitlines()
+            if re.fullmatch(
+                r"(?:GRANT|DENY) [A-Z ,]+ ON OBJECT::(?:"
+                + "|".join(map(re.escape, admitted))
+                + r") TO (?:public|ExportExecutionAuthority|ExportExecutionReader);",
+                line,
+            )
+        ]
+        assert len(lines) == count
+        selected.extend(lines)
+    assert len(selected) == 17 and len(set(selected)) == 17
+    fixture.execute(connection, "\n".join(selected))
     # Reconstruct the two reviewed installed representations from immutable Git
     # bodies. Never install a definition taken from a live database as expected.
     for name, leading, trailing, expected in (
@@ -67,8 +99,12 @@ def install_application_baseline(connection):
             "698f8b6c8acf014bad92c5f3bf994abb3cc8acdd5551efa5a8ed9ec486319752",
         ),
     ):
-        raw = fixture.source(fixture.BASE, "sql_schema/" + name + ".StoredProcedure.sql")
-        declaration = re.search(r"(?m)^(?:CREATE(?: OR ALTER)?|ALTER)\s+PROCEDURE\b", raw)
+        raw = fixture.source(
+            fixture.BASE, "sql_schema/" + name + ".StoredProcedure.sql"
+        )
+        declaration = re.search(
+            r"(?m)^(?:CREATE(?: OR ALTER)?|ALTER)\s+PROCEDURE\b", raw
+        )
         assert declaration, name
         body = next(fixture.batches(raw[declaration.end() :])).strip()
         installed = leading + "CREATE   PROCEDURE " + body + trailing
@@ -80,7 +116,9 @@ def install_application_baseline(connection):
         assert hashlib.sha256(canonical.encode("utf-16le")).hexdigest() == expected
         fixture.execute(
             connection,
-            (leading + "CREATE OR ALTER PROCEDURE " + body + trailing).replace("\n", "\r\n"),
+            (leading + "CREATE OR ALTER PROCEDURE " + body + trailing).replace(
+                "\n", "\r\n"
+            ),
         )
     fixture.execute(
         connection,
@@ -125,7 +163,12 @@ def assert_effective_grants(connection):
                 ).fetchval()
                 == 1
             ), (name, permission)
-        assert connection.execute("SELECT IS_ROLEMEMBER('ExportExecutionReader')").fetchval() == 0
+        assert (
+            connection.execute(
+                "SELECT IS_ROLEMEMBER('ExportExecutionReader')"
+            ).fetchval()
+            == 0
+        )
     finally:
         fixture.execute(connection, "REVERT;")
 
@@ -200,7 +243,8 @@ def build_reference(connection, report, output):
         fixture.execute(connection, raw.decode("utf-8-sig").replace("\r\n", "\n"))
     for name, permissions in APPLICATION_GRANTS.items():
         fixture.execute(
-            connection, f"GRANT {','.join(permissions)} ON OBJECT::{name} TO S11_ExportApplication;"
+            connection,
+            f"GRANT {','.join(permissions)} ON OBJECT::{name} TO S11_ExportApplication;",
         )
     assert_effective_grants(connection)
     after = image_snapshot()
@@ -220,19 +264,27 @@ def build_reference(connection, report, output):
         scripts=scripts,
         images=[dict(name=n, before=before[n], after=after[n]) for n in NAMES],
     )
-    (OUTPUT / "recovery.release.json").write_text(json.dumps(profile, indent=2), encoding="utf-8")
-    report.update(reference_profile=str(OUTPUT / "recovery.release.json"), images=len(NAMES))
+    (OUTPUT / "recovery.release.json").write_text(
+        json.dumps(profile, indent=2), encoding="utf-8"
+    )
+    report.update(
+        reference_profile=str(OUTPUT / "recovery.release.json"), images=len(NAMES)
+    )
 
 
 def qualify_adapter(connection, report, output):
     # Backups are real; the production adapter's backup guard is not bypassed.
-    fixture.execute(connection, f"ALTER DATABASE [{fixture.DATABASE}] SET RECOVERY SIMPLE")
+    fixture.execute(
+        connection, f"ALTER DATABASE [{fixture.DATABASE}] SET RECOVERY SIMPLE"
+    )
     directory = connection.execute(
         "SELECT CONVERT(nvarchar(4000),SERVERPROPERTY('InstanceDefaultBackupPath'))"
     ).fetchval()
     backup = str(Path(directory) / (fixture.DATABASE + ".bak"))
     cursor = connection.cursor()
-    cursor.execute(f"BACKUP DATABASE [{fixture.DATABASE}] TO DISK=? WITH CHECKSUM;", backup)
+    cursor.execute(
+        f"BACKUP DATABASE [{fixture.DATABASE}] TO DISK=? WITH CHECKSUM;", backup
+    )
     while cursor.nextset():
         pass
     cursor.close()
@@ -264,7 +316,9 @@ def qualify_adapter(connection, report, output):
         (OUTPUT / f"case-{len(cases):02d}-{operation}.txt").write_text(
             result.stdout + result.stderr, encoding="utf-8"
         )
-        cases.append(dict(operation=operation, expected=expected, actual=result.returncode))
+        cases.append(
+            dict(operation=operation, expected=expected, actual=result.returncode)
+        )
         assert result.returncode == expected, result.stdout + result.stderr
         print(json.dumps(cases[-1]), flush=True)
         return result
@@ -292,10 +346,16 @@ def qualify_adapter(connection, report, output):
     run("Preflight", 0)
     run("Verify", 10)
     assert fixture.catalogue(connection) == before
-    assert connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval() == 0
+    assert (
+        connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval()
+        == 0
+    )
     # A changed body is not an alternate spelling. Check the literal migration's
     # own guard independently from the adapter's complete-image preflight.
-    for name in ("dbo.usp_ExportManualOutputEnrollmentTransition", "dbo.sp_TARGETS_MASTER"):
+    for name in (
+        "dbo.usp_ExportManualOutputEnrollmentTransition",
+        "dbo.sp_TARGETS_MASTER",
+    ):
         call = "Invoke-K98RecoveryChain $connection $transaction $loaded $ExpectedCommit $attempt"
         changed = injected_runner(
             "changed-body-" + name.split(".")[1],
@@ -310,7 +370,12 @@ def qualify_adapter(connection, report, output):
         run("Verify", 11)
         assert fixture.catalogue(connection) == before
         assert application_permissions(connection) == before_permissions
-        assert connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval() == 0
+        assert (
+            connection.execute(
+                "SELECT COUNT(*) FROM dbo.SchemaMigrationHistory"
+            ).fetchval()
+            == 0
+        )
     # An external active owner is unresolved; it must not be called unstarted.
     fixture.execute(
         connection,
@@ -361,7 +426,9 @@ def qualify_adapter(connection, report, output):
         )
         try:
             deadline = time.monotonic() + 45
-            while "DISPOSABLE_FAULT_READY" not in crash_output.read_text(encoding="utf-8"):
+            while "DISPOSABLE_FAULT_READY" not in crash_output.read_text(
+                encoding="utf-8"
+            ):
                 assert process.poll() is None, crash_output.read_text(encoding="utf-8")
                 assert time.monotonic() < deadline, "Fault boundary was not reached"
                 time.sleep(0.2)
@@ -372,7 +439,10 @@ def qualify_adapter(connection, report, output):
     run("Verify", 11)
     assert fixture.catalogue(connection) == before
     assert application_permissions(connection) == before_permissions
-    assert connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval() == 0
+    assert (
+        connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval()
+        == 0
+    )
     # All twelve scripts and receipts have executed before this rollback fault.
     rollback = injected_runner(
         "rollback-runner",
@@ -382,7 +452,10 @@ def qualify_adapter(connection, report, output):
     run("Apply", 20, runner=rollback)
     assert fixture.catalogue(connection) == before
     assert application_permissions(connection) == before_permissions
-    assert connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval() == 0
+    assert (
+        connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval()
+        == 0
+    )
     run("Verify", 11)
     run("Verify", 20, identity=str(uuid4()))
     # The real commit occurs, then the caller loses its success acknowledgement.
@@ -398,12 +471,18 @@ def qualify_adapter(connection, report, output):
         for name, permissions in APPLICATION_GRANTS.items()
         for permission in permissions
     }
-    assert set(application_permissions(connection)) == set(before_permissions) | expected_added
+    assert (
+        set(application_permissions(connection))
+        == set(before_permissions) | expected_added
+    )
     assert_effective_grants(connection)
-    attempts = connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval()
+    attempts = connection.execute(
+        "SELECT COUNT(*) FROM dbo.DeploymentRunHistory"
+    ).fetchval()
     run("Apply", 0)
     assert (
-        connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval() == attempts
+        connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval()
+        == attempts
     )
     assert (
         connection.execute(
@@ -428,11 +507,13 @@ def qualify_adapter(connection, report, output):
     run("Verify", 0)
     # Neither an Applied receipt nor all object definitions conceal grant/role drift.
     fixture.execute(
-        connection, "REVOKE UPDATE ON OBJECT::dbo.RecoveryIncident FROM S11_ExportApplication;"
+        connection,
+        "REVOKE UPDATE ON OBJECT::dbo.RecoveryIncident FROM S11_ExportApplication;",
     )
     run("Verify", 20)
     fixture.execute(
-        connection, "GRANT UPDATE ON OBJECT::dbo.RecoveryIncident TO S11_ExportApplication;"
+        connection,
+        "GRANT UPDATE ON OBJECT::dbo.RecoveryIncident TO S11_ExportApplication;",
     )
     run("Verify", 0)
     fixture.execute(
@@ -440,11 +521,14 @@ def qualify_adapter(connection, report, output):
     )
     run("Verify", 20)
     fixture.execute(
-        connection, "ALTER ROLE ExportExecutionReader DROP MEMBER S11_ExportApplication;"
+        connection,
+        "ALTER ROLE ExportExecutionReader DROP MEMBER S11_ExportApplication;",
     )
     run("Verify", 0)
     # A valid receipt cannot conceal drift in a committed module.
-    fixture.execute(connection, "ALTER PROCEDURE dbo.usp_ExportJobContainTargets AS SELECT 1;")
+    fixture.execute(
+        connection, "ALTER PROCEDURE dbo.usp_ExportJobContainTargets AS SELECT 1;"
+    )
     run("Verify", 20)
     report.update(
         profile_sha256=digest,

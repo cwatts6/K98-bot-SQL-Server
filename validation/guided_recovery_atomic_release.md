@@ -123,3 +123,29 @@ complete coverage. It completed with no findings, sealed and read back at
 `2026-10-16T10:15:20.258611Z`; tool-reported usage 1,394,498 tokens. This later
 evidence-only document does not change executable behavior. The production
 package and successor-contract gates above remain required; no window is requested.
+
+## Existing evidence-role grant fidelity
+
+The disposable baseline now selects exactly seventeen complete literal GRANT/DENY
+statements from immutable `b3480656` installation source for the affected objects.
+This reproduces existing public, authority and reader rights in both independently
+installed reference and target databases. Historical installation scripts are not
+executed, live permissions are not adopted as expectations, and production runner
+code is unchanged. Existing direct application and legacy-entry grants remain.
+
+Reference `K98_P0a_Migrations_2812c615480b` and target
+`K98_P0a_Atomic_771291909119` passed all 22 real adapter calls, including rollback,
+lost reply, repeat apply, role/grant drift and altered module rejection. Artifacts:
+`%TEMP%\K98_P0a_Release_tz2xl663`. Black, Ruff and whitespace checks passed. The Bot
+architecture/deferred/test-selection/security-routing scripts are absent from this
+SQL repository; their execution here is inapplicable, with this focused real SQL
+rehearsal providing the relevant validation.
+
+Changes scan `cf38157c-2e59-4b85-8230-a941ebb4c155` covered the complete one-file
+fixture diff against `d49a2147`, snapshot
+`dbfc916a022a63ce6a2ffd5d09a4ada276b41be01588b91aeb94c10c88e3f767`.
+Parent and independent review found no security or correctness blockers. It
+finalized successfully and was read back at `2026-10-16T10:41:34.182180Z`;
+tool-reported usage: 1,350,184 tokens. This subsequent evidence entry changes no
+executable behavior. Production environment pins and whole-package rehearsal
+remain required P0a gates; all P0b work remains in scope.
