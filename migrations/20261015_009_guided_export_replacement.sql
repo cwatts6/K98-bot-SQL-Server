@@ -712,7 +712,10 @@ SET @Installed=CASE
  WHEN LEFT(@Installed,LEN(N'CREATE   PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE   PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE   PROCEDURE'),N'CREATE PROCEDURE')
  WHEN LEFT(@Installed,LEN(N'ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'ALTER PROCEDURE'),N'CREATE PROCEDURE')
  ELSE @Installed END;
-IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0x4743282402ad9cdd5aa1471a307e1aa8cf91421b962951d60e8a18b3b2deb97a
+-- The reviewed installed CREATE-OR-ALTER form omits the final newline.
+-- Both hashes derive from the same immutable predecessor body; no trimming or
+-- adoption of an arbitrary observed definition is permitted.
+IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed)) NOT IN (0x4743282402ad9cdd5aa1471a307e1aa8cf91421b962951d60e8a18b3b2deb97a,0x698f8b6c8acf014bad92c5f3bf994abb3cc8acdd5551efa5a8ed9ec486319752)
  THROW 51730,'Exact reviewed replacement predecessor required.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=@ObjectID) THROW 51730,'Unexpected signature; preserve and review.',1;
 SET @Apply=N'CREATE OR ALTER PROCEDURE dbo.usp_ExportManualOutputEnrollmentTransition

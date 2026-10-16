@@ -34,7 +34,10 @@ SET @Installed=CASE
  WHEN LEFT(@Installed,LEN(N'CREATE   PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'CREATE   PROCEDURE' THEN STUFF(@Installed,1,LEN(N'CREATE   PROCEDURE'),N'CREATE PROCEDURE')
  WHEN LEFT(@Installed,LEN(N'ALTER PROCEDURE')) COLLATE Latin1_General_100_BIN2=N'ALTER PROCEDURE' THEN STUFF(@Installed,1,LEN(N'ALTER PROCEDURE'),N'CREATE PROCEDURE')
  ELSE @Installed END;
-IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed))<>0x1cd80780f4147630d5c221502e0d61af7dac66b08490d6b16fe1fa3bfd04a60b
+-- The reviewed installed CREATE-OR-ALTER spelling retains one leading newline
+-- and two trailing newlines. Admit that exact source-derived representation,
+-- without changing normalization or accepting any different procedure body.
+IF @Installed IS NULL OR HASHBYTES('SHA2_256',CONVERT(varbinary(max),@Installed)) NOT IN (0x1cd80780f4147630d5c221502e0d61af7dac66b08490d6b16fe1fa3bfd04a60b,0x578319ad6aa111babd04e4dee61f333699b9d8341aebd682989774dfc2ae616c)
  THROW 52627,'Exact reviewed configuration-publication definition required.',1;
 DECLARE @Apply nvarchar(max)=N'ALTER PROCEDURE [dbo].[sp_TARGETS_MASTER]
     @KVK [int] = NULL,
