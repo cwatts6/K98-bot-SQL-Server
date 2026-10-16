@@ -7,13 +7,14 @@ END
 ALTER PROCEDURE [dbo].[sp_TARGETS_MASTER]
     @KVK [int] = NULL,
     @ForceRepublish [bit] = 0,
-    @RepublishReason [nvarchar](400) = NULL
+    @RepublishReason [nvarchar](400) = NULL,
+    @ExportPreparationID uniqueidentifier = NULL
 WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
 
-    IF @@TRANCOUNT <> 0
+    IF @ExportPreparationID IS NULL AND @@TRANCOUNT <> 0
     BEGIN
         RAISERROR(
             'sp_TARGETS_MASTER must own its publication transaction and cannot run inside an existing transaction.',
@@ -24,6 +25,29 @@ BEGIN
     END;
 
     SET XACT_ABORT ON;
+
+    -- Only the typed configuration producer may include publication in its
+    -- enclosing transaction. Its business writes and completion receipt must
+    -- become visible together. Ordinary callers retain the standalone contract.
+    IF @ExportPreparationID IS NOT NULL
+    BEGIN
+        IF @@TRANCOUNT <> 1 OR XACT_STATE() <> 1
+            THROW 52624, 'Atomic configuration publication requires one active caller transaction.', 1;
+        IF NOT EXISTS
+        (
+            SELECT 1 FROM dbo.ExportPreparation p WITH (UPDLOCK,HOLDLOCK)
+            JOIN dbo.ExportResource r WITH (UPDLOCK,HOLDLOCK)
+              ON r.ActivePreparationID=p.PreparationID AND r.OwnerID=p.OwnerID AND r.Fence=p.Fence
+            WHERE p.PreparationID=@ExportPreparationID AND p.ConsumerKind='scan_data'
+              AND p.State='writing' AND p.GenerationJson IS NULL AND p.JobID IS NULL
+              AND p.SpoolKey IS NULL AND p.KVK_NO IS NULL
+              AND JSON_VALUE(p.RequestJson,'$.request.producer.kind')='configuration_import'
+              AND JSON_VALUE(p.RequestJson,'$.request.producer.atomic_checkpoint')='1'
+              AND r.ResourceKey='sql_snapshot:legacy_outputs' AND r.ResourceKind='sql_snapshot'
+              AND r.ActiveJobID IS NULL AND r.ActiveOutputOperationID IS NULL
+        )
+            THROW 52625, 'Atomic configuration publication requires its exact writing reservation.', 1;
+    END;
 
     DECLARE @RequestedKVK int = @KVK;
 
@@ -537,6 +561,8 @@ BEGIN
         END;
 
         SET ANSI_WARNINGS ON;
+        IF @ExportPreparationID IS NOT NULL AND (@@TRANCOUNT <> 1 OR XACT_STATE() <> 1)
+            THROW 52626, 'Atomic configuration publication lost its caller transaction.', 1;
         PRINT N'DBG: sp_TARGETS_MASTER complete';
     END TRY
     BEGIN CATCH

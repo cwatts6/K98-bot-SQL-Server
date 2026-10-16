@@ -63,7 +63,7 @@ BEGIN
    OR JSON_VALUE(@PlanJson,'$.account') COLLATE Latin1_General_100_BIN2<>@AccountKey COLLATE Latin1_General_100_BIN2
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.account'))<>2*DATALENGTH(@AccountKey)
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.purpose'))<>34
-   OR JSON_VALUE(@PlanJson,'$.storage_owner') COLLATE Latin1_General_100_BIN2 LIKE '%[^A-Za-z0-9_.@:-]%'
+   OR JSON_VALUE(@PlanJson,'$.storage_owner') COLLATE Latin1_General_100_BIN2 LIKE '%[^-A-Za-z0-9_.@:]%'
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.storage_owner')) NOT BETWEEN 2 AND 256
    OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PlanJson,'$.plan_id')) IS NULL
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.plan_id'))<>72
@@ -77,7 +77,8 @@ BEGIN
   -- New enrollment never overtakes existing ready work or bypasses uncertainty.
   IF EXISTS (SELECT 1 FROM dbo.ExportJob WHERE AccountKey=@AccountKey AND State IN ('ready','running','uncertain'))
    OR EXISTS (SELECT 1 FROM dbo.ExportPreparation WHERE AccountKey=@AccountKey AND State IN ('pending','preflight','sql_pending','writing','committed','uncertain'))
-   OR EXISTS (SELECT 1 FROM KVK.SourceOutputOperation WHERE AccountKey=@AccountKey AND State IN ('closing','ready','running','uncertain'))
+   OR EXISTS (SELECT 1 FROM KVK.SourceOutputOperation o WHERE o.AccountKey=@AccountKey AND o.State IN ('closing','ready','running','uncertain')
+    AND NOT EXISTS (SELECT 1 FROM dbo.ExportTargetContainment c WHERE c.OutputOperationID=o.OperationID AND c.AccountKey=o.AccountKey))
    OR EXISTS (SELECT 1 FROM dbo.ExportPreparation WHERE PreparationID=@PreparationID OR (AccountKey=@AccountKey AND RequestHash=HASHBYTES('SHA2_256',CONVERT(varbinary(max),@PlanJson))))
    THROW 51700,'Existing work or enrollment prevents fresh admission.',1;
   IF NOT EXISTS (SELECT 1 FROM dbo.ExportResource WITH (UPDLOCK,HOLDLOCK) WHERE ResourceKey=@AccountResource)
@@ -141,9 +142,10 @@ BEGIN
  BEGIN
   -- Count registered pools and still-unregistered enrollment plans once each.
   -- Range locks prevent concurrent enrollment/registration from overbooking eight.
-  IF (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK))+
+  IF (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK) WHERE RetiredByReplacementID IS NULL)+
    (SELECT COUNT_BIG(*) FROM dbo.ExportPreparation p WITH(UPDLOCK,HOLDLOCK)
     WHERE JSON_VALUE(p.RequestJson,'$.purpose')='output_enrollment'
+     AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementVerification v WHERE v.PreparationID=p.PreparationID AND v.PlanHash=p.RequestHash)
      AND NOT EXISTS(SELECT 1 FROM dbo.ExportManagedFileOrigin o JOIN KVK.SourceOutputPool pool ON pool.IndexFileID=o.FileID
       WHERE o.PreparationID=p.PreparationID AND o.Stage='eligible' AND o.Ordinal=0))>=8
    THROW 51700,'Eight-pool enrollment capacity is exhausted.',1;

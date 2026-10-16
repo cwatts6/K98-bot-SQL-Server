@@ -86,7 +86,7 @@ BEGIN
  BEGIN
   IF NOT EXISTS (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
    AND AccountKey=@AccountKey AND OwnerID=@OwnerID AND Fence=@Fence AND Version=@ClaimVersion
-   AND ((@Purpose='mutation' AND State='running') OR (@Purpose='probe' AND State IN ('running','uncertain','confirmed')))
+   AND ((@Purpose='mutation' AND State='running') OR (@Purpose='probe' AND State IN ('running','uncertain','confirmed','failed')))
    AND ((PoolEpoch IS NULL AND @Epoch IS NULL) OR PoolEpoch=@Epoch)
    AND ((@NestedToken IS NULL AND JSON_VALUE(ProvenanceJson,'$.retirement_recovery.state') IS NULL)
       OR (@NestedToken IS NOT NULL AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(ProvenanceJson,'$.retirement_recovery.token'))=@NestedToken
@@ -112,7 +112,7 @@ BEGIN
    FROM dbo.ExportPreparation WHERE PreparationID=@ObjectID;
   IF @Purpose='enrollment'
   BEGIN
-   IF JSON_VALUE(@EnrollmentPlan,'$.version') IN ('2','3') AND @State='prepared' AND
+   IF JSON_VALUE(@EnrollmentPlan,'$.version') IN ('2','3','4') AND @State='prepared' AND
       (@RequestKind IS NULL OR @Operation IS NULL OR @RequestKind<>'read' OR @Operation NOT IN ('drive.files.get','drive.permissions.list','sheets.get','sheets.values.batchGet'))
     THROW 51700,'Manual registration admits read-only provider requests.',1;
    IF JSON_VALUE(@EnrollmentPlan,'$.purpose') IS NULL OR JSON_VALUE(@EnrollmentPlan,'$.purpose')<>'output_enrollment'
@@ -176,12 +176,17 @@ BEGIN
  SELECT @StreamState=State,@LastSequence=LastSequence,@Version=Version
  FROM dbo.ExportExecutionStream WITH (UPDLOCK,HOLDLOCK)
  WHERE StreamID=@StreamID AND SessionID=@SessionID AND AccountKey=@AccountKey;
- IF @ExpectedVersion IS NULL OR @Version IS NULL OR @Version<>@ExpectedVersion OR @StreamState='closed'
+ IF @ExpectedVersion IS NULL OR @Version IS NULL OR @Version<>@ExpectedVersion OR @StreamState NOT IN ('open','frozen')
   THROW 51700,'Request stream CAS lost or closed.',1;
  IF @State IS NULL OR DATALENGTH(@State)<>LEN(@State) THROW 51700,'Canonical event state required.',1;
  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent WHERE EventID=@EventID)
   THROW 51700,'Event already exists; read immutable event before retry.',1;
  DECLARE @Previous varchar(32),@EventSequence int;
+ IF (@State='prepared' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+  OR (@State='dispatch_intent' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID))
+  THROW 51700,'Permanently isolated target: provider dispatch is forbidden.',1;
+
  IF @State='prepared'
  BEGIN
   IF @StreamState<>'open' OR (@Purpose='probe' AND @RequestKind<>'read')

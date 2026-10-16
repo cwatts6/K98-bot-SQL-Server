@@ -56,6 +56,8 @@ BEGIN
   FROM OPENJSON(@MembershipJson,'$.targets')) q WHERE Previous COLLATE Latin1_General_100_BIN2>=value COLLATE Latin1_General_100_BIN2)
   THROW 51700,'Targets must be unique and canonically ordered.',1;
  INSERT @Targets SELECT CONVERT(varchar(128),value) FROM OPENJSON(@MembershipJson,'$.targets');
+ IF EXISTS(SELECT 1 FROM @Targets t JOIN dbo.ExportContainedTarget c WITH (HOLDLOCK) ON c.FileID=t.FileID)
+  THROW 51700,'Isolated targets cannot establish current publication or replacement proof.',1;
  IF (SELECT COUNT(*) FROM OPENJSON(@MembershipJson,'$.history'))<>2
  OR (SELECT COUNT(DISTINCT [key]) FROM OPENJSON(@MembershipJson,'$.history'))<>2
  OR NOT EXISTS (SELECT 1 FROM OPENJSON(@MembershipJson,'$.history') WHERE [key]='count' AND type=2)
@@ -78,7 +80,13 @@ BEGIN
  -- can enter automatic finality. Old/unproven files remain operator reconciliation.
  IF EXISTS(SELECT 1 FROM @Targets t WHERE NOT EXISTS(SELECT 1 FROM (SELECT FileID,Stage,PreparationID FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,Stage,PreparationID FROM dbo.ExportManualFileOrigin) o
    JOIN dbo.ExportPreparation p ON p.PreparationID=o.PreparationID
-   WHERE o.FileID=t.FileID AND o.Stage='eligible' AND p.AccountKey=@AccountKey AND p.State='completed'))
+   WHERE o.FileID=t.FileID AND o.Stage='eligible' AND p.AccountKey=@AccountKey AND p.State='completed')
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementActivation a
+    JOIN dbo.ExportReplacementTarget replacement ON replacement.ReplacementID=a.ReplacementID
+    JOIN dbo.ExportReplacementVerification v ON v.VerificationID=a.VerificationID AND v.ReplacementID=a.ReplacementID
+    JOIN dbo.ExportPreparation prep ON prep.PreparationID=v.PreparationID
+    WHERE replacement.NewFileID=t.FileID AND a.AccountKey=@AccountKey AND a.NewPoolID IS NOT NULL
+     AND v.State='verified' AND v.Version=2 AND prep.State='completed' AND prep.AccountKey=a.AccountKey AND prep.RequestHash=v.PlanHash))
   THROW 51700,'Complete authenticated managed-file origins required.',1;
  DECLARE @Members TABLE (StreamID uniqueidentifier NOT NULL PRIMARY KEY,Version bigint NOT NULL);
  INSERT @Members SELECT s.StreamID,s.Version FROM dbo.ExportExecutionStream s WITH (UPDLOCK,HOLDLOCK)
@@ -89,7 +97,9 @@ BEGIN
   WHERE o.PreparationID=s.PreparationID AND o.Stage IN ('created','registered')));
  IF NOT EXISTS (SELECT 1 FROM @Members) THROW 51700,'Empty evidence is not proof of historical coverage.',1;
  IF EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
-   WHERE s.State<>'closed' OR s.ActiveAccountKey IS NOT NULL OR s.ClosureHash IS NULL OR s.EventDigest IS NULL)
+   WHERE s.State NOT IN ('closed','read_contained') OR s.ActiveAccountKey IS NOT NULL OR s.ClosureHash IS NULL OR s.EventDigest IS NULL
+    OR (s.State='read_contained' AND (s.Purpose NOT IN ('probe','enrollment') OR s.PreparationID IS NULL OR s.JobID IS NOT NULL OR s.OutputOperationID IS NOT NULL
+     OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=s.StreamID AND r.RequestKind<>'read'))))
   THROW 51700,'Exact closed request-stream membership required.',1;
  DECLARE @CatalogueHash binary(32)=HASHBYTES('SHA2_256',CONVERT(varbinary(max),'K98-S11-CATALOGUE-1')),
   @CatalogueCount bigint=0,@CatalogueID uniqueidentifier,@CatalogueVersion bigint,@CatalogueEvents binary(32);
@@ -110,13 +120,16 @@ BEGIN
  IF @CatalogueCount<>@ExpectedCount OR @CatalogueHash<>CONVERT(binary(32),@HistoryHashText,2)
   THROW 51700,'Historical writer catalogue changed around the fresh probe.',1;
  IF NOT EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
-   WHERE s.StreamID=@ProbeID AND s.Version=@ProbeVersion AND s.Purpose='probe'
+   WHERE s.StreamID=@ProbeID AND s.Version=@ProbeVersion AND s.Purpose='probe' AND s.State='closed'
    AND s.SnapshotHash=@SnapshotHash AND s.RegistrationHash=@RegistrationHash
    AND EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r JOIN dbo.ExportProviderRequestEvent e ON e.RequestID=r.RequestID
      WHERE r.StreamID=s.StreamID AND r.RequestKind='read' AND e.State='succeeded'))
   THROW 51700,'Fresh snapshot-bound closed probe required.',1;
  IF EXISTS (SELECT 1 FROM @Members m JOIN dbo.ExportProviderRequest r ON r.StreamID=m.StreamID
-   WHERE NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID AND e.State IN ('succeeded','not_sent')))
+   JOIN dbo.ExportExecutionStream s ON s.StreamID=m.StreamID
+   WHERE NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID
+     AND (e.State IN ('succeeded','not_sent') OR
+       (s.StreamID<>@ProbeID AND s.Purpose='probe' AND r.RequestKind='read' AND e.State IN ('prepared','dispatch_intent','unknown')))))
   THROW 51700,'Request gaps or unknown outcomes cannot become proof.',1;
  -- Older successful jobs stay in the complete catalogue, but do not imply that
  -- this publication dispatched a mutation. Cover every stream of its exact job,

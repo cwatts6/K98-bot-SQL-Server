@@ -1865,3 +1865,27 @@ Changes review uses only this correction from SQL head
 70d1916c39359c4bf5cf990552c3b1e57850b2c4, Deep off. Preserve prior closeouts and all evidence;
 stop admission and reconcile on rollback, and forward-fix installed SQL without erasing
 requests, dispositions or receipts. These remain separate actual SQL implementation files.
+
+## Guided read dispatch containment - 2026-10-15
+
+Migration `20261015_007_read_dispatch_containment` adds a distinct `read_contained`
+state for configuration probes whose complete typed SQL ledger contains only reads.
+The authority's guided admin action seals that ledger and performs stream fencing,
+preparation abandonment and exact reservation release in one outer transaction.
+Containment never asserts child termination, successful provider observation or
+unknown-write finality. Late request and terminal-result events cannot change the
+contained ledger. Historical proof catalogues retain its sealed no-write coverage;
+fresh observations still require a closed successful probe.
+
+The migration checks trusted stream-state constraint and exact module predecessor
+or postimage definitions. Existing historical migrations are unchanged. Install after
+the reviewed recovery module chain through 006 and before the paired Bot/authority
+source and protected-pin update. No grant, provider operation or existing-row release
+occurs at installation. Rollback is a forward correction with admission controlled;
+never reinterpret contained reads as positively terminated children.
+
+Local validation uses session-local temporary tables/procedures only. It covers
+atomic rollback, original-session/owner/fence/version/child checks, preserved read
+prefixes, rejected late dispatch/results, private receipt verification and compiled
+module hashes. Production installation, actual role permissions and deployment remain
+separate gates. Unknown-write and other bot recovery workflows remain active scope.

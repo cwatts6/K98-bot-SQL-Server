@@ -25,7 +25,7 @@ BEGIN
  IF IS_ROLEMEMBER(N'ExportExecutionAuthority')<>1 OR IS_ROLEMEMBER(N'ExportExecutionAuthority') IS NULL
   THROW 51700,'Evidence authority role required.',1;
  IF @AccountKey IS NULL OR DATALENGTH(@AccountKey) NOT BETWEEN 1 AND 128
- OR DATALENGTH(@AccountKey)<>LEN(@AccountKey) OR @AccountKey LIKE '%[^A-Za-z0-9_.@:-]%' COLLATE Latin1_General_100_BIN2
+ OR DATALENGTH(@AccountKey)<>LEN(@AccountKey) OR @AccountKey LIKE '%[^-A-Za-z0-9_.@:]%' COLLATE Latin1_General_100_BIN2
  OR @OwnerID IS NULL OR @PreparationID IS NULL OR @ExpectedVersion IS NULL
  OR @Action IS NULL OR DATALENGTH(@Action)<>LEN(@Action) OR @Action NOT IN ('begin','complete')
   THROW 51700,'Canonical enrollment identity required.',1;
@@ -42,6 +42,7 @@ BEGIN
 
  DECLARE @Files TABLE(Ordinal int PRIMARY KEY,FileID varchar(128) COLLATE Latin1_General_100_BIN2 UNIQUE NOT NULL);
  DECLARE @Resources TABLE(ResourceKey varchar(256) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY,Version bigint NOT NULL);
+ DECLARE @ReplacementID uniqueidentifier=NULL,@ReplacementPoolID uniqueidentifier=NULL;
  IF @Action='begin'
  BEGIN
   IF @ExpectedVersion<>0 OR @Fence IS NOT NULL OR @ResourcesJson IS NOT NULL
@@ -62,7 +63,7 @@ BEGIN
    OR JSON_VALUE(@PlanJson,'$.account') COLLATE Latin1_General_100_BIN2<>@AccountKey COLLATE Latin1_General_100_BIN2
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.account'))<>2*DATALENGTH(@AccountKey)
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.purpose'))<>34
-   OR JSON_VALUE(@PlanJson,'$.storage_owner') COLLATE Latin1_General_100_BIN2 LIKE '%[^A-Za-z0-9_.@:-]%'
+   OR JSON_VALUE(@PlanJson,'$.storage_owner') COLLATE Latin1_General_100_BIN2 LIKE '%[^-A-Za-z0-9_.@:]%'
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.storage_owner')) NOT BETWEEN 2 AND 256
    OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PlanJson,'$.plan_id')) IS NULL
    OR DATALENGTH(JSON_VALUE(@PlanJson,'$.plan_id'))<>72
@@ -92,10 +93,41 @@ BEGIN
   INSERT @Files SELECT CONVERT(int,j.[key]),JSON_VALUE(j.value,'$.file_id') FROM OPENJSON(@PlanJson,'$.files') j;
   IF EXISTS(SELECT 1 FROM @Files f JOIN OPENJSON(@PlanJson,'$.protected_file_ids') x ON x.value COLLATE Latin1_General_100_BIN2=f.FileID)
    THROW 51700,'Protected manual destination.',1;
-  -- New enrollment never overtakes existing ready work or bypasses uncertainty.
-  IF EXISTS (SELECT 1 FROM dbo.ExportJob WHERE AccountKey=@AccountKey AND State IN ('ready','running','uncertain'))
+  -- A sealed replacement proposal may verify fresh files for one already
+  -- isolated pool. It never adopts the old files or releases any owner.
+  SELECT @ReplacementID=p.ReplacementID FROM dbo.ExportReplacementPlan p
+   JOIN dbo.ExportTargetContainment c ON c.ContainmentID=p.ContainmentID
+   WHERE p.ReplacementID=TRY_CONVERT(uniqueidentifier,JSON_VALUE(@PlanJson,'$.plan_id'))
+    AND p.AccountKey=@AccountKey AND c.AccountKey=@AccountKey AND c.JobID IS NOT NULL;
+  IF @ReplacementID IS NOT NULL
+  BEGIN
+   SELECT @ReplacementPoolID=p.PoolID FROM KVK.SourceOutputPool p
+    JOIN dbo.ExportReplacementTarget t ON t.OldFileID=p.IndexFileID AND t.ReplacementID=@ReplacementID
+    WHERE p.AccountKey=@AccountKey AND p.PoolState='blocked' AND p.OwnerID IS NULL
+     AND p.BlockedReason=N'Targets permanently isolated; verified replacements required'
+     AND p.ExpectedOwner=JSON_VALUE(@PlanJson,'$.owner_email') COLLATE Latin1_General_100_BIN2
+     AND DATALENGTH(p.ExpectedOwner)=DATALENGTH(JSON_VALUE(@PlanJson,'$.owner_email'))
+     AND ISNULL(JSON_VALUE(p.RegistrationJson,'$.audience'),'private')=
+      CASE WHEN @PlanVersion=3 THEN 'public_viewer' ELSE 'private' END;
+   IF @ReplacementPoolID IS NULL
+    OR EXISTS(SELECT NewFileID FROM dbo.ExportReplacementTarget WHERE ReplacementID=@ReplacementID EXCEPT SELECT FileID FROM @Files)
+    OR EXISTS(SELECT FileID FROM @Files EXCEPT SELECT NewFileID FROM dbo.ExportReplacementTarget WHERE ReplacementID=@ReplacementID)
+    OR NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementTarget t JOIN KVK.SourceOutputPool p ON p.IndexFileID=t.OldFileID
+     JOIN @Files f ON f.FileID=t.NewFileID AND f.Ordinal=0 WHERE t.ReplacementID=@ReplacementID AND p.PoolID=@ReplacementPoolID)
+    OR EXISTS(SELECT 1 FROM KVK.SourceOutputSlot s WHERE s.PoolID=@ReplacementPoolID AND NOT EXISTS
+     (SELECT 1 FROM dbo.ExportReplacementTarget t JOIN @Files f ON f.FileID=t.NewFileID AND f.Ordinal=s.SlotNo
+      WHERE t.ReplacementID=@ReplacementID AND t.OldFileID=s.FileID))
+    OR (SELECT COUNT(*) FROM KVK.SourceOutputSlot WHERE PoolID=@ReplacementPoolID)+1<>(SELECT COUNT(*) FROM @Files)
+    THROW 51727,'Exact isolated pool, slot order, owner and audience required for replacement verification.',1;
+  END;
+  -- Preserve healthy queue priority. Only this explicit replacement path may
+  -- ignore jobs whose permanently isolated targets prohibit further admission.
+  IF EXISTS (SELECT 1 FROM dbo.ExportJob j WHERE AccountKey=@AccountKey AND State IN ('ready','running','uncertain')
+   AND (@ReplacementID IS NULL OR NOT EXISTS(SELECT 1 FROM dbo.ExportJobResource m
+    JOIN dbo.ExportContainedTarget t ON m.ResourceKey='destination:'+t.FileID WHERE m.JobID=j.JobID)))
    OR EXISTS (SELECT 1 FROM dbo.ExportPreparation WHERE AccountKey=@AccountKey AND State IN ('pending','preflight','sql_pending','writing','committed','uncertain'))
-   OR EXISTS (SELECT 1 FROM KVK.SourceOutputOperation WHERE AccountKey=@AccountKey AND State IN ('closing','ready','running','uncertain'))
+   OR EXISTS (SELECT 1 FROM KVK.SourceOutputOperation o WHERE o.AccountKey=@AccountKey AND o.State IN ('closing','ready','running','uncertain')
+    AND NOT EXISTS (SELECT 1 FROM dbo.ExportTargetContainment c WHERE c.OutputOperationID=o.OperationID AND c.AccountKey=o.AccountKey))
    OR EXISTS (SELECT 1 FROM dbo.ExportPreparation WHERE PreparationID=@PreparationID OR (AccountKey=@AccountKey AND RequestHash=HASHBYTES('SHA2_256',CONVERT(varbinary(max),@PlanJson))))
    THROW 51700,'Existing work or enrollment prevents fresh admission.',1;
   IF NOT EXISTS (SELECT 1 FROM dbo.ExportResource WITH (UPDLOCK,HOLDLOCK) WHERE ResourceKey=@AccountResource)
@@ -152,9 +184,10 @@ BEGIN
  BEGIN
   -- Count registered pools and still-unregistered enrollment plans once each.
   -- Range locks prevent concurrent enrollment/registration from overbooking eight.
-  IF (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK))+
+  IF @ReplacementID IS NULL AND (SELECT COUNT_BIG(*) FROM KVK.SourceOutputPool WITH(UPDLOCK,HOLDLOCK) WHERE RetiredByReplacementID IS NULL)+
    (SELECT COUNT_BIG(*) FROM dbo.ExportPreparation p WITH(UPDLOCK,HOLDLOCK)
     WHERE JSON_VALUE(p.RequestJson,'$.purpose')='output_enrollment'
+     AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementVerification v WHERE v.PreparationID=p.PreparationID AND v.PlanHash=p.RequestHash)
      AND NOT EXISTS(SELECT 1 FROM (SELECT FileID,PreparationID,Stage,Ordinal FROM dbo.ExportManagedFileOrigin UNION ALL SELECT FileID,PreparationID,Stage,Ordinal FROM dbo.ExportManualFileOrigin) o JOIN KVK.SourceOutputPool pool ON pool.IndexFileID=o.FileID
       WHERE o.PreparationID=p.PreparationID AND o.Stage='eligible' AND o.Ordinal=0))>=8
    THROW 51700,'Eight-pool enrollment capacity is exhausted.',1;

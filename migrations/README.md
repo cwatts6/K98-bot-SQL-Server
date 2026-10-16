@@ -1222,3 +1222,39 @@ Run `deploy/Test-OutputOperationOwnershipContracts.ps1` for offline text contrac
 disposable target, backup and actual restore approval; it has not been executed.
 Upgrade all resource readers/writers before operation admission. Do not activate by merely
 installing SQL or setting flags. Preserve claims/history and forward-fix on uncertainty.
+
+## Guided failed-publication verification (2026-10-15)
+
+`20261015_004_failed_publication_probe.sql` permits failed jobs to enter a read-only
+execution probe. Mutation streams remain running-only; resource/session/owner/version
+checks are unchanged. Deploy with the matching Bot recovery change and refreshed protected
+source/module pins. Separate retry requires fresh authority absence proof with no dispatched
+mutation, positive closed-child evidence, current registration and retained quarantine.
+This migration does not release work or issue provider calls. Validate the exact predecessor,
+take the required backup and use the normal reviewed deployment process. Local verification
+uses temporary SQL objects only.
+
+## Guided rollover replacement — 2026-10-16
+
+`20261016_001_rollover_replacement.sql` follows `20261015_010_configuration_replacement.sql`.
+It checks five exact predecessor definitions and requires the new containment
+procedure to be absent, installs six exact postimages in one schema-locked
+transaction, and grants the new entry point only to the execution authority.
+Mixed, signed, repeated or drifted installations stop. Existing recovery rows,
+files and outcomes are not changed by the migration. Rollback is a reviewed
+forward correction; do not restore access to permanently isolated old files.
+
+The paired Bot contract requires this migration, its procedure signature and the
+new source pins before runtime admission. Deploy SQL before Bot/authority rollout
+and independently reissue the protected installation contract. Implementation and
+disposable testing are authorized; persistent installation and deployment are not.
+All six literal modules compiled in session-local procedures. Both enrollment
+APIs passed positive/negative temporary-SQL tests: only an exact retained
+containment receipt exempts an uncertain rollover from unrelated admission.
+These checks do not claim installed permissions or production acceptance.
+
+Changes review `38c1fffa-fc9f-4c92-8104-f5dbbfa89ac3` finalized and sealed for
+`95b4e91b..24cbca0c`, covering all seven source files with no findings or incomplete
+coverage. The sealed result was read back. The paired Bot regression passed 664
+tests; historical and new migration definition checks subsequently passed five
+tests. No persistent installation ran.

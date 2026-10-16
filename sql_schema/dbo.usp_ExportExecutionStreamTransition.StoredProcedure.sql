@@ -28,7 +28,8 @@ AS
 BEGIN
  SET NOCOUNT ON;
  SET XACT_ABORT ON;
- IF @@TRANCOUNT<>0 THROW 51700,'Evidence transition requires its own short transaction.',1;
+ IF (@Action='contain_read' AND @@TRANCOUNT<>1) OR (@Action<>'contain_read' AND @@TRANCOUNT<>0)
+  THROW 51700,'Read containment requires the exact outer recovery transaction; other transitions require their own transaction.',1;
  IF IS_ROLEMEMBER(N'ExportExecutionAuthority')<>1 OR IS_ROLEMEMBER(N'ExportExecutionAuthority') IS NULL
    THROW 51700,'Evidence authority role required.',1;
  BEGIN TRANSACTION;
@@ -38,7 +39,43 @@ BEGIN
  EXEC @LockResult=sys.sp_getapplock @Resource=@LockKey,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0;
  IF @LockResult<0 THROW 51700,'Export admission busy.',1;
 
- IF @Action='open' AND DATALENGTH(@Action)=4 AND @ExpectedVersion=0
+ IF @Action='contain_read' AND DATALENGTH(@Action)=12
+ BEGIN
+  -- A distinct dispatch fence, never an OS-closure or provider-success assertion.
+  -- The authority has sealed the SQL ledger and the outer transaction compares
+  -- the complete preparation/resources before calling this protected transition.
+  IF @ClosureHash IS NULL OR @ClosureReference IS NULL OR @EventDigest IS NULL
+   OR @LastSequence IS NULL OR @ChildIdentity IS NULL OR @ObjectID IS NULL
+   OR @OwnerID IS NULL OR @Fence IS NULL OR @ClaimVersion IS NULL
+   THROW 51700,'Complete read containment binding required.',1;
+  IF NOT EXISTS (SELECT 1 FROM dbo.ExportExecutionSession WITH (UPDLOCK,HOLDLOCK)
+   WHERE SessionID=@SessionID AND AuthorityPrincipal=USER_NAME() AND State IN ('open','closed'))
+   THROW 51700,'Exact original authority session required.',1;
+  IF NOT EXISTS (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK)
+   WHERE PreparationID=@ObjectID AND AccountKey=@AccountKey AND OwnerID=@OwnerID AND Fence=@Fence
+    AND ConsumerKind='config' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+    AND State IN ('preflight','uncertain')
+    AND Version=@ClaimVersion+CASE WHEN State='uncertain' THEN 1 ELSE 0 END
+    AND ISNULL(JSON_VALUE(RequestJson,'$.purpose'),'')<>'output_enrollment')
+   THROW 51700,'Exact unfinished configuration preparation required.',1;
+  IF (SELECT COUNT_BIG(*) FROM dbo.ExportProviderRequest WITH (UPDLOCK,HOLDLOCK) WHERE StreamID=@StreamID)<>@LastSequence
+   OR EXISTS (SELECT 1 FROM dbo.ExportProviderRequest WITH (UPDLOCK,HOLDLOCK) WHERE StreamID=@StreamID
+    AND (Sequence<1 OR Sequence>@LastSequence OR RequestKind<>'read'
+     OR Operation NOT IN ('sheets.get','sheets.values.get','sheets.values.batchGet','drive.files.get','drive.permissions.list')))
+   THROW 51700,'Only complete typed read membership can be contained.',1;
+  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID
+   AND (NOT EXISTS(SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID AND e.EventSequence=1 AND e.State='prepared')
+    OR EXISTS(SELECT 1 FROM dbo.ExportProviderRequestEvent e WHERE e.RequestID=r.RequestID AND e.State NOT IN ('prepared','dispatch_intent','succeeded','not_sent','unknown'))))
+   THROW 51700,'Complete read event membership required.',1;
+  UPDATE dbo.ExportExecutionStream SET State='read_contained',ActiveAccountKey=NULL,Version=Version+1,
+   ClosureHash=@ClosureHash,ClosureReference=@ClosureReference,EventDigest=@EventDigest,ClosedUTC=SYSUTCDATETIME()
+   WHERE StreamID=@StreamID AND SessionID=@SessionID AND AccountKey=@AccountKey AND Version=@ExpectedVersion
+    AND PreparationID=@ObjectID AND OwnerID=@OwnerID AND Fence=@Fence AND ClaimVersion=@ClaimVersion
+    AND ChildIdentity=@ChildIdentity AND Purpose='probe' AND State IN ('open','frozen','closed')
+    AND JobID IS NULL AND OutputOperationID IS NULL AND NestedToken IS NULL AND Epoch IS NULL AND LastSequence=@LastSequence;
+  IF @@ROWCOUNT<>1 THROW 51700,'Read containment CAS lost.',1;
+ END
+ ELSE IF @Action='open' AND DATALENGTH(@Action)=4 AND @ExpectedVersion=0
  BEGIN
 
  -- Account lock precedes sorted resource locks; stream row is locked last.
@@ -48,7 +85,7 @@ BEGIN
  OR @OwnerKind NOT IN ('job','preparation','operation') OR @OwnerKind IS NULL
  OR DATALENGTH(@OwnerKind)<>LEN(@OwnerKind) OR @ObjectID IS NULL
  OR @Purpose NOT IN ('mutation','probe','enrollment') OR @Purpose IS NULL OR DATALENGTH(@Purpose)<>LEN(@Purpose)
- OR ISJSON(@ScopeJson)<>1 OR @ScopeJson IS NULL OR DATALENGTH(@ScopeJson)>65536
+ OR ISJSON(@ScopeJson)<>1 OR @ScopeJson IS NULL OR DATALENGTH(@ScopeJson)>CASE WHEN @Purpose='enrollment' THEN 524288 ELSE 65536 END
  THROW 51700,'Complete typed stream scope required.',1;
  DECLARE @Resources TABLE (ResourceKey varchar(256) COLLATE Latin1_General_100_BIN2 NOT NULL PRIMARY KEY,Version bigint NOT NULL);
  IF JSON_QUERY(@ScopeJson,'$.resources') IS NULL THROW 51700,'Complete resource membership required.',1;
@@ -57,6 +94,9 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM @Resources WHERE ResourceKey='account:'+@AccountKey)
  OR (SELECT COUNT(*) FROM @Resources) NOT BETWEEN 1 AND 1025 OR EXISTS (SELECT 1 FROM @Resources WHERE Version<=0)
  THROW 51700,'Invalid resource membership.',1;
+ IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK)
+  ON r.ResourceKey=('destination:'+t.FileID) COLLATE Latin1_General_100_BIN2)
+  THROW 51700,'A permanently isolated target cannot enter another provider stream.',1;
  IF @Purpose='probe' AND EXISTS (SELECT 1 FROM dbo.ExportResource r JOIN dbo.ExportPreparation p ON p.PreparationID=r.ActivePreparationID
     WHERE p.AccountKey=@AccountKey AND r.ResourceKind='sql_snapshot' AND r.OwnerID IS NOT NULL)
   THROW 51700,'Owned SQL producer must drain before observational probe.',1;
@@ -86,7 +126,7 @@ BEGIN
  BEGIN
   IF NOT EXISTS (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
    AND AccountKey=@AccountKey AND OwnerID=@OwnerID AND Fence=@Fence AND Version=@ClaimVersion
-   AND ((@Purpose='mutation' AND State='running') OR (@Purpose='probe' AND State IN ('running','uncertain','confirmed')))
+   AND ((@Purpose='mutation' AND State='running') OR (@Purpose='probe' AND State IN ('running','uncertain','confirmed','failed')))
    AND ((PoolEpoch IS NULL AND @Epoch IS NULL) OR PoolEpoch=@Epoch)
    AND ((@NestedToken IS NULL AND JSON_VALUE(ProvenanceJson,'$.retirement_recovery.state') IS NULL)
       OR (@NestedToken IS NOT NULL AND TRY_CONVERT(uniqueidentifier,JSON_VALUE(ProvenanceJson,'$.retirement_recovery.token'))=@NestedToken
@@ -113,6 +153,7 @@ BEGIN
   IF @Purpose='enrollment'
   BEGIN
    IF JSON_VALUE(@EnrollmentPlan,'$.purpose') IS NULL OR JSON_VALUE(@EnrollmentPlan,'$.purpose')<>'output_enrollment'
+    OR (DATALENGTH(@ScopeJson)>65536 AND ISNULL(JSON_VALUE(@EnrollmentPlan,'$.version'),'') NOT IN ('4','5'))
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id')) IS NULL
     OR TRY_CONVERT(uniqueidentifier,JSON_VALUE(@EnrollmentProgress,'$.session_id'))<>@SessionID
     OR @RegistrationHash<>@EnrollmentHash OR @SnapshotHash<>@EnrollmentHash
@@ -189,10 +230,18 @@ BEGIN
   ELSE IF @Action='close' AND DATALENGTH(@Action)=5 AND @ClosureHash IS NOT NULL AND @ChildIdentity IS NOT NULL
     AND @ClosureReference IS NOT NULL AND @EventDigest IS NOT NULL AND @LastSequence IS NOT NULL
   BEGIN
-   -- Frozen streams remain writable only for legal terminal evidence.
+   -- Preserve complete abandoned read prefixes; closure is not a successful observation.
+   -- The trusted parent must still prove exact child termination and seal every event.
    IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequest r WHERE r.StreamID=@StreamID
     AND NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e
-     WHERE e.RequestID=r.RequestID AND e.State IN ('succeeded','not_sent','unknown')))
+     WHERE e.RequestID=r.RequestID AND e.State IN ('succeeded','not_sent','unknown'))
+    AND NOT (r.RequestKind='read'
+     AND EXISTS (SELECT 1 FROM dbo.ExportExecutionStream s
+      WHERE s.StreamID=r.StreamID AND s.Purpose='probe')
+     AND EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e
+      WHERE e.RequestID=r.RequestID AND e.State='prepared')
+     AND NOT EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent e
+      WHERE e.RequestID=r.RequestID AND e.State NOT IN ('prepared','dispatch_intent'))))
     THROW 51700,'Nonterminal request evidence prevents stream closure.',1;
    -- Trusted parent supplies OS-handle closure evidence, not a caller Boolean.
    UPDATE dbo.ExportExecutionStream SET State='closed',ActiveAccountKey=NULL,Version=Version+1,ClosureHash=@ClosureHash,ClosureReference=@ClosureReference,EventDigest=@EventDigest,ClosedUTC=SYSUTCDATETIME()

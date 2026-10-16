@@ -14,6 +14,11 @@ function Read-K98ModuleProfile([string]$Path,[string]$Expected,[string]$Migratio
     $raw=[IO.File]::ReadAllBytes($Path)
     if($raw.Length -gt 1MB -or $Expected -cnotmatch '^[a-f0-9]{64}$' -or (Get-K98ModuleHash $raw) -cne $Expected){throw 'Profile checksum/size differs'}
     $p=[Text.UTF8Encoding]::new($false,$true).GetString($raw)|ConvertFrom-Json
+    if($p.profile -ceq 'coordinated_recovery_v1') {
+        if($p.migration_id -cne $MigrationId){throw 'Exact coordinated migration identity required'}
+        . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
+        return Read-K98RecoveryProfile $p $Path
+    }
     if($p.profile -ceq 'additive_tables_v1') {
         if($p.migration_id -cne $MigrationId){throw 'Exact additive migration identity required'}
         . "$PSScriptRoot\SqlDeploy.TableRelease.ps1"
@@ -115,6 +120,11 @@ IF (SELECT recovery_model_desc FROM sys.databases WHERE database_id=DB_ID())<>'S
     }
 }
 function Assert-K98ModuleImages($Connection,$Transaction,$Loaded,[bool]$After) {
+    if($Loaded.Profile.profile -ceq 'coordinated_recovery_v1') {
+        . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
+        Assert-K98RecoveryImages $Connection $Transaction $Loaded $After
+        return
+    }
     if($Loaded.Profile.profile -ceq 'additive_tables_v1') {
         . "$PSScriptRoot\SqlDeploy.TableRelease.ps1"
         Assert-K98TableImages $Connection $Transaction $Loaded $After
@@ -155,15 +165,23 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
         $binding=$completed[0].ErrorMessage|ConvertFrom-Json
         if($binding.migration_id -cne $p.migration_id -or $binding.profile_sha256 -cne $Hash -or $binding.sql_commit -cne $Commit -or $binding.release_id -cne $ReleaseId){throw ('Committed migration release differs: '+$p.migration_id+' expected_release='+$ReleaseId+' observed_release='+$binding.release_id+'; resume the original release, do not replay or adopt its receipt.')}
         Assert-K98ModuleImages $Connection $null $Loaded $true
+        if($p.profile -ceq 'coordinated_recovery_v1') {
+            . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
+            Assert-K98RecoveryHistory $Connection $null $Loaded $Commit $rows[0].DeploymentId $true
+        }
         return 'committed'
     }
-    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
+    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
     foreach($a in $attempts) {
         if($a.BranchName -cne $p.profile){throw ('Migration profile identity differs: '+$p.migration_id+'; retain the original attempt and use a reviewed corrective identity.')}
         $b=$a.ErrorMessage|ConvertFrom-Json
         if($b.profile_sha256 -cne $Hash -or $b.sql_commit -cne $Commit -or $b.release_id -cne $ReleaseId -or $a.Status -cnotin @('Started','Failed')){throw ('Migration attempt identity/outcome differs: '+$p.migration_id)}
     }
     Assert-K98ModuleImages $Connection $null $Loaded $false
+    if($p.profile -ceq 'coordinated_recovery_v1') {
+        . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
+        Assert-K98RecoveryHistory $Connection $null $Loaded $Commit $null $false
+    }
     # The exclusive session lock has been acquired. Every possible change and
     # Applied receipt is in the SAME transaction. Its absence plus exact preimage
     # therefore proves rollback even if the prior process died before recording it.
@@ -198,7 +216,10 @@ VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,
 '@ @{attempt=$attempt;commit=$ExpectedCommit;binding=$binding;profile=$loaded.Profile.profile}
             $transaction=$connection.BeginTransaction()
             Assert-K98ModuleImages $connection $transaction $loaded $false
-            if($loaded.Profile.profile -ceq 'additive_tables_v1') {
+            if($loaded.Profile.profile -ceq 'coordinated_recovery_v1') {
+                . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
+                Invoke-K98RecoveryChain $connection $transaction $loaded $ExpectedCommit $attempt
+            }elseif($loaded.Profile.profile -ceq 'additive_tables_v1') {
                 foreach($table in $loaded.Tables){$null=Invoke-K98ModuleQuery $connection $transaction $table.Create}
             }else{
                 foreach($m in $loaded.Profile.modules){$null=Invoke-K98ModuleQuery $connection $transaction $loaded.Texts[($m.schema+'.'+$m.name)]}
