@@ -1233,3 +1233,22 @@ mutation, positive closed-child evidence, current registration and retained quar
 This migration does not release work or issue provider calls. Validate the exact predecessor,
 take the required backup and use the normal reviewed deployment process. Local verification
 uses temporary SQL objects only.
+# Guided rollover replacement — 2026-10-16
+
+`20261016_001_rollover_replacement.sql` follows `20261015_010_configuration_replacement.sql`.
+It checks five exact predecessor definitions and requires the new containment
+procedure to be absent, installs six exact postimages in one schema-locked
+transaction, and grants the new entry point only to the execution authority.
+Mixed, signed, repeated or drifted installations stop. Existing recovery rows,
+files and outcomes are not changed by the migration. Rollback is a reviewed
+forward correction; do not restore access to permanently isolated old files.
+
+The paired Bot contract requires this migration, its procedure signature and the
+new source pins before runtime admission. Deploy SQL before Bot/authority rollout
+and independently reissue the protected installation contract. Implementation and
+disposable testing are authorized; persistent installation and deployment are not.
+All six literal modules compiled in session-local procedures. Both enrollment
+APIs passed positive/negative temporary-SQL tests: only an exact retained
+containment receipt exempts an uncertain rollover from unrelated admission.
+These checks do not claim installed permissions or production acceptance.
+

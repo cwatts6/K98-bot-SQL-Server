@@ -34,20 +34,21 @@ BEGIN
   WITH(OldFileID varchar(128) '$.old',NewFileID varchar(128) '$.new');
  BEGIN TRANSACTION;
  BEGIN TRY
- DECLARE @LockResult int,@LockKey nvarchar(255),@JobID uniqueidentifier;
+ DECLARE @LockResult int,@LockKey nvarchar(255),@JobID uniqueidentifier,@OperationID uniqueidentifier;
  SET @LockKey=N'k98-export:'+LOWER(CONVERT(varchar(64),HASHBYTES('SHA2_256',CONVERT(varchar(136),'account:'+@AccountKey)),2));
  EXEC @LockResult=sys.sp_getapplock @Resource=@LockKey,@LockMode='Exclusive',@LockOwner='Transaction',@LockTimeout=0;
  IF @LockResult<0 THROW 51727,'Account admission busy.',1;
- SELECT @JobID=JobID FROM dbo.ExportTargetContainment WITH(UPDLOCK,HOLDLOCK)
-  WHERE ContainmentID=@ContainmentID AND AccountKey=@AccountKey AND JobID IS NOT NULL
-   AND PreparationID IS NULL AND OutputOperationID IS NULL;
- IF @JobID IS NULL OR NOT EXISTS(SELECT 1 FROM dbo.ExportJob WITH(UPDLOCK,HOLDLOCK)
+ SELECT @JobID=JobID,@OperationID=OutputOperationID FROM dbo.ExportTargetContainment WITH(UPDLOCK,HOLDLOCK)
+  WHERE ContainmentID=@ContainmentID AND AccountKey=@AccountKey AND PreparationID IS NULL;
+ IF NOT (EXISTS(SELECT 1 FROM dbo.ExportJob WITH(UPDLOCK,HOLDLOCK)
    WHERE JobID=@JobID AND AccountKey=@AccountKey AND State='uncertain')
-  THROW 51727,'Exact isolated unresolved job required.',1;
+  OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperation WITH(UPDLOCK,HOLDLOCK)
+   WHERE OperationID=@OperationID AND AccountKey=@AccountKey AND State='uncertain' AND Phase='uncertain'))
+  THROW 51727,'Exact isolated unresolved owner required.',1;
  IF EXISTS(SELECT FileID FROM dbo.ExportContainedTarget WHERE ContainmentID=@ContainmentID EXCEPT SELECT OldFileID FROM @Mapping)
   OR EXISTS(SELECT OldFileID FROM @Mapping EXCEPT SELECT FileID FROM dbo.ExportContainedTarget WHERE ContainmentID=@ContainmentID)
   THROW 51727,'Every isolated physical target requires a replacement.',1;
- IF EXISTS(SELECT 1 FROM dbo.ExportResource WHERE ActiveJobID=@JobID)
+ IF EXISTS(SELECT 1 FROM dbo.ExportResource WHERE ActiveJobID=@JobID OR ActiveOutputOperationID=@OperationID)
   THROW 51727,'Original custody has not been released.',1;
  -- Replay is never a second insert. The authority reads and verifies the
  -- original private receipt after any lost commit acknowledgement.

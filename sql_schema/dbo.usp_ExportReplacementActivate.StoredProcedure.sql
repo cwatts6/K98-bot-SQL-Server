@@ -32,10 +32,12 @@ BEGIN
    AND NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementActivation n WHERE n.AccountKey=a.AccountKey AND n.BaseRegistrationHash=a.RegistrationHash))
   THROW 51729,'Effective registration changed after replacement review.',1;
  IF NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementPlan p JOIN dbo.ExportTargetContainment c ON c.ContainmentID=p.ContainmentID
-  JOIN dbo.ExportJob j ON j.JobID=c.JobID JOIN dbo.ExportReplacementVerification v ON v.ReplacementID=p.ReplacementID
+  JOIN dbo.ExportReplacementVerification v ON v.ReplacementID=p.ReplacementID
   JOIN dbo.ExportPreparation prep ON prep.PreparationID=v.PreparationID
   WHERE p.ReplacementID=@ReplacementID AND p.AccountKey=@AccountKey AND p.BaseRegistrationHash=@BaseRegistrationHash
-   AND c.AccountKey=@AccountKey AND j.AccountKey=@AccountKey AND j.State='uncertain'
+   AND c.AccountKey=@AccountKey
+   AND (EXISTS(SELECT 1 FROM dbo.ExportJob j WHERE j.JobID=c.JobID AND j.AccountKey=@AccountKey AND j.State='uncertain')
+    OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperation o WHERE o.OperationID=c.OutputOperationID AND o.AccountKey=@AccountKey AND o.State='uncertain' AND o.Phase='uncertain' AND o.PoolID=@OldPoolID))
    AND v.VerificationID=@VerificationID AND v.State='verified' AND v.Version=2
    AND v.ReceiptHash IS NOT NULL AND v.ReceiptReference IS NOT NULL AND prep.State='completed' AND prep.RequestHash=v.PlanHash)
   THROW 51729,'Verified replacement observation and original isolated job required.',1;

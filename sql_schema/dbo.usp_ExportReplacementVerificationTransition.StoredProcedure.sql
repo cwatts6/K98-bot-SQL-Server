@@ -28,8 +28,9 @@ BEGIN
   THROW 51728,'Current authority session required.',1;
  IF NOT EXISTS(SELECT 1 FROM dbo.ExportReplacementPlan p WITH(UPDLOCK,HOLDLOCK)
   JOIN dbo.ExportTargetContainment c ON c.ContainmentID=p.ContainmentID
-  JOIN dbo.ExportJob j ON j.JobID=c.JobID WHERE p.ReplacementID=@ReplacementID AND p.AccountKey=@AccountKey
-   AND c.AccountKey=@AccountKey AND j.AccountKey=@AccountKey AND j.State='uncertain')
+  WHERE p.ReplacementID=@ReplacementID AND p.AccountKey=@AccountKey AND c.AccountKey=@AccountKey
+   AND (EXISTS(SELECT 1 FROM dbo.ExportJob j WHERE j.JobID=c.JobID AND j.AccountKey=@AccountKey AND j.State='uncertain')
+    OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperation o WHERE o.OperationID=c.OutputOperationID AND o.AccountKey=@AccountKey AND o.State='uncertain' AND o.Phase='uncertain')))
   THROW 51728,'Exact isolated job and replacement proposal required.',1;
  DECLARE @Resources TABLE(ResourceKey varchar(256) COLLATE Latin1_General_100_BIN2 PRIMARY KEY);
  INSERT @Resources VALUES(@AccountResource);
@@ -97,7 +98,8 @@ BEGIN
    THROW 51728,'Exact configuration or output verification role required.',1;
   IF EXISTS(SELECT 1 FROM dbo.ExportExecutionStream WHERE ActiveAccountKey=@AccountKey)
    OR EXISTS(SELECT 1 FROM dbo.ExportPreparation WHERE AccountKey=@AccountKey AND State IN ('pending','preflight','sql_pending','writing','committed','uncertain'))
-   OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperation WHERE AccountKey=@AccountKey AND State IN ('closing','ready','running','uncertain'))
+   OR EXISTS(SELECT 1 FROM KVK.SourceOutputOperation o WHERE o.AccountKey=@AccountKey AND o.State IN ('closing','ready','running','uncertain')
+    AND NOT EXISTS(SELECT 1 FROM dbo.ExportTargetContainment c WHERE c.OutputOperationID=o.OperationID AND c.AccountKey=o.AccountKey))
    OR EXISTS(SELECT 1 FROM dbo.ExportJob j WHERE j.AccountKey=@AccountKey AND j.State IN ('ready','running','uncertain')
     AND NOT EXISTS(SELECT 1 FROM dbo.ExportJobResource m JOIN dbo.ExportContainedTarget t ON m.ResourceKey='destination:'+t.FileID WHERE m.JobID=j.JobID))
    THROW 51728,'Healthy work retains admission priority.',1;

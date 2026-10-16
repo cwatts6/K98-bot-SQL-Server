@@ -77,7 +77,8 @@ BEGIN
   -- New enrollment never overtakes existing ready work or bypasses uncertainty.
   IF EXISTS (SELECT 1 FROM dbo.ExportJob WHERE AccountKey=@AccountKey AND State IN ('ready','running','uncertain'))
    OR EXISTS (SELECT 1 FROM dbo.ExportPreparation WHERE AccountKey=@AccountKey AND State IN ('pending','preflight','sql_pending','writing','committed','uncertain'))
-   OR EXISTS (SELECT 1 FROM KVK.SourceOutputOperation WHERE AccountKey=@AccountKey AND State IN ('closing','ready','running','uncertain'))
+   OR EXISTS (SELECT 1 FROM KVK.SourceOutputOperation o WHERE o.AccountKey=@AccountKey AND o.State IN ('closing','ready','running','uncertain')
+    AND NOT EXISTS (SELECT 1 FROM dbo.ExportTargetContainment c WHERE c.OutputOperationID=o.OperationID AND c.AccountKey=o.AccountKey))
    OR EXISTS (SELECT 1 FROM dbo.ExportPreparation WHERE PreparationID=@PreparationID OR (AccountKey=@AccountKey AND RequestHash=HASHBYTES('SHA2_256',CONVERT(varbinary(max),@PlanJson))))
    THROW 51700,'Existing work or enrollment prevents fresh admission.',1;
   IF NOT EXISTS (SELECT 1 FROM dbo.ExportResource WITH (UPDLOCK,HOLDLOCK) WHERE ResourceKey=@AccountResource)
