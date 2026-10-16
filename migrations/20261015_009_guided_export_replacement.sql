@@ -221,50 +221,50 @@ IF NOT EXISTS(SELECT 1 FROM sys.check_constraints WHERE parent_object_id=OBJECT_
  AND is_disabled=0 AND is_not_trusted=0 AND is_not_for_replication=0)
  THROW 51730,'Trusted containment constraint postimage differs.',1;
 
-CREATE TABLE #K98BoundBefore(RequestJson nvarchar(max),ConsumerKind varchar(32), CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=65536));
-CREATE TABLE #K98BoundAfter(RequestJson nvarchar(max),ConsumerKind varchar(32), CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=CASE WHEN ConsumerKind='config' AND JSON_VALUE(RequestJson,'$.purpose')='output_enrollment' AND JSON_VALUE(RequestJson,'$.version')='4' THEN 2097152 ELSE 65536 END));
+CREATE TABLE #K98RequestBoundBefore(RequestJson nvarchar(max),ConsumerKind varchar(32), CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=65536));
+CREATE TABLE #K98RequestBoundAfter(RequestJson nvarchar(max),ConsumerKind varchar(32), CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=CASE WHEN ConsumerKind='config' AND JSON_VALUE(RequestJson,'$.purpose')='output_enrollment' AND JSON_VALUE(RequestJson,'$.version')='4' THEN 2097152 ELSE 65536 END));
 IF NOT EXISTS(SELECT 1 FROM sys.check_constraints c WHERE c.parent_object_id=OBJECT_ID(N'dbo.ExportPreparation')
  AND c.name=N'CK_ExportPreparation_Request' AND c.is_disabled=0 AND c.is_not_trusted=0
- AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98BoundBefore')))
+ AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98RequestBoundBefore')))
  THROW 51730,'Exact trusted predecessor document bound required.',1;
 ALTER TABLE dbo.ExportPreparation DROP CONSTRAINT CK_ExportPreparation_Request;
 ALTER TABLE dbo.ExportPreparation WITH CHECK ADD CONSTRAINT CK_ExportPreparation_Request CHECK (ISJSON(RequestJson)=1 AND DATALENGTH(RequestJson)<=CASE WHEN ConsumerKind='config' AND JSON_VALUE(RequestJson,'$.purpose')='output_enrollment' AND JSON_VALUE(RequestJson,'$.version')='4' THEN 2097152 ELSE 65536 END);
 IF NOT EXISTS(SELECT 1 FROM sys.check_constraints c WHERE c.parent_object_id=OBJECT_ID(N'dbo.ExportPreparation')
  AND c.name=N'CK_ExportPreparation_Request' AND c.is_disabled=0 AND c.is_not_trusted=0
- AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98BoundAfter')))
+ AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98RequestBoundAfter')))
  THROW 51730,'Exact trusted replacement document bound required.',1;
-DROP TABLE #K98BoundBefore;
-DROP TABLE #K98BoundAfter;
+DROP TABLE #K98RequestBoundBefore;
+DROP TABLE #K98RequestBoundAfter;
 
-CREATE TABLE #K98BoundBefore(ScopeJson nvarchar(max),Purpose varchar(16), CHECK (ISJSON(ScopeJson)=1 AND DATALENGTH(ScopeJson)<=65536));
-CREATE TABLE #K98BoundAfter(ScopeJson nvarchar(max),Purpose varchar(16), CHECK (ISJSON(ScopeJson)=1 AND DATALENGTH(ScopeJson)<=CASE WHEN Purpose='enrollment' THEN 524288 ELSE 65536 END));
+CREATE TABLE #K98StreamBoundBefore(ScopeJson nvarchar(max),Purpose varchar(16), CHECK (ISJSON(ScopeJson)=1 AND DATALENGTH(ScopeJson)<=65536));
+CREATE TABLE #K98StreamBoundAfter(ScopeJson nvarchar(max),Purpose varchar(16), CHECK (ISJSON(ScopeJson)=1 AND DATALENGTH(ScopeJson)<=CASE WHEN Purpose='enrollment' THEN 524288 ELSE 65536 END));
 IF NOT EXISTS(SELECT 1 FROM sys.check_constraints c WHERE c.parent_object_id=OBJECT_ID(N'dbo.ExportExecutionStream')
  AND c.name=N'CK_ExportExecutionStream_Scope' AND c.is_disabled=0 AND c.is_not_trusted=0
- AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98BoundBefore')))
+ AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98StreamBoundBefore')))
  THROW 51730,'Exact trusted predecessor document bound required.',1;
 ALTER TABLE dbo.ExportExecutionStream DROP CONSTRAINT CK_ExportExecutionStream_Scope;
 ALTER TABLE dbo.ExportExecutionStream WITH CHECK ADD CONSTRAINT CK_ExportExecutionStream_Scope CHECK (ISJSON(ScopeJson)=1 AND DATALENGTH(ScopeJson)<=CASE WHEN Purpose='enrollment' THEN 524288 ELSE 65536 END);
 IF NOT EXISTS(SELECT 1 FROM sys.check_constraints c WHERE c.parent_object_id=OBJECT_ID(N'dbo.ExportExecutionStream')
  AND c.name=N'CK_ExportExecutionStream_Scope' AND c.is_disabled=0 AND c.is_not_trusted=0
- AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98BoundAfter')))
+ AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98StreamBoundAfter')))
  THROW 51730,'Exact trusted replacement document bound required.',1;
-DROP TABLE #K98BoundBefore;
-DROP TABLE #K98BoundAfter;
+DROP TABLE #K98StreamBoundBefore;
+DROP TABLE #K98StreamBoundAfter;
 
-CREATE TABLE #K98BoundBefore(EvidenceJson nvarchar(max),SourceKind varchar(64), CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=32768));
-CREATE TABLE #K98BoundAfter(EvidenceJson nvarchar(max),SourceKind varchar(64), CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=CASE WHEN SourceKind='export_job' THEN 1048576 ELSE 32768 END));
+CREATE TABLE #K98EvidenceBoundBefore(EvidenceJson nvarchar(max),SourceKind varchar(64), CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=32768));
+CREATE TABLE #K98EvidenceBoundAfter(EvidenceJson nvarchar(max),SourceKind varchar(64), CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=CASE WHEN SourceKind='export_job' THEN 1048576 ELSE 32768 END));
 IF NOT EXISTS(SELECT 1 FROM sys.check_constraints c WHERE c.parent_object_id=OBJECT_ID(N'dbo.RecoveryIncident')
  AND c.name=N'CK_RecoveryIncident_Evidence' AND c.is_disabled=0 AND c.is_not_trusted=0
- AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98BoundBefore')))
+ AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98EvidenceBoundBefore')))
  THROW 51730,'Exact trusted predecessor document bound required.',1;
 ALTER TABLE dbo.RecoveryIncident DROP CONSTRAINT CK_RecoveryIncident_Evidence;
 ALTER TABLE dbo.RecoveryIncident WITH CHECK ADD CONSTRAINT CK_RecoveryIncident_Evidence CHECK (ISJSON(EvidenceJson)=1 AND DATALENGTH(EvidenceJson)<=CASE WHEN SourceKind='export_job' THEN 1048576 ELSE 32768 END);
 IF NOT EXISTS(SELECT 1 FROM sys.check_constraints c WHERE c.parent_object_id=OBJECT_ID(N'dbo.RecoveryIncident')
  AND c.name=N'CK_RecoveryIncident_Evidence' AND c.is_disabled=0 AND c.is_not_trusted=0
- AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98BoundAfter')))
+ AND c.definition=(SELECT definition FROM tempdb.sys.check_constraints WHERE parent_object_id=OBJECT_ID('tempdb..#K98EvidenceBoundAfter')))
  THROW 51730,'Exact trusted replacement document bound required.',1;
-DROP TABLE #K98BoundBefore;
-DROP TABLE #K98BoundAfter;
+DROP TABLE #K98EvidenceBoundBefore;
+DROP TABLE #K98EvidenceBoundAfter;
 DECLARE @ObjectID int,@Installed nvarchar(max),@Apply nvarchar(max);
 SET @ObjectID=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend',N'P');
 SET @Installed=REPLACE(OBJECT_DEFINITION(@ObjectID),NCHAR(13)+NCHAR(10),NCHAR(10));
