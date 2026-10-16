@@ -1,5 +1,25 @@
 # Guided recovery persistence — P0 foundation
 
+## Atomic configuration publication — 2026-10-16
+
+Migration `20261016_002_atomic_configuration_publication` changes only
+`dbo.sp_TARGETS_MASTER`: a typed configuration producer with its exact writing
+reservation may execute inside one committable caller transaction. Configuration,
+target publication and the Bot completion receipt then commit together. Ordinary
+standalone callers retain their prior transaction contract. Wrong identity/type,
+lost reservation and lost transaction are rejected. No new grants or data writes
+are performed by the migration; exact predecessor/postimage and signature checks
+protect installation. Install before the paired Bot and protected contract reissue.
+
+Seven disposable literal-procedure/migration cases passed, including nested commit,
+rollback and invalid-entry gates; delta work is a synthetic callee, not a claim of
+full production-data publication. The paired Bot's affected suite passed 280 tests
+and its final migration/source-pin/log-isolation set passed 60. SQL Changes scan
+`c018f01b-44ec-4983-bfa2-8a6b135dd03e` sealed `0b5bb732..f5ecc3e0`, both source files,
+no findings or coverage gaps; sealed readback succeeded. Tool-reported usage:
+2,734,772 tokens. No persistent installation or live provider action occurred.
+This focused slice does not close remaining P0 recovery/continuation acceptance.
+
 Companion Bot branch: `codex/guided-recovery-p0`. This package is additive and does
 not settle existing operations, release reservations, or replay business work.
 
