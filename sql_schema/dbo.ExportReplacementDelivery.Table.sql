@@ -1,3 +1,5 @@
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
 CREATE TABLE dbo.ExportReplacementDelivery (
  ActionID uniqueidentifier NOT NULL CONSTRAINT PK_ExportReplacementDelivery PRIMARY KEY,
  OriginalJobID uniqueidentifier NOT NULL,

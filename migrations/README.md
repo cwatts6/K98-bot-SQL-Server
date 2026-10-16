@@ -1233,7 +1233,8 @@ mutation, positive closed-child evidence, current registration and retained quar
 This migration does not release work or issue provider calls. Validate the exact predecessor,
 take the required backup and use the normal reviewed deployment process. Local verification
 uses temporary SQL objects only.
-# Guided rollover replacement — 2026-10-16
+
+## Guided rollover replacement — 2026-10-16
 
 `20261016_001_rollover_replacement.sql` follows `20261015_010_configuration_replacement.sql`.
 It checks five exact predecessor definitions and requires the new containment
