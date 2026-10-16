@@ -50,6 +50,9 @@ $header = Get-SqlSource 'sql_schema\dbo.KVK_Target_Publication.Table.sql'
 $rows = Get-SqlSource 'sql_schema\dbo.KVK_Target_Publication_Row.Table.sql'
 $view = Get-SqlSource 'sql_schema\dbo.v_KVK_TARGETS_FOR_BOT.View.sql'
 $master = Get-SqlSource 'sql_schema\dbo.sp_TARGETS_MASTER.StoredProcedure.sql'
+& (Join-Path $repoRoot 'deploy/Test-AtomicConfigurationPublicationContracts.ps1') -RepositoryRoot $repoRoot
+. (Join-Path $repoRoot 'deploy/ConfigurationPublication.Source.ps1')
+$master = Get-S11PreAtomicConfigurationSource $master
 $delta = Get-SqlSource 'sql_schema\dbo.CREATE_DELTA_TABLES.StoredProcedure.sql'
 $updateAll = Get-SqlSource 'sql_schema\dbo.UPDATE_ALL.StoredProcedure.sql'
 $loop = Get-SqlSource 'sql_schema\dbo.sp_Loop_ExcelOutput_ByKVK.StoredProcedure.sql'

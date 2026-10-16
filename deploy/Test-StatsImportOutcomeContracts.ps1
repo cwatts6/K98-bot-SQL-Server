@@ -51,7 +51,13 @@ foreach ($name in @('dbo.UPDATE_ALL2','dbo.usp_S11RunStatsImport')) {
         }
     }
 }
-foreach ($module in $historical.modules | Where-Object name -CNE 'dbo.UPDATE_ALL2') {
+& (Join-Path $RepositoryRoot 'deploy/Test-AtomicConfigurationPublicationContracts.ps1') -RepositoryRoot $RepositoryRoot
+$oldTarget = @($historical.modules | Where-Object name -CEQ 'dbo.sp_TARGETS_MASTER')[0]
+$newTarget = @($source.modules | Where-Object name -CEQ 'dbo.sp_TARGETS_MASTER')[0]
+$expectedTarget = $oldTarget | ConvertTo-Json -Depth 64 | ConvertFrom-Json
+foreach($field in @('source_sha256','definition_sha256','compatible_definition_sha256')) { $expectedTarget.$field = $newTarget.$field }
+if(($expectedTarget | ConvertTo-Json -Depth 64 -Compress) -cne ($newTarget | ConvertTo-Json -Depth 64 -Compress)){throw 'Unrelated atomic configuration module fields changed'}
+foreach ($module in $historical.modules | Where-Object { $_.name -cnotin @('dbo.UPDATE_ALL2','dbo.sp_TARGETS_MASTER') }) {
     $actual = @($source.modules | Where-Object name -CEQ $module.name)
     if ($actual.Count -ne 1 -or ($actual[0] | ConvertTo-Json -Depth 64 -Compress) -cne ($module | ConvertTo-Json -Depth 64 -Compress)) { throw "Unrelated source changed: $($module.name)" }
 }
