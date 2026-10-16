@@ -70,7 +70,7 @@ def install_application_baseline(connection):
         raw = fixture.source(fixture.BASE, "sql_schema/" + name + ".StoredProcedure.sql")
         declaration = re.search(r"(?m)^(?:CREATE(?: OR ALTER)?|ALTER)\s+PROCEDURE\b", raw)
         assert declaration, name
-        body = next(fixture.batches(raw[declaration.end():])).strip()
+        body = next(fixture.batches(raw[declaration.end() :])).strip()
         installed = leading + "CREATE   PROCEDURE " + body + trailing
         canonical = (
             installed.replace("CREATE   PROCEDURE", "CREATE PROCEDURE", 1)
