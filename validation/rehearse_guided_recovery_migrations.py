@@ -17,7 +17,7 @@ import pyodbc
 
 ROOT = Path(__file__).resolve().parents[1]
 BASE = "b3480656e3454fbe713905460177f8d038c2bd5f"
-HEAD = "21de1988819fc734252b9efc68c2ea047d0b11d3"
+HEAD = "ee71a4ae9ae1ea3a523a608c685b0992c58244eb"
 SERVER = r"lpc:localhost\K98DEV"
 DATABASE = "K98_P0a_Migrations_" + uuid4().hex[:12]
 EXPECTED_SERVER = r"9SX2VF4\K98DEV"
@@ -227,11 +227,13 @@ def main(qualification=None):
                         if "0x" + hashlib.sha256(body.encode("utf-16le")).hexdigest()
                         in migration
                     ]
-                    assert len(admitted) == 1, (
+                    assert 1 <= len(admitted) <= 2, (
                         name,
-                        "missing or ambiguous source-derived preimage",
+                        "missing source-derived preimage",
                     )
-                    execute(connection, admitted[0])
+                    # Both final-newline representations may now be explicitly
+                    # admitted. Prefer the exported newline form deterministically.
+                    execute(connection, admitted[-1])
             print(
                 json.dumps(
                     dict(

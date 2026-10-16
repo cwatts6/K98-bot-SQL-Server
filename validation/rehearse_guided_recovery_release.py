@@ -9,6 +9,7 @@ Run with --allow-disposable-sql. No production endpoint or existing DB is accept
 import hashlib
 import json
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -50,6 +51,37 @@ APPLICATION_GRANTS = {
 
 
 def install_application_baseline(connection):
+    # Reconstruct the two reviewed installed representations from immutable Git
+    # bodies. Never install a definition taken from a live database as expected.
+    for name, leading, trailing, expected in (
+        (
+            "dbo.sp_TARGETS_MASTER",
+            "\n",
+            "\n\n",
+            "578319ad6aa111babd04e4dee61f333699b9d8341aebd682989774dfc2ae616c",
+        ),
+        (
+            "dbo.usp_ExportManualOutputEnrollmentTransition",
+            "",
+            "",
+            "698f8b6c8acf014bad92c5f3bf994abb3cc8acdd5551efa5a8ed9ec486319752",
+        ),
+    ):
+        raw = fixture.source(fixture.BASE, "sql_schema/" + name + ".StoredProcedure.sql")
+        declaration = re.search(r"(?m)^(?:CREATE(?: OR ALTER)?|ALTER)\s+PROCEDURE\b", raw)
+        assert declaration, name
+        body = next(fixture.batches(raw[declaration.end():])).strip()
+        installed = leading + "CREATE   PROCEDURE " + body + trailing
+        canonical = (
+            installed.replace("CREATE   PROCEDURE", "CREATE PROCEDURE", 1)
+            if not leading
+            else installed
+        )
+        assert hashlib.sha256(canonical.encode("utf-16le")).hexdigest() == expected
+        fixture.execute(
+            connection,
+            (leading + "CREATE OR ALTER PROCEDURE " + body + trailing).replace("\n", "\r\n"),
+        )
     fixture.execute(
         connection,
         """CREATE USER S11_ExportApplication WITHOUT LOGIN;
@@ -235,6 +267,7 @@ def qualify_adapter(connection, report, output):
         cases.append(dict(operation=operation, expected=expected, actual=result.returncode))
         assert result.returncode == expected, result.stdout + result.stderr
         print(json.dumps(cases[-1]), flush=True)
+        return result
 
     def injected_runner(name, old, new):
         target = OUTPUT / name
@@ -260,6 +293,24 @@ def qualify_adapter(connection, report, output):
     run("Verify", 10)
     assert fixture.catalogue(connection) == before
     assert connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval() == 0
+    # A changed body is not an alternate spelling. Check the literal migration's
+    # own guard independently from the adapter's complete-image preflight.
+    for name in ("dbo.usp_ExportManualOutputEnrollmentTransition", "dbo.sp_TARGETS_MASTER"):
+        call = "Invoke-K98RecoveryChain $connection $transaction $loaded $ExpectedCommit $attempt"
+        changed = injected_runner(
+            "changed-body-" + name.split(".")[1],
+            call,
+            "$null=Invoke-K98ModuleQuery $connection $transaction 'ALTER PROCEDURE "
+            + name
+            + " AS SELECT 123456;'\n                "
+            + call,
+        )
+        result = run("Apply", 20, runner=changed)
+        assert "Exact reviewed" in result.stdout + result.stderr
+        run("Verify", 11)
+        assert fixture.catalogue(connection) == before
+        assert application_permissions(connection) == before_permissions
+        assert connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval() == 0
     # An external active owner is unresolved; it must not be called unstarted.
     fixture.execute(
         connection,
