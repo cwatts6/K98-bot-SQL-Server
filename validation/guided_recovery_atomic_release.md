@@ -1,0 +1,68 @@
+# Atomic coordinated recovery SQL release
+
+`coordinated_recovery_v1` extends the existing module release runner for one
+explicit chain of twelve recovery migrations. It is a coordinated deployment
+adapter, not a normal updater profile or permission to execute production SQL.
+
+The profile authenticates every original migration byte and all 26 affected
+object images. Eleven scripts have exactly one reviewed outer transaction
+boundary adapted to the caller's transaction; the second migration already
+supports an ambient transaction. Stored-procedure bodies are unchanged.
+Parameterized `sp_executesql` gives each migration its own local variables and
+temporary-table scope. Transaction escape is refused after every script.
+
+All twelve individual Applied receipts, the outer Applied receipt and the
+successful deployment attempt commit with the schema changes. The existing
+session lock serializes apply and status. Reconciliation checks the release,
+attempt, commit, profile checksum, every child checksum and independent schema
+postimages. An absent receipt is insufficient: the complete preimage must also
+match before reporting unstarted or rolled back. A conflicting owner or drift
+returns unresolved. Preflight and verification write no deployment records.
+
+## Reproduction and retained evidence
+
+Run on the approved development SQL instance only:
+
+```powershell
+python validation/rehearse_guided_recovery_release.py --allow-disposable-sql
+```
+
+The helper requires the exact local server identity `9SX2VF4\K98DEV`, creates
+fresh random databases, and retains them. It derives expectations by installing
+immutable source at `b3480656` and literal migrations at `21de1988` in a separate
+reference fixture. It never learns expected metadata from its deployment target.
+Real backup checks remain enabled. Faults are injected only into retained copies
+of the adapter, never the production implementation.
+
+The final rehearsal used reference database `K98_P0a_Migrations_f5c37cd76bbc` and
+target `K98_P0a_Atomic_2b597d943833`. Its 13 adapter invocations passed, covering
+read-only preflight, unstarted status, competing owner refusal, forced deployment
+process termination before commit, exact rollback, caught precommit interruption,
+wrong-release refusal, lost commit reply, committed verification, idempotent
+repeat apply, child receipt corruption, restored receipt, and module drift.
+Additional assertions checked zero partial schema/permission changes, zero
+partial child receipts and no additional attempt on completed repeat apply.
+
+Artifacts: `%TEMP%\K98_P0a_Release_btlp_kme`; final report:
+`%TEMP%\K98_P0a_Atomic_2b597d943833.json`. The target intentionally ends with a
+modified procedure to prove drift refusal. It is not an installation candidate.
+Ruff and whitespace validation pass. Existing migration fixture formatting is
+unchanged; the new helper was formatted with Ruff.
+
+Changes scan `bbe88635-f743-46c6-9ec8-a706859ecc1c` covered all four changed
+source files against `9a59efbf` at snapshot `4b50aab5f6d9a19c5a829c34a95e001258f543c80cc0f4af3e828df1a4a69499`.
+It completed and sealed at `2026-10-16T09:39:12.941133Z`, with complete coverage
+and no findings. Finalization succeeded and the sealed result was read back.
+Tool-reported usage: 2,813,574 tokens. This evidence document adds no execution
+behavior after the scan.
+
+## Release boundary
+
+This closes SQL transaction/receipt interruption handling. It does not complete
+P0a: production-bound principal/grant expectations, protected successor contracts,
+source/seed activation, complete enabled-action qualification and the final
+installed-package rehearsal remain required. The generated fixture profile is
+not a production profile: its baseline contains only source-defined fixture
+permissions, not the installed application account's complete grants. The
+coordinated production package must derive and verify those explicitly.
+No maintenance window is requested. All P0b recovery workflows remain in scope.

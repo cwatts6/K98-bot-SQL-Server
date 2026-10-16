@@ -111,7 +111,7 @@ def catalogue(connection):
     return [[tuple(row) for row in connection.execute(query)] for query in queries]
 
 
-def main():
+def main(qualification=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--allow-disposable-sql", action="store_true", required=True)
     parser.parse_args()
@@ -242,6 +242,10 @@ def main():
                 ),
                 flush=True,
             )
+            if qualification is not None:
+                qualification(connection, report, output)
+                report["status"] = "passed"
+                return
             for migration in MIGRATIONS:
                 raw = git("show", HEAD + ":migrations/" + migration + ".sql")
                 batch = raw.decode("utf-8-sig").replace("\r\n", "\n")
