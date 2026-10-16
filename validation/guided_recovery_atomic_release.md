@@ -66,3 +66,35 @@ not a production profile: its baseline contains only source-defined fixture
 permissions, not the installed application account's complete grants. The
 coordinated production package must derive and verify those explicitly.
 No maintenance window is requested. All P0b recovery workflows remain in scope.
+
+## Application grant completion
+
+The adapter now adds the exact 22 direct application permissions missing from the
+twelve-migration chain, inside the same outer transaction and before postimage
+verification. The beneficiary is fixed to `S11_ExportApplication`; its required
+authority/legacy roles and absence of reader/db-owner membership are checked on
+preflight, apply and verification. No role is granted by this release.
+
+The independent fixture transcribes the delta from bot `ded19ccd..c2d9a961`, not
+from the adapter SQL. It includes the seven existing application object grants
+on affected baseline objects. Reference `K98_P0a_Migrations_a83f648ab8e0` and target
+`K98_P0a_Atomic_14e51f6623d5` passed all **18 adapter calls**, adding missing-principal,
+revoked-permission and incompatible-role rejection. It checks all 22 effective
+rights while impersonating the application user, the exact added permission set,
+and unchanged baseline grants after both process death and caught rollback.
+Artifacts: `%TEMP%\K98_P0a_Release_1t91fgao`; report:
+`%TEMP%\K98_P0a_Atomic_14e51f6623d5.json`. The final intentional module drift is
+retained. Ruff and whitespace checks pass.
+
+Changes scan `c85d73f3-d942-48c7-a324-8a4d3b17d20b` covered both changed source
+files against `5b364db4` at snapshot
+`2fc51b647e98e1f3b6a5ce4adb9886ae77c5e23f81b396407dc48d2f732a6718`, with complete
+parent and independent delegated review and no findings. Finalization succeeded,
+and sealed documents were read back at `2026-10-16T10:01:01.473400Z`.
+Tool-reported usage: 1,421,604 tokens. This subsequent evidence-only documentation
+does not require another Changes scan.
+
+This closes atomic installation and verification of the permission delta. The
+fixture still does not represent every existing production role/object grant or
+the complete application schema. Production image derivation, protected successor
+contracts, package assembly and final rehearsal remain mandatory P0a gates.

@@ -3,6 +3,41 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 
+function Assert-K98RecoveryPrincipal($Connection,$Transaction) {
+    # The coordinated release has one application identity. Neither the profile
+    # nor a caller can choose a beneficiary or broaden the permission delta.
+    $null=Invoke-K98ModuleQuery $Connection $Transaction @'
+IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'S11_ExportApplication' AND type IN ('S','U'))
+ OR ISNULL(IS_ROLEMEMBER(N'ExportExecutionAuthority',N'S11_ExportApplication'),0)<>1
+ OR ISNULL(IS_ROLEMEMBER(N'ExportLegacyEntryReader',N'S11_ExportApplication'),0)<>1
+ OR ISNULL(IS_ROLEMEMBER(N'ExportExecutionReader',N'S11_ExportApplication'),1)<>0
+ OR ISNULL(IS_ROLEMEMBER(N'db_owner',N'S11_ExportApplication'),1)<>0
+ THROW 51951,'Reviewed recovery application principal and roles required.',1;
+'@
+}
+
+function Get-K98RecoveryApplicationGrants {
+    # Exact 22 additions from the reviewed bot grant plan. All objects are new in
+    # this chain; existing grants/roles are preserved and checked by image pins.
+    return @'
+GRANT SELECT ON OBJECT::dbo.ExportContainedStream TO [S11_ExportApplication];
+GRANT SELECT ON OBJECT::dbo.ExportContainedTarget TO [S11_ExportApplication];
+GRANT SELECT ON OBJECT::dbo.ExportReplacementActivation TO [S11_ExportApplication];
+GRANT INSERT,SELECT ON OBJECT::dbo.ExportReplacementDelivery TO [S11_ExportApplication];
+GRANT SELECT ON OBJECT::dbo.ExportReplacementPlan TO [S11_ExportApplication];
+GRANT SELECT ON OBJECT::dbo.ExportReplacementTarget TO [S11_ExportApplication];
+GRANT SELECT ON OBJECT::dbo.ExportReplacementVerification TO [S11_ExportApplication];
+GRANT SELECT ON OBJECT::dbo.ExportTargetContainment TO [S11_ExportApplication];
+GRANT SELECT,INSERT,UPDATE ON OBJECT::dbo.RecoveryAction TO [S11_ExportApplication];
+GRANT SELECT,INSERT,UPDATE ON OBJECT::dbo.RecoveryIncident TO [S11_ExportApplication];
+GRANT SELECT,INSERT,UPDATE ON OBJECT::dbo.RecoveryInputDraft TO [S11_ExportApplication];
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportJobContainTargets TO [S11_ExportApplication];
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportReplacementActivate TO [S11_ExportApplication];
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportReplacementPlanCreate TO [S11_ExportApplication];
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportReplacementVerificationTransition TO [S11_ExportApplication];
+'@
+}
+
 function Get-K98RecoveryImage($Connection,$Transaction,[string]$Name) {
     # Stable names replace object/principal IDs. Runtime rows, identity counters,
     # physical allocation and statistics are deliberately not schema evidence.
@@ -92,6 +127,7 @@ function Read-K98RecoveryProfile($Profile,[string]$Path) {
 }
 
 function Assert-K98RecoveryImages($Connection,$Transaction,$Loaded,[bool]$After) {
+    Assert-K98RecoveryPrincipal $Connection $Transaction
     foreach($i in $Loaded.Profile.images) {
         $expected=if($After){$i.after}else{$i.before}
         if((Get-K98RecoveryImage $Connection $Transaction $i.name) -cne $expected){throw ('Recovery '+$(if($After){'postimage'}else{'preimage'})+' differs: '+$i.name)}
@@ -108,6 +144,7 @@ function Assert-K98RecoveryHistory($Connection,$Transaction,$Loaded,[string]$Com
 }
 
 function Invoke-K98RecoveryChain($Connection,$Transaction,$Loaded,[string]$Commit,[string]$Attempt) {
+    Assert-K98RecoveryPrincipal $Connection $Transaction
     Assert-K98RecoveryHistory $Connection $Transaction $Loaded $Commit $Attempt $false
     for($n=0;$n -lt $Loaded.Texts.Count;$n++) {
         # Parameterized sp_executesql isolates migration-local variables/temp
@@ -119,4 +156,5 @@ INSERT dbo.SchemaMigrationHistory(MigrationId,MigrationFile,ChecksumSha256,Appli
 VALUES(@id,@file,@hash,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),@commit,@profile,@attempt,N'Applied',0);
 '@ @{id=$s.id;file=($s.id+'.sql');hash=$s.sha256;commit=$Commit;profile=$Loaded.Profile.profile;attempt=$Attempt}
     }
+    $null=Invoke-K98ModuleQuery $Connection $Transaction (Get-K98RecoveryApplicationGrants)
 }

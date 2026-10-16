@@ -28,6 +28,75 @@ NAMES = sorted(
     .splitlines()
 )
 
+# Independently transcribed from bot grant-plan delta ded19ccd..c2d9a961;
+# never obtained by executing or parsing the adapter being qualified.
+APPLICATION_GRANTS = {
+    "dbo.ExportContainedStream": ("SELECT",),
+    "dbo.ExportContainedTarget": ("SELECT",),
+    "dbo.ExportReplacementActivation": ("SELECT",),
+    "dbo.ExportReplacementDelivery": ("INSERT", "SELECT"),
+    "dbo.ExportReplacementPlan": ("SELECT",),
+    "dbo.ExportReplacementTarget": ("SELECT",),
+    "dbo.ExportReplacementVerification": ("SELECT",),
+    "dbo.ExportTargetContainment": ("SELECT",),
+    "dbo.RecoveryAction": ("INSERT", "SELECT", "UPDATE"),
+    "dbo.RecoveryIncident": ("INSERT", "SELECT", "UPDATE"),
+    "dbo.RecoveryInputDraft": ("INSERT", "SELECT", "UPDATE"),
+    "dbo.usp_ExportJobContainTargets": ("EXECUTE",),
+    "dbo.usp_ExportReplacementActivate": ("EXECUTE",),
+    "dbo.usp_ExportReplacementPlanCreate": ("EXECUTE",),
+    "dbo.usp_ExportReplacementVerificationTransition": ("EXECUTE",),
+}
+
+
+def install_application_baseline(connection):
+    fixture.execute(
+        connection,
+        """CREATE USER S11_ExportApplication WITHOUT LOGIN;
+CREATE ROLE ExportLegacyEntryReader AUTHORIZATION dbo;
+ALTER ROLE ExportExecutionAuthority ADD MEMBER S11_ExportApplication;
+ALTER ROLE ExportLegacyEntryReader ADD MEMBER S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO ExportLegacyEntryReader;
+GRANT SELECT,UPDATE ON OBJECT::KVK.SourceOutputPool TO S11_ExportApplication;
+GRANT SELECT ON OBJECT::dbo.ExportExecutionStream TO S11_ExportApplication;
+GRANT INSERT,SELECT,UPDATE ON OBJECT::dbo.ExportPreparation TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO S11_ExportApplication;""",
+    )
+
+
+def application_permissions(connection):
+    return [
+        tuple(row)
+        for row in connection.execute(
+            "SELECT SCHEMA_NAME(o.schema_id)+'.'+o.name,p.permission_name,p.state "
+            "FROM sys.database_permissions p JOIN sys.objects o ON o.object_id=p.major_id "
+            "WHERE p.class=1 AND p.grantee_principal_id=USER_ID('S11_ExportApplication') "
+            "ORDER BY 1,2,3"
+        )
+    ]
+
+
+def assert_effective_grants(connection):
+    expected = [
+        (name, permission)
+        for name, permissions in APPLICATION_GRANTS.items()
+        for permission in permissions
+    ]
+    assert len(expected) == 22
+    # Evaluate actual application effective permissions, not the deployment owner.
+    fixture.execute(connection, "EXECUTE AS USER='S11_ExportApplication';")
+    try:
+        for name, permission in expected:
+            assert (
+                connection.execute(
+                    "SELECT HAS_PERMS_BY_NAME(?,'OBJECT',?)", name, permission
+                ).fetchval()
+                == 1
+            ), (name, permission)
+        assert connection.execute("SELECT IS_ROLEMEMBER('ExportExecutionReader')").fetchval() == 0
+    finally:
+        fixture.execute(connection, "REVERT;")
+
 
 def powershell(script, *arguments):
     result = subprocess.run(
@@ -89,6 +158,7 @@ try {
 
 
 def build_reference(connection, report, output):
+    install_application_baseline(connection)
     before = image_snapshot()
     scripts = []
     for mid in fixture.MIGRATIONS:
@@ -96,6 +166,11 @@ def build_reference(connection, report, output):
         (OUTPUT / (mid + ".sql")).write_bytes(raw)
         scripts.append(dict(id=mid, sha256=hashlib.sha256(raw).hexdigest()))
         fixture.execute(connection, raw.decode("utf-8-sig").replace("\r\n", "\n"))
+    for name, permissions in APPLICATION_GRANTS.items():
+        fixture.execute(
+            connection, f"GRANT {','.join(permissions)} ON OBJECT::{name} TO S11_ExportApplication;"
+        )
+    assert_effective_grants(connection)
     after = image_snapshot()
     environment = connection.execute(
         "SELECT CONVERT(nvarchar(128),DATABASEPROPERTYEX(DB_NAME(),'Collation')),"
@@ -176,7 +251,11 @@ def qualify_adapter(connection, report, output):
         module.write_text(text.replace(old, new), encoding="utf-8")
         return target
 
+    # Missing/misclassified application identities cannot pass preflight.
+    run("Preflight", 20)
+    install_application_baseline(connection)
     before = fixture.catalogue(connection)
+    before_permissions = application_permissions(connection)
     run("Preflight", 0)
     run("Verify", 10)
     assert fixture.catalogue(connection) == before
@@ -241,6 +320,7 @@ def qualify_adapter(connection, report, output):
             process.wait(timeout=10)
     run("Verify", 11)
     assert fixture.catalogue(connection) == before
+    assert application_permissions(connection) == before_permissions
     assert connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval() == 0
     # All twelve scripts and receipts have executed before this rollback fault.
     rollback = injected_runner(
@@ -250,6 +330,7 @@ def qualify_adapter(connection, report, output):
     )
     run("Apply", 20, runner=rollback)
     assert fixture.catalogue(connection) == before
+    assert application_permissions(connection) == before_permissions
     assert connection.execute("SELECT COUNT(*) FROM dbo.SchemaMigrationHistory").fetchval() == 0
     run("Verify", 11)
     run("Verify", 20, identity=str(uuid4()))
@@ -261,6 +342,13 @@ def qualify_adapter(connection, report, output):
     )
     run("Apply", 20, runner=lost)
     run("Verify", 0)
+    expected_added = {
+        (name, permission, "G")
+        for name, permissions in APPLICATION_GRANTS.items()
+        for permission in permissions
+    }
+    assert set(application_permissions(connection)) == set(before_permissions) | expected_added
+    assert_effective_grants(connection)
     attempts = connection.execute("SELECT COUNT(*) FROM dbo.DeploymentRunHistory").fetchval()
     run("Apply", 0)
     assert (
@@ -287,6 +375,23 @@ def qualify_adapter(connection, report, output):
         child,
     )
     run("Verify", 0)
+    # Neither an Applied receipt nor all object definitions conceal grant/role drift.
+    fixture.execute(
+        connection, "REVOKE UPDATE ON OBJECT::dbo.RecoveryIncident FROM S11_ExportApplication;"
+    )
+    run("Verify", 20)
+    fixture.execute(
+        connection, "GRANT UPDATE ON OBJECT::dbo.RecoveryIncident TO S11_ExportApplication;"
+    )
+    run("Verify", 0)
+    fixture.execute(
+        connection, "ALTER ROLE ExportExecutionReader ADD MEMBER S11_ExportApplication;"
+    )
+    run("Verify", 20)
+    fixture.execute(
+        connection, "ALTER ROLE ExportExecutionReader DROP MEMBER S11_ExportApplication;"
+    )
+    run("Verify", 0)
     # A valid receipt cannot conceal drift in a committed module.
     fixture.execute(connection, "ALTER PROCEDURE dbo.usp_ExportJobContainTargets AS SELECT 1;")
     run("Verify", 20)
@@ -296,6 +401,8 @@ def qualify_adapter(connection, report, output):
         cases=cases,
         artifacts=str(OUTPUT),
         backup=backup,
+        application_grants=len(expected_added),
+        application_permissions_verified=True,
         post_test_state="retained intentional module drift; not an install target",
     )
 
