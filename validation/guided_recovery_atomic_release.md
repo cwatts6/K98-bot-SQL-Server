@@ -98,3 +98,28 @@ This closes atomic installation and verification of the permission delta. The
 fixture still does not represent every existing production role/object grant or
 the complete application schema. Production image derivation, protected successor
 contracts, package assembly and final rehearsal remain mandatory P0a gates.
+
+## Exact installed predecessor representations
+
+Retained reviewed deployment evidence exposed two source-equivalent installed
+representations that the original guards rejected: manual enrollment without a
+final newline, and configuration publication with its exact leading newline,
+SQL Server `CREATE   PROCEDURE` spelling and two final newlines. The migration
+guards now admit those two complete SHA-256 hashes in addition to the original
+source forms. No normalization, procedure body, postimage or permission changed.
+
+The fixture independently reconstructs both representations from immutable SQL
+baseline `b3480656`, and uses migration revision `ee71a4ae`. Reference database
+`K98_P0a_Migrations_8f0bff5d3871` and target `K98_P0a_Atomic_c242ae115a16` passed
+all **22 adapter invocations**. The two additional changed-body injections occur
+after adapter preflight and before the migration chain, so they independently
+exercise the literal migration guards. Both reject and roll back all changes
+and receipts. Artifacts: `%TEMP%\K98_P0a_Release_pcfc8cmt`; report:
+`%TEMP%\K98_P0a_Atomic_c242ae115a16.json`. Ruff and whitespace checks pass.
+
+Changes scan `0232d2f7-8316-4589-8f9d-96a936207d1a` reviewed all four changed
+source files in `49e38576..fc6d8b63`, with independent hash reconstruction and
+complete coverage. It completed with no findings, sealed and read back at
+`2026-10-16T10:15:20.258611Z`; tool-reported usage 1,394,498 tokens. This later
+evidence-only document does not change executable behavior. The production
+package and successor-contract gates above remain required; no window is requested.
