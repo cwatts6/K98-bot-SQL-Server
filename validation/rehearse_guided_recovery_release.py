@@ -132,7 +132,13 @@ GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO ImportProcUser;
 GRANT SELECT,UPDATE ON OBJECT::KVK.SourceOutputPool TO S11_ExportApplication;
 GRANT SELECT ON OBJECT::dbo.ExportExecutionStream TO S11_ExportApplication;
 GRANT INSERT,SELECT,UPDATE ON OBJECT::dbo.ExportPreparation TO S11_ExportApplication;
-GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO S11_ExportApplication;""",
+GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportExecutionSessionTransition TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportExecutionStreamTransition TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportManualOutputEnrollmentTransition TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportOutputEnrollmentTransition TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportProviderRequestEventAppend TO S11_ExportApplication;
+GRANT EXECUTE ON OBJECT::dbo.usp_ExportReconciliationProofIssue TO S11_ExportApplication;""",
     )
 
 
