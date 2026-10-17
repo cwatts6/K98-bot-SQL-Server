@@ -128,10 +128,13 @@ function Read-K98RecoveryProfile($Profile,[string]$Path) {
 
 function Assert-K98RecoveryImages($Connection,$Transaction,$Loaded,[bool]$After) {
     Assert-K98RecoveryPrincipal $Connection $Transaction
+    $differences=[Collections.Generic.List[string]]::new()
     foreach($i in $Loaded.Profile.images) {
         $expected=if($After){$i.after}else{$i.before}
-        if((Get-K98RecoveryImage $Connection $Transaction $i.name) -cne $expected){throw ('Recovery '+$(if($After){'postimage'}else{'preimage'})+' differs: '+$i.name)}
+        $observed=Get-K98RecoveryImage $Connection $Transaction $i.name
+        if($observed -cne $expected){$differences.Add(($i.name+' expected='+$expected+' observed='+$observed))}
     }
+    if($differences.Count){throw ('Recovery '+$(if($After){'postimage'}else{'preimage'})+' differs: '+($differences -join '; '))}
 }
 
 function Assert-K98RecoveryHistory($Connection,$Transaction,$Loaded,[string]$Commit,$Attempt,[bool]$After) {
