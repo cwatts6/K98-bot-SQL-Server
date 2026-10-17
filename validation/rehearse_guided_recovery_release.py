@@ -124,14 +124,34 @@ def install_application_baseline(connection):
         connection,
         """CREATE USER S11_ExportApplication WITHOUT LOGIN;
 CREATE ROLE ExportLegacyEntryReader AUTHORIZATION dbo;
+CREATE USER ImportProcUser WITHOUT LOGIN;
 ALTER ROLE ExportExecutionAuthority ADD MEMBER S11_ExportApplication;
 ALTER ROLE ExportLegacyEntryReader ADD MEMBER S11_ExportApplication;
 GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO ExportLegacyEntryReader;
+GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO ImportProcUser;
 GRANT SELECT,UPDATE ON OBJECT::KVK.SourceOutputPool TO S11_ExportApplication;
 GRANT SELECT ON OBJECT::dbo.ExportExecutionStream TO S11_ExportApplication;
 GRANT INSERT,SELECT,UPDATE ON OBJECT::dbo.ExportPreparation TO S11_ExportApplication;
 GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO S11_ExportApplication;""",
     )
+
+
+def legacy_import_permissions(connection):
+    """Preserve the existing importer grant; the production adapter never adds it.
+
+    MINI_AMD's 2026-10-17 metadata report identified this one omitted fixture
+    permission. Declare it explicitly above, then derive both images by running
+    the immutable migrations locally; never import observed hashes as policy.
+    """
+    return [
+        tuple(row)
+        for row in connection.execute(
+            "SELECT p.permission_name,p.state,USER_NAME(p.grantor_principal_id),p.minor_id "
+            "FROM sys.database_permissions p WHERE p.class=1 "
+            "AND p.major_id=OBJECT_ID('dbo.sp_TARGETS_MASTER') "
+            "AND p.grantee_principal_id=USER_ID('ImportProcUser') ORDER BY 1,2,3,4"
+        )
+    ]
 
 
 def application_permissions(connection):
@@ -234,6 +254,7 @@ try {
 
 def build_reference(connection, report, output):
     install_application_baseline(connection)
+    assert legacy_import_permissions(connection) == [("EXECUTE", "G", "dbo", 0)]
     before = image_snapshot()
     scripts = []
     for mid in fixture.MIGRATIONS:
@@ -248,6 +269,7 @@ def build_reference(connection, report, output):
         )
     assert_effective_grants(connection)
     after = image_snapshot()
+    assert legacy_import_permissions(connection) == [("EXECUTE", "G", "dbo", 0)]
     environment = connection.execute(
         "SELECT CONVERT(nvarchar(128),DATABASEPROPERTYEX(DB_NAME(),'Collation')),"
         "CONVERT(nvarchar(128),DATABASEPROPERTYEX('tempdb','Collation')),"
@@ -344,6 +366,28 @@ def qualify_adapter(connection, report, output):
     before = fixture.catalogue(connection)
     before_permissions = application_permissions(connection)
     run("Preflight", 0)
+    # A missing legacy grant and an additional permission both remain drift.
+    # The corrected profile preserves exactly one existing EXECUTE permission.
+    for change, restore in (
+        (
+            "REVOKE EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER FROM ImportProcUser;",
+            "GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO ImportProcUser;",
+        ),
+        (
+            "GRANT VIEW DEFINITION ON OBJECT::dbo.sp_TARGETS_MASTER TO ImportProcUser;",
+            "REVOKE VIEW DEFINITION ON OBJECT::dbo.sp_TARGETS_MASTER FROM ImportProcUser;",
+        ),
+    ):
+        fixture.execute(connection, change)
+        result = run("Preflight", 20)
+        diagnostic = " ".join((result.stdout + result.stderr).split())
+        assert (
+            "dbo.sp_TARGETS_MASTER expected=" in diagnostic
+            and "observed=" in diagnostic
+        )
+        fixture.execute(connection, restore)
+        run("Preflight", 0)
+    assert legacy_import_permissions(connection) == [("EXECUTE", "G", "dbo", 0)]
     run("Verify", 10)
     assert fixture.catalogue(connection) == before
     assert (
@@ -476,6 +520,19 @@ def qualify_adapter(connection, report, output):
         == set(before_permissions) | expected_added
     )
     assert_effective_grants(connection)
+    assert legacy_import_permissions(connection) == [("EXECUTE", "G", "dbo", 0)]
+    fixture.execute(
+        connection,
+        "REVOKE EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER FROM ImportProcUser;",
+    )
+    result = run("Verify", 20)
+    assert "dbo.sp_TARGETS_MASTER expected=" in " ".join(
+        (result.stdout + result.stderr).split()
+    )
+    fixture.execute(
+        connection, "GRANT EXECUTE ON OBJECT::dbo.sp_TARGETS_MASTER TO ImportProcUser;"
+    )
+    run("Verify", 0)
     attempts = connection.execute(
         "SELECT COUNT(*) FROM dbo.DeploymentRunHistory"
     ).fetchval()
@@ -538,6 +595,7 @@ def qualify_adapter(connection, report, output):
         backup=backup,
         application_grants=len(expected_added),
         application_permissions_verified=True,
+        legacy_import_execute_preserved=True,
         post_test_state="retained intentional module drift; not an install target",
     )
 
