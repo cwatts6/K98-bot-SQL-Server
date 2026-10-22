@@ -15,7 +15,7 @@ worker guards, and skips committed stages. The scan import is never replayed.
 The maintenance procedure excludes concurrent actual SQL worker sessions.
 
 The exact coordinated profile `20261022_002_p0_completion_release` applies only
-`20261022_001_p0_pipeline_receipts`. Its ten object images and fixed permission
+`20261022_001_p0_pipeline_receipts`. Its eleven object images and fixed permission
 delta are qualified independently of the adapter. Historical profiles remain
 supported. The installer authenticates all input bytes, excludes live writers,
 owns one transaction, and records the child and profile receipts atomically.
@@ -28,6 +28,15 @@ lost replies, stale configuration, live writers, migration rollback and reapply.
 The real adapter is also compared against separately installed literal source,
 then the application, export and legacy contracts are verified using a temporary
 application login. Provider behavior is simulated in bot regression fixtures.
+
+The public recovery entry point rejects omitted or NULL preparation IDs. The
+nullable legacy `UPDATE_ALL2` path statically calls a same-owner reporting core;
+direct EXECUTE on that core is denied to `public`. Restricted-user regression
+cases cover direct, dynamic and nested calls, unrelated ownership, and legitimate
+legacy/recovery chains. Existing trusted application ALTER capabilities are not
+isolated by this API boundary. The core's ownership and deny are included in the
+protected release images, and effective EXECUTE remains absent from its runtime
+permission contract.
 
 Run `deploy/Test-P0ReceiptContracts.ps1` and
 `validation/validate_p0_reporting_equivalence.py` for offline source checks.
