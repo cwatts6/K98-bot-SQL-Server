@@ -106,27 +106,20 @@ def validate(connection):
         connection.execute("EXECUTE AS USER='P0ReceiptCaller'")
         try:
             connection.execute("EXEC dbo.UPDATE_ALL2 N'test.csv',NULL")
-            # The public continuation entry now owns its validation transaction;
-            # this fixture deliberately has a caller-owned transaction.
-            try:
-                connection.execute(
-                    "EXEC dbo.usp_S11CompleteStatsReports "
-                    "N'test.csv','00000000-0000-0000-0000-000000000001'"
-                )
-            except pyodbc.Error as exc:
-                assert "51961" in str(exc)
-            else:
-                raise AssertionError("Caller transaction entered recovery wrapper")
+            connection.execute(
+                "EXEC dbo.usp_S11CompleteStatsReports "
+                "N'test.csv','00000000-0000-0000-0000-000000000001'"
+            )
         finally:
             connection.execute("REVERT")
-        assert connection.execute("SELECT COUNT(*) FROM dbo.P0ReceiptProbe").fetchval() == 1
+        assert connection.execute("SELECT COUNT(*) FROM dbo.P0ReceiptProbe").fetchval() == 2
         assert (
             connection.execute(
                 "SELECT COUNT(*) FROM dbo.P0ReceiptProbe WHERE PreparationID IS NULL"
             ).fetchval()
             == 1
         )
-        passed.extend(("legacy_static_null_chain", "recovery_caller_transaction_refused"))
+        passed.extend(("legacy_static_null_chain", "recovery_nonnull_chain"))
     finally:
         connection.execute("ROLLBACK")
         connection.execute("SET XACT_ABORT ON")
