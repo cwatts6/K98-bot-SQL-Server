@@ -44,6 +44,13 @@ jobs:
           .\deploy\Test-SqlAuthImportFileVisibility.ps1
           .\deploy\Test-ExportLegacyDirectPermissionContracts.ps1
 
+      - name: Verify P0 reporting extraction and receipt source contracts
+        shell: pwsh
+        run: |
+          .\deploy\Test-P0ReceiptContracts.ps1
+          python .\validation\validate_p0_reporting_equivalence.py
+          if ($LASTEXITCODE -ne 0) { throw 'P0 reporting calculation preservation failed.' }
+
       - name: Run SQL repository validator
         shell: pwsh
         run: .\deploy\Validate-SqlRepo.ps1
