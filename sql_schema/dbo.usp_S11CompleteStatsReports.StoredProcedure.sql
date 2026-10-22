@@ -11,13 +11,33 @@ CREATE OR ALTER PROCEDURE dbo.usp_S11CompleteStatsReports
 AS
 BEGIN
     SET NOCOUNT ON;
-    -- The nullable legacy path is private and reached only by UPDATE_ALL2's
-    -- same-owner static call. Recovery callers must present durable authority.
+    SET XACT_ABORT ON;
     IF @ExportPreparationID IS NULL
         THROW 51961, 'Recovery reporting requires a preparation ID.', 1;
-    EXEC dbo.usp_S11CompleteStatsReportsCore
-        @CompletedFileName=@CompletedFileName,
-        @ExportPreparationID=@ExportPreparationID,
-        @actual_param1=@actual_param1, @actual_param2=@actual_param2,
-        @rowsKS5=@rowsKS5, @rowsKS4=@rowsKS4, @StartTime=@StartTime;
+    IF @@TRANCOUNT<>0
+        THROW 51961, 'Recovery reporting requires no caller-owned transaction.', 1;
+    BEGIN TRY
+        -- Validate exact committed input, configuration and both session guards
+        -- before reaching the private archive module through ownership chaining.
+        BEGIN TRANSACTION;
+        EXEC dbo.usp_S11ValidateStatsReportStage
+            @PreparationID=@ExportPreparationID,@CompletedFileName=@CompletedFileName;
+        COMMIT TRANSACTION;
+        DECLARE @ArchiveReturnCode int;
+        EXEC @ArchiveReturnCode=dbo.ARCHIVE_IMPORT_STAGING_FILE
+            @CompletedFileName=@CompletedFileName;
+        IF @ArchiveReturnCode<>0
+            THROW 51961, 'The exact immutable archive did not verify.', 1;
+        -- The core revalidates each reporting transaction and skips receipts
+        -- already committed. Neither entry point invokes the import pipeline.
+        EXEC dbo.usp_S11CompleteStatsReportsCore
+            @CompletedFileName=@CompletedFileName,
+            @ExportPreparationID=@ExportPreparationID,
+            @actual_param1=@actual_param1, @actual_param2=@actual_param2,
+            @rowsKS5=@rowsKS5, @rowsKS4=@rowsKS4, @StartTime=@StartTime;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE()<>0 ROLLBACK;
+        THROW;
+    END CATCH;
 END;

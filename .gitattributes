@@ -35,3 +35,6 @@ sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql text eol=lf
 sql_schema/dbo.usp_S11ValidateStatsReportStage.StoredProcedure.sql text eol=lf
 sql_schema/dbo.usp_update_stats.StoredProcedure.sql text eol=lf
 deploy/source_baselines/UPDATE_ALL2-before-p0-receipts.txt -text
+
+# Corrective reporting release pins this exact migration payload.
+migrations/20261022_003_stats_report_recovery_boundary.sql text eol=lf
