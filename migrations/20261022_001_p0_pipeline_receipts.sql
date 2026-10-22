@@ -719,24 +719,24 @@ BEGIN
 END;';
 
 
-SET @Object=OBJECT_ID(N'dbo.usp_S11CompleteStatsReports');
+SET @Object=OBJECT_ID(N'dbo.usp_S11CompleteStatsReportsCore');
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=@Object);
 IF (@Object IS NOT NULL AND (@Body IS NULL OR OBJECTPROPERTY(@Object,'IsProcedure')<>1))
     
- THROW 51961,'Missing or incompatible usp_S11CompleteStatsReports definition.',1;
+ THROW 51961,'Missing or incompatible usp_S11CompleteStatsReportsCore definition.',1;
 SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
 SET @Body=CASE
  WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE')
  WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE')
  WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE')
  ELSE @Body END;
-IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0x062e9b6583c7bb7813cce1984f609de73cdd73019e7e713b4b6fb42ea47fad98)
- THROW 51961,'Unreviewed usp_S11CompleteStatsReports preimage; preserve and review.',1;
+IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0x4600b4c18024583b1b5ec76c7cc6d68a134708ea105bdd860eb78ff7b15f4a8d)
+ THROW 51961,'Unreviewed usp_S11CompleteStatsReportsCore preimage; preserve and review.',1;
 IF EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=@Object
  AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1 OR is_schema_bound=1))
  OR EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=@Object)
- THROW 51961,'Unexpected usp_S11CompleteStatsReports execution context or signature.',1;
-EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.usp_S11CompleteStatsReports
+ THROW 51961,'Unexpected usp_S11CompleteStatsReportsCore execution context or signature.',1;
+EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.usp_S11CompleteStatsReportsCore
     @CompletedFileName nvarchar(260),
     @ExportPreparationID uniqueidentifier = NULL,
     @actual_param1 float = NULL,
@@ -754,7 +754,7 @@ BEGIN
     SET CONCAT_NULL_YIELDS_NULL ON;
     SET NUMERIC_ROUNDABORT OFF;
     IF @@TRANCOUNT <> 0 THROW 51961, ''Reporting requires an unowned transaction.'', 1;
-    DECLARE @CompletedStage tinyint=0, @ImportLockResult int;
+    DECLARE @CompletedStage tinyint=0;
     DECLARE @PhaseBStart datetime2=SYSUTCDATETIME(), @StepStart datetime2,
         @StepEnd datetime2, @StepDuration int, @CurrentLogUsedPct decimal(5,2)=NULL;
     DECLARE @CurrentAuditPhase NVARCHAR(64) = N''update_all2_start'';
@@ -1381,6 +1381,46 @@ BEGIN
 END;';
 
 
+SET @Object=OBJECT_ID(N'dbo.usp_S11CompleteStatsReports');
+SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=@Object);
+IF (@Object IS NOT NULL AND (@Body IS NULL OR OBJECTPROPERTY(@Object,'IsProcedure')<>1))
+    
+ THROW 51961,'Missing or incompatible usp_S11CompleteStatsReports definition.',1;
+SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
+SET @Body=CASE
+ WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE')
+ WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE')
+ WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE')
+ ELSE @Body END;
+IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0x78fd1381a630d4ec23fce8a1c4381642956a32d7b7145d74e457f63d8a6d3fd7)
+ THROW 51961,'Unreviewed usp_S11CompleteStatsReports preimage; preserve and review.',1;
+IF EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=@Object
+ AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1 OR is_schema_bound=1))
+ OR EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=@Object)
+ THROW 51961,'Unexpected usp_S11CompleteStatsReports execution context or signature.',1;
+EXEC sys.sp_executesql N'CREATE OR ALTER PROCEDURE dbo.usp_S11CompleteStatsReports
+    @CompletedFileName nvarchar(260),
+    @ExportPreparationID uniqueidentifier = NULL,
+    @actual_param1 float = NULL,
+    @actual_param2 nvarchar(100) = NULL,
+    @rowsKS5 int = 0,
+    @rowsKS4 int = 0,
+    @StartTime datetime = NULL
+AS
+BEGIN
+    SET NOCOUNT ON;
+    -- The nullable legacy path is private and reached only by UPDATE_ALL2''s
+    -- same-owner static call. Recovery callers must present durable authority.
+    IF @ExportPreparationID IS NULL
+        THROW 51961, ''Recovery reporting requires a preparation ID.'', 1;
+    EXEC dbo.usp_S11CompleteStatsReportsCore
+        @CompletedFileName=@CompletedFileName,
+        @ExportPreparationID=@ExportPreparationID,
+        @actual_param1=@actual_param1, @actual_param2=@actual_param2,
+        @rowsKS5=@rowsKS5, @rowsKS4=@rowsKS4, @StartTime=@StartTime;
+END;';
+
+
 SET @Object=OBJECT_ID(N'dbo.UPDATE_ALL2');
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=@Object);
 IF (@Object IS NOT NULL AND (@Body IS NULL OR OBJECTPROPERTY(@Object,'IsProcedure')<>1))
@@ -1392,7 +1432,7 @@ SET @Body=CASE
  WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE')
  WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE')
  ELSE @Body END;
-IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0x4a5640dbdf811d645ba9ed83062f08408f5d02e6c9c2338585042b031af080bc,0xd45eab56aaf1a47c5cb6b1894f079da15fae6b8136d38ad41185d53abe20eb4d)
+IF @Body IS NOT NULL AND HASHBYTES('SHA2_256',@Body) NOT IN (0x4a5640dbdf811d645ba9ed83062f08408f5d02e6c9c2338585042b031af080bc,0x873e30f87ec06efb1d38a281494a1a1bb08ad07ccb8ce77e9b8e0558c75f9c15)
  THROW 51961,'Unreviewed UPDATE_ALL2 preimage; preserve and review.',1;
 IF EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=@Object
  AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1 OR is_schema_bound=1))
@@ -1758,7 +1798,7 @@ BEGIN
 
         -- Reporting uses transactional checkpoints. Recovery calls this reporting-only
         -- procedure, never UPDATE_ALL2 or its committed import stage.
-        EXEC dbo.usp_S11CompleteStatsReports
+        EXEC dbo.usp_S11CompleteStatsReportsCore
             @CompletedFileName=@CompletedFileName, @ExportPreparationID=@ExportPreparationID,
             @actual_param1=@actual_param1, @actual_param2=@actual_param2,
             @rowsKS5=@rowsKS5, @rowsKS4=@rowsKS4, @StartTime=@StartTime;
@@ -1864,6 +1904,7 @@ BEGIN
     END CATCH;
 END';
 
+DENY EXECUTE ON OBJECT::dbo.usp_S11CompleteStatsReportsCore TO public;
 GRANT EXECUTE ON OBJECT::dbo.usp_S11ValidateStatsReportStage TO ExportLegacyEntryReader;
 GRANT EXECUTE ON OBJECT::dbo.usp_S11CompleteStatsReports TO ExportLegacyEntryReader;
 COMMIT;

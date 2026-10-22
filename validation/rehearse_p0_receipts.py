@@ -21,9 +21,7 @@ def install(connection, name, revision=None):
         else (build.ROOT / path).read_text(encoding="utf-8-sig")
     )
     body = build.module_body(text)
-    body = re.sub(
-        r"^(?:CREATE OR ALTER|CREATE|ALTER) PROCEDURE", "CREATE OR ALTER PROCEDURE", body
-    )
+    body = re.sub(r"^(?:CREATE OR ALTER|CREATE|ALTER) PROCEDURE", "CREATE OR ALTER PROCEDURE", body)
     fixture.execute(connection, body)
 
 
@@ -42,7 +40,7 @@ def qualification(connection, report, output):
         connection, "CREATE ROLE ExportLegacyEntryReader; CREATE ROLE K98ImportLockPrincipal;"
     )
     install(connection, "ACQUIRE_KS4_IMPORT_LOCK", build.BASE)
-    for name in build.MODULES[2:]:
+    for name in build.MODULES[3:]:
         install(connection, name, build.BASE)
     # Reproduce the independently retained deployed spelling rather than only
     # the consolidated source-export header. Its body must remain identical.
@@ -100,6 +98,10 @@ def qualification(connection, report, output):
     install(connection, "usp_update_stats")
     fixture.execute(connection, sql)
     assert fixture.catalogue(connection) == after
+    from validate_p0_report_entry_permissions import validate
+
+    report["entry_permissions"] = validate(connection)
+    assert fixture.catalogue(connection) == after, "Permission fixture escaped its rollback"
     report["verified"] = [
         "live_writer_refused",
         "precommit_rollback",

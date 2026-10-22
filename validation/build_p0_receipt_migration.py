@@ -22,6 +22,7 @@ TABLES = (
 )
 MODULES = (
     "usp_S11ValidateStatsReportStage",
+    "usp_S11CompleteStatsReportsCore",
     "usp_S11CompleteStatsReports",
     "UPDATE_ALL2",
     "usp_update_stats",
@@ -70,7 +71,7 @@ def module_install(name):
                 "ALTER PROCEDURE [dbo].[usp_update_stats]", "CREATE   PROC dbo.usp_update_stats", 1
             )
             hashes.add(hashlib.sha256(historical.encode("utf-16le")).hexdigest())
-    elif name not in MODULES[:2]:
+    elif name not in MODULES[:3]:
         raise ValueError("Missing fixed baseline procedure")
     owner = "-2" if name == "usp_update_stats" else "NULL"
     owner_check = (
@@ -235,6 +236,7 @@ IF @Lock<0 THROW 51961,'Scan writer is live.',1;
     text = header + "\n".join(table_install(name) for name in TABLES)
     text += "\n".join(module_install(name) for name in MODULES)
     text += """
+DENY EXECUTE ON OBJECT::dbo.usp_S11CompleteStatsReportsCore TO public;
 GRANT EXECUTE ON OBJECT::dbo.usp_S11ValidateStatsReportStage TO ExportLegacyEntryReader;
 GRANT EXECUTE ON OBJECT::dbo.usp_S11CompleteStatsReports TO ExportLegacyEntryReader;
 COMMIT;

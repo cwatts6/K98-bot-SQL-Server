@@ -364,7 +364,7 @@ BEGIN
 
         -- Reporting uses transactional checkpoints. Recovery calls this reporting-only
         -- procedure, never UPDATE_ALL2 or its committed import stage.
-        EXEC dbo.usp_S11CompleteStatsReports
+        EXEC dbo.usp_S11CompleteStatsReportsCore
             @CompletedFileName=@CompletedFileName, @ExportPreparationID=@ExportPreparationID,
             @actual_param1=@actual_param1, @actual_param2=@actual_param2,
             @rowsKS5=@rowsKS5, @rowsKS4=@rowsKS4, @StartTime=@StartTime;

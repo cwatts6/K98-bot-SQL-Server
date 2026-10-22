@@ -29,7 +29,7 @@ def validate():
         == "830b0a96b06904f3871962e067884529b053b59657d9068e4503cd73ca07663a"
     )
     old = raw.decode("utf-8-sig").replace("\r\n", "\n")
-    new = (ROOT / "sql_schema/dbo.usp_S11CompleteStatsReports.StoredProcedure.sql").read_text(
+    new = (ROOT / "sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql").read_text(
         encoding="utf-8-sig"
     )
     blocks = (

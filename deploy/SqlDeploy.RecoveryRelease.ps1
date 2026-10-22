@@ -101,7 +101,7 @@ function Read-K98RecoveryProfile($Profile,[string]$Path) {
     if($Profile.database_collation -cnotmatch '^[A-Za-z0-9_]{1,128}$' -or $Profile.tempdb_collation -cnotmatch '^[A-Za-z0-9_]{1,128}$' -or $Profile.compatibility_level -notin @(130,140,150,160)){throw 'Exact SQL environment required'}
     $ids=@('20261015_001_failed_read_history','20261015_002_guided_recovery','20261015_003_read_prefix_history','20261015_004_failed_publication_probe','20261015_005_read_prefix_closure','20261015_006_failed_probe_request_events','20261015_007_read_dispatch_containment','20261015_008_export_target_containment','20261015_009_guided_export_replacement','20261015_010_configuration_replacement','20261016_001_rollover_replacement','20261016_002_atomic_configuration_publication')
     if($completion){$ids=@('20261022_001_p0_pipeline_receipts')}
-    $imageCount=if($completion){10}else{26}
+    $imageCount=if($completion){11}else{26}
     if(@($Profile.scripts).Count -ne $ids.Count -or @($Profile.images).Count -ne $imageCount -or @($Profile.requires).Count -gt 64){throw 'Complete bounded recovery chain required'}
     $texts=[Collections.Generic.List[string]]::new()
     for($n=0;$n -lt $ids.Count;$n++) {
@@ -134,7 +134,7 @@ function Read-K98RecoveryProfile($Profile,[string]$Path) {
         $seen[$i.name]=$true
     }
     $objects=@('KVK.SourceOutputPool','dbo.ExportContainedStream','dbo.ExportContainedTarget','dbo.ExportExecutionStream','dbo.ExportPreparation','dbo.ExportReplacementActivation','dbo.ExportReplacementDelivery','dbo.ExportReplacementPlan','dbo.ExportReplacementTarget','dbo.ExportReplacementVerification','dbo.ExportTargetContainment','dbo.RecoveryAction','dbo.RecoveryIncident','dbo.RecoveryInputDraft','dbo.sp_TARGETS_MASTER','dbo.usp_ExportExecutionSessionTransition','dbo.usp_ExportExecutionStreamTransition','dbo.usp_ExportJobContainTargets','dbo.usp_ExportManualOutputEnrollmentTransition','dbo.usp_ExportOutputEnrollmentTransition','dbo.usp_ExportProviderRequestEventAppend','dbo.usp_ExportReconciliationProofIssue','dbo.usp_ExportReplacementActivate','dbo.usp_ExportReplacementPlanCreate','dbo.usp_ExportReplacementVerificationTransition','dbo.usp_ExportRolloverContainTargets')
-    if($completion){$objects=@('dbo.StatsImportReportContinuation','dbo.ProcessingPipelineRun','dbo.ProcessingPipelineStage','dbo.ExportContainmentAttestation','dbo.ExportRegistrationAttestation','dbo.ExportUnownedHoldDisposition','dbo.usp_S11ValidateStatsReportStage','dbo.usp_S11CompleteStatsReports','dbo.UPDATE_ALL2','dbo.usp_update_stats')}
+    if($completion){$objects=@('dbo.StatsImportReportContinuation','dbo.ProcessingPipelineRun','dbo.ProcessingPipelineStage','dbo.ExportContainmentAttestation','dbo.ExportRegistrationAttestation','dbo.ExportUnownedHoldDisposition','dbo.usp_S11ValidateStatsReportStage','dbo.usp_S11CompleteStatsReports','dbo.usp_S11CompleteStatsReportsCore','dbo.UPDATE_ALL2','dbo.usp_update_stats')}
     if((@($seen.Keys|Sort-Object) -join ',') -cne (@($objects|Sort-Object) -join ',')){throw 'Complete exact recovery object inventory required'}
     foreach($r in $Profile.requires) {
         Assert-K98ModuleFields $r @('migration_id','sha256','status')
