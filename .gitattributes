@@ -31,6 +31,7 @@ sql_schema/dbo.ExportContainmentAttestation.Table.sql text eol=lf
 sql_schema/dbo.ExportRegistrationAttestation.Table.sql text eol=lf
 sql_schema/dbo.ExportUnownedHoldDisposition.Table.sql text eol=lf
 sql_schema/dbo.usp_S11CompleteStatsReports.StoredProcedure.sql text eol=lf
+sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql text eol=lf
 sql_schema/dbo.usp_S11ValidateStatsReportStage.StoredProcedure.sql text eol=lf
 sql_schema/dbo.usp_update_stats.StoredProcedure.sql text eol=lf
 deploy/source_baselines/UPDATE_ALL2-before-p0-receipts.txt -text
