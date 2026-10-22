@@ -12,7 +12,17 @@ foreach ($name in @('UPDATE_ALL2','usp_S11CompleteStatsReports','usp_S11Complete
     if (-not $start.Success) { throw "Missing module declaration: $name" }
     $body = [regex]::Split($text.Substring($start.Index),'(?im)^GO\s*$')[0].Trim()
     $body = [regex]::Replace($body,'^(ALTER|CREATE OR ALTER|CREATE) PROCEDURE','CREATE OR ALTER PROCEDURE')
-    if (@($bodies | Where-Object { $_.Groups['body'].Value.Replace("''","'") -ceq $body }).Count -ne 1) { throw "P0 migration body differs: $name" }
+    $selectedBodies=$bodies
+    if($name -ceq 'usp_S11CompleteStatsReports') {
+        $correction=[IO.File]::ReadAllText((Join-Path $RepositoryRoot 'migrations/20261022_003_stats_report_recovery_boundary.sql')).Replace("`r`n","`n")
+        $selectedBodies=[regex]::Matches($correction,"EXEC sys\.sp_executesql N'(?<body>(?:[^']|'')*)';",[Text.RegularExpressions.RegexOptions]::Singleline)
+        if($selectedBodies.Count -ne 1){throw 'Reporting correction must alter exactly one module'}
+        foreach($guard in @('Unreviewed usp_S11CompleteStatsReports preimage','Authority sessions must be closed','SQL snapshot producer is live')) {
+            if(-not $correction.Contains($guard)){throw "Missing reporting correction guard: $guard"}
+        }
+        if($correction -match '(?im)^\s*(GRANT|DENY|REVOKE)\b'){throw 'Reporting correction must preserve permission rows'}
+    }
+    if (@($selectedBodies | Where-Object { $_.Groups['body'].Value.Replace("''","'") -ceq $body }).Count -ne 1) { throw "P0 migration body differs: $name" }
     if ($name -cne 'usp_update_stats') {
         $row = @($manifest.modules | Where-Object name -CEQ "dbo.$name")
         if ($row.Count -ne 1 -or (P0-Hash $text) -cne $row[0].source_sha256) { throw "P0 source hash differs: $name" }
@@ -32,5 +42,6 @@ if (-not $migration.Contains('DENY EXECUTE ON OBJECT::dbo.usp_S11CompleteStatsRe
 if ($manifest.roots -ccontains 'dbo.usp_S11CompleteStatsReportsCore' -or @($manifest.grants | Where-Object target -CEQ 'dbo.usp_S11CompleteStatsReportsCore').Count) { throw 'Private reporting core cannot be a granted root' }
 $wrapper = [IO.File]::ReadAllText((Join-Path $RepositoryRoot 'sql_schema/dbo.usp_S11CompleteStatsReports.StoredProcedure.sql'))
 if ($wrapper.IndexOf('IF @ExportPreparationID IS NULL') -lt 0 -or $wrapper.IndexOf('Recovery reporting requires a preparation ID.') -gt $wrapper.IndexOf('EXEC dbo.usp_S11CompleteStatsReportsCore')) { throw 'Recovery wrapper must reject missing authority before dispatch' }
+if($wrapper.IndexOf('EXEC dbo.usp_S11ValidateStatsReportStage') -gt $wrapper.IndexOf('EXEC @ArchiveReturnCode=dbo.ARCHIVE_IMPORT_STAGING_FILE') -or $wrapper.IndexOf('EXEC @ArchiveReturnCode=dbo.ARCHIVE_IMPORT_STAGING_FILE') -gt $wrapper.IndexOf('EXEC dbo.usp_S11CompleteStatsReportsCore')){throw 'Reporting archive must follow authority validation and precede reporting'}
 if ((Get-FileHash -LiteralPath $baseline -Algorithm SHA256).Hash.ToLowerInvariant() -cne '830b0a96b06904f3871962e067884529b053b59657d9068e4503cd73ca07663a') { throw 'Historical UPDATE_ALL2 source differs' }
 Write-Output 'PASS: exact P0 module postimages, source identities, receipt tables, historical source and migration guards. No SQL connection.'
