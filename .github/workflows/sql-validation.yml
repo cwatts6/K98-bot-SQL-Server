@@ -16,6 +16,10 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+        with:
+          # Reporting equivalence compares the retained calculator closure to
+          # its pinned predecessor commit, including on pull-request checkouts.
+          fetch-depth: 0
 
       - name: Test offline migration selection policy
         shell: pwsh
@@ -43,6 +47,13 @@ jobs:
         run: |
           .\deploy\Test-SqlAuthImportFileVisibility.ps1
           .\deploy\Test-ExportLegacyDirectPermissionContracts.ps1
+
+      - name: Verify P0 reporting extraction and receipt source contracts
+        shell: pwsh
+        run: |
+          .\deploy\Test-P0ReceiptContracts.ps1
+          python .\validation\validate_p0_reporting_equivalence.py
+          if ($LASTEXITCODE -ne 0) { throw 'P0 reporting calculation preservation failed.' }
 
       - name: Run SQL repository validator
         shell: pwsh

@@ -16,7 +16,20 @@ IF NOT EXISTS(SELECT 1 FROM sys.database_principals WHERE name=N'S11_ExportAppli
 '@
 }
 
-function Get-K98RecoveryApplicationGrants {
+function Get-K98RecoveryApplicationGrants([string]$MigrationId='20261016_003_guided_recovery_release') {
+    if($MigrationId -ceq '20261022_002_p0_completion_release') {
+        return @'
+GRANT SELECT,UPDATE ON OBJECT::dbo.StatsImportReportContinuation TO [S11_ExportApplication];
+GRANT SELECT,INSERT ON OBJECT::dbo.ProcessingPipelineRun TO [S11_ExportApplication];
+GRANT SELECT,INSERT,UPDATE ON OBJECT::dbo.ProcessingPipelineStage TO [S11_ExportApplication];
+GRANT SELECT,INSERT ON OBJECT::dbo.ExportContainmentAttestation TO [S11_ExportApplication];
+GRANT SELECT,INSERT ON OBJECT::dbo.ExportRegistrationAttestation TO [S11_ExportApplication];
+GRANT SELECT,INSERT ON OBJECT::dbo.ExportUnownedHoldDisposition TO [S11_ExportApplication];
+GRANT EXECUTE ON OBJECT::dbo.usp_S11CompleteStatsReports TO [S11_ExportApplication];
+GRANT EXECUTE ON OBJECT::dbo.usp_S11ValidateStatsReportStage TO [S11_ExportApplication];
+'@
+    }
+    if($MigrationId -cne '20261016_003_guided_recovery_release'){throw 'Unknown fixed recovery grant set'}
     # Exact 22 additions from the reviewed bot grant plan. All objects are new in
     # this chain; existing grants/roles are preserved and checked by image pins.
     return @'
@@ -83,10 +96,13 @@ SELECT (SELECT o.type,USER_NAME(o.principal_id) AS owner,@body AS definition,
 
 function Read-K98RecoveryProfile($Profile,[string]$Path) {
     Assert-K98ModuleFields $Profile @('version','profile','migration_id','database_collation','tempdb_collation','compatibility_level','requires','scripts','images')
-    if($Profile.version -ne 1 -or $Profile.migration_id -cne '20261016_003_guided_recovery_release' -or $Profile.profile -cne 'coordinated_recovery_v1'){throw 'Exact coordinated recovery profile required'}
+    if($Profile.version -ne 1 -or $Profile.migration_id -cnotin @('20261016_003_guided_recovery_release','20261022_002_p0_completion_release') -or $Profile.profile -cne 'coordinated_recovery_v1'){throw 'Exact coordinated recovery profile required'}
+    $completion=$Profile.migration_id -ceq '20261022_002_p0_completion_release'
     if($Profile.database_collation -cnotmatch '^[A-Za-z0-9_]{1,128}$' -or $Profile.tempdb_collation -cnotmatch '^[A-Za-z0-9_]{1,128}$' -or $Profile.compatibility_level -notin @(130,140,150,160)){throw 'Exact SQL environment required'}
     $ids=@('20261015_001_failed_read_history','20261015_002_guided_recovery','20261015_003_read_prefix_history','20261015_004_failed_publication_probe','20261015_005_read_prefix_closure','20261015_006_failed_probe_request_events','20261015_007_read_dispatch_containment','20261015_008_export_target_containment','20261015_009_guided_export_replacement','20261015_010_configuration_replacement','20261016_001_rollover_replacement','20261016_002_atomic_configuration_publication')
-    if(@($Profile.scripts).Count -ne $ids.Count -or @($Profile.images).Count -ne 26 -or @($Profile.requires).Count -gt 64){throw 'Complete bounded recovery chain required'}
+    if($completion){$ids=@('20261022_001_p0_pipeline_receipts')}
+    $imageCount=if($completion){11}else{26}
+    if(@($Profile.scripts).Count -ne $ids.Count -or @($Profile.images).Count -ne $imageCount -or @($Profile.requires).Count -gt 64){throw 'Complete bounded recovery chain required'}
     $texts=[Collections.Generic.List[string]]::new()
     for($n=0;$n -lt $ids.Count;$n++) {
         $s=$Profile.scripts[$n]
@@ -99,7 +115,7 @@ function Read-K98RecoveryProfile($Profile,[string]$Path) {
         if((Get-K98ModuleHash $raw) -cne $s.sha256){throw ('Recovery migration checksum differs: '+$s.id)}
         $text=[Text.UTF8Encoding]::new($false,$true).GetString($raw).TrimStart([char]0xfeff).Replace("`r`n","`n")
         if($text -match '(?im)^\s*(GO(?:\s|$)|USE\s|:)'){throw 'Single-database single-batch migration required'}
-        if($n -ne 1) {
+        if($completion -or $n -ne 1) {
             # Remove only these unique outer boundaries, after authenticating the
             # complete reviewed source. Stored-procedure transaction bodies stay
             # byte-for-byte intact. No general SQL transaction rewriting occurs.
@@ -118,6 +134,7 @@ function Read-K98RecoveryProfile($Profile,[string]$Path) {
         $seen[$i.name]=$true
     }
     $objects=@('KVK.SourceOutputPool','dbo.ExportContainedStream','dbo.ExportContainedTarget','dbo.ExportExecutionStream','dbo.ExportPreparation','dbo.ExportReplacementActivation','dbo.ExportReplacementDelivery','dbo.ExportReplacementPlan','dbo.ExportReplacementTarget','dbo.ExportReplacementVerification','dbo.ExportTargetContainment','dbo.RecoveryAction','dbo.RecoveryIncident','dbo.RecoveryInputDraft','dbo.sp_TARGETS_MASTER','dbo.usp_ExportExecutionSessionTransition','dbo.usp_ExportExecutionStreamTransition','dbo.usp_ExportJobContainTargets','dbo.usp_ExportManualOutputEnrollmentTransition','dbo.usp_ExportOutputEnrollmentTransition','dbo.usp_ExportProviderRequestEventAppend','dbo.usp_ExportReconciliationProofIssue','dbo.usp_ExportReplacementActivate','dbo.usp_ExportReplacementPlanCreate','dbo.usp_ExportReplacementVerificationTransition','dbo.usp_ExportRolloverContainTargets')
+    if($completion){$objects=@('dbo.StatsImportReportContinuation','dbo.ProcessingPipelineRun','dbo.ProcessingPipelineStage','dbo.ExportContainmentAttestation','dbo.ExportRegistrationAttestation','dbo.ExportUnownedHoldDisposition','dbo.usp_S11ValidateStatsReportStage','dbo.usp_S11CompleteStatsReports','dbo.usp_S11CompleteStatsReportsCore','dbo.UPDATE_ALL2','dbo.usp_update_stats')}
     if((@($seen.Keys|Sort-Object) -join ',') -cne (@($objects|Sort-Object) -join ',')){throw 'Complete exact recovery object inventory required'}
     foreach($r in $Profile.requires) {
         Assert-K98ModuleFields $r @('migration_id','sha256','status')
@@ -159,5 +176,5 @@ INSERT dbo.SchemaMigrationHistory(MigrationId,MigrationFile,ChecksumSha256,Appli
 VALUES(@id,@file,@hash,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),@commit,@profile,@attempt,N'Applied',0);
 '@ @{id=$s.id;file=($s.id+'.sql');hash=$s.sha256;commit=$Commit;profile=$Loaded.Profile.profile;attempt=$Attempt}
     }
-    $null=Invoke-K98ModuleQuery $Connection $Transaction (Get-K98RecoveryApplicationGrants)
+    $null=Invoke-K98ModuleQuery $Connection $Transaction (Get-K98RecoveryApplicationGrants $Loaded.Profile.migration_id)
 }

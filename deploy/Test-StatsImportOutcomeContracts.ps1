@@ -11,9 +11,11 @@ function Get-OutcomeHash([string]$Value, [switch]$Definition) {
 }
 $historical = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'deploy/export_legacy_direct_permission_manifest.json') -Raw | ConvertFrom-Json
 $source = Get-Content -LiteralPath (Join-Path $RepositoryRoot 'deploy/export_stats_import_outcome_source.json') -Raw | ConvertFrom-Json
-if ($source.modules.Count -ne 39 -or $source.roots.Count -ne 8 -or $source.signatures.Count -ne 0) { throw 'Outcome source closure differs' }
-if (($source.roots -join '|') -cne ((@($historical.roots) + 'dbo.usp_S11RunStatsImport') -join '|')) { throw 'Unrelated root permissions changed' }
+& (Join-Path $RepositoryRoot 'deploy/Test-P0ReceiptContracts.ps1') -RepositoryRoot $RepositoryRoot
+if ($source.modules.Count -ne 42 -or $source.roots.Count -ne 10 -or $source.signatures.Count -ne 0) { throw 'Outcome source closure differs' }
+if (($source.roots -join '|') -cne ((@($historical.roots) + 'dbo.usp_S11RunStatsImport' + 'dbo.usp_S11CompleteStatsReports' + 'dbo.usp_S11ValidateStatsReportStage') -join '|')) { throw 'Unrelated root permissions changed' }
 $expectedGrants = @($historical.grants) + [pscustomobject]@{database='ROK_TRACKER';principal='ExportLegacyEntryReader';securable_class='OBJECT';target='dbo.usp_S11RunStatsImport';permission='EXECUTE'}
+$expectedGrants += @('dbo.usp_S11CompleteStatsReports','dbo.usp_S11ValidateStatsReportStage') | ForEach-Object { [pscustomobject]@{database='ROK_TRACKER';principal='ExportLegacyEntryReader';securable_class='OBJECT';target=$_;permission='EXECUTE'} }
 if (($source.grants | ConvertTo-Json -Depth 64 -Compress) -cne ($expectedGrants | ConvertTo-Json -Depth 64 -Compress)) { throw 'Unrelated grants changed' }
 $migration = [IO.File]::ReadAllText((Join-Path $RepositoryRoot 'migrations/20261009_001_stats_import_outcomes.sql'))
 $opaqueGuard = "IF OBJECT_ID(N'dbo.usp_S11RunStatsImport') IS NOT NULL AND @Body IS NULL THROW"
@@ -30,6 +32,13 @@ foreach ($name in @('dbo.UPDATE_ALL2','dbo.usp_S11RunStatsImport')) {
     $start = [regex]::Match($text,'(?m)^(ALTER PROCEDURE|CREATE OR ALTER PROCEDURE)')
     $body = $text.Substring($start.Index).Trim([char[]]" `t`r`n")
     if ((Get-OutcomeHash $body -Definition) -cne $module[0].definition_sha256) { throw "Definition hash differs: $name" }
+    if ($name -ceq 'dbo.UPDATE_ALL2') {
+        # Qualify the new forward image above, then test the unchanged historic
+        # installer against its exact retained source rather than weakening it.
+        $text = Get-S11PrePipelineSource $text
+        $start = [regex]::Match($text,'(?m)^(ALTER PROCEDURE|CREATE OR ALTER PROCEDURE)')
+        $body = $text.Substring($start.Index).Trim([char[]]" `t`r`n")
+    }
     if ($name -ceq 'dbo.usp_S11RunStatsImport') {
         $compiled = $body.Replace('CREATE OR ALTER PROCEDURE', 'CREATE   PROCEDURE')
         $compiledHash = Get-OutcomeHash $compiled -Definition
