@@ -64,7 +64,7 @@ BEGIN
   OR EXISTS(SELECT SUBSTRING(ResourceKey,13,128) FROM dbo.ExportJobResource WHERE JobID=@JobID AND ResourceKey LIKE 'destination:%'
    EXCEPT SELECT FileID FROM dbo.ExportContainedTarget WHERE ContainmentID=@ContainmentID))
   THROW 51740,'Complete contained target membership required.',1;
- IF EXISTS(SELECT 1 FROM dbo.ExportContainedTarget t JOIN dbo.ExportJobResource m ON m.ResourceKey='destination:'+t.FileID
+ IF EXISTS(SELECT 1 FROM dbo.ExportActiveContainedTarget t JOIN dbo.ExportJobResource m ON m.ResourceKey='destination:'+t.FileID
   WHERE m.JobID=@JobID AND (@ContainmentID IS NULL OR t.ContainmentID<>@ContainmentID))
   THROW 51740,'Another containment owns these targets.',1;
 

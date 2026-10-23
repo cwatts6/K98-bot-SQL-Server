@@ -156,7 +156,7 @@ BEGIN
  SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout'));
  SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
  SET @Body=REPLACE(@Body,N'CREATE OR ALTER ',N'CREATE ');
- IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body)<>0xacefea870a9b1ee622c5cf4da50c2d2e00d21b1ef77bee0c21bffae9d90605c5 THROW 51740,'Existing dbo.usp_ExportLegacyCloseout differs.',1;
+ IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body)<>0x820d4e94b8973881bbea284d0f2a950ed74e3273853b3746dd29f0b1a9a8d755 THROW 51740,'Existing dbo.usp_ExportLegacyCloseout differs.',1;
  IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout'))
   OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
   THROW 51740,'Unexpected new module security context.',1;
@@ -225,7 +225,7 @@ BEGIN
   OR EXISTS(SELECT SUBSTRING(ResourceKey,13,128) FROM dbo.ExportJobResource WHERE JobID=@JobID AND ResourceKey LIKE ''destination:%''
    EXCEPT SELECT FileID FROM dbo.ExportContainedTarget WHERE ContainmentID=@ContainmentID))
   THROW 51740,''Complete contained target membership required.'',1;
- IF EXISTS(SELECT 1 FROM dbo.ExportContainedTarget t JOIN dbo.ExportJobResource m ON m.ResourceKey=''destination:''+t.FileID
+ IF EXISTS(SELECT 1 FROM dbo.ExportActiveContainedTarget t JOIN dbo.ExportJobResource m ON m.ResourceKey=''destination:''+t.FileID
   WHERE m.JobID=@JobID AND (@ContainmentID IS NULL OR t.ContainmentID<>@ContainmentID))
   THROW 51740,''Another containment owns these targets.'',1;
 
