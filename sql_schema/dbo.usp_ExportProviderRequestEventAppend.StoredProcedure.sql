@@ -186,6 +186,20 @@ BEGIN
   OR (@State='dispatch_intent' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
    JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID))
   THROW 51700,'Permanently isolated target: provider dispatch is forbidden.',1;
+ -- Recheck the persisted stream owner at both preparation and dispatch. A
+ -- released legacy target never grants managed-pool or enrollment authority.
+ IF ((@State='prepared' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+  OR (@State='dispatch_intent' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID)))
+  AND NOT (@NestedToken IS NULL AND @Epoch IS NULL AND
+   ((@OwnerKind='job' AND @Purpose='mutation' AND EXISTS
+     (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
+      AND ConsumerKind IN ('scan_data','all_kvk') AND PoolEpoch IS NULL AND SourceKey IS NULL AND IntentID IS NULL))
+    OR (@OwnerKind='preparation' AND @Purpose='probe' AND EXISTS
+     (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK) WHERE PreparationID=@ObjectID
+      AND ConsumerKind='config' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+      AND ISNULL(JSON_VALUE(RequestJson,'$.purpose'),'')<>'output_enrollment'))))
+  THROW 51700,'Historical target isolation permits only legacy export or configuration read.',1;
 
  IF @State='prepared'
  BEGIN

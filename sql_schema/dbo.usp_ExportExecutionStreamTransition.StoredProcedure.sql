@@ -97,6 +97,19 @@ BEGIN
  IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK)
   ON r.ResourceKey=('destination:'+t.FileID) COLLATE Latin1_General_100_BIN2)
   THROW 51700,'A permanently isolated target cannot enter another provider stream.',1;
+ -- A legacy closeout releases ordinary exports and configuration reads only.
+ -- Managed pools, enrollment and replacement proofs retain permanent isolation.
+ IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK)
+  ON r.ResourceKey=('destination:'+t.FileID) COLLATE Latin1_General_100_BIN2)
+  AND NOT (@NestedToken IS NULL AND @Epoch IS NULL AND
+   ((@OwnerKind='job' AND @Purpose='mutation' AND EXISTS
+     (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
+      AND ConsumerKind IN ('scan_data','all_kvk') AND PoolEpoch IS NULL AND SourceKey IS NULL AND IntentID IS NULL))
+    OR (@OwnerKind='preparation' AND @Purpose='probe' AND EXISTS
+     (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK) WHERE PreparationID=@ObjectID
+      AND ConsumerKind='config' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+      AND ISNULL(JSON_VALUE(RequestJson,'$.purpose'),'')<>'output_enrollment'))))
+  THROW 51700,'Historical target isolation permits only legacy export or configuration read.',1;
  IF @Purpose='probe' AND EXISTS (SELECT 1 FROM dbo.ExportResource r JOIN dbo.ExportPreparation p ON p.PreparationID=r.ActivePreparationID
     WHERE p.AccountKey=@AccountKey AND r.ResourceKind='sql_snapshot' AND r.OwnerID IS NOT NULL)
   THROW 51700,'Owned SQL producer must drain before observational probe.',1;

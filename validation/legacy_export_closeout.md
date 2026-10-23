@@ -9,8 +9,11 @@ complete destination membership, no competing work and no replacement plan.
 Historical containment records, request events, streams, attempts, retained input
 and all import/report receipts remain intact. The old job becomes failed with a
 distinct abandonment receipt; it never becomes delivered. Existing files are
-unchanged. Later jobs may use their original URLs; old contained streams cannot
-append requests after the restriction is lifted.
+unchanged. Later scan_data/all_kvk jobs may use their original URLs; old contained
+streams cannot append requests after the restriction is lifted. Exact configuration
+preparation probes may read those same files. Managed pools, rollover, enrollment
+and managed publication proofs retain the permanent historical fence. The
+reconciliation proof issuer is verified unchanged in this release.
 
 ## Deployment
 
@@ -29,6 +32,11 @@ actual module bodies and migration into a disposable local database and connects
 using a temporary restricted SQL login. Tests cover repeat installation, exact
 CAS, direct-write denial, reader denial, missing/unknown request outcomes, live
 execution, foreign ownership, same-URL admission and continued old-stream denial.
+Both legacy consumers dispatch through the restricted SQL boundary; configuration
+reads succeed while configuration mutations and enrollment fail. Managed stream
+creation, request preparation, request dispatch and proof issuance cannot use a
+released legacy target. A later stopped legacy export can close out without a
+second physical-target containment record.
 Unrelated foreign keys are omitted from the synthetic fixture; the new receipt's
 foreign keys and every table check/index are retained. Companion private-journal
 tests verify closure hashes, request bodies, replies, restart and lost replies.

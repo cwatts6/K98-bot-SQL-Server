@@ -56,7 +56,7 @@ BEGIN
   FROM OPENJSON(@MembershipJson,'$.targets')) q WHERE Previous COLLATE Latin1_General_100_BIN2>=value COLLATE Latin1_General_100_BIN2)
   THROW 51700,'Targets must be unique and canonically ordered.',1;
  INSERT @Targets SELECT CONVERT(varchar(128),value) FROM OPENJSON(@MembershipJson,'$.targets');
- IF EXISTS(SELECT 1 FROM @Targets t JOIN dbo.ExportActiveContainedTarget c WITH (HOLDLOCK) ON c.FileID=t.FileID)
+ IF EXISTS(SELECT 1 FROM @Targets t JOIN dbo.ExportContainedTarget c WITH (HOLDLOCK) ON c.FileID=t.FileID)
   THROW 51700,'Isolated targets cannot establish current publication or replacement proof.',1;
  IF (SELECT COUNT(*) FROM OPENJSON(@MembershipJson,'$.history'))<>2
  OR (SELECT COUNT(DISTINCT [key]) FROM OPENJSON(@MembershipJson,'$.history'))<>2

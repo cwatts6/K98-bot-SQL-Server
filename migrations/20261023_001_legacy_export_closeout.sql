@@ -27,7 +27,7 @@ IF EXISTS(SELECT 1 FROM dbo.ExportExecutionSession WITH(HOLDLOCK) WHERE State<>'
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition'));
 SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
 SET @Body=CASE WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE') WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE') WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE') ELSE @Body END;
-IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0x82681de9419221006f49e852705246f3ca2f2bc0721d75275cef486f8df6eab1,0xb66c80ebfdab859dbc688c74d778263b8d397b23411b3fac419a60302af74f07)
+IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0x82681de9419221006f49e852705246f3ca2f2bc0721d75275cef486f8df6eab1,0xa510b4cb637a8f833ad068e461914cec120855682630907da6cd0fbb0059b520)
  THROW 51740,'Unreviewed dbo.usp_ExportExecutionStreamTransition preimage.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition'))
  OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
@@ -36,7 +36,7 @@ IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_I
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend'));
 SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
 SET @Body=CASE WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE') WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE') WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE') ELSE @Body END;
-IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0xf66175f143e0f5f10f013a973a3b8d5ed4abbca158f3ba1689df767bce799891,0x11d1d3c05c4785d255caec08edbed7a1d365f9b67eaa3beec4b53658a8640c94)
+IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0xf66175f143e0f5f10f013a973a3b8d5ed4abbca158f3ba1689df767bce799891,0x9f1ee72f9f683333e1ad2a8449a05f4fdda2a21e503c43048c770dece2b5f7cc)
  THROW 51740,'Unreviewed dbo.usp_ExportProviderRequestEventAppend preimage.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend'))
  OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
@@ -45,7 +45,7 @@ IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_I
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportReconciliationProofIssue'));
 SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
 SET @Body=CASE WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE') WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE') WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE') ELSE @Body END;
-IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0x5c2cddf56393a56325544620c4aee097ab9083b00a6bed543a44d32d652cdb36,0xfa9061dcac0d1edce0278679acd66970d0cd4ed9aae10e025c22aa415b0a4298)
+IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0x5c2cddf56393a56325544620c4aee097ab9083b00a6bed543a44d32d652cdb36,0x5c2cddf56393a56325544620c4aee097ab9083b00a6bed543a44d32d652cdb36)
  THROW 51740,'Unreviewed dbo.usp_ExportReconciliationProofIssue preimage.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportReconciliationProofIssue'))
  OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportReconciliationProofIssue') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
@@ -361,6 +361,19 @@ BEGIN
  IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK)
   ON r.ResourceKey=(''destination:''+t.FileID) COLLATE Latin1_General_100_BIN2)
   THROW 51700,''A permanently isolated target cannot enter another provider stream.'',1;
+ -- A legacy closeout releases ordinary exports and configuration reads only.
+ -- Managed pools, enrollment and replacement proofs retain permanent isolation.
+ IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK)
+  ON r.ResourceKey=(''destination:''+t.FileID) COLLATE Latin1_General_100_BIN2)
+  AND NOT (@NestedToken IS NULL AND @Epoch IS NULL AND
+   ((@OwnerKind=''job'' AND @Purpose=''mutation'' AND EXISTS
+     (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
+      AND ConsumerKind IN (''scan_data'',''all_kvk'') AND PoolEpoch IS NULL AND SourceKey IS NULL AND IntentID IS NULL))
+    OR (@OwnerKind=''preparation'' AND @Purpose=''probe'' AND EXISTS
+     (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK) WHERE PreparationID=@ObjectID
+      AND ConsumerKind=''config'' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+      AND ISNULL(JSON_VALUE(RequestJson,''$.purpose''),'''')<>''output_enrollment''))))
+  THROW 51700,''Historical target isolation permits only legacy export or configuration read.'',1;
  IF @Purpose=''probe'' AND EXISTS (SELECT 1 FROM dbo.ExportResource r JOIN dbo.ExportPreparation p ON p.PreparationID=r.ActivePreparationID
     WHERE p.AccountKey=@AccountKey AND r.ResourceKind=''sql_snapshot'' AND r.OwnerID IS NOT NULL)
   THROW 51700,''Owned SQL producer must drain before observational probe.'',1;
@@ -708,6 +721,20 @@ BEGIN
   OR (@State=''dispatch_intent'' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
    JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID))
   THROW 51700,''Permanently isolated target: provider dispatch is forbidden.'',1;
+ -- Recheck the persisted stream owner at both preparation and dispatch. A
+ -- released legacy target never grants managed-pool or enrollment authority.
+ IF ((@State=''prepared'' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+  OR (@State=''dispatch_intent'' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID)))
+  AND NOT (@NestedToken IS NULL AND @Epoch IS NULL AND
+   ((@OwnerKind=''job'' AND @Purpose=''mutation'' AND EXISTS
+     (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
+      AND ConsumerKind IN (''scan_data'',''all_kvk'') AND PoolEpoch IS NULL AND SourceKey IS NULL AND IntentID IS NULL))
+    OR (@OwnerKind=''preparation'' AND @Purpose=''probe'' AND EXISTS
+     (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK) WHERE PreparationID=@ObjectID
+      AND ConsumerKind=''config'' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+      AND ISNULL(JSON_VALUE(RequestJson,''$.purpose''),'''')<>''output_enrollment''))))
+  THROW 51700,''Historical target isolation permits only legacy export or configuration read.'',1;
 
  IF @State=''prepared''
  BEGIN
@@ -820,7 +847,7 @@ BEGIN
   FROM OPENJSON(@MembershipJson,''$.targets'')) q WHERE Previous COLLATE Latin1_General_100_BIN2>=value COLLATE Latin1_General_100_BIN2)
   THROW 51700,''Targets must be unique and canonically ordered.'',1;
  INSERT @Targets SELECT CONVERT(varchar(128),value) FROM OPENJSON(@MembershipJson,''$.targets'');
- IF EXISTS(SELECT 1 FROM @Targets t JOIN dbo.ExportActiveContainedTarget c WITH (HOLDLOCK) ON c.FileID=t.FileID)
+ IF EXISTS(SELECT 1 FROM @Targets t JOIN dbo.ExportContainedTarget c WITH (HOLDLOCK) ON c.FileID=t.FileID)
   THROW 51700,''Isolated targets cannot establish current publication or replacement proof.'',1;
  IF (SELECT COUNT(*) FROM OPENJSON(@MembershipJson,''$.history''))<>2
  OR (SELECT COUNT(DISTINCT [key]) FROM OPENJSON(@MembershipJson,''$.history''))<>2
