@@ -38,3 +38,11 @@ deploy/source_baselines/UPDATE_ALL2-before-p0-receipts.txt -text
 
 # Corrective reporting release pins this exact migration payload.
 migrations/20261022_003_stats_report_recovery_boundary.sql text eol=lf
+
+sql_schema/dbo.ExportLegacyCloseout.Table.sql text eol=lf
+sql_schema/dbo.ExportActiveContainedTarget.View.sql text eol=lf
+sql_schema/dbo.usp_ExportLegacyCloseout.StoredProcedure.sql text eol=lf
+sql_schema/dbo.usp_ExportExecutionStreamTransition.StoredProcedure.sql text eol=lf
+sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql text eol=lf
+sql_schema/dbo.usp_ExportReconciliationProofIssue.StoredProcedure.sql text eol=lf
+migrations/20261023_001_legacy_export_closeout.sql text eol=lf

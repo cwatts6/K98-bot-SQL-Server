@@ -182,10 +182,28 @@ BEGIN
  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent WHERE EventID=@EventID)
   THROW 51700,'Event already exists; read immutable event before retry.',1;
  DECLARE @Previous varchar(32),@EventSequence int;
- IF (@State='prepared' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+ IF (@State='prepared' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget t WITH (HOLDLOCK) WHERE FileID=@TargetID
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH (HOLDLOCK)
+    WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey)))
   OR (@State='dispatch_intent' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
-   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID))
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH (HOLDLOCK)
+    WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey)))
   THROW 51700,'Permanently isolated target: provider dispatch is forbidden.',1;
+ -- Recheck the persisted stream owner at both preparation and dispatch. A
+ -- released legacy target never grants managed-pool or enrollment authority.
+ IF ((@State='prepared' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+  OR (@State='dispatch_intent' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID)))
+  AND NOT (@NestedToken IS NULL AND @Epoch IS NULL AND
+   ((@OwnerKind='job' AND @Purpose='mutation' AND EXISTS
+     (SELECT 1 FROM dbo.ExportJob WITH (UPDLOCK,HOLDLOCK) WHERE JobID=@ObjectID
+      AND ConsumerKind IN ('scan_data','all_kvk') AND PoolEpoch IS NULL AND SourceKey IS NULL AND IntentID IS NULL))
+    OR (@OwnerKind='preparation' AND @Purpose='probe' AND EXISTS
+     (SELECT 1 FROM dbo.ExportPreparation WITH (UPDLOCK,HOLDLOCK) WHERE PreparationID=@ObjectID
+      AND ConsumerKind='config' AND KVK_NO IS NULL AND JobID IS NULL AND GenerationJson IS NULL
+      AND ISNULL(JSON_VALUE(RequestJson,'$.purpose'),'')<>'output_enrollment'))))
+  THROW 51700,'Historical target isolation permits only legacy export or configuration read.',1;
 
  IF @State='prepared'
  BEGIN
