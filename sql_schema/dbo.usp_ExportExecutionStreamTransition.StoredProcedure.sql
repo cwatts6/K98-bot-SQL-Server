@@ -94,8 +94,10 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM @Resources WHERE ResourceKey='account:'+@AccountKey)
  OR (SELECT COUNT(*) FROM @Resources) NOT BETWEEN 1 AND 1025 OR EXISTS (SELECT 1 FROM @Resources WHERE Version<=0)
  THROW 51700,'Invalid resource membership.',1;
- IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK)
-  ON r.ResourceKey=('destination:'+t.FileID) COLLATE Latin1_General_100_BIN2)
+ IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK)
+  ON r.ResourceKey=('destination:'+t.FileID) COLLATE Latin1_General_100_BIN2
+  WHERE NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH (HOLDLOCK)
+   WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey))
   THROW 51700,'A permanently isolated target cannot enter another provider stream.',1;
  -- A legacy closeout releases ordinary exports and configuration reads only.
  -- Managed pools, enrollment and replacement proofs retain permanent isolation.

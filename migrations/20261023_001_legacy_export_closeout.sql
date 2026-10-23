@@ -27,7 +27,7 @@ IF EXISTS(SELECT 1 FROM dbo.ExportExecutionSession WITH(HOLDLOCK) WHERE State<>'
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition'));
 SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
 SET @Body=CASE WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE') WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE') WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE') ELSE @Body END;
-IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0x82681de9419221006f49e852705246f3ca2f2bc0721d75275cef486f8df6eab1,0xa510b4cb637a8f833ad068e461914cec120855682630907da6cd0fbb0059b520)
+IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0x82681de9419221006f49e852705246f3ca2f2bc0721d75275cef486f8df6eab1,0x9e21a6d71ec756817608714dc39f91fadc967627e7faa0ec7cd34469caa929e4)
  THROW 51740,'Unreviewed dbo.usp_ExportExecutionStreamTransition preimage.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition'))
  OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportExecutionStreamTransition') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
@@ -36,7 +36,7 @@ IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_I
 SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend'));
 SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
 SET @Body=CASE WHEN LEFT(@Body,25)=N'CREATE OR ALTER PROCEDURE' THEN STUFF(@Body,1,25,N'CREATE PROCEDURE') WHEN LEFT(@Body,18)=N'CREATE   PROCEDURE' THEN STUFF(@Body,1,18,N'CREATE PROCEDURE') WHEN LEFT(@Body,15)=N'ALTER PROCEDURE' THEN STUFF(@Body,1,15,N'CREATE PROCEDURE') ELSE @Body END;
-IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0xf66175f143e0f5f10f013a973a3b8d5ed4abbca158f3ba1689df767bce799891,0x9f1ee72f9f683333e1ad2a8449a05f4fdda2a21e503c43048c770dece2b5f7cc)
+IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body) NOT IN(0xf66175f143e0f5f10f013a973a3b8d5ed4abbca158f3ba1689df767bce799891,0x255ff391b580e1590b51bfb6e6afc00b57ada73e06fd01c13520b9e2a1cebf61)
  THROW 51740,'Unreviewed dbo.usp_ExportProviderRequestEventAppend preimage.',1;
 IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend'))
  OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportProviderRequestEventAppend') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
@@ -156,7 +156,7 @@ BEGIN
  SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout'));
  SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
  SET @Body=REPLACE(@Body,N'CREATE OR ALTER ',N'CREATE ');
- IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body)<>0x4fefae9660522ee9709a8e194237217ca6822e39888df26c5aa45fb2bff5ba8a THROW 51740,'Existing dbo.usp_ExportLegacyCloseout differs.',1;
+ IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body)<>0x2d663b120c85d29bd8f2584b7c133837f8f2fde7f4d3f9552eb56ecb448df468 THROW 51740,'Existing dbo.usp_ExportLegacyCloseout differs.',1;
  IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout'))
   OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
   THROW 51740,'Unexpected new module security context.',1;
@@ -225,8 +225,10 @@ BEGIN
   OR EXISTS(SELECT SUBSTRING(ResourceKey,13,128) FROM dbo.ExportJobResource WHERE JobID=@JobID AND ResourceKey LIKE ''destination:%''
    EXCEPT SELECT FileID FROM dbo.ExportContainedTarget WHERE ContainmentID=@ContainmentID))
   THROW 51740,''Complete contained target membership required.'',1;
- IF EXISTS(SELECT 1 FROM dbo.ExportActiveContainedTarget t JOIN dbo.ExportJobResource m ON m.ResourceKey=''destination:''+t.FileID
-  WHERE m.JobID=@JobID AND (@ContainmentID IS NULL OR t.ContainmentID<>@ContainmentID))
+ IF EXISTS(SELECT 1 FROM dbo.ExportContainedTarget t WITH(HOLDLOCK) JOIN dbo.ExportJobResource m ON m.ResourceKey=''destination:''+t.FileID
+  WHERE m.JobID=@JobID AND (@ContainmentID IS NULL OR t.ContainmentID<>@ContainmentID)
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH(HOLDLOCK)
+    WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey))
   THROW 51740,''Another containment owns these targets.'',1;
 
  IF (SELECT COUNT(*) FROM dbo.ExportExecutionStream WHERE JobID=@JobID) NOT BETWEEN 1 AND 4096
@@ -356,8 +358,10 @@ BEGIN
  IF NOT EXISTS (SELECT 1 FROM @Resources WHERE ResourceKey=''account:''+@AccountKey)
  OR (SELECT COUNT(*) FROM @Resources) NOT BETWEEN 1 AND 1025 OR EXISTS (SELECT 1 FROM @Resources WHERE Version<=0)
  THROW 51700,''Invalid resource membership.'',1;
- IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK)
-  ON r.ResourceKey=(''destination:''+t.FileID) COLLATE Latin1_General_100_BIN2)
+ IF EXISTS (SELECT 1 FROM @Resources r JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK)
+  ON r.ResourceKey=(''destination:''+t.FileID) COLLATE Latin1_General_100_BIN2
+  WHERE NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH (HOLDLOCK)
+   WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey))
   THROW 51700,''A permanently isolated target cannot enter another provider stream.'',1;
  -- A legacy closeout releases ordinary exports and configuration reads only.
  -- Managed pools, enrollment and replacement proofs retain permanent isolation.
@@ -715,9 +719,13 @@ BEGIN
  IF EXISTS (SELECT 1 FROM dbo.ExportProviderRequestEvent WHERE EventID=@EventID)
   THROW 51700,''Event already exists; read immutable event before retry.'',1;
  DECLARE @Previous varchar(32),@EventSequence int;
- IF (@State=''prepared'' AND EXISTS(SELECT 1 FROM dbo.ExportActiveContainedTarget WITH (HOLDLOCK) WHERE FileID=@TargetID))
+ IF (@State=''prepared'' AND EXISTS(SELECT 1 FROM dbo.ExportContainedTarget t WITH (HOLDLOCK) WHERE FileID=@TargetID
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH (HOLDLOCK)
+    WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey)))
   OR (@State=''dispatch_intent'' AND EXISTS(SELECT 1 FROM dbo.ExportProviderRequest r
-   JOIN dbo.ExportActiveContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID))
+   JOIN dbo.ExportContainedTarget t WITH (HOLDLOCK) ON t.FileID=r.TargetID WHERE r.RequestID=@RequestID
+   AND NOT EXISTS(SELECT 1 FROM dbo.ExportLegacyCloseout released WITH (HOLDLOCK)
+    WHERE released.ContainmentID=t.ContainmentID AND released.AccountKey=@AccountKey)))
   THROW 51700,''Permanently isolated target: provider dispatch is forbidden.'',1;
  -- Recheck the persisted stream owner at both preparation and dispatch. A
  -- released legacy target never grants managed-pool or enrollment authority.

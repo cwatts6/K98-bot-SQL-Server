@@ -15,6 +15,11 @@ preparation probes may read those same files. Managed pools, rollover, enrollmen
 and managed publication proofs retain the permanent historical fence. The
 reconciliation proof issuer is verified unchanged in this release.
 
+Every target exemption is bound to the receipt's original account at stream
+opening, request preparation/dispatch and later closeout. Dispatch uses the
+persisted request target. Global destination mutexes remain unchanged. The
+active-target view is diagnostic inventory, not account-specific authorization.
+
 ## Deployment
 
 Use the paired reviewed protected updater, with the exact
