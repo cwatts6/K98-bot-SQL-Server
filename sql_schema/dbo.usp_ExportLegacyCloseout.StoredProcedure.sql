@@ -95,9 +95,7 @@ BEGIN
 
  INSERT dbo.ExportLegacyCloseout(ActionID,JobID,ContainmentID,AccountKey,OwnerVersion,SnapshotHash,ReceiptHash,ReceiptReference,Actor,Reason,CreatedUTC)
  VALUES(@ActionID,@JobID,@ContainmentID,@AccountKey,@ExpectedVersion,@SnapshotHash,@ReceiptHash,@ReceiptReference,@Actor,@Reason,SYSUTCDATETIME());
- DECLARE @Marker nvarchar(max)=(SELECT LOWER(CONVERT(varchar(36),@ReceiptReference)) AS reference,
-  LOWER(CONVERT(varchar(64),@ReceiptHash,2)) AS sha256 FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
- UPDATE dbo.ExportJob SET State='failed',ProvenanceJson=JSON_MODIFY(ProvenanceJson,'$.legacy_export_abandoned',JSON_QUERY(@Marker)),
+ UPDATE dbo.ExportJob SET State='failed',
   Version=Version+1,UpdatedUTC=SYSUTCDATETIME() WHERE JobID=@JobID AND Version=@ExpectedVersion;
  IF @@ROWCOUNT<>1 THROW 51740,'Closeout owner changed.',1;
  UPDATE dbo.ExportResource SET ActiveJobID=NULL,OwnerID=NULL,BlockedReason=NULL,Version=Version+1

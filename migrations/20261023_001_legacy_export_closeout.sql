@@ -156,7 +156,7 @@ BEGIN
  SET @Body=(SELECT definition FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout'));
  SET @Body=TRIM(N' '+NCHAR(9)+NCHAR(10)+NCHAR(13) FROM REPLACE(@Body,NCHAR(13)+NCHAR(10),NCHAR(10)));
  SET @Body=REPLACE(@Body,N'CREATE OR ALTER ',N'CREATE ');
- IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body)<>0x820d4e94b8973881bbea284d0f2a950ed74e3273853b3746dd29f0b1a9a8d755 THROW 51740,'Existing dbo.usp_ExportLegacyCloseout differs.',1;
+ IF @Body IS NULL OR HASHBYTES('SHA2_256',@Body)<>0x4fefae9660522ee9709a8e194237217ca6822e39888df26c5aa45fb2bff5ba8a THROW 51740,'Existing dbo.usp_ExportLegacyCloseout differs.',1;
  IF EXISTS(SELECT 1 FROM sys.crypt_properties WHERE class=1 AND major_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout'))
   OR EXISTS(SELECT 1 FROM sys.sql_modules WHERE object_id=OBJECT_ID(N'dbo.usp_ExportLegacyCloseout') AND (execute_as_principal_id IS NOT NULL OR uses_ansi_nulls<>1 OR uses_quoted_identifier<>1))
   THROW 51740,'Unexpected new module security context.',1;
@@ -256,9 +256,7 @@ BEGIN
 
  INSERT dbo.ExportLegacyCloseout(ActionID,JobID,ContainmentID,AccountKey,OwnerVersion,SnapshotHash,ReceiptHash,ReceiptReference,Actor,Reason,CreatedUTC)
  VALUES(@ActionID,@JobID,@ContainmentID,@AccountKey,@ExpectedVersion,@SnapshotHash,@ReceiptHash,@ReceiptReference,@Actor,@Reason,SYSUTCDATETIME());
- DECLARE @Marker nvarchar(max)=(SELECT LOWER(CONVERT(varchar(36),@ReceiptReference)) AS reference,
-  LOWER(CONVERT(varchar(64),@ReceiptHash,2)) AS sha256 FOR JSON PATH,WITHOUT_ARRAY_WRAPPER);
- UPDATE dbo.ExportJob SET State=''failed'',ProvenanceJson=JSON_MODIFY(ProvenanceJson,''$.legacy_export_abandoned'',JSON_QUERY(@Marker)),
+ UPDATE dbo.ExportJob SET State=''failed'',
   Version=Version+1,UpdatedUTC=SYSUTCDATETIME() WHERE JobID=@JobID AND Version=@ExpectedVersion;
  IF @@ROWCOUNT<>1 THROW 51740,''Closeout owner changed.'',1;
  UPDATE dbo.ExportResource SET ActiveJobID=NULL,OwnerID=NULL,BlockedReason=NULL,Version=Version+1
