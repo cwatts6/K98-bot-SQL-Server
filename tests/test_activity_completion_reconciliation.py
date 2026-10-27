@@ -152,3 +152,42 @@ def test_incomplete_or_unverifiable_snapshot_is_never_relabelled(sql, options):
         ).fetchval()
         == "PARTIAL"
     )
+
+
+def test_negative_stored_metric_is_not_certified_by_header(sql):
+    add(sql)
+    sql.execute(
+        "UPDATE #AllianceActivitySnapshotRow SET BuildingTotal=-1 WHERE GovernorID=1"
+    )
+    assert run(sql, True)[0] == []
+
+
+def test_missing_original_source_hash_is_not_relabelled(sql):
+    add(sql)
+    sql.execute("UPDATE #AllianceActivitySnapshotHeader SET SourceFileSha1=NULL")
+    assert run(sql, True)[0] == []
+
+
+def test_failed_second_completion_rolls_back_first(sql):
+    add(sql)
+    add(sql)
+    source = (
+        ROOT
+        / "sql_schema/dbo.usp_SetAllianceActivitySnapshotCompletion.StoredProcedure.sql"
+    ).read_text(encoding="utf-8-sig")
+    source = rewrite(source[source.index("CREATE OR ALTER PROCEDURE") :])
+    source = source.replace(
+        "    SET NOCOUNT ON;",
+        "    IF @SnapshotID=2 THROW 51112, 'Injected fixture failure', 1;\n    SET NOCOUNT ON;",
+        1,
+    )
+    sql.execute(source)
+    with pytest.raises(Exception, match="Injected fixture failure"):
+        run(sql, True)
+    assert [
+        r[0]
+        for r in sql.execute(
+            "SELECT CompletionState FROM #AllianceActivitySnapshotHeader"
+        )
+    ] == ["PARTIAL", "PARTIAL"]
+    assert sql.execute("SELECT @@TRANCOUNT").fetchval() == 0
