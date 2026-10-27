@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+from uuid import uuid4
 
 import pytest
 
@@ -69,7 +70,7 @@ def add(
         MissingMetricCount,InvalidMetricCount,ValidatedAtUtc,CompletionBasis)
         OUTPUT inserted.SnapshotId VALUES (GETUTCDATE(),GETUTCDATE(),'fixture',?, ?, GETUTCDATE(),
         'PARTIAL',4,?,?,?,?,GETUTCDATE(),?)""",
-        bytes(range(20)),
+        uuid4().bytes + b"test",
         source,
         observed,
         missing,
