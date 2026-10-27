@@ -108,6 +108,7 @@ def run(cxn, apply):
 
 def test_preview_apply_and_repeat_preserve_business_rows(sql):
     add(sql)
+    sql.execute("UPDATE #AllianceActivitySnapshotHeader SET ValidatedAtUtc='2020-01-01'")
     original = [
         tuple(r)
         for r in sql.execute("SELECT * FROM #AllianceActivitySnapshotRow").fetchall()
@@ -119,7 +120,10 @@ def test_preview_apply_and_repeat_preserve_business_rows(sql):
         ).fetchval()
         == "PARTIAL"
     )
-    assert len(run(sql, True)[0]) == 1
+    result = run(sql, True)
+    assert len(result[0]) == 1
+    assert result[0][0][-1].year == 2020  # Original evidence is returned for the audit.
+    assert result[1][0][-2].year > 2020  # Current stored-row revalidation time.
     assert tuple(
         sql.execute(
             "SELECT CompletionState,ExpectedGovernorCount,ObservedGovernorCount,MissingExpectedGovernorCount FROM #AllianceActivitySnapshotHeader"

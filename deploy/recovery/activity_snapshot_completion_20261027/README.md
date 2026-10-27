@@ -14,7 +14,12 @@ zero, unverifiable, genuinely partial, newer and already complete snapshots are 
 
 After the bot correction is deployed, rerun the reviewed script with `@Apply=1` only in
 the same intended database. Save both result sets (original counts and verified result)
-as the audit record. Snapshot 574 is expected to show 855 supplied/stored rows and
+as the audit record. The original validation timestamp is returned as `OldValidated`
+in the first result set. Applying intentionally records a new `ValidatedAtUtc`: this
+is the time the stored rows were revalidated under the corrected completion rule,
+not the original import time. Snapshot/source timestamps remain unchanged. Preserve
+the first result set to retain the original validation time and roster counts.
+Snapshot 574 is expected to show 855 supplied/stored rows and
 COMPLETE if live evidence still matches. A repeat produces no changes to completed rows.
 No schema migration, bot restart, upload replay or provider call is part of this SQL step.
 
