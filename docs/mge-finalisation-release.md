@@ -30,8 +30,10 @@ Applied receipt only permits continuation after exact absent preimage and matchi
 same-release attempts prove rollback. Unknown, live, conflicting or drifted state
 stops. Never delete receipts or adopt a manual installation.
 
-The existing `20261029_001_mge_board_finalisation.sql` source migration remains
-unchanged. Its bytes are not a release-profile checksum. Existing legacy migration
+The `20261029_001_mge_board_finalisation.sql` source migration's executable body
+remains unchanged. Required repository metadata was added to its comment header
+during PR CI review, superseding the initial preparation hash. Its bytes are not
+a release-profile checksum. Existing legacy migration
 execution is not qualified by this profile and must not bypass the combined runner.
 
 ## Authoring after approved environment observation
@@ -39,7 +41,7 @@ execution is not qualified by this profile and must not bypass the combined runn
 `validation/build_mge_finalisation_profile.py` prints the profile from explicit
 database/tempdb collations, compatibility and reviewed prerequisite history. It
 does not connect to SQL. Commit the resulting
-`migrations/20261029_001_mge_board_finalisation.release.json` only after its production
+migrations/20261029_001_mge_board_finalisation.release.json only after its production
 bindings are observed and reviewed. Do not use local disposable values as production
 values. A prior attempt forbids silently changing this migration identity or hash.
 
@@ -108,6 +110,13 @@ cases remain NOT RUN; passing offline tests is not permission to execute them.
 - Source whitespace check passed. Native SQL write cases remain NOT RUN.
 - Final per-repository security review must be Changes mode on the immutable range,
   Deep off; no whole-repository audit is implied.
+
+Changes scan `2abbbb8c-8453-4505-9178-a9d9bcba84fd` completed on
+`7e91989f619deb46836194c7e705b0a9eb2ebe11..8a9be2dbe49199152f5083b140d5903779f0039f`
+with all 15 changed source files covered and no reportable findings. The subsequent
+CI correction adds only the new migration's required comment metadata and these
+documentation clarifications; no executable SQL or runner changed. A repeat scan
+is skipped for that exact comments/documentation delta. Native evidence stays pending.
 
 After SQL commit, an old Bot is not a safe rollback because it can attempt frozen
 history writes. Retain the drained state and evidence; use a reviewed compatible

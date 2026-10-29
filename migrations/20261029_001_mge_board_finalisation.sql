@@ -1,3 +1,18 @@
+/*
+MigrationId: 20261029_001_mge_board_finalisation
+Purpose: Durable final board targets and guards for completed MGE history
+Author: cwatts
+CreatedUtc: 2026-10-29
+RequiresBackup: Yes
+RiskLevel: High
+Rollback: Forward Fix Only
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Included
+EstimatedRowsAffected: 0 existing application rows
+PreValidationQuery: Approved drained combined release; exact parents and absent new objects
+PostValidationQuery: Exact table, index and three trigger postimages; unchanged historical rows
+*/
 -- Coordinated drained rollout only. See docs/mge-board-finalisation.md.
 SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
