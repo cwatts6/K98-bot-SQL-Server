@@ -14,6 +14,11 @@ function Read-K98ModuleProfile([string]$Path,[string]$Expected,[string]$Migratio
     $raw=[IO.File]::ReadAllBytes($Path)
     if($raw.Length -gt 1MB -or $Expected -cnotmatch '^[a-f0-9]{64}$' -or (Get-K98ModuleHash $raw) -cne $Expected){throw 'Profile checksum/size differs'}
     $p=[Text.UTF8Encoding]::new($false,$true).GetString($raw)|ConvertFrom-Json
+    if($p.profile -ceq 'mge_finalisation_v1') {
+        if($p.migration_id -cne $MigrationId){throw 'Exact MGE migration identity required'}
+        . "$PSScriptRoot\SqlDeploy.MgeFinalisation.ps1"
+        return Read-K98MgeProfile $p
+    }
     if($p.profile -ceq 'coordinated_recovery_v1') {
         if($p.migration_id -cne $MigrationId){throw 'Exact coordinated migration identity required'}
         . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
@@ -120,6 +125,11 @@ IF (SELECT recovery_model_desc FROM sys.databases WHERE database_id=DB_ID())<>'S
     }
 }
 function Assert-K98ModuleImages($Connection,$Transaction,$Loaded,[bool]$After) {
+    if($Loaded.Profile.profile -ceq 'mge_finalisation_v1') {
+        . "$PSScriptRoot\SqlDeploy.MgeFinalisation.ps1"
+        Assert-K98MgeImages $Connection $Transaction $Loaded $After
+        return
+    }
     if($Loaded.Profile.profile -ceq 'coordinated_recovery_v1') {
         . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
         Assert-K98RecoveryImages $Connection $Transaction $Loaded $After
@@ -171,7 +181,7 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
         }
         return 'committed'
     }
-    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
+    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1',N'mge_finalisation_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
     foreach($a in $attempts) {
         if($a.BranchName -cne $p.profile){throw ('Migration profile identity differs: '+$p.migration_id+'; retain the original attempt and use a reviewed corrective identity.')}
         $b=$a.ErrorMessage|ConvertFrom-Json
@@ -219,6 +229,8 @@ VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,
             if($loaded.Profile.profile -ceq 'coordinated_recovery_v1') {
                 . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
                 Invoke-K98RecoveryChain $connection $transaction $loaded $ExpectedCommit $attempt
+            }elseif($loaded.Profile.profile -ceq 'mge_finalisation_v1') {
+                foreach($sql in $loaded.Commands){$null=Invoke-K98ModuleQuery $connection $transaction $sql}
             }elseif($loaded.Profile.profile -ceq 'additive_tables_v1') {
                 foreach($table in $loaded.Tables){$null=Invoke-K98ModuleQuery $connection $transaction $table.Create}
             }else{
