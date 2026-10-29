@@ -231,7 +231,8 @@ def verify_checkout(root, commit):
     return manifest
 
 
-def guard_target(connection, approval):
+def guard_identity(connection, approval):
+    """Verify the fixed disposable identity, creation timestamp and storage."""
     if identity(connection) != {
         k: approval[k] for k in ("server", "database", "login")
     }:
@@ -257,6 +258,10 @@ def guard_target(connection, approval):
     )
     if [r["physical_name"] for r in files] != approval["files"]:
         raise ValueError("Approved database files differ; no writes")
+
+
+def guard_target(connection, approval):
+    guard_identity(connection, approval)
     if rows(connection, "SELECT name FROM sys.objects WHERE is_ms_shipped=0"):
         raise ValueError(
             "Fresh empty disposable database required; retain previous runs"
