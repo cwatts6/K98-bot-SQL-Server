@@ -367,10 +367,33 @@ def run_cases(run):
             "UPDATE dbo.MGE_Events SET RulesText=N'stale' WHERE EventId=?",
             "UPDATE dbo.MGE_Signups SET CurrentHeads=CurrentHeads+1 WHERE EventId=?",
             "DELETE dbo.MGE_Awards WHERE EventId=?",
-            "DELETE dbo.MGE_Signups WHERE EventId=?",
             "UPDATE dbo.MGE_Awards SET InternalNotes=N'stale' WHERE EventId=?",
         ):
             errors.append(rejected(lambda: run.execute(sql, active), 51830))
+        # An awarded signup is protected first by its award FK (547), which
+        # cannot qualify the AFTER DELETE trigger. Use a separate unreferenced
+        # signup so the expected 51830 proves the freeze guard itself executed.
+        delete_event = run.event(1)
+        delete_signup = signup(delete_event, 4002)
+        require(isinstance(delete_signup, int), "Unreferenced delete fixture missing")
+        complete(delete_event)
+        errors.append(
+            rejected(
+                lambda: run.execute(
+                    "DELETE dbo.MGE_Signups WHERE SignupId=?", delete_signup
+                ),
+                51830,
+            )
+        )
+        require(
+            bool(
+                run.query(
+                    "SELECT SignupId FROM dbo.MGE_Signups WHERE SignupId=?",
+                    delete_signup,
+                )
+            ),
+            "Rejected signup delete changed state",
+        )
         other = run.event()
         other_signup = signup(other, 1002)
         errors.append(
