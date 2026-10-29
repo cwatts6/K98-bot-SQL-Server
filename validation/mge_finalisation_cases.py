@@ -172,39 +172,7 @@ def run_cases(run):
 
     run.record("N02", drift)
 
-    def signup(event, governor=1001):
-        return dal["signup"].insert_signup(
-            event_id=event,
-            governor_id=governor,
-            governor_name_snapshot="Synthetic",
-            discord_user_id=9001,
-            request_priority="High",
-            preferred_rank_band=None,
-            requested_commander_id=run.commander,
-            requested_commander_name="Qualification",
-            current_heads=0,
-            kingdom_role=None,
-            gear_text=None,
-            armament_text=None,
-            source="discord",
-            now_utc=now(),
-        )
-
-    def award(event, signup_id, governor=1001):
-        return dal["roster"].insert_award(
-            event_id=event,
-            signup_id=signup_id,
-            governor_id=governor,
-            governor_name_snapshot="Synthetic",
-            requested_commander_id=run.commander,
-            requested_commander_name="Qualification",
-            awarded_rank=1,
-            award_status="awarded",
-            waitlist_order=None,
-            internal_notes=None,
-            assigned_by_discord_id=9001,
-            now_utc=now(),
-        )
+    signup, award = writer_helpers(run, dal)
 
     active = run.event()
 
@@ -755,6 +723,58 @@ def run_cases(run):
         return asyncio.run(exercise())
 
     run.record("N13", delivery)
+
+    run_remaining_cases(run, active, dal)
+
+
+def writer_helpers(run, dal):
+    now = lambda: datetime.now(UTC)
+
+    def signup(event, governor=1001):
+        return dal["signup"].insert_signup(
+            event_id=event,
+            governor_id=governor,
+            governor_name_snapshot="Synthetic",
+            discord_user_id=9001,
+            request_priority="High",
+            preferred_rank_band=None,
+            requested_commander_id=run.commander,
+            requested_commander_name="Qualification",
+            current_heads=0,
+            kingdom_role=None,
+            gear_text=None,
+            armament_text=None,
+            source="discord",
+            now_utc=now(),
+        )
+
+    def award(event, signup_id, governor=1001):
+        return dal["roster"].insert_award(
+            event_id=event,
+            signup_id=signup_id,
+            governor_id=governor,
+            governor_name_snapshot="Synthetic",
+            requested_commander_id=run.commander,
+            requested_commander_name="Qualification",
+            awarded_rank=1,
+            award_status="awarded",
+            waitlist_order=None,
+            internal_notes=None,
+            assigned_by_discord_id=9001,
+            now_utc=now(),
+        )
+
+    return signup, award
+
+
+def run_remaining_cases(run, active, dal=None):
+    """N14-N16, also used by the separately guarded retained-fixture continuation."""
+    dal = dal or run.load_dal()
+    final = dal["finalisation"]
+    complete = lambda event: dal["completion"].mark_event_completed(
+        event, 9001, datetime.now(UTC)
+    )
+    signup, award = writer_helpers(run, dal)
 
     def results_import():
         result = dal["results"]
