@@ -40,8 +40,8 @@ execution is not qualified by this profile and must not bypass the combined runn
 
 `validation/build_mge_finalisation_profile.py` prints the profile from explicit
 database/tempdb collations, compatibility and reviewed prerequisite history. It
-does not connect to SQL. Commit the resulting
-migrations/20261029_001_mge_board_finalisation.release.json only after its production
+does not connect to SQL. Commit the resulting filename
+`20261029_001_mge_board_finalisation.release.json` in the migrations directory only after its production
 bindings are observed and reviewed. Do not use local disposable values as production
 values. A prior attempt forbids silently changing this migration identity or hash.
 
@@ -117,6 +117,14 @@ with all 15 changed source files covered and no reportable findings. The subsequ
 CI correction adds only the new migration's required comment metadata and these
 documentation clarifications; no executable SQL or runner changed. A repeat scan
 is skipped for that exact comments/documentation delta. Native evidence stays pending.
+
+PR #134 review correction `3c5b7d0` changes only N08's synthetic delete fixture:
+an unreferenced frozen signup now reaches its AFTER DELETE trigger instead of
+first failing the award foreign key. The original row is independently checked
+after rejection. Fourteen offline guard/import tests pass again. This narrower
+test case changes no runtime, approval guard, release policy or deployment path;
+a further security scan is skipped for this exact fixture-only delta. The review
+comment was answered and resolved; native error 51830 remains to be exercised.
 
 After SQL commit, an old Bot is not a safe rollback because it can attempt frozen
 history writes. Retain the drained state and evidence; use a reviewed compatible
