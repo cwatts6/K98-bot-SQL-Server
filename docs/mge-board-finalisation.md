@@ -41,3 +41,7 @@ when inventory insertion fails; multi-row and delete guards for events/signups/
 awards; concurrent stale writer versus completion; rowversion conflict; retirement
 versus settlement; results import after completion. Python fakes are not evidence
 of SQL Server locking, trigger compilation or transaction behavior.
+# Updater and qualification follow-up
+
+The bounded profile, native harness, evidence boundaries and remaining approvals
+are documented in [MGE finalisation release](mge-finalisation-release.md).

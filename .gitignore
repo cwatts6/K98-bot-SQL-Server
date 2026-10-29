@@ -7,6 +7,8 @@ exports/*
 deploy/sql_deploy_config.json
 *.sqlplan
 validation/artifacts/
+__pycache__/
+*.pyc
 
 # Operator-held KingdomScanData4 raw evidence stays local; reviewed summaries
 # and hashes remain in the tracked Markdown manifests.
