@@ -23,6 +23,7 @@ def test_retained_evidence_hash_is_mandatory(tmp_path):
     "change", ["valid", "target", "creation", "files", "child", "earlier", "n14", "n15"]
 )
 def test_continuation_only_accepts_exact_prior_failure(monkeypatch, tmp_path, change):
+    monkeypatch.setattr(continuation, "RETAINED_EVIDENCE", tmp_path)
     old = approval()
     new = deepcopy(old)
     new["bot_commit"] = "c" * 40
@@ -58,3 +59,24 @@ def test_continuation_only_accepts_exact_prior_failure(monkeypatch, tmp_path, ch
     else:
         with pytest.raises(AssertionError):
             continuation.validate_prior(tmp_path, new)
+
+
+def test_copied_evidence_cannot_select_fresh_claim(monkeypatch, tmp_path):
+    retained = tmp_path / "retained"
+    copied = tmp_path / "copied"
+    retained.mkdir()
+    copied.mkdir()
+    for directory in (retained, copied):
+        (directory / "results.json").write_bytes(b"identical prior evidence")
+    claim = retained / "continuation-claim.json"
+    claim.write_bytes(b"original attempt retained")
+    monkeypatch.setattr(continuation, "RETAINED_EVIDENCE", retained)
+    monkeypatch.setattr(
+        continuation,
+        "read_bound",
+        lambda *args: pytest.fail("Must refuse before reads"),
+    )
+    with pytest.raises(AssertionError, match="Canonical retained evidence"):
+        continuation.validate_prior(copied, approval())
+    assert claim.read_bytes() == b"original attempt retained"
+    assert not (copied / "continuation-claim.json").exists()

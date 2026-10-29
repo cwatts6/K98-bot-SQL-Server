@@ -30,6 +30,9 @@ PRIOR_APPROVAL_SHA256 = (
 PRIOR_PROFILE_SHA256 = (
     "752efb070f9302c88d49fa093273efb24a7e4e3aa63b70f54065fe94f5075bcb"
 )
+RETAINED_EVIDENCE = Path(
+    r"C:\discord_file_downloader\.codex_artifacts\mge-finalisation-native-run-20261029"
+)
 
 
 def read_bound(path, expected):
@@ -41,6 +44,11 @@ def read_bound(path, expected):
 
 
 def validate_prior(previous, approval):
+    # A copied pre-attempt report must not select a fresh durable claim location.
+    require(
+        previous.resolve() == RETAINED_EVIDENCE.resolve(),
+        "Canonical retained evidence directory required",
+    )
     prior = read_bound(previous / "results.json", PRIOR_RESULTS_SHA256)
     old = read_bound(previous / "approval.json", PRIOR_APPROVAL_SHA256)
     require(prior["target"] == DATABASE, "Retained target differs")
@@ -142,7 +150,8 @@ def main(argv=None):
     run.results = {case: dict(status="NOT_RUN") for case in ("N14", "N15", "N16")}
     run.save()
     # Claim before observing/writing; retain even on failure. No age expiry or
-    # force flag. The fixed evidence digest also prevents a copied altered report.
+    # force flag. validate_prior binds this to one canonical evidence directory;
+    # copied evidence cannot select a different claim even when its bytes match.
     with (previous / "continuation-claim.json").open("x", encoding="utf-8") as claim:
         json.dump(
             dict(
