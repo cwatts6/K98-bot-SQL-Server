@@ -1,0 +1,60 @@
+{
+  "version": 1,
+  "profile": "mge_finalisation_v1",
+  "migration_id": "20261029_001_mge_board_finalisation",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "requires": [
+    {
+      "migration_id": "20260602_001_add_schema_migration_history",
+      "sha256": "d4a0655f919da35cdf16b2f9680b781d1b61decdc425ce9294d8427ac9b5b054",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20260602_002_add_deployment_run_history",
+      "sha256": "4f47de12c1633fb7d3ff889126022710083d4d7eba990f28f041193618d97f80",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20260727_001_phase4_view_type_alignment",
+      "sha256": "8999addcfaf56b236a8a3ae42e0004bd9447c97e04f3c29b3c9518d4a780a611",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261009_001_stats_import_outcomes",
+      "sha256": "344f050165a7f64078615db9deac10a687babdc1c28c2536eaedcda07fae87f3",
+      "status": "Failed"
+    },
+    {
+      "migration_id": "20261010_001_stats_import_outcomes_collation",
+      "sha256": "e423e79fd13234b91b62336ab8e34ff2b018b2bffcdfb3cd53dec1a9342ef315",
+      "status": "Failed"
+    },
+    {
+      "migration_id": "20261010_002_stats_import_outcomes_encoding",
+      "sha256": "3792c37de9642cdb33579a4afec820f9d21a4eb14e8388281f3c40eed01c5aa9",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261010_003_stats_import_outcome_postimages",
+      "sha256": "cb41d60ce8bf99a62471dd2ab2462178743e0b82d661e47c484ee47a2e1e85b5",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261013_001_kvk_export_history",
+      "sha256": "f3d68e961de313d1c516674e7e84cf93b14549d36cd53143ac2eb0a63184c37e",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261023_001_legacy_export_closeout",
+      "sha256": "0772464caf0ac544f6362b1724e05f80f6154d91f337c7522b5686ec33566c43",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261023_002_legacy_export_closeout_release",
+      "sha256": "1cb2dad1ffbe0d82fd98f79ae31f5992e27d580df1a6352e7e921d1b0455d40b",
+      "status": "Applied"
+    }
+  ]
+}
