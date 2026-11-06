@@ -93,34 +93,33 @@ BEGIN
         PRIMARY KEY CLUSTERED (GovernorID, AsOfDate)
     );
 
-    ;WITH PreviousDates AS
+    ;WITH SourceRows AS
     (
-        SELECT ids.ID AS GovernorID, MAX(ks.AsOfDate) AS AsOfDate
-        FROM @GovernorIDs AS ids
-        LEFT JOIN dbo.KingdomScanData4 AS ks
-          ON ks.GovernorID = ids.ID
-         AND ks.AsOfDate < @WindowStartDate
-        GROUP BY ids.ID
-    ),
-    RelevantDates AS
-    (
-        SELECT TRY_CONVERT(int, ks.GovernorID) AS GovernorID, ks.AsOfDate
+        -- In-window scans and one preceding day-end have disjoint date ranges.
+        SELECT ks.GovernorID, ks.AsOfDate, ks.ScanDate, ks.SCANORDER, ks.SCAN_UNO, ks.Power, ks.[Troops Power], ks.KillPoints, ks.RSS_Gathered, ks.RSSAssistance, ks.Helps, ks.T4_Kills, ks.T5_Kills, ks.Deads, ks.HealedTroops
         FROM dbo.KingdomScanData4 AS ks
         JOIN @GovernorIDs AS ids ON ks.GovernorID = ids.ID
         WHERE ks.AsOfDate BETWEEN @WindowStartDate AND @StatsAnchorDate
-        GROUP BY TRY_CONVERT(int, ks.GovernorID), ks.AsOfDate
 
-        UNION
+        UNION ALL
 
-        SELECT GovernorID, AsOfDate
-        FROM PreviousDates
-        WHERE AsOfDate IS NOT NULL
+        SELECT ks.GovernorID, ks.AsOfDate, ks.ScanDate, ks.SCANORDER, ks.SCAN_UNO, ks.Power, ks.[Troops Power], ks.KillPoints, ks.RSS_Gathered, ks.RSSAssistance, ks.Helps, ks.T4_Kills, ks.T5_Kills, ks.Deads, ks.HealedTroops
+        FROM @GovernorIDs AS ids
+        CROSS APPLY
+        (
+            SELECT TOP (1) previous_scan.*
+            FROM dbo.KingdomScanData4 AS previous_scan
+            WHERE previous_scan.GovernorID = ids.ID
+              AND previous_scan.AsOfDate < @WindowStartDate
+            ORDER BY previous_scan.AsOfDate DESC, previous_scan.ScanDate DESC,
+                     previous_scan.SCANORDER DESC, previous_scan.SCAN_UNO DESC
+        ) AS ks
     ),
     RankedDayEnd AS
     (
         SELECT
-            dates.GovernorID,
-            dates.AsOfDate,
+            ks.GovernorID,
+            ks.AsOfDate,
             TRY_CONVERT(bigint, ks.Power) AS PowerValue,
             TRY_CONVERT(bigint, ks.[Troops Power]) AS TroopPowerValue,
             TRY_CONVERT(bigint, ks.KillPoints) AS KillPointsValue,
@@ -132,13 +131,10 @@ BEGIN
             TRY_CONVERT(bigint, ks.Deads) AS DeadsValue,
             TRY_CONVERT(bigint, ks.HealedTroops) AS HealedTroopsValue,
             ROW_NUMBER() OVER (
-                PARTITION BY dates.GovernorID, dates.AsOfDate
+                PARTITION BY ks.GovernorID, ks.AsOfDate
                 ORDER BY ks.ScanDate DESC, ks.SCANORDER DESC, ks.SCAN_UNO DESC
             ) AS RowNumber
-        FROM RelevantDates AS dates
-        JOIN dbo.KingdomScanData4 AS ks
-          ON ks.GovernorID = dates.GovernorID
-         AND ks.AsOfDate = dates.AsOfDate
+        FROM SourceRows AS ks
     ),
     DayValues AS
     (
@@ -223,25 +219,6 @@ BEGIN
         WHERE headers.SnapshotTsUtc < DATEADD(DAY, 1, CONVERT(datetime2(0), @StatsAnchorDate))
           AND headers.WeekStartUtc >= CONVERT(datetime2(0), DATEADD(DAY, -6, @WindowStartDate))
     ),
-    PreviousDates AS
-    (
-        SELECT GovernorID, WeekStartDate, MAX(AsOfDate) AS AsOfDate
-        FROM ActivitySource
-        WHERE AsOfDate < @WindowStartDate
-        GROUP BY GovernorID, WeekStartDate
-    ),
-    RelevantDates AS
-    (
-        SELECT GovernorID, WeekStartDate, AsOfDate
-        FROM ActivitySource
-        WHERE AsOfDate BETWEEN @WindowStartDate AND @StatsAnchorDate
-        GROUP BY GovernorID, WeekStartDate, AsOfDate
-
-        UNION
-
-        SELECT GovernorID, WeekStartDate, AsOfDate
-        FROM PreviousDates
-    ),
     RankedDayEnd AS
     (
         SELECT
@@ -255,10 +232,6 @@ BEGIN
                 ORDER BY source.SnapshotTsUtc DESC, source.SnapshotId DESC
             ) AS RowNumber
         FROM ActivitySource AS source
-        JOIN RelevantDates AS dates
-          ON dates.GovernorID = source.GovernorID
-         AND dates.WeekStartDate = source.WeekStartDate
-         AND dates.AsOfDate = source.AsOfDate
     ),
     DayEnd AS
     (
