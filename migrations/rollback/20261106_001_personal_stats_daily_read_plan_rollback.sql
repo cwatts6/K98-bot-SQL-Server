@@ -728,6 +728,9 @@ BEGIN
     ORDER BY dates.GovernorID, dates.AsOfDate
     OPTION (RECOMPILE);
 END;';
+    -- Git's normal Windows checkout uses CRLF inside these reviewed literals.
+    SET @before=REPLACE(@before,CHAR(13)+CHAR(10),CHAR(10));
+    SET @after=REPLACE(@after,CHAR(13)+CHAR(10),CHAR(10));
     IF @current IS NULL OR (@current COLLATE Latin1_General_100_BIN2<>@before COLLATE Latin1_General_100_BIN2 AND @current COLLATE Latin1_General_100_BIN2<>@after COLLATE Latin1_General_100_BIN2)
         THROW 50010, 'Personal stats procedure differs from both reviewed states; stop without changes.', 1;
 

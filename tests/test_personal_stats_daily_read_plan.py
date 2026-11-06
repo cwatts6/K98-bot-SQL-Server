@@ -202,3 +202,58 @@ def test_parameter_rejections(sql, ids, days, code):
 
     with pytest.raises(pyodbc.Error, match=code):
         execute(sql, ids, days)
+
+
+@pytest.mark.parametrize("line_ending", ["\n", "\r\n"], ids=["lf", "crlf"])
+def test_migration_roundtrip_with_checkout_line_endings(sql, line_ending):
+    """Exercise complete migration batches in an outer rolled-back fixture transaction."""
+    suffix = uuid4().hex
+    table = "P016MigrationTable_" + suffix
+    procedure = "P016MigrationProc_" + suffix
+    sql.execute("SELECT TOP (0) * INTO dbo." + table + " FROM #KingdomScanData4")
+    assert sql.execute("SELECT @@TRANCOUNT").fetchval() > 0
+    forward = (
+        ROOT / "migrations/20261106_001_personal_stats_daily_read_plan.sql"
+    ).read_text(encoding="utf-8")
+    backward = (
+        ROOT
+        / "migrations/rollback/20261106_001_personal_stats_daily_read_plan_rollback.sql"
+    ).read_text(encoding="utf-8")
+
+    def renamed(text):
+        return text.replace("KingdomScanData4", table).replace(
+            "usp_GetPersonalStatsDaily", procedure
+        )
+
+    original = (
+        re.search(r"DECLARE @before nvarchar\(max\)=N'((?:[^']|'')*)';", forward)
+        .group(1)
+        .replace("''", "'")
+    )
+    sql.execute(renamed(original))
+    original_definition = sql.execute(
+        "SELECT OBJECT_DEFINITION(OBJECT_ID(?))", "dbo." + procedure
+    ).fetchval()
+    for script in (forward, forward, backward, backward):
+        sql.execute(renamed(script).replace("\n", line_ending))
+        assert sql.execute("SELECT @@TRANCOUNT").fetchval() > 0
+    restored = sql.execute(
+        "SELECT OBJECT_DEFINITION(OBJECT_ID(?))", "dbo." + procedure
+    ).fetchval()
+
+    def normalize(value):
+        return (
+            value.replace("\r\n", "\n")
+            .replace("CREATE   PROCEDURE", "CREATE PROCEDURE")
+            .strip()
+        )
+
+    assert normalize(restored) == normalize(original_definition)
+    assert (
+        sql.execute(
+            "SELECT COUNT(*) FROM sys.indexes WHERE object_id=OBJECT_ID(?) AND name=N'IX_KS4_Governor_DayEnd'",
+            "dbo." + table,
+        ).fetchval()
+        == 0
+    )
+    # Fixture finally rolls back both uniquely named persistent objects as well.
