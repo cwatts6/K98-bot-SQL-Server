@@ -1,8 +1,10 @@
-"""Opt-in engine regressions using source-defined session-local tables only.
+"""Opt-in engine regressions using transaction-owned disposable test objects.
 
 K98_PERSONAL_STATS_SQL_TESTS=1 and K98_PERSONAL_STATS_SQL_DATABASE must identify
 an already-authorized local disposable database containing dbo.IntList. No
-permanent source tables, stored procedures or database settings are modified.
+existing source tables, stored procedures or database settings are modified.
+Migration tests create uniquely named objects inside a transaction rolled back
+by fixture cleanup.
 """
 
 import os
@@ -69,7 +71,7 @@ def execute(connection, ids, days, baseline=False):
         rollback = (
             ROOT
             / "migrations/rollback/20261106_001_personal_stats_daily_read_plan_rollback.sql"
-        ).read_text()
+        ).read_text(encoding="utf-8-sig")
         source = re.findall(r"EXEC\s+sys\.sp_executesql\s+N'((?:[^']|'')*)'", rollback)[
             0
         ].replace("''", "'")
