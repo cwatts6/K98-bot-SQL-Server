@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[KingdomScanData4]') AND type in (N'U'))
 BEGIN
@@ -137,4 +137,8 @@ IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DF
 BEGIN
 ALTER TABLE [dbo].[KingdomScanData4] ADD  CONSTRAINT [DF_KS4_SCAN_UNO]  DEFAULT (NEXT VALUE FOR [dbo].[KS4_UNO_SEQ]) FOR [SCAN_UNO]
 END
-
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.KingdomScanData4') AND name=N'IX_KS4_Governor_DayEnd')
+CREATE NONCLUSTERED INDEX IX_KS4_Governor_DayEnd
+ON dbo.KingdomScanData4 (GovernorID, AsOfDate, ScanDate DESC, SCANORDER DESC, SCAN_UNO DESC)
+INCLUDE (Power, [Troops Power], KillPoints, RSS_Gathered, RSSAssistance, Helps,
+         T4_Kills, T5_Kills, Deads, HealedTroops);
