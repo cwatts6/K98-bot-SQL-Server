@@ -21,7 +21,7 @@ function Reject([scriptblock]$Action,[string]$Message,[string]$Name){
 }
 $migration='20261109_001_p02_phase1_sql_exports'
 $profile=Join-Path $stage ('migrations\'+$migration+'.release.json')
-$hash='bbba8b92a0448535121b301c52ba28244693c10b1263f3d032c1dc79923b8e43'
+$hash='520b58c1b25d80bd28f32324d99b5fede0d6191ddab93ac93469ed5c1f6e4041'
 $loaded=Read-K98ModuleProfile $profile $hash $migration
 Require (@($loaded.Commands).Count -eq 1 -and @($loaded.Profile.images).Count -eq 57) 'Exact complete profile accepted'
 Reject {Read-K98ModuleProfile $profile ('0'*64) $migration} 'checksum' 'Wrong profile checksum refused'

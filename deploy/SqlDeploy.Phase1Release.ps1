@@ -5,9 +5,9 @@ $ErrorActionPreference='Stop'
 function Read-K98Phase1Profile($Profile,[string]$Path) {
     Assert-K98ModuleFields $Profile @('version','profile','migration_id','database_collation','tempdb_collation','compatibility_level','requires','script','images')
     if($Profile.version -ne 1 -or $Profile.profile -cne 'p02_phase1_v1' -or $Profile.migration_id -cne '20261109_001_p02_phase1_sql_exports') {throw 'Exact Phase 1 profile identity required'}
-    if((Get-K98ModuleHash ([IO.File]::ReadAllBytes($Path))) -cne 'bbba8b92a0448535121b301c52ba28244693c10b1263f3d032c1dc79923b8e43'){throw 'Fixed qualified Phase 1 profile bytes required'}
+    if((Get-K98ModuleHash ([IO.File]::ReadAllBytes($Path))) -cne '520b58c1b25d80bd28f32324d99b5fede0d6191ddab93ac93469ed5c1f6e4041'){throw 'Fixed qualified Phase 1 profile bytes required'}
     Assert-K98ModuleFields $Profile.script @('file','sha256')
-    if($Profile.script.file -cne '20261109_001_p02_phase1_sql_exports.sql' -or $Profile.script.sha256 -cne 'a0675d05bd78b751d4612a9b9443b9ae0795db3b2600dc65af15f18d1f0d8e7c'){throw 'Exact Phase 1 script identity required'}
+    if($Profile.script.file -cne '20261109_001_p02_phase1_sql_exports.sql' -or $Profile.script.sha256 -cne '6cc6cb23b0af1123d7c86b4e47c2485880aee0cbfc097b2b5306a746da8a23fb'){throw 'Exact Phase 1 script identity required'}
     $file=Join-Path (Split-Path -Parent $Path) $Profile.script.file
     $item=Get-Item -LiteralPath $file -Force
     if($item.PSIsContainer -or ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -or $item.Length -gt 2MB){throw 'Bounded ordinary Phase 1 script required'}

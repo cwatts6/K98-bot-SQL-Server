@@ -1,3 +1,17 @@
+/*
+MigrationId: 20261109_001_p02_phase1_sql_exports
+Purpose: Install qualified summaries, shared latest names and exact numeric outputs
+Author: Codex (operator-approved implementation; production approval separate)
+CreatedUtc: 2026-11-09
+RequiresBackup: Yes
+RiskLevel: High
+Rollback: Forward Fix Only
+TransactionMode: Required
+DataChange: Yes
+DataSafetyPlan: Included
+DataSafetyNotes: Coordinated runner owns one transaction, exact pre/post images, range checks and backup/resource gates. Failure before commit rolls back. After commit preserve evidence and complete the same release forward; no automatic downgrade, restore or replay.
+EstimatedRowsAffected: Existing rows in the 31 explicitly reviewed output tables
+*/
 -- Fixed Phase 1 forward candidate. Use only through the reviewed coordinated release runner.
 SET NOCOUNT ON; SET XACT_ABORT ON; SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;
 IF @@TRANCOUNT<>1 OR XACT_STATE()<>1 THROW 52980,'Phase 1 release-owned transaction required.',1;
