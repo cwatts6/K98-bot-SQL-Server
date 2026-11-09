@@ -8,6 +8,20 @@ $migration = [IO.File]::ReadAllText((Join-Path $RepositoryRoot 'migrations/20261
 $bodies = [regex]::Matches($migration,"EXEC sys\.sp_executesql N'(?<body>(?:[^']|'')*)';",[Text.RegularExpressions.RegexOptions]::Singleline)
 foreach ($name in @('UPDATE_ALL2','usp_S11CompleteStatsReports','usp_S11CompleteStatsReportsCore','usp_S11ValidateStatsReportStage','usp_update_stats')) {
     $text = [IO.File]::ReadAllText((Join-Path $RepositoryRoot "sql_schema/dbo.$name.StoredProcedure.sql")).Replace("`r`n","`n")
+    if($name -ceq 'usp_S11CompleteStatsReportsCore') {
+        # The historical P0 manifest remains immutable. Check the current core
+        # against the exact Phase 1 migration, then validate P0 using its pinned source.
+        $phase1=[IO.File]::ReadAllText((Join-Path $RepositoryRoot 'migrations/20261109_001_p02_phase1_sql_exports.sql')).Replace("`r`n","`n")
+        $phase1Bodies=[regex]::Matches($phase1,"EXEC sys\.sp_executesql N'(?<body>(?:[^']|'')*)';",[Text.RegularExpressions.RegexOptions]::Singleline)
+        $currentStart=[regex]::Match($text,'(?m)^(ALTER|CREATE OR ALTER|CREATE) PROCEDURE\b')
+        if(-not $currentStart.Success){throw 'Current reporting core declaration is missing'}
+        $currentBody=[regex]::Split($text.Substring($currentStart.Index),'(?im)^GO\s*$')[0].Trim()
+        $currentBody=[regex]::Replace($currentBody,'^(ALTER|CREATE OR ALTER|CREATE) PROCEDURE','CREATE OR ALTER PROCEDURE')
+        if(@($phase1Bodies | Where-Object { $_.Groups['body'].Value.Replace("''","'").Trim() -ceq $currentBody }).Count -ne 1){throw 'Phase 1 reporting core differs from fixed migration'}
+        $historical=& git -C $RepositoryRoot show 'dad628c7a353cc6391868d097a6ae5fb7a8d9e84:sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql'
+        if($LASTEXITCODE -ne 0){throw 'Pinned P0 reporting core source is unavailable'}
+        $text=($historical -join "`n")+"`n"
+    }
     $start = [regex]::Match($text,'(?m)^(ALTER|CREATE OR ALTER|CREATE) PROCEDURE\b')
     if (-not $start.Success) { throw "Missing module declaration: $name" }
     $body = [regex]::Split($text.Substring($start.Index),'(?im)^GO\s*$')[0].Trim()
