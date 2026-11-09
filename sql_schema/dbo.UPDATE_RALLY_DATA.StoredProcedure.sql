@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_RALLY_DATA]') AND type in (N'P', N'PC'))
 BEGIN
@@ -180,6 +180,7 @@ BEGIN
             WHERE RJ.TotalOccurrences > 0
             GROUP BY L.GovernorID, L.TRIM_NAME, RST.RALLY_STARTED, RJ.TotalOccurrences;
 
+            EXEC dbo.usp_ApplyReportGovernorNames @Report=N'RALLY_EXPORT';
             -- Step 6: Clean up
             DROP TABLE IF EXISTS #RD1, #GOV, #GOVERNORNAME_LIST, #TEST1, #TEST2, #TEST3;
 

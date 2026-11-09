@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CREATE_DASH]') AND type in (N'P', N'PC'))
 BEGIN
@@ -99,6 +99,9 @@ SELECT
     [% of DKP Target], [Pass 4 Kills], [Pass 6 Kills],
     [Pass 7 Kills], [Pass 8 Kills], [KVK_NO]
 FROM DASH;
+
+EXEC dbo.usp_ApplyReportGovernorNames @Report=N'DASH';
+EXEC dbo.usp_ApplyReportGovernorNames @Report=N'EXCEL_FOR_DASHBOARD';
 
 -- Cleanup temp tables
 DROP TABLE IF EXISTS #RankingGroups;

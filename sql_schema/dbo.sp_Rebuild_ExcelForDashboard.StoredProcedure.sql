@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_Rebuild_ExcelForDashboard]') AND type in (N'P', N'PC'))
 BEGIN
@@ -138,6 +138,7 @@ BEGIN
 
         EXEC sp_executesql @sql;
 
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'EXCEL_FOR_DASHBOARD';
         PRINT 'Rebuilt EXCEL_FOR_DASHBOARD by unioning per-KVK tables with explicit columns.';
     END
     ELSE

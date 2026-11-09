@@ -1,0 +1,82 @@
+{
+  "DEADSSUMMARY": [
+    "DEADSSUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "POWERSUMMARY": [
+    "POWERSUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "KILLSUMMARY": [
+    "KILLSUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "KILL4SUMMARY": [
+    "KILL4SUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "KILL5SUMMARY": [
+    "KILL5SUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "KILLPOINTSSUMMARY": [
+    "KILLPOINTSSUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "HEALEDSUMMARY": [
+    "HEALEDSUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "RANGEDSUMMARY": [
+    "RANGEDSUMMARY",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "SUMMARY_CHANGE_EXPORT": [
+    "SUMMARY_CHANGE_EXPORT",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "POWER_BY_MONTH": [
+    "POWER_BY_MONTH",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "ALL_GOVS": [
+    "ALL_GOVS",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "INACTIVE_GOVERNORS": [
+    "INACTIVE_GOVERNORS",
+    "GovernorID",
+    "GovernorName"
+  ],
+  "EXCEL_FOR_DASHBOARD": [
+    "EXCEL_FOR_DASHBOARD",
+    "Gov_ID",
+    "Governor_Name"
+  ],
+  "DASH": [
+    "DASH",
+    "Gov_ID",
+    "Governor_Name"
+  ],
+  "ALL_STATS_FOR_DASHBAORD": [
+    "ALL_STATS_FOR_DASHBAORD",
+    "Gov_ID",
+    "Governor_Name"
+  ],
+  "STATS_FOR_UPLOAD": [
+    "STATS_FOR_UPLOAD",
+    "Gov_ID",
+    "Governor_Name"
+  ]
+}

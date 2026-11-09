@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[UPDATE_ALL]') AND type in (N'P', N'PC'))
 BEGIN
@@ -418,6 +418,13 @@ SELECT	TOP (5000)
   LEFT JOIN ZEROED AS Z ON z.GovernorID=S.GovernorID AND Z.ScanOrder = @MATHCHMAKING_SCAN 
   ORDER BY PowerRank ASC
 
+        -- One display-name list for this report batch; metrics retain original grouping.
+        CREATE TABLE #P02ReportNames (
+            GovernorID bigint NOT NULL PRIMARY KEY,
+            GovernorName nvarchar(255) COLLATE Latin1_General_CI_AS NOT NULL
+        );
+        INSERT #P02ReportNames SELECT GovernorID,GovernorName FROM dbo.v_ReportGovernorNames;
+
 EXEC CREATE_THE_AVERAGES 
 
 DROP TABLE #DKP, #HD1, EXCEL_FOR_DASHBOARD
@@ -662,6 +669,8 @@ WHERE ScanDate = @MAXDATE
 EXEC SUMMARY_PROC
 
 EXEC GOVERNOR_NAMES_PROC
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'CompletedReports';
+
 
 DECLARE @EndTime DATETIME = GETDATE();
 DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);

@@ -1,0 +1,668 @@
+/*
+MigrationId: 20261107_001_deterministic_governor_names
+Purpose: Select the latest spelling within existing historical-name equivalence groups
+Author: Codex (operator-approved local implementation)
+CreatedUtc: 2026-11-07
+RequiresBackup: Yes
+RiskLevel: Medium
+Rollback: Included
+RollbackScript: migrations/rollback/20261107_001_deterministic_governor_names_rollback.sql
+TransactionMode: Auto
+DataChange: No
+DataSafetyPlan: Included
+DataSafetyNotes: Definition-only transactional DDL; reject drift and signatures; no procedure execution.
+EstimatedRowsAffected: N/A
+*/
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+SET XACT_ABORT ON;
+BEGIN TRANSACTION;
+BEGIN TRY
+    DECLARE @id int = OBJECT_ID(N'dbo.GOVERNOR_NAMES_PROC', N'P');
+    IF @id IS NULL
+        THROW 50010, 'Governor names procedure prerequisite is missing.', 1;
+    IF EXISTS (SELECT 1 FROM sys.crypt_properties WHERE class = 1 AND major_id = @id)
+        THROW 50011, 'Signed module requires a separately reviewed signing release.', 1;
+    IF NOT EXISTS (SELECT 1 FROM sys.sql_modules WHERE object_id = @id
+                   AND uses_ansi_nulls = 1 AND uses_quoted_identifier = 1
+                   AND execute_as_principal_id IS NULL)
+        THROW 50012, 'Governor names module options or execution context differ.', 1;
+    DECLARE @current nvarchar(max) = OBJECT_DEFINITION(@id);
+    DECLARE @before nvarchar(max) = N'ALTER PROCEDURE [dbo].[GOVERNOR_NAMES_PROC]
+WITH EXECUTE AS CALLER
+AS
+BEGIN
+	SET NOCOUNT ON;
+	SET XACT_ABORT ON;
+
+	-- REQUIRED SET options for DML against indexed views / computed columns / filtered indexes
+	SET ANSI_NULLS ON;
+	SET ANSI_PADDING ON;
+	SET ANSI_WARNINGS ON;
+	SET ARITHABORT ON;
+	SET CONCAT_NULL_YIELDS_NULL ON;
+	SET QUOTED_IDENTIFIER ON;
+	SET NUMERIC_ROUNDABORT OFF;
+
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        ----------------------------------------------------------------
+        -- Step 1: Truncate main target table
+        ----------------------------------------------------------------
+        TRUNCATE TABLE dbo.ALL_GOVS;
+
+        ----------------------------------------------------------------
+        -- Step 2: CTEs to prepare scan data (include CityHallLevel)
+        ----------------------------------------------------------------
+        WITH RankedScans AS (
+            SELECT 
+                GovernorID,
+                GovernorName,
+                NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), N'''') AS Alliance,
+                ScanDate,
+                [Power],
+                KillPoints,
+                Deads,
+                T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS],
+                TOTAL_KILLS,
+                RSS_Gathered, RSSAssistance, Helps,
+
+                -- new fields from KingdomScanData4 (point-in-time values)
+                HealedTroops,
+                RangedPoints,
+                Civilization,
+                KvKPlayed,
+                MostKvKKill,
+                MostKvKDead,
+                MostKvKHeal,
+                Acclaim,
+                HighestAcclaim,
+                AOOJoined,
+                AOOWon,
+                AOOAvgKill,
+                AOOAvgDead,
+                AOOAvgHeal,
+                Conduct,
+
+                -- ✅ City Hall level (confirm column name)
+                [City Hall] AS CityHallLevel,
+
+                ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn,
+                MIN(ScanDate) OVER (PARTITION BY GovernorID) AS FirstScan,
+                MAX([Power]) OVER (PARTITION BY GovernorID) AS MaxPower
+            FROM ROK_TRACKER.dbo.KingdomScanData4
+            WHERE GovernorID <> 0
+        ),
+        ScanData AS (
+            SELECT 
+                GovernorID,
+                MAX(CASE WHEN rn = 1 THEN ScanDate END) AS LastScan,
+                MAX(CASE WHEN rn = 2 THEN ScanDate END) AS PreviousScan,
+                MAX(CASE WHEN rn = 1 THEN Power END) AS LatestPower,
+                MAX(CASE WHEN rn = 1 THEN KillPoints END) AS KillPoints,
+                MAX(CASE WHEN rn = 1 THEN Deads END) AS Deads,
+                MAX(CASE WHEN rn = 1 THEN Helps END) AS Helps,
+                MAX(CASE WHEN rn = 1 THEN RSS_Gathered END) AS RSS_GATHERED,
+                MAX(CASE WHEN rn = 1 THEN RSSAssistance END) AS RSSASSISTANCE,
+                MAX(CASE WHEN rn = 1 THEN GovernorName END) AS GovernorName,
+                MAX(CASE WHEN rn = 1 THEN Alliance END) AS Alliance,
+                MAX(CASE WHEN rn = 1 THEN T1_Kills END) AS T1_Kills,
+                MAX(CASE WHEN rn = 1 THEN T2_Kills END) AS T2_Kills,
+                MAX(CASE WHEN rn = 1 THEN T3_Kills END) AS T3_Kills,
+                MAX(CASE WHEN rn = 1 THEN T4_Kills END) AS T4_Kills,
+                MAX(CASE WHEN rn = 1 THEN T5_Kills END) AS T5_Kills,
+                MAX(CASE WHEN rn = 1 THEN [T4&T5_KILLS] END) AS [T4&T5_KILLS],
+                MAX(CASE WHEN rn = 1 THEN TOTAL_KILLS END) AS TOTAL_KILLS,
+                MAX(FirstScan) AS FirstScan,
+                MAX(MaxPower) AS MaxPower,
+
+                -- new fields: take latest (rn = 1) values
+                MAX(CASE WHEN rn = 1 THEN HealedTroops END)        AS HealedTroops,
+                MAX(CASE WHEN rn = 1 THEN RangedPoints END)       AS RangedPoints,
+                MAX(CASE WHEN rn = 1 THEN Civilization END)       AS Civilization,
+                MAX(CASE WHEN rn = 1 THEN KvKPlayed END)          AS KvKPlayed,
+                MAX(CASE WHEN rn = 1 THEN MostKvKKill END)        AS MostKvKKill,
+                MAX(CASE WHEN rn = 1 THEN MostKvKDead END)        AS MostKvKDead,
+                MAX(CASE WHEN rn = 1 THEN MostKvKHeal END)        AS MostKvKHeal,
+                MAX(CASE WHEN rn = 1 THEN Acclaim END)            AS Acclaim,
+                MAX(CASE WHEN rn = 1 THEN HighestAcclaim END)     AS HighestAcclaim,
+                MAX(CASE WHEN rn = 1 THEN AOOJoined END)          AS AOOJoined,
+                MAX(CASE WHEN rn = 1 THEN AOOWon END)             AS AOOWon,
+                MAX(CASE WHEN rn = 1 THEN AOOAvgKill END)         AS AOOAvgKill,
+                MAX(CASE WHEN rn = 1 THEN AOOAvgDead END)         AS AOOAvgDead,
+                MAX(CASE WHEN rn = 1 THEN AOOAvgHeal END)         AS AOOAvgHeal,
+                MAX(CASE WHEN rn = 1 THEN Conduct END)            AS Conduct,
+
+                -- ✅ City Hall level
+                MAX(CASE WHEN rn = 1 THEN CityHallLevel END)      AS CityHallLevel
+            FROM RankedScans
+            WHERE rn <= 2
+            GROUP BY GovernorID
+        )
+
+        ----------------------------------------------------------------
+        -- Step 3: Insert into ALL_GOVS including CityHallLevel
+        ----------------------------------------------------------------
+        INSERT INTO ALL_GOVS (
+            GovernorID, GovernorName, [Max Power], [Latest Power],
+            KillPoints, T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS],
+            TOTAL_KILLS, Deads, Helps, RSS_Gathered, RSSAssistance,
+
+            -- new fields (inserted before timestamps)
+            HealedTroops, RangedPoints, Civilization, KvKPlayed,
+            MostKvKKill, MostKvKDead, MostKvKHeal, Acclaim, HighestAcclaim,
+            AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal, Conduct,
+
+            -- ✅ City Hall
+            CityHallLevel,
+
+            [Last Scan], [Previous Scan], [First Scan]
+        )
+        SELECT 
+            s.GovernorID,
+            RTRIM(s.GovernorName),
+            s.MaxPower,
+            s.LatestPower,
+            s.KillPoints,
+            s.T1_Kills, s.T2_Kills, s.T3_Kills, s.T4_Kills, s.T5_Kills, s.[T4&T5_KILLS],
+            s.TOTAL_KILLS,
+            s.Deads,
+            s.Helps,
+            s.RSS_GATHERED,
+            s.RSSASSISTANCE,
+
+            -- new fields selected from ScanData
+            s.HealedTroops,
+            s.RangedPoints,
+            s.Civilization,
+            s.KvKPlayed,
+            s.MostKvKKill,
+            s.MostKvKDead,
+            s.MostKvKHeal,
+            s.Acclaim,
+            s.HighestAcclaim,
+            s.AOOJoined,
+            s.AOOWon,
+            s.AOOAvgKill,
+            s.AOOAvgDead,
+            s.AOOAvgHeal,
+            s.Conduct,
+
+            -- ✅ City Hall
+            s.CityHallLevel,
+
+            s.LastScan,
+            s.PreviousScan,
+            s.FirstScan
+        FROM ScanData s;
+
+        ----------------------------------------------------------------
+        -- Step 4: Refresh Governor Names Table (unchanged)
+        ----------------------------------------------------------------
+        TRUNCATE TABLE dbo.ALL_GOVS_NAMES;
+
+        INSERT INTO ALL_GOVS_NAMES (GovernorID, GovernorName)
+        SELECT 
+            GovernorID, 
+            RTRIM(GovernorName) AS GovernorName
+        FROM (
+            SELECT DISTINCT 
+                GovernorID, 
+                GovernorName
+            FROM ROK_TRACKER.dbo.KingdomScanData4
+            WHERE GovernorID <> 0 AND GovernorName IS NOT NULL
+        ) AS UniqueNames;
+
+        ----------------------------------------------------------------
+        -- Step 5: Incremental refresh of Alliance history table
+        -- Semantics retained: one row per unique (GovernorID, Alliance ever seen)
+        ----------------------------------------------------------------
+
+        IF NOT EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES_SYNC_STATE WHERE StateID = 1)
+        BEGIN
+            INSERT INTO dbo.ALL_GOVS_ALLIANCES_SYNC_STATE (StateID, LastProcessedScanOrder, LastProcessedScanDate, LastRunAt)
+            SELECT
+                1,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN ISNULL((SELECT MAX(kd4.SCANORDER) FROM ROK_TRACKER.dbo.KingdomScanData4 kd4 WHERE kd4.GovernorID <> 0), 0)
+                    ELSE 0
+                END,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN (SELECT MAX(kd4.ScanDate) FROM ROK_TRACKER.dbo.KingdomScanData4 kd4 WHERE kd4.GovernorID <> 0)
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN GETDATE()
+                    ELSE NULL
+                END;
+        END;
+
+		DECLARE
+            @LastProcessedScanOrder BIGINT,
+            @CurrentMaxScanOrder BIGINT,
+            @CurrentMaxScanDate DATETIME,
+            @LastAllianceSyncRunAt DATETIME;
+
+SELECT
+            @LastProcessedScanOrder = LastProcessedScanOrder,
+            @LastAllianceSyncRunAt = LastRunAt
+        FROM dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+        WHERE StateID = 1;
+
+        SELECT
+            @CurrentMaxScanOrder = MAX(kd4.SCANORDER),
+            @CurrentMaxScanDate = MAX(kd4.ScanDate)
+        FROM ROK_TRACKER.dbo.KingdomScanData4 kd4
+        WHERE kd4.GovernorID <> 0;
+
+        -- Migration safety: if state was seeded as 0 but alliance history already exists,
+        -- fast-forward watermark once to avoid reprocessing full history.
+        IF ISNULL(@LastProcessedScanOrder, 0) = 0
+           AND @LastAllianceSyncRunAt IS NULL
+           AND EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+           AND @CurrentMaxScanOrder IS NOT NULL
+        BEGIN
+            UPDATE dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+            SET LastProcessedScanOrder = @CurrentMaxScanOrder,
+                LastProcessedScanDate = @CurrentMaxScanDate,
+                LastRunAt = GETDATE()
+            WHERE StateID = 1;
+
+            SET @LastProcessedScanOrder = @CurrentMaxScanOrder;
+        END;
+
+        IF @CurrentMaxScanOrder IS NOT NULL
+           AND @CurrentMaxScanOrder > ISNULL(@LastProcessedScanOrder, 0)
+        BEGIN
+            ;WITH CandidatePairs AS (
+                SELECT
+                    kd4.GovernorID,
+                    NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), kd4.Alliance))), N'''') AS Alliance
+                FROM ROK_TRACKER.dbo.KingdomScanData4 kd4
+                WHERE kd4.GovernorID <> 0
+                  AND kd4.SCANORDER > ISNULL(@LastProcessedScanOrder, 0)
+                  AND kd4.SCANORDER <= @CurrentMaxScanOrder
+            ),
+            DistinctPairs AS (
+                SELECT
+                    cp.GovernorID,
+                    cp.Alliance
+                FROM CandidatePairs cp
+                WHERE cp.Alliance IS NOT NULL
+                GROUP BY cp.GovernorID, cp.Alliance
+            )
+            INSERT INTO dbo.ALL_GOVS_ALLIANCES (GovernorID, Alliance)
+            SELECT
+                dp.GovernorID,
+                dp.Alliance
+            FROM DistinctPairs dp
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.ALL_GOVS_ALLIANCES aga
+                WHERE aga.GovernorID = dp.GovernorID
+                  AND aga.Alliance = dp.Alliance
+            );
+
+            UPDATE dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+            SET LastProcessedScanOrder = @CurrentMaxScanOrder,
+                LastProcessedScanDate = @CurrentMaxScanDate,
+                LastRunAt = GETDATE()
+            WHERE StateID = 1;
+        END;
+
+
+        COMMIT TRANSACTION;
+
+    END TRY
+
+	BEGIN CATCH
+		IF XACT_STATE() <> 0
+			ROLLBACK TRANSACTION;
+
+		THROW;
+	END CATCH
+END;';
+    DECLARE @after nvarchar(max) = N'ALTER PROCEDURE [dbo].[GOVERNOR_NAMES_PROC]
+WITH EXECUTE AS CALLER
+AS
+BEGIN
+	SET NOCOUNT ON;
+	SET XACT_ABORT ON;
+
+	-- REQUIRED SET options for DML against indexed views / computed columns / filtered indexes
+	SET ANSI_NULLS ON;
+	SET ANSI_PADDING ON;
+	SET ANSI_WARNINGS ON;
+	SET ARITHABORT ON;
+	SET CONCAT_NULL_YIELDS_NULL ON;
+	SET QUOTED_IDENTIFIER ON;
+	SET NUMERIC_ROUNDABORT OFF;
+
+
+    BEGIN TRY
+        BEGIN TRANSACTION;
+
+        ----------------------------------------------------------------
+        -- Step 1: Truncate main target table
+        ----------------------------------------------------------------
+        TRUNCATE TABLE dbo.ALL_GOVS;
+
+        ----------------------------------------------------------------
+        -- Step 2: CTEs to prepare scan data (include CityHallLevel)
+        ----------------------------------------------------------------
+        WITH RankedScans AS (
+            SELECT 
+                GovernorID,
+                GovernorName,
+                NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), Alliance))), N'''') AS Alliance,
+                ScanDate,
+                [Power],
+                KillPoints,
+                Deads,
+                T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS],
+                TOTAL_KILLS,
+                RSS_Gathered, RSSAssistance, Helps,
+
+                -- new fields from KingdomScanData4 (point-in-time values)
+                HealedTroops,
+                RangedPoints,
+                Civilization,
+                KvKPlayed,
+                MostKvKKill,
+                MostKvKDead,
+                MostKvKHeal,
+                Acclaim,
+                HighestAcclaim,
+                AOOJoined,
+                AOOWon,
+                AOOAvgKill,
+                AOOAvgDead,
+                AOOAvgHeal,
+                Conduct,
+
+                -- ✅ City Hall level (confirm column name)
+                [City Hall] AS CityHallLevel,
+
+                ROW_NUMBER() OVER (PARTITION BY GovernorID ORDER BY ScanOrder DESC) AS rn,
+                MIN(ScanDate) OVER (PARTITION BY GovernorID) AS FirstScan,
+                MAX([Power]) OVER (PARTITION BY GovernorID) AS MaxPower
+            FROM ROK_TRACKER.dbo.KingdomScanData4
+            WHERE GovernorID <> 0
+        ),
+        ScanData AS (
+            SELECT 
+                GovernorID,
+                MAX(CASE WHEN rn = 1 THEN ScanDate END) AS LastScan,
+                MAX(CASE WHEN rn = 2 THEN ScanDate END) AS PreviousScan,
+                MAX(CASE WHEN rn = 1 THEN Power END) AS LatestPower,
+                MAX(CASE WHEN rn = 1 THEN KillPoints END) AS KillPoints,
+                MAX(CASE WHEN rn = 1 THEN Deads END) AS Deads,
+                MAX(CASE WHEN rn = 1 THEN Helps END) AS Helps,
+                MAX(CASE WHEN rn = 1 THEN RSS_Gathered END) AS RSS_GATHERED,
+                MAX(CASE WHEN rn = 1 THEN RSSAssistance END) AS RSSASSISTANCE,
+                MAX(CASE WHEN rn = 1 THEN GovernorName END) AS GovernorName,
+                MAX(CASE WHEN rn = 1 THEN Alliance END) AS Alliance,
+                MAX(CASE WHEN rn = 1 THEN T1_Kills END) AS T1_Kills,
+                MAX(CASE WHEN rn = 1 THEN T2_Kills END) AS T2_Kills,
+                MAX(CASE WHEN rn = 1 THEN T3_Kills END) AS T3_Kills,
+                MAX(CASE WHEN rn = 1 THEN T4_Kills END) AS T4_Kills,
+                MAX(CASE WHEN rn = 1 THEN T5_Kills END) AS T5_Kills,
+                MAX(CASE WHEN rn = 1 THEN [T4&T5_KILLS] END) AS [T4&T5_KILLS],
+                MAX(CASE WHEN rn = 1 THEN TOTAL_KILLS END) AS TOTAL_KILLS,
+                MAX(FirstScan) AS FirstScan,
+                MAX(MaxPower) AS MaxPower,
+
+                -- new fields: take latest (rn = 1) values
+                MAX(CASE WHEN rn = 1 THEN HealedTroops END)        AS HealedTroops,
+                MAX(CASE WHEN rn = 1 THEN RangedPoints END)       AS RangedPoints,
+                MAX(CASE WHEN rn = 1 THEN Civilization END)       AS Civilization,
+                MAX(CASE WHEN rn = 1 THEN KvKPlayed END)          AS KvKPlayed,
+                MAX(CASE WHEN rn = 1 THEN MostKvKKill END)        AS MostKvKKill,
+                MAX(CASE WHEN rn = 1 THEN MostKvKDead END)        AS MostKvKDead,
+                MAX(CASE WHEN rn = 1 THEN MostKvKHeal END)        AS MostKvKHeal,
+                MAX(CASE WHEN rn = 1 THEN Acclaim END)            AS Acclaim,
+                MAX(CASE WHEN rn = 1 THEN HighestAcclaim END)     AS HighestAcclaim,
+                MAX(CASE WHEN rn = 1 THEN AOOJoined END)          AS AOOJoined,
+                MAX(CASE WHEN rn = 1 THEN AOOWon END)             AS AOOWon,
+                MAX(CASE WHEN rn = 1 THEN AOOAvgKill END)         AS AOOAvgKill,
+                MAX(CASE WHEN rn = 1 THEN AOOAvgDead END)         AS AOOAvgDead,
+                MAX(CASE WHEN rn = 1 THEN AOOAvgHeal END)         AS AOOAvgHeal,
+                MAX(CASE WHEN rn = 1 THEN Conduct END)            AS Conduct,
+
+                -- ✅ City Hall level
+                MAX(CASE WHEN rn = 1 THEN CityHallLevel END)      AS CityHallLevel
+            FROM RankedScans
+            WHERE rn <= 2
+            GROUP BY GovernorID
+        )
+
+        ----------------------------------------------------------------
+        -- Step 3: Insert into ALL_GOVS including CityHallLevel
+        ----------------------------------------------------------------
+        INSERT INTO ALL_GOVS (
+            GovernorID, GovernorName, [Max Power], [Latest Power],
+            KillPoints, T1_Kills, T2_Kills, T3_Kills, T4_Kills, T5_Kills, [T4&T5_KILLS],
+            TOTAL_KILLS, Deads, Helps, RSS_Gathered, RSSAssistance,
+
+            -- new fields (inserted before timestamps)
+            HealedTroops, RangedPoints, Civilization, KvKPlayed,
+            MostKvKKill, MostKvKDead, MostKvKHeal, Acclaim, HighestAcclaim,
+            AOOJoined, AOOWon, AOOAvgKill, AOOAvgDead, AOOAvgHeal, Conduct,
+
+            -- ✅ City Hall
+            CityHallLevel,
+
+            [Last Scan], [Previous Scan], [First Scan]
+        )
+        SELECT 
+            s.GovernorID,
+            RTRIM(s.GovernorName),
+            s.MaxPower,
+            s.LatestPower,
+            s.KillPoints,
+            s.T1_Kills, s.T2_Kills, s.T3_Kills, s.T4_Kills, s.T5_Kills, s.[T4&T5_KILLS],
+            s.TOTAL_KILLS,
+            s.Deads,
+            s.Helps,
+            s.RSS_GATHERED,
+            s.RSSASSISTANCE,
+
+            -- new fields selected from ScanData
+            s.HealedTroops,
+            s.RangedPoints,
+            s.Civilization,
+            s.KvKPlayed,
+            s.MostKvKKill,
+            s.MostKvKDead,
+            s.MostKvKHeal,
+            s.Acclaim,
+            s.HighestAcclaim,
+            s.AOOJoined,
+            s.AOOWon,
+            s.AOOAvgKill,
+            s.AOOAvgDead,
+            s.AOOAvgHeal,
+            s.Conduct,
+
+            -- ✅ City Hall
+            s.CityHallLevel,
+
+            s.LastScan,
+            s.PreviousScan,
+            s.FirstScan
+        FROM ScanData s;
+
+        ----------------------------------------------------------------
+        -- Step 4: One deterministic spelling per existing collation-equivalent name
+        ----------------------------------------------------------------
+        TRUNCATE TABLE dbo.ALL_GOVS_NAMES;
+
+        ;WITH NameCandidates AS (
+            SELECT
+                GovernorID,
+                GovernorName,
+                ROW_NUMBER() OVER (
+                    PARTITION BY GovernorID, GovernorName
+                    ORDER BY ScanOrder DESC,
+                             GovernorName COLLATE Latin1_General_100_BIN2 ASC
+                ) AS Representative
+            FROM ROK_TRACKER.dbo.KingdomScanData4
+            WHERE GovernorID <> 0 AND GovernorName IS NOT NULL
+        )
+        INSERT INTO ALL_GOVS_NAMES (GovernorID, GovernorName)
+        SELECT GovernorID, RTRIM(GovernorName) AS GovernorName
+        FROM NameCandidates
+        WHERE Representative = 1;
+
+        ----------------------------------------------------------------
+        -- Step 5: Incremental refresh of Alliance history table
+        -- Semantics retained: one row per unique (GovernorID, Alliance ever seen)
+        ----------------------------------------------------------------
+
+        IF NOT EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES_SYNC_STATE WHERE StateID = 1)
+        BEGIN
+            INSERT INTO dbo.ALL_GOVS_ALLIANCES_SYNC_STATE (StateID, LastProcessedScanOrder, LastProcessedScanDate, LastRunAt)
+            SELECT
+                1,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN ISNULL((SELECT MAX(kd4.SCANORDER) FROM ROK_TRACKER.dbo.KingdomScanData4 kd4 WHERE kd4.GovernorID <> 0), 0)
+                    ELSE 0
+                END,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN (SELECT MAX(kd4.ScanDate) FROM ROK_TRACKER.dbo.KingdomScanData4 kd4 WHERE kd4.GovernorID <> 0)
+                    ELSE NULL
+                END,
+                CASE
+                    WHEN EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+                        THEN GETDATE()
+                    ELSE NULL
+                END;
+        END;
+
+		DECLARE
+            @LastProcessedScanOrder BIGINT,
+            @CurrentMaxScanOrder BIGINT,
+            @CurrentMaxScanDate DATETIME,
+            @LastAllianceSyncRunAt DATETIME;
+
+SELECT
+            @LastProcessedScanOrder = LastProcessedScanOrder,
+            @LastAllianceSyncRunAt = LastRunAt
+        FROM dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+        WHERE StateID = 1;
+
+        SELECT
+            @CurrentMaxScanOrder = MAX(kd4.SCANORDER),
+            @CurrentMaxScanDate = MAX(kd4.ScanDate)
+        FROM ROK_TRACKER.dbo.KingdomScanData4 kd4
+        WHERE kd4.GovernorID <> 0;
+
+        -- Migration safety: if state was seeded as 0 but alliance history already exists,
+        -- fast-forward watermark once to avoid reprocessing full history.
+        IF ISNULL(@LastProcessedScanOrder, 0) = 0
+           AND @LastAllianceSyncRunAt IS NULL
+           AND EXISTS (SELECT 1 FROM dbo.ALL_GOVS_ALLIANCES)
+           AND @CurrentMaxScanOrder IS NOT NULL
+        BEGIN
+            UPDATE dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+            SET LastProcessedScanOrder = @CurrentMaxScanOrder,
+                LastProcessedScanDate = @CurrentMaxScanDate,
+                LastRunAt = GETDATE()
+            WHERE StateID = 1;
+
+            SET @LastProcessedScanOrder = @CurrentMaxScanOrder;
+        END;
+
+        IF @CurrentMaxScanOrder IS NOT NULL
+           AND @CurrentMaxScanOrder > ISNULL(@LastProcessedScanOrder, 0)
+        BEGIN
+            ;WITH CandidatePairs AS (
+                SELECT
+                    kd4.GovernorID,
+                    NULLIF(LTRIM(RTRIM(CONVERT(nvarchar(255), kd4.Alliance))), N'''') AS Alliance
+                FROM ROK_TRACKER.dbo.KingdomScanData4 kd4
+                WHERE kd4.GovernorID <> 0
+                  AND kd4.SCANORDER > ISNULL(@LastProcessedScanOrder, 0)
+                  AND kd4.SCANORDER <= @CurrentMaxScanOrder
+            ),
+            DistinctPairs AS (
+                SELECT
+                    cp.GovernorID,
+                    cp.Alliance
+                FROM CandidatePairs cp
+                WHERE cp.Alliance IS NOT NULL
+                GROUP BY cp.GovernorID, cp.Alliance
+            )
+            INSERT INTO dbo.ALL_GOVS_ALLIANCES (GovernorID, Alliance)
+            SELECT
+                dp.GovernorID,
+                dp.Alliance
+            FROM DistinctPairs dp
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.ALL_GOVS_ALLIANCES aga
+                WHERE aga.GovernorID = dp.GovernorID
+                  AND aga.Alliance = dp.Alliance
+            );
+
+            UPDATE dbo.ALL_GOVS_ALLIANCES_SYNC_STATE
+            SET LastProcessedScanOrder = @CurrentMaxScanOrder,
+                LastProcessedScanDate = @CurrentMaxScanDate,
+                LastRunAt = GETDATE()
+            WHERE StateID = 1;
+        END;
+
+
+        COMMIT TRANSACTION;
+
+    END TRY
+
+	BEGIN CATCH
+		IF XACT_STATE() <> 0
+			ROLLBACK TRANSACTION;
+
+		THROW;
+	END CATCH
+END;';
+    SET @current = TRIM(NCHAR(9)+NCHAR(10)+NCHAR(13)+N' ' FROM REPLACE(@current, NCHAR(13)+NCHAR(10), NCHAR(10)));
+    IF LEFT(@current, 25) COLLATE Latin1_General_100_BIN2 = N'CREATE OR ALTER PROCEDURE'
+        SET @current = N'ALTER PROCEDURE' + SUBSTRING(@current, 26, LEN(@current));
+    ELSE IF LEFT(@current, 16) COLLATE Latin1_General_100_BIN2 = N'CREATE PROCEDURE'
+        SET @current = N'ALTER PROCEDURE' + SUBSTRING(@current, 17, LEN(@current));
+    SET @before = TRIM(NCHAR(9)+NCHAR(10)+NCHAR(13)+N' ' FROM REPLACE(@before, NCHAR(13)+NCHAR(10), NCHAR(10)));
+    IF LEFT(@before, 25) COLLATE Latin1_General_100_BIN2 = N'CREATE OR ALTER PROCEDURE'
+        SET @before = N'ALTER PROCEDURE' + SUBSTRING(@before, 26, LEN(@before));
+    ELSE IF LEFT(@before, 16) COLLATE Latin1_General_100_BIN2 = N'CREATE PROCEDURE'
+        SET @before = N'ALTER PROCEDURE' + SUBSTRING(@before, 17, LEN(@before));
+    SET @after = TRIM(NCHAR(9)+NCHAR(10)+NCHAR(13)+N' ' FROM REPLACE(@after, NCHAR(13)+NCHAR(10), NCHAR(10)));
+    IF LEFT(@after, 25) COLLATE Latin1_General_100_BIN2 = N'CREATE OR ALTER PROCEDURE'
+        SET @after = N'ALTER PROCEDURE' + SUBSTRING(@after, 26, LEN(@after));
+    ELSE IF LEFT(@after, 16) COLLATE Latin1_General_100_BIN2 = N'CREATE PROCEDURE'
+        SET @after = N'ALTER PROCEDURE' + SUBSTRING(@after, 17, LEN(@after));
+    IF @current IS NULL OR
+       (CONVERT(varbinary(max), @current) <> CONVERT(varbinary(max), @before)
+        AND CONVERT(varbinary(max), @current) <> CONVERT(varbinary(max), @after))
+        THROW 50013, 'Unrecognized governor names definition; stop for review.', 1;
+    IF CONVERT(varbinary(max), @current) <> CONVERT(varbinary(max), @after)
+        EXEC sys.sp_executesql @after;
+    SET @current = OBJECT_DEFINITION(@id);
+    SET @current = TRIM(NCHAR(9)+NCHAR(10)+NCHAR(13)+N' ' FROM REPLACE(@current, NCHAR(13)+NCHAR(10), NCHAR(10)));
+    IF LEFT(@current, 25) COLLATE Latin1_General_100_BIN2 = N'CREATE OR ALTER PROCEDURE'
+        SET @current = N'ALTER PROCEDURE' + SUBSTRING(@current, 26, LEN(@current));
+    ELSE IF LEFT(@current, 16) COLLATE Latin1_General_100_BIN2 = N'CREATE PROCEDURE'
+        SET @current = N'ALTER PROCEDURE' + SUBSTRING(@current, 17, LEN(@current));
+    IF @current IS NULL OR CONVERT(varbinary(max), @current) <> CONVERT(varbinary(max), @after)
+        THROW 50014, 'Governor names postimage verification failed.', 1;
+    COMMIT TRANSACTION;
+END TRY
+BEGIN CATCH
+    IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+    THROW;
+END CATCH;

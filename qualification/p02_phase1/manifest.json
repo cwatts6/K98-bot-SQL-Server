@@ -1,0 +1,1059 @@
+{
+  "baseline": "endpoint rewrite plus deterministic names",
+  "tables": [
+    {
+      "table": "D12D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "D12D",
+      "column": "DEADSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "D3D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "D3D",
+      "column": "DEADSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "D6D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "D6D",
+      "column": "DEADSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "PowerRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "DEADS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "StartingDEADS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "OverallDEADSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "DEADSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "DEADSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "DEADSSUMMARY",
+      "column": "DEADSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K12D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K12D",
+      "column": "T4&T5_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K3D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K3D",
+      "column": "T4&T5_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K412D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K412D",
+      "column": "T4_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K43D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K43D",
+      "column": "T4_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K46D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K46D",
+      "column": "T4_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K512D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K512D",
+      "column": "T5_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K53D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K53D",
+      "column": "T5_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K56D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K56D",
+      "column": "T5_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "K6D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "K6D",
+      "column": "T4&T5_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "POWERRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "T4_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "StartingT4_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "OverallT4_KILLSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "T4_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "T4_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL4SUMMARY",
+      "column": "T4_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "POWERRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "StartingT5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "OverallT5_KILLSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "T5_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "T5_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILL5SUMMARY",
+      "column": "T5_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLPOINTSSUMMARY",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLPOINTS_D12D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLPOINTS_D3D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLPOINTS_D6D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLPOINTS_LATEST",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "POWERRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "T4&T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "StartingT4&T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "OverallT4&T5_KILLSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "T4&T5_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "T4&T5_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "KILLSUMMARY",
+      "column": "T4&T5_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST",
+      "column": "PowerRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "LATEST",
+      "column": "DEADS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_POWER",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_POWER",
+      "column": "PowerRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_POWER",
+      "column": "POWER",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T4&T5_KILLS",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T4&T5_KILLS",
+      "column": "POWERRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T4&T5_KILLS",
+      "column": "T4&T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "LATEST_T4_KILLS",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T4_KILLS",
+      "column": "POWERRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T4_KILLS",
+      "column": "T4_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T5_KILLS",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T5_KILLS",
+      "column": "POWERRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "LATEST_T5_KILLS",
+      "column": "T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "P12D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "P12D",
+      "column": "POWERDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "P3D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "P3D",
+      "column": "POWERDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "P6D",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "P6D",
+      "column": "POWERDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "GovernorID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "PowerRank",
+      "before": "float",
+      "after": "int",
+      "nullable": false
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "Power",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "StartingPower",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "OverallPowerDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "PowerDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "PowerDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "POWERSUMMARY",
+      "column": "PowerDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "GOVERNORID",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4&T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingT4&T5_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallT4&T5_KILLSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4&T5_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4&T5_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4&T5_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingT4_KILLS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallT4_KILLSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4_KILLSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4_KILLSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T4_KILLSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T5_Kills",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingT5_Kills",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallT5_KillsDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T5_KillsDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T5_KillsDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "T5_KillsDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "POWER",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingPower",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallPowerDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "PowerDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "PowerDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "PowerDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "DEADS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": false
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingDEADS",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallDEADSDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "DEADSDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "DEADSDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "DEADSDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "HealedTroops",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingHealed",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallHealedDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "HealedDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "HealedDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "HealedDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "RangedPoints",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingRanged",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallRangedDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "RangedDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "RangedDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "RangedDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "KillPoints",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "StartingKillPoints",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "OverallKillPointsDelta",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "KillPointsDelta12Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "KillPointsDelta6Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    },
+    {
+      "table": "SUMMARY_CHANGE_EXPORT",
+      "column": "KillPointsDelta3Months",
+      "before": "float",
+      "after": "bigint",
+      "nullable": true
+    }
+  ],
+  "rounding": "All eight metrics: exact decimal intermediate, nearest whole number, halfway away from zero; replaces bigint AVG truncation in healed/ranged/kill-points.",
+  "legacyHistoryTablesUnchanged": [
+    "D12",
+    "D3",
+    "D6",
+    "DALL",
+    "HEALED_ALL",
+    "HEALED_D12",
+    "HEALED_D3",
+    "HEALED_D6",
+    "K12",
+    "K3",
+    "K412",
+    "K43",
+    "K46",
+    "K4ALL",
+    "K512",
+    "K53",
+    "K56",
+    "K5ALL",
+    "K6",
+    "KALL",
+    "KILLPOINTS_ALL",
+    "KILLPOINTS_D12",
+    "KILLPOINTS_D3",
+    "KILLPOINTS_D6",
+    "P12",
+    "P3",
+    "P6",
+    "PALL",
+    "RANGED_ALL",
+    "RANGED_D12",
+    "RANGED_D3",
+    "RANGED_D6"
+  ],
+  "modules": {
+    "DEADSSUMMARY_PROC": {
+      "beforeSHA256": "fb4ebfbc2dfa423cf721b6c63a4a3f2790a7eeab86d5c928b07a9528cc3fab55",
+      "afterSHA256": "44bb3107bf4027da35b90eda05020605ba0323d817c47f51868ecd0081ca934e"
+    },
+    "POWERSUMMARY_PROC": {
+      "beforeSHA256": "4ff5d396c5946956d0559dee2f1b178de05d2f6295769a44cecc05ca52452755",
+      "afterSHA256": "fad1920769b3b965b3f9b4ac4a6b41995456d64ada20ae14a2a35ba89e6fe531"
+    },
+    "KILLSSUMMARY_PROC": {
+      "beforeSHA256": "e05cf0336d1215168511c44f8f2b2a7da98c39f3b07cc2f4b9eaafadf546613b",
+      "afterSHA256": "313fc58b56b4a091f9b6c0ffc240822d112f28e074c1bc43ef74c87c696d7e0a"
+    },
+    "KT4SUMMARY_PROC": {
+      "beforeSHA256": "ca8eac1f81fcfd22f47978dfaacf4d17bb6afc61db9913a7ab8e729f207a5cf5",
+      "afterSHA256": "ce16b6730455e963f9f9bad1b310320d0fc2900539b4fbfaab9859d213d45916"
+    },
+    "KT5SUMMARY_PROC": {
+      "beforeSHA256": "8d34d827656aa1add90a368e48eb8510caa5a7bad26e49ff1452f79d6cda601c",
+      "afterSHA256": "2de8d0aa3bc02a6a807a30672c5d0d23e3200c140bd4d5f1b9a92af5f053aa2e"
+    },
+    "KILLPOINTSSUMMARY_PROC": {
+      "beforeSHA256": "66ef0b33cab1eb5c149f5865035c19d2c09e371e360e6248f4f52b3f3e28ed90",
+      "afterSHA256": "ceccae4b89cdb4f14ebdd61dae08ae5c955c4a0eefb90d0224ef0b61d67266a0"
+    },
+    "HEALEDSUMMARY_PROC": {
+      "beforeSHA256": "7965775e6ccaa821ec481e3cf19a2fc965ab6bbb8f6b97cb645f3d14804fe5cb",
+      "afterSHA256": "4dfbda025f64790a6b08c31d1f62ebc6ed91bfcc0a6024ad26a7fdb9a20fe3cf"
+    },
+    "RANGEDSUMMARY_PROC": {
+      "beforeSHA256": "ee8d39c7026234fa882b7fa191d8bca95c2708deeec94fcd4a1bf3859e0909c2",
+      "afterSHA256": "a8f0d7772d9791a11560a2bfc09fac7edddf131e6978102799226f4f6e7fab3a"
+    },
+    "HEALEDSUMMARY_PROC_OPT": {
+      "beforeSHA256": "9c92d7d16d0d7480a5babbf07ef3a7fa0ee4806b1dc84e27da63e3ed54b96187",
+      "afterSHA256": "193457fe9d4b9a3b09be6b358d699866888a99236a56f982869165ead1101bed"
+    },
+    "SUMMARY_PROC": {
+      "beforeSHA256": "b1173737378a1990b7f416901bda64ce8ba7b0b58322f57cdccf6fa5a070e2f7",
+      "afterSHA256": "b1173737378a1990b7f416901bda64ce8ba7b0b58322f57cdccf6fa5a070e2f7"
+    },
+    "GOVERNOR_NAMES_PROC": {
+      "beforeSHA256": "8c9526ae9711318eaeb08a4c3f2f5f9fc22edb46e595bead17faf523ef2b8d07",
+      "afterSHA256": "8c9526ae9711318eaeb08a4c3f2f5f9fc22edb46e595bead17faf523ef2b8d07"
+    }
+  }
+}

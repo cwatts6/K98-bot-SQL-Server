@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[CREATE_DASH2]') AND type in (N'P', N'PC'))
 BEGIN
@@ -433,6 +433,8 @@ BEGIN
     DROP TABLE IF EXISTS #RankingGroups;
     DROP TABLE IF EXISTS #Aggregated;
 
+    EXEC dbo.usp_ApplyReportGovernorNames @Report=N'DASH';
+    EXEC dbo.usp_ApplyReportGovernorNames @Report=N'EXCEL_FOR_DASHBOARD';
     SET NOCOUNT OFF;
 END
 

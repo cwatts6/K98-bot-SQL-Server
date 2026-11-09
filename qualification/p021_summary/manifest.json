@@ -1,0 +1,76 @@
+{
+  "base": "dad628c7a353cc6391868d097a6ae5fb7a8d9e84",
+  "historyTables": [
+    "D12",
+    "D3",
+    "D6",
+    "DALL",
+    "HEALED_ALL",
+    "HEALED_D12",
+    "HEALED_D3",
+    "HEALED_D6",
+    "K12",
+    "K3",
+    "K412",
+    "K43",
+    "K46",
+    "K4ALL",
+    "K512",
+    "K53",
+    "K56",
+    "K5ALL",
+    "K6",
+    "KALL",
+    "KILLPOINTS_ALL",
+    "KILLPOINTS_D12",
+    "KILLPOINTS_D3",
+    "KILLPOINTS_D6",
+    "P12",
+    "P3",
+    "P6",
+    "PALL",
+    "RANGED_ALL",
+    "RANGED_D12",
+    "RANGED_D3",
+    "RANGED_D6"
+  ],
+  "modules": {
+    "DEADSSUMMARY_PROC": {
+      "beforeSHA256": "13650af18d728953e51c20eb64a3ac3c9916ee8587c609e153fa6fe181bfdb8f",
+      "afterSHA256": "fb4ebfbc2dfa423cf721b6c63a4a3f2790a7eeab86d5c928b07a9528cc3fab55"
+    },
+    "POWERSUMMARY_PROC": {
+      "beforeSHA256": "5671a9309c3641151303bd604758d90d1fb3a527c895e93500174ee59351723e",
+      "afterSHA256": "4ff5d396c5946956d0559dee2f1b178de05d2f6295769a44cecc05ca52452755"
+    },
+    "KILLSSUMMARY_PROC": {
+      "beforeSHA256": "6283736e0e39ccb16463f04fc922063b3beaf495aa41b0811927357a0b73d545",
+      "afterSHA256": "e05cf0336d1215168511c44f8f2b2a7da98c39f3b07cc2f4b9eaafadf546613b"
+    },
+    "KT4SUMMARY_PROC": {
+      "beforeSHA256": "88dc183f6a04e733d23368d8fed8209f3a747fc67569e74954de32006a6e8f26",
+      "afterSHA256": "ca8eac1f81fcfd22f47978dfaacf4d17bb6afc61db9913a7ab8e729f207a5cf5"
+    },
+    "KT5SUMMARY_PROC": {
+      "beforeSHA256": "dcb4a2bf13f848db44897429bb001a25037fa2055d07d4a4ebb1b8995ab7929b",
+      "afterSHA256": "8d34d827656aa1add90a368e48eb8510caa5a7bad26e49ff1452f79d6cda601c"
+    },
+    "KILLPOINTSSUMMARY_PROC": {
+      "beforeSHA256": "ed259e5aa1bd84997d8a3a73fdadec42665d98533ffb9090597fd0f7a66acae9",
+      "afterSHA256": "66ef0b33cab1eb5c149f5865035c19d2c09e371e360e6248f4f52b3f3e28ed90"
+    },
+    "HEALEDSUMMARY_PROC": {
+      "beforeSHA256": "6ad9dad105bfcac633379165b7402f0aca4f1864c38858b0d5ccaf117d548ba0",
+      "afterSHA256": "7965775e6ccaa821ec481e3cf19a2fc965ab6bbb8f6b97cb645f3d14804fe5cb"
+    },
+    "RANGEDSUMMARY_PROC": {
+      "beforeSHA256": "ea30ab61373df230316dae3d2e77ce083c557837e65f10135f51424993ade13a",
+      "afterSHA256": "ee8d39c7026234fa882b7fa191d8bca95c2708deeec94fcd4a1bf3859e0909c2"
+    },
+    "HEALEDSUMMARY_PROC_OPT": {
+      "beforeSHA256": "1d209737ad952b90ed8a4ce1ae9100ff75ee80e98901621955aa06bec4dee1ff",
+      "afterSHA256": "9c92d7d16d0d7480a5babbf07ef3a7fa0ee4806b1dc84e27da63e3ed54b96187"
+    }
+  },
+  "scope": "Local-only installer and rollback; production signing/consumer qualification remains separate."
+}

@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_ExcelOutput_ByKVK]') AND type in (N'P', N'PC'))
 BEGIN
@@ -538,7 +538,7 @@ BEGIN
         S.[PowerRank]                                                AS [Rank],
         CAST(ROW_NUMBER() OVER (ORDER BY D.[DKP_SCORE] DESC) AS int) AS [KVK_RANK],
         S.[GovernorID]                                               AS [Gov_ID],
-        CAST(S.[GovernorName] AS nvarchar(255))                      AS [Governor_Name],
+        CAST(COALESCE(NM.GovernorName,S.[GovernorName]) AS nvarchar(255)) AS [Governor_Name],
 
         CAST(S.[Power] AS bigint)                                    AS [Starting Power],
         CAST(S.Power_Delta AS bigint)                                AS [Power_Delta],
@@ -644,6 +644,7 @@ BEGIN
         CAST(@pKVK AS int)                                           AS [KVK_NO]
     INTO ' + @ExcelTblFull + N'
     FROM dbo.STAGING_STATS AS S
+    LEFT JOIN dbo.v_ReportGovernorNames NM ON NM.GovernorID=S.GovernorID
     LEFT JOIN #HD1  AS HD ON S.GovernorID = HD.GovernorID
     LEFT JOIN ' + @TargetsTblFull + N' AS T ON T.GovernorID = S.GovernorID
     LEFT JOIN #DKP  AS D  ON D.GovernorID = S.GovernorID

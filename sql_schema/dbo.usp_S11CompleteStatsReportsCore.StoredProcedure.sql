@@ -48,6 +48,13 @@ BEGIN
             WHERE PreparationID=@ExportPreparationID;
         COMMIT;
         IF @CompletedStage=3 RETURN;
+        -- One display-name list for this report batch; metrics retain original grouping.
+        CREATE TABLE #P02ReportNames (
+            GovernorID bigint NOT NULL PRIMARY KEY,
+            GovernorName nvarchar(255) COLLATE Latin1_General_CI_AS NOT NULL
+        );
+        INSERT #P02ReportNames SELECT GovernorID,GovernorName FROM dbo.v_ReportGovernorNames;
+
         SET @StartTime=COALESCE(@StartTime,GETDATE());
 
         -- *** NEW: Check log space at Phase B start ***
@@ -482,6 +489,8 @@ BEGIN
         SET @CurrentAuditPhase = N'update_all2_governor_names';
         SET @StepStart = SYSUTCDATETIME();
         EXEC dbo.GOVERNOR_NAMES_PROC;
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'CompletedReports';
+
         SET @StepEnd = SYSUTCDATETIME();
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
         INSERT INTO @UpdateAll2PhaseAudit

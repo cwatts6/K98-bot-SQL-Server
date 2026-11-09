@@ -1,0 +1,536 @@
+{
+  "D12D": [
+    {
+      "name": "IX_D12D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_D12D_GovernorID] ON [dbo].[D12D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "D3D": [
+    {
+      "name": "IX_D3D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_D3D_GovernorID] ON [dbo].[D3D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "D6D": [
+    {
+      "name": "IX_D6D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_D6D_GovernorID] ON [dbo].[D6D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "DEADSSUMMARY": [
+    {
+      "name": "IX_DEADSSUMMARY_PowerRank",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "PowerRank",
+          "ASC"
+        ]
+      ],
+      "includes": [
+        "DEADS",
+        "StartingDEADS",
+        "OverallDEADSDelta",
+        "DEADSDelta12Months",
+        "DEADSDelta6Months",
+        "DEADSDelta3Months"
+      ],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_DEADSSUMMARY_PowerRank] ON [dbo].[DEADSSUMMARY]\n(\n\t[PowerRank] ASC\n)\nINCLUDE([DEADS],[StartingDEADS],[OverallDEADSDelta],[DEADSDelta12Months],[DEADSDelta6Months],[DEADSDelta3Months]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_DEADSSUMMARY_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_DEADSSUMMARY_GovernorID] ON [dbo].[DEADSSUMMARY]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K12D": [
+    {
+      "name": "IX_K12D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K12D_GovernorID] ON [dbo].[K12D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K3D": [
+    {
+      "name": "IX_K3D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K3D_GovernorID] ON [dbo].[K3D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K412D": [
+    {
+      "name": "IX_K412D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K412D_GovernorID] ON [dbo].[K412D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K43D": [
+    {
+      "name": "IX_K43D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K43D_GovernorID] ON [dbo].[K43D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K46D": [
+    {
+      "name": "IX_K46D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K46D_GovernorID] ON [dbo].[K46D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K512D": [
+    {
+      "name": "IX_K512D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K512D_GovernorID] ON [dbo].[K512D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K53D": [
+    {
+      "name": "IX_K53D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K53D_GovernorID] ON [dbo].[K53D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K56D": [
+    {
+      "name": "IX_K56D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K56D_GovernorID] ON [dbo].[K56D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "K6D": [
+    {
+      "name": "IX_K6D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_K6D_GovernorID] ON [dbo].[K6D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "KILL4SUMMARY": [
+    {
+      "name": "UX_KILL4SUMMARY_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_KILL4SUMMARY_GovernorID] ON [dbo].[KILL4SUMMARY]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "KILL5SUMMARY": [
+    {
+      "name": "UX_KILL5SUMMARY_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_KILL5SUMMARY_GovernorID] ON [dbo].[KILL5SUMMARY]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "KILLPOINTSSUMMARY": [
+    {
+      "name": "IX_KILLPOINTSSUMMARY_PowerRank",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "PowerRank",
+          "ASC"
+        ]
+      ],
+      "includes": [
+        "KillPoints",
+        "StartingKillPoints",
+        "OverallKillPointsDelta",
+        "KillPointsDelta12Months",
+        "KillPointsDelta6Months",
+        "KillPointsDelta3Months"
+      ],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_KILLPOINTSSUMMARY_PowerRank] ON [dbo].[KILLPOINTSSUMMARY]\n(\n\t[PowerRank] ASC\n)\nINCLUDE([KillPoints],[StartingKillPoints],[OverallKillPointsDelta],[KillPointsDelta12Months],[KillPointsDelta6Months],[KillPointsDelta3Months]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_KILLPOINTSSUMMARY_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_KILLPOINTSSUMMARY_GovernorID] ON [dbo].[KILLPOINTSSUMMARY]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "KILLPOINTS_D12D": [],
+  "KILLPOINTS_D3D": [],
+  "KILLPOINTS_D6D": [],
+  "KILLPOINTS_LATEST": [
+    {
+      "name": "UX_KILLPOINTS_LATEST_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_KILLPOINTS_LATEST_GovernorID] ON [dbo].[KILLPOINTS_LATEST]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "KILLSUMMARY": [
+    {
+      "name": "UX_KILLSUMMARY_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_KILLSUMMARY_GovernorID] ON [dbo].[KILLSUMMARY]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "LATEST": [
+    {
+      "name": "IX_LATEST_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_LATEST_GovernorID] ON [dbo].[LATEST]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_LATEST_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_LATEST_GovernorID] ON [dbo].[LATEST]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "LATEST_POWER": [
+    {
+      "name": "IX_LATEST_POWER_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_LATEST_POWER_GovernorID] ON [dbo].[LATEST_POWER]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_LATEST_POWER_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_LATEST_POWER_GovernorID] ON [dbo].[LATEST_POWER]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "LATEST_T4&T5_KILLS": [
+    {
+      "name": "IX_LATEST_T4T5_KILLS_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_LATEST_T4T5_KILLS_GovernorID] ON [dbo].[LATEST_T4&T5_KILLS]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_LATEST_T4T5_KILLS_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_LATEST_T4T5_KILLS_GovernorID] ON [dbo].[LATEST_T4&T5_KILLS]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "LATEST_T4_KILLS": [
+    {
+      "name": "IX_LATEST_T4_KILLS_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_LATEST_T4_KILLS_GovernorID] ON [dbo].[LATEST_T4_KILLS]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_LATEST_T4_KILLS_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_LATEST_T4_KILLS_GovernorID] ON [dbo].[LATEST_T4_KILLS]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "LATEST_T5_KILLS": [
+    {
+      "name": "IX_LATEST_T5_KILLS_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_LATEST_T5_KILLS_GovernorID] ON [dbo].[LATEST_T5_KILLS]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_LATEST_T5_KILLS_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_LATEST_T5_KILLS_GovernorID] ON [dbo].[LATEST_T5_KILLS]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "P12D": [
+    {
+      "name": "IX_P12D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_P12D_GovernorID] ON [dbo].[P12D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "P3D": [
+    {
+      "name": "IX_P3D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_P3D_GovernorID] ON [dbo].[P3D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "P6D": [
+    {
+      "name": "IX_P6D_GovernorID",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_P6D_GovernorID] ON [dbo].[P6D]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "POWERSUMMARY": [
+    {
+      "name": "IX_POWERSUMMARY_PowerRank",
+      "unique": false,
+      "type": 2,
+      "keys": [
+        [
+          "PowerRank",
+          "ASC"
+        ]
+      ],
+      "includes": [
+        "Power",
+        "StartingPower",
+        "OverallPowerDelta",
+        "PowerDelta12Months",
+        "PowerDelta6Months",
+        "PowerDelta3Months"
+      ],
+      "sql": "CREATE NONCLUSTERED INDEX [IX_POWERSUMMARY_PowerRank] ON [dbo].[POWERSUMMARY]\n(\n\t[PowerRank] ASC\n)\nINCLUDE([Power],[StartingPower],[OverallPowerDelta],[PowerDelta12Months],[PowerDelta6Months],[PowerDelta3Months]) WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    },
+    {
+      "name": "UX_POWERSUMMARY_GovernorID",
+      "unique": true,
+      "type": 2,
+      "keys": [
+        [
+          "GovernorID",
+          "ASC"
+        ]
+      ],
+      "includes": [],
+      "sql": "CREATE UNIQUE NONCLUSTERED INDEX [UX_POWERSUMMARY_GovernorID] ON [dbo].[POWERSUMMARY]\n(\n\t[GovernorID] ASC\n)WITH (PAD_INDEX = OFF, STATISTICS_NORECOMPUTE = OFF, SORT_IN_TEMPDB = OFF, IGNORE_DUP_KEY = OFF, DROP_EXISTING = OFF, ONLINE = OFF, ALLOW_ROW_LOCKS = ON, ALLOW_PAGE_LOCKS = ON, OPTIMIZE_FOR_SEQUENTIAL_KEY = OFF) ON [PRIMARY]"
+    }
+  ],
+  "SUMMARY_CHANGE_EXPORT": []
+}

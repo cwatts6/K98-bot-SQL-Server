@@ -1,17 +1,17 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[POWERSUMMARY]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[POWERSUMMARY](
-	[GovernorID] [float] NOT NULL,
+	[GovernorID] [bigint] NOT NULL,
 	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
-	[PowerRank] [float] NOT NULL,
-	[Power] [float] NOT NULL,
-	[StartingPower] [float] NULL,
-	[OverallPowerDelta] [float] NULL,
-	[PowerDelta12Months] [float] NULL,
-	[PowerDelta6Months] [float] NULL,
-	[PowerDelta3Months] [float] NULL
+	[PowerRank] [int] NOT NULL,
+	[Power] [bigint] NOT NULL,
+	[StartingPower] [bigint] NULL,
+	[OverallPowerDelta] [bigint] NULL,
+	[PowerDelta12Months] [bigint] NULL,
+	[PowerDelta6Months] [bigint] NULL,
+	[PowerDelta3Months] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[POWERSUMMARY]') AND name = N'IX_POWERSUMMARY_PowerRank')

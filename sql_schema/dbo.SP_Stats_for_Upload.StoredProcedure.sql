@@ -414,6 +414,7 @@ BEGIN
         )
             THROW 52818, 'SP_Stats_for_Upload: post-publication row-shape validation failed.', 1;
 
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'STATS_FOR_UPLOAD';
         SET @FailureStage = N'target-statistics';
         UPDATE STATISTICS dbo.STATS_FOR_UPLOAD WITH FULLSCAN;
 

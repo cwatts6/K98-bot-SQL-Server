@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_RefreshInactiveGovernors]') AND type in (N'P', N'PC'))
 BEGIN
@@ -47,6 +47,7 @@ BEGIN
         INSERT INTO SP_ExecutionLog (ProcedureName, Status, EndTime)
         VALUES ('sp_RefreshInactiveGovernors', 'Success', GETDATE());
 
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'INACTIVE_GOVERNORS';
         COMMIT TRANSACTION;
     END TRY
 

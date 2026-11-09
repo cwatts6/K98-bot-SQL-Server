@@ -1,9 +1,9 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[KILLPOINTS_LATEST]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[KILLPOINTS_LATEST](
-	[GovernorID] [float] NOT NULL,
+	[GovernorID] [bigint] NOT NULL,
 	[GovernorName] [nvarchar](255) COLLATE Latin1_General_CI_AS NULL,
 	[PowerRank] [int] NULL,
 	[KillPoints] [bigint] NULL,
