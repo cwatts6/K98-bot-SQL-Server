@@ -62,6 +62,17 @@ function Invoke-K98ModuleQuery($Connection,$Transaction,[string]$Sql,[hashtable]
  throw ('Unexpected test query: '+$Sql)
 }
 function Assert-K98ModuleImages($Connection,$Transaction,$Loaded,[bool]$After){}
+# The actual production SERVERPROPERTY value in the sealed inventory is mini_AMD.
+foreach($serverCase in @('MINI_AMD','mini_AMD','mini_amd','MiNi_AmD')){
+ $script:server=$serverCase
+ Require ((Get-K98Phase1SnapshotState $null) -eq 0) ('Observed host spelling accepted: '+$serverCase)
+}
+Require ($script:alterCalls -eq 0) 'Target spelling validation makes no setting change'
+foreach($wrongServer in @('MINI_AMD\OTHER','MINI_AMD2','MINI-AMD',' MINI_AMD','MINI_AMD ')){
+ $script:server=$wrongServer
+ Reject {Get-K98Phase1SnapshotState $null} 'Exact Phase 1 target' ('Different target refused: '+$wrongServer)
+}
+$script:server='MINI_AMD'
 Enable-K98Phase1Snapshot $null
 Require ($script:state -eq 1 -and $script:alterCalls -eq 1) 'One setting change reaches stable ON'
 Enable-K98Phase1Snapshot $null
