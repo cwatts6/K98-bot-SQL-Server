@@ -36,7 +36,11 @@ SELECT CONVERT(nvarchar(128),SERVERPROPERTY('ServerName')) AS server_name,
 '@
     if($rows.Count -ne 1){throw 'Exact Phase 1 database state required'}
     $state=$rows[0]
-    if($state.server_name -cne 'MINI_AMD' -or $state.database_name -cne 'ROK_TRACKER' -or $state.is_read_committed_snapshot_on -or $state.is_read_only -or $state.user_access -ne 0){throw 'Exact Phase 1 target and unchanged read-committed mode required'}
+    # Windows server-name casing is not identity: the inventoried host reports mini_AMD.
+    # No trimming, alias, instance or database-name widening is permitted.
+    if($state.server_name -ine 'MINI_AMD' -or $state.database_name -cne 'ROK_TRACKER' -or $state.is_read_committed_snapshot_on -or $state.is_read_only -or $state.user_access -ne 0){
+        throw ('Exact Phase 1 target and unchanged read-committed mode required; observed server={0}, database={1}, RCSI={2}, read_only={3}, user_access={4}' -f $state.server_name,$state.database_name,$state.is_read_committed_snapshot_on,$state.is_read_only,$state.user_access)
+    }
     if($state.snapshot_isolation_state -notin @(0,1)){throw 'Snapshot setting is transitioning; preserve same-release evidence and inspect status, do not repeat ALTER'}
     return [int]$state.snapshot_isolation_state
 }
