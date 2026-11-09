@@ -46,3 +46,6 @@ sql_schema/dbo.usp_ExportExecutionStreamTransition.StoredProcedure.sql text eol=
 sql_schema/dbo.usp_ExportProviderRequestEventAppend.StoredProcedure.sql text eol=lf
 sql_schema/dbo.usp_ExportReconciliationProofIssue.StoredProcedure.sql text eol=lf
 migrations/20261023_001_legacy_export_closeout.sql text eol=lf
+
+# Phase 1 release authenticates the exact committed migration bytes.
+migrations/20261109_001_p02_phase1_sql_exports.sql text eol=lf
