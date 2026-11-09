@@ -1,0 +1,326 @@
+{
+  "version": 1,
+  "profile": "p02_phase1_v1",
+  "migration_id": "20261109_001_p02_phase1_sql_exports",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "requires": [
+    {
+      "migration_id": "20261003_001_export_legacy_direct_permissions",
+      "sha256": "06ae12fe70cd66778f6ef41cdeebc0f614fa82894712215d018f4d042812c58e",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261008_001_sql_auth_import_file_visibility",
+      "sha256": "dde9189ac05cb699b2114775eef5769b7ab7e629b63d4c1681427d53ed3c5aaf",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261010_002_stats_import_outcomes_encoding",
+      "sha256": "3792c37de9642cdb33579a4afec820f9d21a4eb14e8388281f3c40eed01c5aa9",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261022_001_p0_pipeline_receipts",
+      "sha256": "90bba6abaef59f24f027d9059d0d41b7d944b06bc311e6bde761a574adc88f87",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261106_001_personal_stats_daily_read_plan",
+      "sha256": "bb0e3161d8c3df96452e2631dfcbb8bbb9e0637877631624716129e76d7129a8",
+      "status": "Applied"
+    }
+  ],
+  "script": {
+    "file": "20261109_001_p02_phase1_sql_exports.sql",
+    "sha256": "6cc6cb23b0af1123d7c86b4e47c2485880aee0cbfc097b2b5306a746da8a23fb"
+  },
+  "images": [
+    {
+      "name": "dbo.CREATE_DASH",
+      "before": "e21a586706465d0c63ab7b92689aab99bef7ab6095db7246743484e7792591bc",
+      "after": "0caa0606708308baa708980d4becead593a5fc42eaee16ac74c0283e8458c4c3"
+    },
+    {
+      "name": "dbo.CREATE_DASH2",
+      "before": "fcebcb8f8c6bd2f5481b2805f075bdb3323b078c753ddf7be44582320ca1b4c8",
+      "after": "5240b2ffad75b96da9a11fd08d1dbd60b866875769a954a13f069ec6730a97c6"
+    },
+    {
+      "name": "dbo.D12D",
+      "before": "10f698888e76800c9cd7e944cfcc43f3452043d07a4a703d84d8b28cdda279cd",
+      "after": "035243cb16530ff66b3043be873b8dbef97e7a17d1bae5761482888e12a861a8"
+    },
+    {
+      "name": "dbo.D3D",
+      "before": "9850ce09fb96d559ab6cf9986a3ec28745f0d95083253575facb900595dda6cc",
+      "after": "d09f6592ea1856797a7fcb98d18cbeb3420175a56e2b0000307eb83d69e39631"
+    },
+    {
+      "name": "dbo.D6D",
+      "before": "fe000e4046230e13954e452913d67c03fef36fc4d7ff3e83b36af98b1f5b031c",
+      "after": "8dbc65fbb5290831489557c29d096131737b456c44962cd3b48409fcdd570f46"
+    },
+    {
+      "name": "dbo.DEADSSUMMARY",
+      "before": "9b4283cabf909d01ff5cd93fc16f5ac78a0044002d17b1d8d701b9f8128197e8",
+      "after": "75fd4ec4fd8b724d8fb903c882f9177ab33ce4f602dffd2ed5b3424b15a4f65e"
+    },
+    {
+      "name": "dbo.DEADSSUMMARY_PROC",
+      "before": "a2b0438898066d65d7337cad2a2d5170dfc3c8a611ba432698bdd1114d33c267",
+      "after": "bad0b2204a8b5fd0a8d0d978844a60c85ecc87652856c55b5617d009f4bca259"
+    },
+    {
+      "name": "dbo.GOVERNOR_NAMES_PROC",
+      "before": "d09000421692d886b06de2b4c0fc1493bf9b36d8a98993fbdc9d337e47ddd959",
+      "after": "bbd67f1b1f23e0cf4873fe7c91a92ff90702571c6f778ed4ac59125bc7732fc5"
+    },
+    {
+      "name": "dbo.HEALEDSUMMARY_PROC",
+      "before": "5f4caa1e94a46b4d6f162d478bc7abec9e2833079655e6051c400296e1294f4d",
+      "after": "e8ff948e0331934e662b58430a073d0c06ec95e20272c652b24ec4c89e5e0eab"
+    },
+    {
+      "name": "dbo.HEALEDSUMMARY_PROC_OPT",
+      "before": "e57c020c65a0d3d57d1ab1c0f845b7c6bd03eeeba1775cf51ca19ff3a201a907",
+      "after": "c9ec0b2d1544f57c7d365e748b95437b22e1d163579dd08dafd34d7ada3cdcbd"
+    },
+    {
+      "name": "dbo.K12D",
+      "before": "a968a40dd050fea73685f65f4f9df8d18d804a9b2a24a8c9273625f54e129954",
+      "after": "ec1ac8f14c42fe2bb509e8476c915d61b9338eac69e6f72e0a1504974ffacda3"
+    },
+    {
+      "name": "dbo.K3D",
+      "before": "095fb5ee5720a693f8bf7371bc0a63ffdbb8247b8f2b14aea57ffe10d996f79d",
+      "after": "3de5c9b5620fee9052a3a22b0c775851512ccf0fcd867694d93ac626dc1c4b7e"
+    },
+    {
+      "name": "dbo.K412D",
+      "before": "e4f11404d4a0c46fa9c63aebf812bf90f9ff27043e440bf8a0c38867d454d69b",
+      "after": "64633270cc35336b64499cc2ff7f621c6c300c31b97d52275c9489cae428a12d"
+    },
+    {
+      "name": "dbo.K43D",
+      "before": "ad6925cb5d0ab584c0e8d0b82d04a5408e2b116f03345b5fff8341ec6ad2411e",
+      "after": "f82e490176376a17e2fb4b7b2325b875c4b6e30c96dad2ff86e880e6c28a0aa1"
+    },
+    {
+      "name": "dbo.K46D",
+      "before": "39d061a831d1371982171f4365035e632fefcea1f5f1c459acbd34568a08e661",
+      "after": "12a25aaa38740f9fcc32737352e67622123098f0c90c2f5952caf6b86793c2ca"
+    },
+    {
+      "name": "dbo.K512D",
+      "before": "af81d57cf7788280f95e5573af931f03f53caafdb270e2d7f0b3563bdfeca7e3",
+      "after": "fe724934b7be79d0963a2160487224cb49ff45917868cbd68a5a2775e91649b4"
+    },
+    {
+      "name": "dbo.K53D",
+      "before": "f6787b4ff9c2c0e7e264bc223f1be2b60e19c8ee7d3891c40ca758a6fdae04d9",
+      "after": "c5e89a62ff1413ffd9ebe5ce2ac4919b632fc2840252ff22c2712e184a1b4d42"
+    },
+    {
+      "name": "dbo.K56D",
+      "before": "1046a9e7223d37c7a5020b303c25ae97467063184b089c4321cdf5175124eab4",
+      "after": "8bba8475427dbade74a1d52bfc4c42b9bdad58bc365a8a18ca38eb1c8b6ec7c1"
+    },
+    {
+      "name": "dbo.K6D",
+      "before": "64b53c2abae68c93be95af8ffda991d9c86736ecdb486ca6b6a473272f9f8b7c",
+      "after": "6dc11a400b7bfec3e37edc86ac5088252d89389f7028020633f3306ba42993c9"
+    },
+    {
+      "name": "dbo.KILL4SUMMARY",
+      "before": "b23ae5ce20a65c6f8138202ae96089a5f74f3d1975111ff8a69745e231114c04",
+      "after": "4850924bc95d8adbdabb70ce1e794e5a1522a38f6162acf0a74f8070e03637a7"
+    },
+    {
+      "name": "dbo.KILL5SUMMARY",
+      "before": "819d65eab06ef2a5cd97522ad4a23173fb7bf4de35e3953ba039dc4b5489373d",
+      "after": "ed0f1c4d36d2c263779adc7a0f2aaf706ef452947a62248a404fe56717fe593e"
+    },
+    {
+      "name": "dbo.KILLPOINTSSUMMARY",
+      "before": "7cb2c5d052e304d120cc674cf3e5a57d0d688990882af5d0f42eb268b868cb43",
+      "after": "4c9a10789be6544a9bffadef2592d5a34cdd8dfe8a72e072914299eb0b84d936"
+    },
+    {
+      "name": "dbo.KILLPOINTSSUMMARY_PROC",
+      "before": "8617ada28a7b76a7872b9abf506c09b7c2a0fe9cb059460b30ce0f8dd7e5723f",
+      "after": "e99e4e0b086c3234009c7c07d2457ef69fe0469b4639b234c6c0240c4575de1d"
+    },
+    {
+      "name": "dbo.KILLPOINTS_D12D",
+      "before": "12e0323986322b6a54786ca277ae2724a3226acc8b9e0e02ae49e4a641557fb7",
+      "after": "ec74184cba7c54fd0eca7b9d5860e409c491346c97a581596223b8bf8dec0f2a"
+    },
+    {
+      "name": "dbo.KILLPOINTS_D3D",
+      "before": "5ba03942b70593364b534c48a9f042b1b48f2171315d320fd5cae7eabe46c428",
+      "after": "e4b3fecadce19587937ec7403275614af1372f3b59f68d278a1775ef376bffb3"
+    },
+    {
+      "name": "dbo.KILLPOINTS_D6D",
+      "before": "113af33fe325e0c572f4c6bc73b7ae676d7202d8b60321aad4cc68cd4e320960",
+      "after": "223ddd617b6b270108084df4b5552cb8be0053e52cdeaece445d588b511bb447"
+    },
+    {
+      "name": "dbo.KILLPOINTS_LATEST",
+      "before": "6242f052ba22457824a2a60b3b946e07effb4f014417c18aeede34ecbef4c66a",
+      "after": "0955d962780e11b22fb9994e2e579348212306ec0d59d6049230ba0aa0fbbc48"
+    },
+    {
+      "name": "dbo.KILLSSUMMARY_PROC",
+      "before": "e490131984bd6a2bbd6556cc1121f39d6e28730ad19e59e39407ab32be54434c",
+      "after": "a260f25eab2a4ab42fa5c25ffffa64cafbd18ec235f2c460a72891bbb8e69544"
+    },
+    {
+      "name": "dbo.KILLSUMMARY",
+      "before": "21d1423ab6bfa0231c904d3a77e04269f94616e14a7636923c0d52b8f63ba6e0",
+      "after": "a4daf773cff55b797c2db37a365fb905aa445cf4f17a739acd9f42abc8a06822"
+    },
+    {
+      "name": "dbo.KT4SUMMARY_PROC",
+      "before": "4fa70edfbaba777dd79d244de44ad62f4d61dd642fbb99def83142758faae3d2",
+      "after": "e861a8d23727c67e21f916c5a89f91f5ce738fd76cb60d2a94ae2dd39c6750ec"
+    },
+    {
+      "name": "dbo.KT5SUMMARY_PROC",
+      "before": "9da0c6bf8a58d23a188bdd81ef58d712a1dfedb44399c19af6acfd917ebe17fe",
+      "after": "fd7fb92caae4d7e1e685e1bf2d83fd63a097e104634f2289c619c8a0ec8e15d3"
+    },
+    {
+      "name": "dbo.LATEST",
+      "before": "91ac6f554e277efb831169da6f5659bf0a3edab3d66b0cec2b829a80f51bf240",
+      "after": "3b901f3a55faaeb92d3b65a2d200d9a27846c092af64147446969ceae8117099"
+    },
+    {
+      "name": "dbo.LATEST_POWER",
+      "before": "7ec024228bb88cdf416785b9ffc88c0c33be311d11cc7e8113135f95800e9f0e",
+      "after": "27b8bd06f75c30880c0a04b6c4c84c280478df3d71a2c6f12b32bcc649955f81"
+    },
+    {
+      "name": "dbo.LATEST_T4&T5_KILLS",
+      "before": "6ba76e13448e5a3a3e65c944fa8b9eabd36335bb1be04b5ef703fba56ebffa4d",
+      "after": "afa0cee7013f939f51eda362151cb9a1916ed9a17383c77d1837a844359d4491"
+    },
+    {
+      "name": "dbo.LATEST_T4_KILLS",
+      "before": "772633b6aaf7d44861057954c0a4ef23c8780b79cbdf2837161ab1aeca6a5bad",
+      "after": "f2774f5e05cb8fbf63e6d688fe9e7181e743a1c5e556f5bf9983f6990fa14632"
+    },
+    {
+      "name": "dbo.LATEST_T5_KILLS",
+      "before": "28dc17f35ae29f838be4db2a3cefdf7ad020d9034bbdc68bf36234c70931828f",
+      "after": "1cf6a57a1a77ecbbbd2f1b2c11f8879ccc08f40a81e200b8c895577e39b23285"
+    },
+    {
+      "name": "dbo.P12D",
+      "before": "8f9b1937b95eedccc8961520b65522ded46277e86fc77da9303313b79b585b12",
+      "after": "5a75dd3cda629e04bb2a1dcb03001676862926f1143cd880d360cddd6d18293b"
+    },
+    {
+      "name": "dbo.P3D",
+      "before": "f45c6ed84066afded8efe4e9ac44b36af6327f9c13e97a14c2488b7e70c65253",
+      "after": "b0ca8427e945988d9c18c1fbb3eb63ed9f9e8693299b6da415684bbc55602e23"
+    },
+    {
+      "name": "dbo.P6D",
+      "before": "54741f073d3d7cdd46a4dad75eb3cab1aa82f78d62e995943a900aa11fc9b6c8",
+      "after": "4b797a3b82035934f5664a50f55083af086c1f4652421134e5a1faaee491eaeb"
+    },
+    {
+      "name": "dbo.POWERSUMMARY",
+      "before": "d55827e0a5c52351a7e94424623abc49842abd6b8da805d9d825e6d0ff5b2520",
+      "after": "0538a51b480f496436fcd12b282ec9bf2988f630ef4f9e8413aba8df2014b7e9"
+    },
+    {
+      "name": "dbo.POWERSUMMARY_PROC",
+      "before": "c0ca5df792fe64f87f1af141b74065a916de752eabb920ec39a41f909b421645",
+      "after": "d1025e9aa2c5341065ebb0fb81be4d0c436eaf7433d37bd3eab9a8823f77b21b"
+    },
+    {
+      "name": "dbo.RANGEDSUMMARY_PROC",
+      "before": "472c393ad56dc19dd6ea2da8d257c337db0f0195b501168912f7c46f9dac8042",
+      "after": "0d834afe74fcd29d26b8e022adb4887159b3a1c7944742a71c75d909b6a5389a"
+    },
+    {
+      "name": "dbo.SP_Stats_for_Upload",
+      "before": "e9a2e3eb8afcaf9e1252dfbf836b614011da8e6c5ec24781a3dd3aa8ec2a393c",
+      "after": "cfb1d4e0491242b0ddb672438d227e1046d15e056bca1403b0716d71d634917f"
+    },
+    {
+      "name": "dbo.SUMMARY_CHANGE_EXPORT",
+      "before": "b361c94d4e42336cdd15c6460a101aed309f3a01ced94379be83e06fa0a1f0d4",
+      "after": "e81dfb2309d5fb31690ed288896b7ce45bc2ae64ff6906fe0bfe209a6422fc9f"
+    },
+    {
+      "name": "dbo.SUMMARY_PROC",
+      "before": "83be1efac42ed64ace5828e9ecf8b4b93a27b2c11a6df4576a83a73a40fe6c3f",
+      "after": "a8641087201ca9e9922fbceab544729dd8253f6835b90a05178e095f5326f7ea"
+    },
+    {
+      "name": "dbo.UPDATE_ALL",
+      "before": "9e909acbc83a9f093fa607a0e5f8444d88f1f553f9ba05178dc8ba391fe16c9b",
+      "after": "3969a21fdc08aa2a4aef5a1332081fe3544c49788225bc8a4193b5164d3842c5"
+    },
+    {
+      "name": "dbo.UPDATE_RALLY_DATA",
+      "before": "16dee82b726a7532bbccc4b1605257a5ff494635ee3bfd0495cbf423ace0f725",
+      "after": "84be327db1970c5642a6687f64399a9b745b54c1e69b608368ecb2809dfc2a96"
+    },
+    {
+      "name": "dbo.sp_ExcelOutput_ByKVK",
+      "before": "2f87d9e2bd326659e2b58e1a4f24fc7ccc7f270e55d4364747b276897d20c9e3",
+      "after": "69a091e26695bf67853284e2b1c0f4a2abf273564c8a799d35e32273e883f02e"
+    },
+    {
+      "name": "dbo.sp_Rebuild_ExcelForDashboard",
+      "before": "43e50930855699b6d79f13ec87d1764b193502b610bafe4ab0d5a22cb42ebf60",
+      "after": "291c7225353ab23049f3e202d7a942cce64a67658874a87c5eab50aa6da0cc7c"
+    },
+    {
+      "name": "dbo.sp_Rebuild_RALLY_EXPORT",
+      "before": "2e1b89a9e9001bb5119a9338679ac6fbb349d83c42bfec8901a69eff4e043243",
+      "after": "203833158bb281a5adb067323da880103bff04e92ce50dd9921c6c729b1b0954"
+    },
+    {
+      "name": "dbo.sp_RefreshInactiveGovernors",
+      "before": "8bfe6e0bdca8ce813a54302cbf503b0028c84010a6362910853a8c70c1070d90",
+      "after": "01bdff3eb8b052477b2393daaf7a25aa925635085d36c5d63003c8f93cfbab61"
+    },
+    {
+      "name": "dbo.sp_TARGETS_MASTER",
+      "before": "fe7fd1151c29eaa073c4c31db193fe1b461874e33f91c9e9abfa236c7071fad5",
+      "after": "66d44e96960bc6b2c660f5e28f56179e492062b42d55465f87685c1073e1f9af"
+    },
+    {
+      "name": "dbo.usp_ApplyReportGovernorNames",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "704310e173b13c8a5032b2ccbab031d8f32697213edcb178b9c77ea21f0469a2"
+    },
+    {
+      "name": "dbo.usp_S11CompleteStatsReportsCore",
+      "before": "1e87cdd3a7fc051e4dd5f9c5319bf6e03a19b93393d34619fe3162014aff6c10",
+      "after": "8a1fbc0a2a0506f6889b83810d1bc1c32682c7b0a6ee9864682888abb43eeeab"
+    },
+    {
+      "name": "dbo.v_PlayerAccounts_Migrate",
+      "before": "b2f62d7df18508c666bc540f7889ab81559322b97cc7407fab4df858ca35dec9",
+      "after": "0a939d779f5e610952cbf619335c595874110e6ca7200f6ae5b139980d0b7c22"
+    },
+    {
+      "name": "dbo.v_ReportGovernorNames",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "d4dc7a2d3b90a76afd56ca9549d02213fdec9237e79713da68d83b26371c7b27"
+    },
+    {
+      "name": "dbo.v_TARGETS_FOR_UPLOAD",
+      "before": "df9c615da100eb6d97bb7e40eb01fd68a8b6e47a3acdaa60ee55bbdcedbda705",
+      "after": "9e749bf9e25d59a8e0fb51ec0d405820301f7a3d1f214a87d7841f03abc42095"
+    }
+  ]
+}

@@ -1,9 +1,9 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[KILLPOINTS_D12D]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[KILLPOINTS_D12D](
-	[GovernorID] [float] NOT NULL,
+	[GovernorID] [bigint] NOT NULL,
 	[KillPointsDelta12Months] [bigint] NULL,
 PRIMARY KEY CLUSTERED 
 (

@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[RANGEDSUMMARY_PROC]') AND type in (N'P', N'PC'))
 BEGIN
@@ -9,6 +9,10 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    -- Direct calls and parent calls share atomic output/state failure semantics.
+    BEGIN TRY
+    BEGIN TRANSACTION;
 
     DECLARE @MetricName NVARCHAR(100) = N'RangedPoints';
     DECLARE @LastProcessed INT = 0;
@@ -37,6 +41,7 @@ BEGIN
 
         IF @MaxScan <= @LastProcessed
         BEGIN
+            COMMIT TRANSACTION;
             RETURN;
         END
 
@@ -60,6 +65,7 @@ BEGIN
             WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
             WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
             VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+        COMMIT TRANSACTION;
             RETURN;
         END
 
@@ -84,9 +90,15 @@ BEGIN
     DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
     DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
-    DELETE ra
-    FROM dbo.RANGED_ALL ra
-    INNER JOIN #AffectedGovs a ON a.GovernorID = ra.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_RANGED_ALL(
+	[GovernorID] [bigint] NOT NULL,
+	[GovernorName] [nvarchar](200) COLLATE Latin1_General_CI_AS NULL,
+	[RangedPoints] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAscALL] [int] NULL,
+	[RowDescALL] [int] NULL
+    );
 
     ;WITH RankedAll AS (
         SELECT g.GovernorID,
@@ -97,9 +109,10 @@ BEGIN
                ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
         FROM #GovScan g
     )
-    INSERT INTO dbo.RANGED_ALL (GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL)
+    INSERT INTO #P021_RANGED_ALL (GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL)
     SELECT GovernorID, GovernorName, RangedPoints, ScanDate, RowAscALL, RowDescALL
-    FROM RankedAll;
+    FROM RankedAll
+    WHERE RowAscALL = 1 OR RowDescALL = 1;
 
     ;WITH LatestScanOrder AS (
         SELECT g.GovernorID, MAX(g.ScanOrder) AS LatestScanOrder
@@ -117,9 +130,14 @@ BEGIN
     WHEN NOT MATCHED THEN INSERT (GovernorID, GovernorName, PowerRank, RangedPoints)
     VALUES (src.GovernorID, src.GovernorName, src.PowerRank, src.RangedPoints);
 
-    DELETE d
-    FROM dbo.RANGED_D3 d
-    INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_RANGED_D3(
+	[GovernorID] [bigint] NOT NULL,
+	[RangedPoints] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAsc3] [int] NULL,
+	[RowDesc3] [int] NULL
+    );
 
     ;WITH RankedD3 AS (
         SELECT g.GovernorID,
@@ -130,13 +148,19 @@ BEGIN
         FROM #GovScan g
         WHERE g.ScanDate >= @Cutoff3
     )
-    INSERT INTO dbo.RANGED_D3 (GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3)
+    INSERT INTO #P021_RANGED_D3 (GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3)
     SELECT GovernorID, RangedPoints, ScanDate, RowAsc3, RowDesc3
-    FROM RankedD3;
+    FROM RankedD3
+    WHERE RowAsc3 = 1 OR RowDesc3 = 1;
 
-    DELETE d
-    FROM dbo.RANGED_D6 d
-    INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_RANGED_D6(
+	[GovernorID] [bigint] NOT NULL,
+	[RangedPoints] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAsc6] [int] NULL,
+	[RowDesc6] [int] NULL
+    );
 
     ;WITH RankedD6 AS (
         SELECT g.GovernorID,
@@ -147,13 +171,19 @@ BEGIN
         FROM #GovScan g
         WHERE g.ScanDate >= @Cutoff6
     )
-    INSERT INTO dbo.RANGED_D6 (GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6)
+    INSERT INTO #P021_RANGED_D6 (GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6)
     SELECT GovernorID, RangedPoints, ScanDate, RowAsc6, RowDesc6
-    FROM RankedD6;
+    FROM RankedD6
+    WHERE RowAsc6 = 1 OR RowDesc6 = 1;
 
-    DELETE d
-    FROM dbo.RANGED_D12 d
-    INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_RANGED_D12(
+	[GovernorID] [bigint] NOT NULL,
+	[RangedPoints] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAsc12] [int] NULL,
+	[RowDesc12] [int] NULL
+    );
 
     ;WITH RankedD12 AS (
         SELECT g.GovernorID,
@@ -164,9 +194,10 @@ BEGIN
         FROM #GovScan g
         WHERE g.ScanDate >= @Cutoff12
     )
-    INSERT INTO dbo.RANGED_D12 (GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12)
+    INSERT INTO #P021_RANGED_D12 (GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12)
     SELECT GovernorID, RangedPoints, ScanDate, RowAsc12, RowDesc12
-    FROM RankedD12;
+    FROM RankedD12
+    WHERE RowAsc12 = 1 OR RowDesc12 = 1;
 
     DELETE d
     FROM dbo.RANGED_D3D d
@@ -174,9 +205,9 @@ BEGIN
 
     INSERT INTO dbo.RANGED_D3D (GovernorID, RangedPointsDelta3Months)
     SELECT L.GovernorID,
-           MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.RangedPoints END) - MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.RangedPoints END)
+           CONVERT(decimal(38,0), MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.RangedPoints END)) - CONVERT(decimal(38,0), MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.RangedPoints END))
     FROM dbo.RANGED_LATEST L
-    LEFT JOIN dbo.RANGED_D3 D3 ON L.GovernorID = D3.GovernorID
+    LEFT JOIN #P021_RANGED_D3 D3 ON L.GovernorID = D3.GovernorID
     INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
     GROUP BY L.GovernorID;
 
@@ -186,9 +217,9 @@ BEGIN
 
     INSERT INTO dbo.RANGED_D6D (GovernorID, RangedPointsDelta6Months)
     SELECT L.GovernorID,
-           MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.RangedPoints END) - MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.RangedPoints END)
+           CONVERT(decimal(38,0), MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.RangedPoints END)) - CONVERT(decimal(38,0), MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.RangedPoints END))
     FROM dbo.RANGED_LATEST L
-    LEFT JOIN dbo.RANGED_D6 D6 ON L.GovernorID = D6.GovernorID
+    LEFT JOIN #P021_RANGED_D6 D6 ON L.GovernorID = D6.GovernorID
     INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
     GROUP BY L.GovernorID;
 
@@ -198,9 +229,9 @@ BEGIN
 
     INSERT INTO dbo.RANGED_D12D (GovernorID, RangedPointsDelta12Months)
     SELECT L.GovernorID,
-           MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.RangedPoints END) - MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.RangedPoints END)
+           CONVERT(decimal(38,0), MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.RangedPoints END)) - CONVERT(decimal(38,0), MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.RangedPoints END))
     FROM dbo.RANGED_LATEST L
-    LEFT JOIN dbo.RANGED_D12 D12 ON L.GovernorID = D12.GovernorID
+    LEFT JOIN #P021_RANGED_D12 D12 ON L.GovernorID = D12.GovernorID
     INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
     GROUP BY L.GovernorID;
 
@@ -208,7 +239,7 @@ BEGIN
         SELECT ra.GovernorID,
                MAX(CASE WHEN ra.RowAscALL = 1 THEN ra.RangedPoints END) AS StartingRanged,
                MAX(CASE WHEN ra.RowDescALL = 1 THEN ra.RangedPoints END) AS EndingRanged
-        FROM dbo.RANGED_ALL ra
+        FROM #P021_RANGED_ALL ra
         INNER JOIN #AffectedGovs a ON a.GovernorID = ra.GovernorID
         GROUP BY ra.GovernorID
     ),
@@ -219,7 +250,7 @@ BEGIN
             L.PowerRank,
             L.RangedPoints,
             F.StartingRanged,
-            F.EndingRanged - F.StartingRanged AS OverallRangedDelta,
+            CONVERT(decimal(38,0), F.EndingRanged) - CONVERT(decimal(38,0), F.StartingRanged) AS OverallRangedDelta,
             ISNULL(R12D.RangedPointsDelta12Months, 0) AS RangedDelta12Months,
             ISNULL(R6D.RangedPointsDelta6Months, 0) AS RangedDelta6Months,
             ISNULL(R3D.RangedPointsDelta3Months, 0) AS RangedDelta3Months
@@ -251,36 +282,36 @@ BEGIN
 
     INSERT INTO dbo.RANGEDSUMMARY (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
     SELECT 999999997, 'Top50', 50,
-           ROUND(AVG(R.RangedPoints), 0),
-           ROUND(AVG(R.StartingRanged), 0),
-           ROUND(AVG(R.OverallRangedDelta), 0),
-           ROUND(AVG(R.RangedDelta12Months), 0),
-           ROUND(AVG(R.RangedDelta6Months), 0),
-           ROUND(AVG(R.RangedDelta3Months), 0)
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedPoints)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.StartingRanged)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.OverallRangedDelta)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta12Months)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta6Months)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta3Months)), 0)
     FROM dbo.RANGEDSUMMARY AS R
     WHERE R.PowerRank <= 50
       AND R.GovernorID NOT IN (999999997, 999999998, 999999999);
 
     INSERT INTO dbo.RANGEDSUMMARY (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
     SELECT 999999998, 'Top100', 100,
-           ROUND(AVG(R.RangedPoints), 0),
-           ROUND(AVG(R.StartingRanged), 0),
-           ROUND(AVG(R.OverallRangedDelta), 0),
-           ROUND(AVG(R.RangedDelta12Months), 0),
-           ROUND(AVG(R.RangedDelta6Months), 0),
-           ROUND(AVG(R.RangedDelta3Months), 0)
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedPoints)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.StartingRanged)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.OverallRangedDelta)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta12Months)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta6Months)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta3Months)), 0)
     FROM dbo.RANGEDSUMMARY AS R
     WHERE R.PowerRank <= 100
       AND R.GovernorID NOT IN (999999997, 999999998, 999999999);
 
     INSERT INTO dbo.RANGEDSUMMARY (GovernorID, GovernorName, PowerRank, RangedPoints, StartingRanged, OverallRangedDelta, RangedDelta12Months, RangedDelta6Months, RangedDelta3Months)
     SELECT 999999999, 'Kingdom Average', 150,
-           ROUND(AVG(R.RangedPoints), 0),
-           ROUND(AVG(R.StartingRanged), 0),
-           ROUND(AVG(R.OverallRangedDelta), 0),
-           ROUND(AVG(R.RangedDelta12Months), 0),
-           ROUND(AVG(R.RangedDelta6Months), 0),
-           ROUND(AVG(R.RangedDelta3Months), 0)
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedPoints)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.StartingRanged)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.OverallRangedDelta)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta12Months)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta6Months)), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), R.RangedDelta3Months)), 0)
     FROM dbo.RANGEDSUMMARY AS R
     WHERE R.PowerRank <= 150
       AND R.GovernorID NOT IN (999999997, 999999998, 999999999);
@@ -291,5 +322,11 @@ BEGIN
     WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
     WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
     VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+    EXEC dbo.usp_ApplyReportGovernorNames @Report=N'RANGEDSUMMARY';
+    COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
-

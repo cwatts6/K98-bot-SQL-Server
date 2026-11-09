@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[HEALEDSUMMARY_PROC_OPT]') AND type in (N'P', N'PC'))
 BEGIN
@@ -91,9 +91,15 @@ BEGIN
         ------------------------------------------------------------
         -- 1) HEALED_ALL: Delete and rebuild for affected governors
         ------------------------------------------------------------
-        DELETE d
-        FROM dbo.HEALED_ALL d
-        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+        -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+        CREATE TABLE #P021_HEALED_ALL(
+	[GovernorID] [bigint] NOT NULL,
+	[GovernorName] [nvarchar](200) COLLATE Latin1_General_CI_AS NULL,
+	[HealedTroops] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAscALL] [int] NULL,
+	[RowDescALL] [int] NULL
+        );
 
         ;WITH RankedAll AS (
             SELECT
@@ -105,16 +111,22 @@ BEGIN
                 ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
             FROM #GovScan g
         )
-        INSERT INTO dbo.HEALED_ALL (GovernorID, GovernorName, HealedTroops, ScanDate, RowAscALL, RowDescALL)
+        INSERT INTO #P021_HEALED_ALL (GovernorID, GovernorName, HealedTroops, ScanDate, RowAscALL, RowDescALL)
         SELECT GovernorID, GovernorName, HealedTroops, ScanDate, RowAscALL, RowDescALL
-        FROM RankedAll;
+        FROM RankedAll
+        WHERE RowAscALL = 1 OR RowDescALL = 1;
 
         ------------------------------------------------------------
         -- Remaining sections unchanged (D12/D6/D3/etc.)
         ------------------------------------------------------------
-        DELETE d
-        FROM dbo.HEALED_D12 d
-        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+        -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+        CREATE TABLE #P021_HEALED_D12(
+	[GovernorID] [bigint] NOT NULL,
+	[HealedTroops] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAsc12] [int] NULL,
+	[RowDesc12] [int] NULL
+        );
 
         ;WITH RankedD12 AS (
             SELECT g.GovernorID,
@@ -125,13 +137,19 @@ BEGIN
             FROM #GovScan g
             WHERE g.ScanDate >= @Cutoff12
         )
-        INSERT INTO dbo.HEALED_D12 (GovernorID, HealedTroops, ScanDate, RowAsc12, RowDesc12)
+        INSERT INTO #P021_HEALED_D12 (GovernorID, HealedTroops, ScanDate, RowAsc12, RowDesc12)
         SELECT GovernorID, HealedTroops, ScanDate, RowAsc12, RowDesc12
-        FROM RankedD12;
+        FROM RankedD12
+        WHERE RowAsc12 = 1 OR RowDesc12 = 1;
 
-        DELETE d
-        FROM dbo.HEALED_D6 d
-        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+        -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+        CREATE TABLE #P021_HEALED_D6(
+	[GovernorID] [bigint] NOT NULL,
+	[HealedTroops] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAsc6] [int] NULL,
+	[RowDesc6] [int] NULL
+        );
 
         ;WITH RankedD6 AS (
             SELECT g.GovernorID,
@@ -142,13 +160,19 @@ BEGIN
             FROM #GovScan g
             WHERE g.ScanDate >= @Cutoff6
         )
-        INSERT INTO dbo.HEALED_D6 (GovernorID, HealedTroops, ScanDate, RowAsc6, RowDesc6)
+        INSERT INTO #P021_HEALED_D6 (GovernorID, HealedTroops, ScanDate, RowAsc6, RowDesc6)
         SELECT GovernorID, HealedTroops, ScanDate, RowAsc6, RowDesc6
-        FROM RankedD6;
+        FROM RankedD6
+        WHERE RowAsc6 = 1 OR RowDesc6 = 1;
 
-        DELETE d
-        FROM dbo.HEALED_D3 d
-        INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID;
+        -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+        CREATE TABLE #P021_HEALED_D3(
+	[GovernorID] [bigint] NOT NULL,
+	[HealedTroops] [bigint] NULL,
+	[ScanDate] [datetime] NULL,
+	[RowAsc3] [int] NULL,
+	[RowDesc3] [int] NULL
+        );
 
         ;WITH RankedD3 AS (
             SELECT g.GovernorID,
@@ -159,9 +183,10 @@ BEGIN
             FROM #GovScan g
             WHERE g.ScanDate >= @Cutoff3
         )
-        INSERT INTO dbo.HEALED_D3 (GovernorID, HealedTroops, ScanDate, RowAsc3, RowDesc3)
+        INSERT INTO #P021_HEALED_D3 (GovernorID, HealedTroops, ScanDate, RowAsc3, RowDesc3)
         SELECT GovernorID, HealedTroops, ScanDate, RowAsc3, RowDesc3
-        FROM RankedD3;
+        FROM RankedD3
+        WHERE RowAsc3 = 1 OR RowDesc3 = 1;
 
         ;WITH LatestScanOrder AS (
             SELECT g.GovernorID, MAX(g.ScanOrder) AS LatestScanOrder
@@ -189,9 +214,9 @@ BEGIN
 
         INSERT INTO dbo.HEALED_D3D (GovernorID, HealedTroopsDelta3Months)
         SELECT L.GovernorID,
-               MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.HealedTroops END) - MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.HealedTroops END)
+               CONVERT(decimal(38,0), MAX(CASE WHEN D3.RowDesc3 = 1 THEN D3.HealedTroops END)) - CONVERT(decimal(38,0), MAX(CASE WHEN D3.RowAsc3 = 1 THEN D3.HealedTroops END))
         FROM dbo.HEALED_LATEST L
-        LEFT JOIN dbo.HEALED_D3 D3 ON L.GovernorID = D3.GovernorID
+        LEFT JOIN #P021_HEALED_D3 D3 ON L.GovernorID = D3.GovernorID
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
@@ -201,9 +226,9 @@ BEGIN
 
         INSERT INTO dbo.HEALED_D6D (GovernorID, HealedTroopsDelta6Months)
         SELECT L.GovernorID,
-               MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.HealedTroops END) - MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.HealedTroops END)
+               CONVERT(decimal(38,0), MAX(CASE WHEN D6.RowDesc6 = 1 THEN D6.HealedTroops END)) - CONVERT(decimal(38,0), MAX(CASE WHEN D6.RowAsc6 = 1 THEN D6.HealedTroops END))
         FROM dbo.HEALED_LATEST L
-        LEFT JOIN dbo.HEALED_D6 D6 ON L.GovernorID = D6.GovernorID
+        LEFT JOIN #P021_HEALED_D6 D6 ON L.GovernorID = D6.GovernorID
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
@@ -213,9 +238,9 @@ BEGIN
 
         INSERT INTO dbo.HEALED_D12D (GovernorID, HealedTroopsDelta12Months)
         SELECT L.GovernorID,
-               MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.HealedTroops END) - MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.HealedTroops END)
+               CONVERT(decimal(38,0), MAX(CASE WHEN D12.RowDesc12 = 1 THEN D12.HealedTroops END)) - CONVERT(decimal(38,0), MAX(CASE WHEN D12.RowAsc12 = 1 THEN D12.HealedTroops END))
         FROM dbo.HEALED_LATEST L
-        LEFT JOIN dbo.HEALED_D12 D12 ON L.GovernorID = D12.GovernorID
+        LEFT JOIN #P021_HEALED_D12 D12 ON L.GovernorID = D12.GovernorID
         INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
         GROUP BY L.GovernorID;
 
@@ -223,7 +248,7 @@ BEGIN
             SELECT d.GovernorID,
                    MAX(CASE WHEN d.RowAscALL = 1 THEN d.HealedTroops END) AS StartingHealed,
                    MAX(CASE WHEN d.RowDescALL = 1 THEN d.HealedTroops END) AS EndingHealed
-            FROM dbo.HEALED_ALL d
+            FROM #P021_HEALED_ALL d
             INNER JOIN #AffectedGovs a ON a.GovernorID = d.GovernorID
             GROUP BY d.GovernorID
         ),
@@ -234,7 +259,7 @@ BEGIN
                 L.PowerRank,
                 L.HealedTroops,
                 F.StartingHealed,
-                F.EndingHealed - F.StartingHealed AS OverallHealedDelta,
+                CONVERT(decimal(38,0), F.EndingHealed) - CONVERT(decimal(38,0), F.StartingHealed) AS OverallHealedDelta,
                 ISNULL(D12D.HealedTroopsDelta12Months, 0) AS HealedDelta12Months,
                 ISNULL(D6D.HealedTroopsDelta6Months, 0) AS HealedDelta6Months,
                 ISNULL(D3D.HealedTroopsDelta3Months, 0) AS HealedDelta3Months
@@ -266,36 +291,36 @@ BEGIN
 
         INSERT INTO dbo.HEALEDSUMMARY (GovernorID, GovernorName, PowerRank, HealedTroops, StartingHealed, OverallHealedDelta, HealedDelta12Months, HealedDelta6Months, HealedDelta3Months)
         SELECT 999999997, 'Top50', 50,
-               ROUND(AVG(H.HealedTroops), 0),
-               ROUND(AVG(H.StartingHealed), 0),
-               ROUND(AVG(H.OverallHealedDelta), 0),
-               ROUND(AVG(H.HealedDelta12Months), 0),
-               ROUND(AVG(H.HealedDelta6Months), 0),
-               ROUND(AVG(H.HealedDelta3Months), 0)
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedTroops)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.StartingHealed)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.OverallHealedDelta)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta12Months)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta6Months)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta3Months)), 0)
         FROM dbo.HEALEDSUMMARY AS H
         WHERE H.PowerRank <= 50
           AND H.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         INSERT INTO dbo.HEALEDSUMMARY (GovernorID, GovernorName, PowerRank, HealedTroops, StartingHealed, OverallHealedDelta, HealedDelta12Months, HealedDelta6Months, HealedDelta3Months)
         SELECT 999999998, 'Top100', 100,
-               ROUND(AVG(H.HealedTroops), 0),
-               ROUND(AVG(H.StartingHealed), 0),
-               ROUND(AVG(H.OverallHealedDelta), 0),
-               ROUND(AVG(H.HealedDelta12Months), 0),
-               ROUND(AVG(H.HealedDelta6Months), 0),
-               ROUND(AVG(H.HealedDelta3Months), 0)
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedTroops)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.StartingHealed)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.OverallHealedDelta)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta12Months)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta6Months)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta3Months)), 0)
         FROM dbo.HEALEDSUMMARY AS H
         WHERE H.PowerRank <= 100
           AND H.GovernorID NOT IN (999999997, 999999998, 999999999);
 
         INSERT INTO dbo.HEALEDSUMMARY (GovernorID, GovernorName, PowerRank, HealedTroops, StartingHealed, OverallHealedDelta, HealedDelta12Months, HealedDelta6Months, HealedDelta3Months)
         SELECT 999999999, 'Kingdom Average', 150,
-               ROUND(AVG(H.HealedTroops), 0),
-               ROUND(AVG(H.StartingHealed), 0),
-               ROUND(AVG(H.OverallHealedDelta), 0),
-               ROUND(AVG(H.HealedDelta12Months), 0),
-               ROUND(AVG(H.HealedDelta6Months), 0),
-               ROUND(AVG(H.HealedDelta3Months), 0)
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedTroops)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.StartingHealed)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.OverallHealedDelta)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta12Months)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta6Months)), 0),
+               ROUND(AVG(CONVERT(decimal(38,6), H.HealedDelta3Months)), 0)
         FROM dbo.HEALEDSUMMARY AS H
         WHERE H.PowerRank <= 150
           AND H.GovernorID NOT IN (999999997, 999999998, 999999999);
@@ -306,6 +331,7 @@ BEGIN
         WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
         WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime) VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
 
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'HEALEDSUMMARY';
         COMMIT;
     END TRY
     BEGIN CATCH

@@ -1,10 +1,10 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[D6D]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[D6D](
-	[GovernorID] [float] NOT NULL,
-	[DEADSDelta6Months] [float] NULL
+	[GovernorID] [bigint] NOT NULL,
+	[DEADSDelta6Months] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[D6D]') AND name = N'IX_D6D_GovernorID')

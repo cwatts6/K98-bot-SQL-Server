@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[GOVERNOR_NAMES_PROC]') AND type in (N'P', N'PC'))
 BEGIN
@@ -175,21 +175,26 @@ BEGIN
         FROM ScanData s;
 
         ----------------------------------------------------------------
-        -- Step 4: Refresh Governor Names Table (unchanged)
+        -- Step 4: One deterministic spelling per existing collation-equivalent name
         ----------------------------------------------------------------
         TRUNCATE TABLE dbo.ALL_GOVS_NAMES;
 
-        INSERT INTO ALL_GOVS_NAMES (GovernorID, GovernorName)
-        SELECT 
-            GovernorID, 
-            RTRIM(GovernorName) AS GovernorName
-        FROM (
-            SELECT DISTINCT 
-                GovernorID, 
-                GovernorName
+        ;WITH NameCandidates AS (
+            SELECT
+                GovernorID,
+                GovernorName,
+                ROW_NUMBER() OVER (
+                    PARTITION BY GovernorID, GovernorName
+                    ORDER BY ScanOrder DESC,
+                             GovernorName COLLATE Latin1_General_100_BIN2 ASC
+                ) AS Representative
             FROM ROK_TRACKER.dbo.KingdomScanData4
             WHERE GovernorID <> 0 AND GovernorName IS NOT NULL
-        ) AS UniqueNames;
+        )
+        INSERT INTO ALL_GOVS_NAMES (GovernorID, GovernorName)
+        SELECT GovernorID, RTRIM(GovernorName) AS GovernorName
+        FROM NameCandidates
+        WHERE Representative = 1;
 
         ----------------------------------------------------------------
         -- Step 5: Incremental refresh of Alliance history table
@@ -292,6 +297,7 @@ SELECT
         END;
 
 
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'ALL_GOVS';
         COMMIT TRANSACTION;
 
     END TRY

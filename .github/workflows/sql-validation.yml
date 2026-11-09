@@ -46,22 +46,19 @@ jobs:
         shell: pwsh
         run: |
           .\deploy\Test-SqlAuthImportFileVisibility.ps1
-          .\deploy\Test-ExportLegacyDirectPermissionContracts.ps1
+          .\deploy\Test-P02Phase1HistoricalContracts.ps1
 
       - name: Verify P0 reporting extraction and receipt source contracts
         shell: pwsh
         run: |
           .\deploy\Test-P0ReceiptContracts.ps1
+          .\tests\test_p02_phase1_release_runner.ps1
           python .\validation\validate_p0_reporting_equivalence.py
           if ($LASTEXITCODE -ne 0) { throw 'P0 reporting calculation preservation failed.' }
 
       - name: Run SQL repository validator
         shell: pwsh
         run: .\deploy\Validate-SqlRepo.ps1
-
-      - name: Validate KVK target publication contract
-        shell: pwsh
-        run: .\deploy\Test-KvkTargetPublicationContract.ps1
 
       - name: Parse PowerShell deployment scripts
         shell: pwsh

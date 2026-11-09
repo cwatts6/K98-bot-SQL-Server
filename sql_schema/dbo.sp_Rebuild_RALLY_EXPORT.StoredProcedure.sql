@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[sp_Rebuild_RALLY_EXPORT]') AND type in (N'P', N'PC'))
 BEGIN
@@ -53,6 +53,7 @@ BEGIN
   FROM Final f
   WHERE f.GovernorID <> 0;
 
+  EXEC dbo.usp_ApplyReportGovernorNames @Report=N'RALLY_EXPORT';
   COMMIT;
 END;
 

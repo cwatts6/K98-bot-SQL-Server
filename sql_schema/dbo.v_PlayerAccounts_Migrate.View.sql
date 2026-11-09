@@ -1,11 +1,10 @@
-﻿SET ANSI_NULLS ON
-SET QUOTED_IDENTIFIER ON
-IF NOT EXISTS (SELECT * FROM sys.views WHERE object_id = OBJECT_ID(N'[dbo].[v_PlayerAccounts_Migrate]'))
-EXECUTE dbo.sp_executesql N'
-CREATE VIEW [dbo].[v_PlayerAccounts_Migrate]  AS 
+SET ANSI_NULLS ON;
+SET QUOTED_IDENTIFIER ON;
+GO
+CREATE OR ALTER VIEW [dbo].[v_PlayerAccounts_Migrate]  AS
 SELECT
     PA.GovernorID,
-    LTRIM(RTRIM(PA.GovernorName))           AS GovernorName,   -- fix bad LTRIM(..., 1)
+    COALESCE(n.GovernorName,LTRIM(RTRIM(PA.GovernorName)))           AS GovernorName,   -- fix bad LTRIM(..., 1)
     PP.Power,
     KS4.[Troops Power],
     PA.[Status],
@@ -15,6 +14,7 @@ SELECT
     loc.X,
     loc.Y
 FROM dbo.PlayerAccountStatus AS PA
+LEFT JOIN dbo.v_ReportGovernorNames n ON n.GovernorID=PA.GovernorID
 OUTER APPLY
 (
     -- Latest known location for this governor (prevents duplicate rows)
@@ -25,9 +25,4 @@ OUTER APPLY
 ) AS loc
 INNER JOIN dbo.v_PlayerProfile     AS PP  ON PP.GovernorID  = PA.GovernorID
 INNER JOIN dbo.v_PlayerLatestStats AS KS4 ON KS4.GovernorID = PA.GovernorID
-WHERE PA.[Status] = ''Migrate'';
-
-
-
-
-'
+WHERE PA.[Status] = 'Migrate';

@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[KT5SUMMARY_PROC]') AND type in (N'P', N'PC'))
 BEGIN
@@ -9,6 +9,10 @@ WITH EXECUTE AS CALLER
 AS
 BEGIN
     SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+    -- Direct calls and parent calls share atomic output/state failure semantics.
+    BEGIN TRY
+    BEGIN TRANSACTION;
 
     DECLARE @MetricName NVARCHAR(100) = N'T5Kills';
     DECLARE @LastProcessed INT = 0;
@@ -37,6 +41,7 @@ BEGIN
 
         IF @MaxScan <= @LastProcessed
         BEGIN
+            COMMIT TRANSACTION;
             RETURN;
         END
 
@@ -60,6 +65,7 @@ BEGIN
             WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
             WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
             VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+        COMMIT TRANSACTION;
             RETURN;
         END
 
@@ -84,9 +90,15 @@ BEGIN
     DECLARE @Cutoff6 DATETIME2(7) = DATEADD(MONTH, -6, @UtcNow);
     DECLARE @Cutoff3 DATETIME2(7) = DATEADD(MONTH, -3, @UtcNow);
 
-    DELETE k5a
-    FROM dbo.K5ALL k5a
-    INNER JOIN #AffectedGovs a ON a.GovernorID = k5a.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_K5ALL(
+	[GovernorID] [bigint] NOT NULL,
+	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
+	[T5_KILLS] [bigint] NOT NULL,
+	[ScanDate] [datetime] NOT NULL,
+	[RowAscALL] [bigint] NULL,
+	[RowDescALL] [bigint] NULL
+    );
 
     ;WITH RankedAll AS (
         SELECT g.GovernorID,
@@ -97,13 +109,19 @@ BEGIN
                ROW_NUMBER() OVER (PARTITION BY g.GovernorID ORDER BY g.ScanOrder DESC) AS RowDescALL
         FROM #GovScan g
     )
-    INSERT INTO dbo.K5ALL (GovernorID, GovernorName, [T5_KILLS], ScanDate, RowAscALL, RowDescALL)
+    INSERT INTO #P021_K5ALL (GovernorID, GovernorName, [T5_KILLS], ScanDate, RowAscALL, RowDescALL)
     SELECT GovernorID, GovernorName, [T5_KILLS], ScanDate, RowAscALL, RowDescALL
-    FROM RankedAll;
+    FROM RankedAll
+    WHERE RowAscALL = 1 OR RowDescALL = 1;
 
-    DELETE k512
-    FROM dbo.K512 k512
-    INNER JOIN #AffectedGovs a ON a.GovernorID = k512.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_K512(
+	[GovernorID] [bigint] NOT NULL,
+	[T5_KILLS] [bigint] NOT NULL,
+	[ScanDate] [datetime] NOT NULL,
+	[RowAsc12] [bigint] NULL,
+	[RowDesc12] [bigint] NULL
+    );
 
     ;WITH RankedK12 AS (
         SELECT g.GovernorID,
@@ -114,13 +132,19 @@ BEGIN
         FROM #GovScan g
         WHERE g.ScanDate >= @Cutoff12
     )
-    INSERT INTO dbo.K512 (GovernorID, [T5_KILLS], ScanDate, RowAsc12, RowDesc12)
+    INSERT INTO #P021_K512 (GovernorID, [T5_KILLS], ScanDate, RowAsc12, RowDesc12)
     SELECT GovernorID, [T5_KILLS], ScanDate, RowAsc12, RowDesc12
-    FROM RankedK12;
+    FROM RankedK12
+    WHERE RowAsc12 = 1 OR RowDesc12 = 1;
 
-    DELETE k56
-    FROM dbo.K56 k56
-    INNER JOIN #AffectedGovs a ON a.GovernorID = k56.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_K56(
+	[GovernorID] [bigint] NOT NULL,
+	[T5_KILLS] [bigint] NOT NULL,
+	[ScanDate] [datetime] NOT NULL,
+	[RowAsc6] [bigint] NULL,
+	[RowDesc6] [bigint] NULL
+    );
 
     ;WITH RankedK6 AS (
         SELECT g.GovernorID,
@@ -131,13 +155,19 @@ BEGIN
         FROM #GovScan g
         WHERE g.ScanDate >= @Cutoff6
     )
-    INSERT INTO dbo.K56 (GovernorID, [T5_KILLS], ScanDate, RowAsc6, RowDesc6)
+    INSERT INTO #P021_K56 (GovernorID, [T5_KILLS], ScanDate, RowAsc6, RowDesc6)
     SELECT GovernorID, [T5_KILLS], ScanDate, RowAsc6, RowDesc6
-    FROM RankedK6;
+    FROM RankedK6
+    WHERE RowAsc6 = 1 OR RowDesc6 = 1;
 
-    DELETE k53
-    FROM dbo.K53 k53
-    INNER JOIN #AffectedGovs a ON a.GovernorID = k53.GovernorID;
+    -- Retain only first/last rows; use exact count/ID types and preserve ranking.
+    CREATE TABLE #P021_K53(
+	[GovernorID] [bigint] NOT NULL,
+	[T5_KILLS] [bigint] NOT NULL,
+	[ScanDate] [datetime] NOT NULL,
+	[RowAsc3] [bigint] NULL,
+	[RowDesc3] [bigint] NULL
+    );
 
     ;WITH RankedK3 AS (
         SELECT g.GovernorID,
@@ -148,9 +178,10 @@ BEGIN
         FROM #GovScan g
         WHERE g.ScanDate >= @Cutoff3
     )
-    INSERT INTO dbo.K53 (GovernorID, [T5_KILLS], ScanDate, RowAsc3, RowDesc3)
+    INSERT INTO #P021_K53 (GovernorID, [T5_KILLS], ScanDate, RowAsc3, RowDesc3)
     SELECT GovernorID, [T5_KILLS], ScanDate, RowAsc3, RowDesc3
-    FROM RankedK3;
+    FROM RankedK3
+    WHERE RowAsc3 = 1 OR RowDesc3 = 1;
 
     ;WITH LatestScanOrder AS (
         SELECT g.GovernorID, MAX(g.ScanOrder) AS LatestScanOrder
@@ -176,9 +207,9 @@ BEGIN
 
     INSERT INTO dbo.K53D (GovernorID, [T5_KILLSDelta3Months])
     SELECT L.GovernorID,
-           MAX(CASE WHEN K53.RowDesc3 = 1 THEN K53.[T5_KILLS] END) - MAX(CASE WHEN K53.RowAsc3 = 1 THEN K53.[T5_KILLS] END)
+           CONVERT(decimal(38,0), MAX(CASE WHEN K53.RowDesc3 = 1 THEN K53.[T5_KILLS] END)) - CONVERT(decimal(38,0), MAX(CASE WHEN K53.RowAsc3 = 1 THEN K53.[T5_KILLS] END))
     FROM dbo.LATEST_T5_KILLS L
-    LEFT JOIN dbo.K53 K53 ON L.GovernorID = K53.GovernorID
+    LEFT JOIN #P021_K53 K53 ON L.GovernorID = K53.GovernorID
     INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
     GROUP BY L.GovernorID;
 
@@ -188,9 +219,9 @@ BEGIN
 
     INSERT INTO dbo.K56D (GovernorID, [T5_KILLSDelta6Months])
     SELECT L.GovernorID,
-           MAX(CASE WHEN K56.RowDesc6 = 1 THEN K56.[T5_KILLS] END) - MAX(CASE WHEN K56.RowAsc6 = 1 THEN K56.[T5_KILLS] END)
+           CONVERT(decimal(38,0), MAX(CASE WHEN K56.RowDesc6 = 1 THEN K56.[T5_KILLS] END)) - CONVERT(decimal(38,0), MAX(CASE WHEN K56.RowAsc6 = 1 THEN K56.[T5_KILLS] END))
     FROM dbo.LATEST_T5_KILLS L
-    LEFT JOIN dbo.K56 K56 ON L.GovernorID = K56.GovernorID
+    LEFT JOIN #P021_K56 K56 ON L.GovernorID = K56.GovernorID
     INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
     GROUP BY L.GovernorID;
 
@@ -200,9 +231,9 @@ BEGIN
 
     INSERT INTO dbo.K512D (GovernorID, [T5_KILLSDelta12Months])
     SELECT L.GovernorID,
-           MAX(CASE WHEN K512.RowDesc12 = 1 THEN K512.[T5_KILLS] END) - MAX(CASE WHEN K512.RowAsc12 = 1 THEN K512.[T5_KILLS] END)
+           CONVERT(decimal(38,0), MAX(CASE WHEN K512.RowDesc12 = 1 THEN K512.[T5_KILLS] END)) - CONVERT(decimal(38,0), MAX(CASE WHEN K512.RowAsc12 = 1 THEN K512.[T5_KILLS] END))
     FROM dbo.LATEST_T5_KILLS L
-    LEFT JOIN dbo.K512 K512 ON L.GovernorID = K512.GovernorID
+    LEFT JOIN #P021_K512 K512 ON L.GovernorID = K512.GovernorID
     INNER JOIN #AffectedGovs a ON a.GovernorID = L.GovernorID
     GROUP BY L.GovernorID;
 
@@ -210,7 +241,7 @@ BEGIN
         SELECT k5a.GovernorID,
                MAX(CASE WHEN k5a.RowAscALL = 1 THEN k5a.[T5_KILLS] END) AS StartingKills,
                MAX(CASE WHEN k5a.RowDescALL = 1 THEN k5a.[T5_KILLS] END) AS EndingKills
-        FROM dbo.K5ALL k5a
+        FROM #P021_K5ALL k5a
         INNER JOIN #AffectedGovs a ON a.GovernorID = k5a.GovernorID
         GROUP BY k5a.GovernorID
     ),
@@ -221,7 +252,7 @@ BEGIN
             L.POWERRank,
             L.[T5_KILLS],
             F.StartingKills,
-            F.EndingKills - F.StartingKills AS OverallKillsDelta,
+            CONVERT(decimal(38,0), F.EndingKills) - CONVERT(decimal(38,0), F.StartingKills) AS OverallKillsDelta,
             ISNULL(K512D.[T5_KILLSDelta12Months], 0) AS [T5_KILLSDelta12Months],
             ISNULL(K56D.[T5_KILLSDelta6Months], 0) AS [T5_KILLSDelta6Months],
             ISNULL(K53D.[T5_KILLSDelta3Months], 0) AS [T5_KILLSDelta3Months]
@@ -253,36 +284,36 @@ BEGIN
 
     INSERT INTO dbo.KILL5SUMMARY (GovernorID, GovernorName, POWERRank, [T5_KILLS], [StartingT5_KILLS], [OverallT5_KILLSDelta], [T5_KILLSDelta12Months], [T5_KILLSDelta6Months], [T5_KILLSDelta3Months])
     SELECT 999999997, 'Top50', 50,
-           ROUND(AVG(K5.[T5_KILLS]), 0),
-           ROUND(AVG(K5.[StartingT5_KILLS]), 0),
-           ROUND(AVG(K5.[OverallT5_KILLSDelta]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta12Months]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta6Months]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta3Months]), 0)
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLS])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[StartingT5_KILLS])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[OverallT5_KILLSDelta])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta12Months])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta6Months])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta3Months])), 0)
     FROM dbo.KILL5SUMMARY AS K5
     WHERE K5.POWERRank <= 50
       AND K5.GovernorID NOT IN (999999997, 999999998, 999999999);
 
     INSERT INTO dbo.KILL5SUMMARY (GovernorID, GovernorName, POWERRank, [T5_KILLS], [StartingT5_KILLS], [OverallT5_KILLSDelta], [T5_KILLSDelta12Months], [T5_KILLSDelta6Months], [T5_KILLSDelta3Months])
     SELECT 999999998, 'Top100', 100,
-           ROUND(AVG(K5.[T5_KILLS]), 0),
-           ROUND(AVG(K5.[StartingT5_KILLS]), 0),
-           ROUND(AVG(K5.[OverallT5_KILLSDelta]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta12Months]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta6Months]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta3Months]), 0)
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLS])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[StartingT5_KILLS])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[OverallT5_KILLSDelta])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta12Months])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta6Months])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta3Months])), 0)
     FROM dbo.KILL5SUMMARY AS K5
     WHERE K5.POWERRank <= 100
       AND K5.GovernorID NOT IN (999999997, 999999998, 999999999);
 
     INSERT INTO dbo.KILL5SUMMARY (GovernorID, GovernorName, POWERRank, [T5_KILLS], [StartingT5_KILLS], [OverallT5_KILLSDelta], [T5_KILLSDelta12Months], [T5_KILLSDelta6Months], [T5_KILLSDelta3Months])
     SELECT 999999999, 'Kingdom Average', 150,
-           ROUND(AVG(K5.[T5_KILLS]), 0),
-           ROUND(AVG(K5.[StartingT5_KILLS]), 0),
-           ROUND(AVG(K5.[OverallT5_KILLSDelta]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta12Months]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta6Months]), 0),
-           ROUND(AVG(K5.[T5_KILLSDelta3Months]), 0)
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLS])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[StartingT5_KILLS])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[OverallT5_KILLSDelta])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta12Months])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta6Months])), 0),
+           ROUND(AVG(CONVERT(decimal(38,6), K5.[T5_KILLSDelta3Months])), 0)
     FROM dbo.KILL5SUMMARY AS K5
     WHERE K5.POWERRank <= 150
       AND K5.GovernorID NOT IN (999999997, 999999998, 999999999);
@@ -293,5 +324,11 @@ BEGIN
     WHEN MATCHED THEN UPDATE SET LastScanOrder = S.LastScanOrder, LastRunTime = S.LastRunTime
     WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
     VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
+    EXEC dbo.usp_ApplyReportGovernorNames @Report=N'KILL5SUMMARY';
+    COMMIT TRANSACTION;
+    END TRY
+    BEGIN CATCH
+        IF XACT_STATE() <> 0 ROLLBACK TRANSACTION;
+        THROW;
+    END CATCH
 END
-

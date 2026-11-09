@@ -1,4 +1,4 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[SUMMARY_PROC]') AND type in (N'P', N'PC'))
 BEGIN
@@ -232,6 +232,7 @@ BEGIN
         WHEN NOT MATCHED THEN INSERT (MetricName, LastScanOrder, LastRunTime)
         VALUES (S.MetricName, S.LastScanOrder, S.LastRunTime);
 
+        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'SUMMARY_CHANGE_EXPORT';
         COMMIT TRANSACTION;
     END TRY
     BEGIN CATCH

@@ -14,6 +14,11 @@ function Read-K98ModuleProfile([string]$Path,[string]$Expected,[string]$Migratio
     $raw=[IO.File]::ReadAllBytes($Path)
     if($raw.Length -gt 1MB -or $Expected -cnotmatch '^[a-f0-9]{64}$' -or (Get-K98ModuleHash $raw) -cne $Expected){throw 'Profile checksum/size differs'}
     $p=[Text.UTF8Encoding]::new($false,$true).GetString($raw)|ConvertFrom-Json
+    if($p.profile -ceq 'p02_phase1_v1') {
+        if($p.migration_id -cne $MigrationId){throw 'Exact Phase 1 migration identity required'}
+        . "$PSScriptRoot\SqlDeploy.Phase1Release.ps1"
+        return Read-K98Phase1Profile $p $Path
+    }
     if($p.profile -ceq 'mge_finalisation_v1') {
         if($p.migration_id -cne $MigrationId){throw 'Exact MGE migration identity required'}
         . "$PSScriptRoot\SqlDeploy.MgeFinalisation.ps1"
@@ -125,6 +130,11 @@ IF (SELECT recovery_model_desc FROM sys.databases WHERE database_id=DB_ID())<>'S
     }
 }
 function Assert-K98ModuleImages($Connection,$Transaction,$Loaded,[bool]$After) {
+    if($Loaded.Profile.profile -ceq 'p02_phase1_v1') {
+        . "$PSScriptRoot\SqlDeploy.Phase1Release.ps1"
+        Assert-K98Phase1Images $Connection $Transaction $Loaded $After
+        return
+    }
     if($Loaded.Profile.profile -ceq 'mge_finalisation_v1') {
         . "$PSScriptRoot\SqlDeploy.MgeFinalisation.ps1"
         Assert-K98MgeImages $Connection $Transaction $Loaded $After
@@ -179,9 +189,10 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
             . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
             Assert-K98RecoveryHistory $Connection $null $Loaded $Commit $rows[0].DeploymentId $true
         }
+        if($p.profile -ceq 'p02_phase1_v1' -and (Get-K98Phase1SnapshotState $Connection) -ne 1){throw 'Committed Phase 1 schema has changed snapshot settings; inspect, do not reapply SQL'}
         return 'committed'
     }
-    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1',N'mge_finalisation_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
+    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1',N'mge_finalisation_v1',N'p02_phase1_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
     foreach($a in $attempts) {
         if($a.BranchName -cne $p.profile){throw ('Migration profile identity differs: '+$p.migration_id+'; retain the original attempt and use a reviewed corrective identity.')}
         $b=$a.ErrorMessage|ConvertFrom-Json
@@ -192,15 +203,22 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
         . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
         Assert-K98RecoveryHistory $Connection $null $Loaded $Commit $null $false
     }
+    if($p.profile -ceq 'p02_phase1_v1') {
+        $snapshot=Get-K98Phase1SnapshotState $Connection
+        if(-not $attempts.Count -and $snapshot -ne 0){throw 'Unstarted Phase 1 snapshot setting differs from its reviewed predecessor'}
+    }
     # The exclusive session lock has been acquired. Every possible change and
     # Applied receipt is in the SAME transaction. Its absence plus exact preimage
-    # therefore proves rollback even if the prior process died before recording it.
+    # therefore proves schema rollback even if the prior process died before recording it.
+    # Phase 1 snapshot enablement is deliberately outside that transaction: its
+    # stable actual state is checked above and reported separately below.
     if($attempts.Count){return 'rolled_back'}
     return 'unstarted'
 }
 function Invoke-K98ModuleRelease([string]$ServerName,[string]$DatabaseName,[string]$MigrationId,[string]$ProfilePath,[string]$ProfileSHA256,[string]$ExpectedCommit,[string]$ReleaseId,[string]$Operation) {
     if($ExpectedCommit -cnotmatch '^[a-f0-9]{40}$' -or ([guid]$ReleaseId).ToString() -cne $ReleaseId -or $Operation -cnotin @('Preflight','Status','Verify','Apply')){throw 'Exact release identity and operation required'}
     $loaded=Read-K98ModuleProfile $ProfilePath $ProfileSHA256 $MigrationId
+    if($loaded.Profile.profile -ceq 'p02_phase1_v1'){. "$PSScriptRoot\SqlDeploy.Phase1Release.ps1"}
     $builder=[Data.SqlClient.SqlConnectionStringBuilder]::new()
     $builder['Data Source']=$ServerName;$builder['Initial Catalog']=$DatabaseName;$builder['Integrated Security']=$true
     $builder['Encrypt']=$true;$builder['TrustServerCertificate']=$true;$builder['Connect Timeout']=10;$builder['Application Name']='K98_Module_Release_v1'
@@ -217,6 +235,7 @@ IF @result<0 THROW 51950,'SQL_RELEASE_BUSY: active or unresolved SQL owner; wait
         Assert-K98ModuleEnvironment $connection $null $loaded.Profile
         $state=Get-K98ModuleOutcome $connection $loaded $ProfileSHA256 $ExpectedCommit $ReleaseId
         if($state -cne 'committed' -and $Operation -in @('Preflight','Apply')){Assert-K98ModuleEnvironment $connection $null $loaded.Profile -Backup}
+        if($loaded.Profile.profile -ceq 'p02_phase1_v1' -and $state -cne 'committed' -and $Operation -in @('Preflight','Apply')){Assert-K98Phase1Resources $connection $null}
         if($Operation -ceq 'Apply' -and $state -cne 'committed') {
             $attempt=[guid]::NewGuid().ToString()
             $binding=@{migration_id=$MigrationId;profile_sha256=$ProfileSHA256;sql_commit=$ExpectedCommit;release_id=$ReleaseId}|ConvertTo-Json -Compress
@@ -224,12 +243,15 @@ IF @result<0 THROW 51950,'SQL_RELEASE_BUSY: active or unresolved SQL owner; wait
 INSERT dbo.DeploymentRunHistory(DeploymentId,StartedAtUtc,StartedBy,MachineName,DatabaseName,GitCommit,BranchName,MigrationCount,Status,ErrorMessage)
 VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,@profile,1,N'Started',@binding);
 '@ @{attempt=$attempt;commit=$ExpectedCommit;binding=$binding;profile=$loaded.Profile.profile}
+            if($loaded.Profile.profile -ceq 'p02_phase1_v1') {
+                Enable-K98Phase1Snapshot $connection
+            }
             $transaction=$connection.BeginTransaction()
             Assert-K98ModuleImages $connection $transaction $loaded $false
             if($loaded.Profile.profile -ceq 'coordinated_recovery_v1') {
                 . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
                 Invoke-K98RecoveryChain $connection $transaction $loaded $ExpectedCommit $attempt
-            }elseif($loaded.Profile.profile -ceq 'mge_finalisation_v1') {
+            }elseif($loaded.Profile.profile -cin @('mge_finalisation_v1','p02_phase1_v1')) {
                 foreach($sql in $loaded.Commands){$null=Invoke-K98ModuleQuery $connection $transaction $sql}
             }elseif($loaded.Profile.profile -ceq 'additive_tables_v1') {
                 foreach($table in $loaded.Tables){$null=Invoke-K98ModuleQuery $connection $transaction $table.Create}
@@ -238,6 +260,7 @@ VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,
                 foreach($g in $loaded.Profile.grants){$null=Invoke-K98ModuleQuery $connection $transaction ('GRANT '+$g.permission+' ON OBJECT::['+$g.schema+'].['+$g.name+'] TO ['+$g.principal+'];')}
             }
             Assert-K98ModuleImages $connection $transaction $loaded $true
+            if($loaded.Profile.profile -ceq 'p02_phase1_v1'){Assert-K98Phase1Resources $connection $transaction}
             $null=Invoke-K98ModuleQuery $connection $transaction @'
 INSERT dbo.SchemaMigrationHistory(MigrationId,MigrationFile,ChecksumSha256,AppliedAtUtc,AppliedBy,MachineName,GitCommit,BranchName,DeploymentId,Status,DurationMs)
 VALUES(@id,@file,@hash,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),@commit,@profile,@attempt,N'Applied',0);
@@ -249,6 +272,11 @@ UPDATE dbo.DeploymentRunHistory SET Status=N'Succeeded',FinishedAtUtc=SYSUTCDATE
         }
         $code=switch($state){'committed'{0};'unstarted'{10};'rolled_back'{11};default{20}}
         $result=@{migration_id=$MigrationId;state=$state;sql_commit=$ExpectedCommit;profile_sha256=$ProfileSHA256;next_action=$(if($state -ceq 'committed'){'Continue remaining release stages; do not apply SQL again.'}else{'Same reviewed release may continue after drain.'})}
+        if($loaded.Profile.profile -ceq 'p02_phase1_v1') {
+            $result.snapshot_state=Get-K98Phase1SnapshotState $connection
+            $result.read_committed_snapshot_changed=$false
+            if($state -cne 'committed' -and $result.snapshot_state -eq 1){$result.next_action='Schema preimage is verified; snapshot mode is already enabled. Resume only this same drained release. Do not repeat completed SQL or disable snapshot blindly.'}
+        }
         Write-Host ($result|ConvertTo-Json -Compress)
         if($Operation -ceq 'Preflight'){return 0}
         return $code

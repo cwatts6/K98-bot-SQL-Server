@@ -499,10 +499,21 @@ BEGIN
                     IF OBJECT_ID(N'dbo.v_TARGETS_FOR_UPLOAD', N'U') IS NOT NULL
                         THROW 52616, 'sp_TARGETS_MASTER refused to replace a table named dbo.v_TARGETS_FOR_UPLOAD.', 1;
 
+                    -- Preserve the shared display-name rule when rollover replaces
+                    -- this view. Keep the selected publication table and column order.
+                    DECLARE @LegacyNameColumns nvarchar(max);
+                    SELECT @LegacyNameColumns=STRING_AGG(CONVERT(nvarchar(max),
+                        CASE WHEN c.name=N'Governor_Name'
+                             THEN N'COALESCE(n.GovernorName,t.[Governor_Name]) AS [Governor_Name]'
+                             ELSE N't.'+QUOTENAME(c.name) END),N',')
+                        WITHIN GROUP (ORDER BY c.column_id)
+                    FROM sys.columns c WHERE c.object_id=OBJECT_ID(@ExportTableQuoted);
+                    IF @LegacyNameColumns IS NULL
+                        THROW 52971, 'Target report column projection is unavailable.', 1;
                     DECLARE @LegacyViewSql nvarchar(max) =
-                        N'CREATE OR ALTER VIEW dbo.v_TARGETS_FOR_UPLOAD AS SELECT * FROM '
-                        + @ExportTableQuoted
-                        + N';';
+                        N'CREATE OR ALTER VIEW dbo.v_TARGETS_FOR_UPLOAD AS SELECT '
+                        + @LegacyNameColumns + N' FROM ' + @ExportTableQuoted
+                        + N' t LEFT JOIN dbo.v_ReportGovernorNames n ON n.GovernorID=t.Gov_ID;';
 
                     EXEC sys.sp_executesql @LegacyViewSql;
 

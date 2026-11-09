@@ -1,17 +1,17 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[DEADSSUMMARY]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[DEADSSUMMARY](
-	[GovernorID] [float] NOT NULL,
+	[GovernorID] [bigint] NOT NULL,
 	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
-	[PowerRank] [float] NOT NULL,
-	[DEADS] [float] NOT NULL,
-	[StartingDEADS] [float] NULL,
-	[OverallDEADSDelta] [float] NULL,
-	[DEADSDelta12Months] [float] NULL,
-	[DEADSDelta6Months] [float] NULL,
-	[DEADSDelta3Months] [float] NULL
+	[PowerRank] [int] NOT NULL,
+	[DEADS] [bigint] NOT NULL,
+	[StartingDEADS] [bigint] NULL,
+	[OverallDEADSDelta] [bigint] NULL,
+	[DEADSDelta12Months] [bigint] NULL,
+	[DEADSDelta6Months] [bigint] NULL,
+	[DEADSDelta3Months] [bigint] NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[DEADSSUMMARY]') AND name = N'IX_DEADSSUMMARY_PowerRank')

@@ -1,12 +1,12 @@
-﻿SET ANSI_NULLS ON
+SET ANSI_NULLS ON
 SET QUOTED_IDENTIFIER ON
 IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[LATEST]') AND type in (N'U'))
 BEGIN
 CREATE TABLE [dbo].[LATEST](
-	[GovernorID] [float] NOT NULL,
+	[GovernorID] [bigint] NOT NULL,
 	[GovernorName] [nchar](255) COLLATE Latin1_General_CI_AS NULL,
-	[PowerRank] [float] NOT NULL,
-	[DEADS] [float] NOT NULL
+	[PowerRank] [int] NOT NULL,
+	[DEADS] [bigint] NOT NULL
 ) ON [PRIMARY]
 END
 IF NOT EXISTS (SELECT * FROM sys.indexes WHERE object_id = OBJECT_ID(N'[dbo].[LATEST]') AND name = N'IX_LATEST_GovernorID')

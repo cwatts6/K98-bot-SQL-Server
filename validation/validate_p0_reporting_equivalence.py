@@ -32,6 +32,11 @@ def validate():
     new = (ROOT / "sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql").read_text(
         encoding="utf-8-sig"
     )
+    # Phase 1 adds only display-name publication in this retained business block.
+    # Its separate SQL/body checks qualify the shared lookup and publication.
+    name_publication = "        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'CompletedReports';\n"
+    assert new.count(name_publication) == 1, "exact Phase 1 name publication required"
+    retained = new.replace(name_publication, "", 1)
     blocks = (
         (
             "averages_and_dashboard",
@@ -55,7 +60,7 @@ def validate():
         ),
     )
     for name, start, end in blocks:
-        assert tokens(section(old, start, end)) == tokens(section(new, start, end)), name
+        assert tokens(section(old, start, end)) == tokens(section(retained, start, end)), name
     assert new.count("EXEC dbo.SP_Stats_for_Upload;") == 1
     assert (
         "IF @LatestKVK_Upload IS NOT NULL AND @ScanToUse_Upload IS NOT NULL\n                EXEC dbo.SP_Stats_for_Upload;"
