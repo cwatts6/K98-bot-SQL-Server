@@ -1,4 +1,6 @@
-> **Whole-P02 status, 7 November 2026:** This qualified rewrite is one component of the [integrated SQL delivery plan](p02-integrated-sql-delivery-plan.md). It does not close the original P02 scope or the failed full-workload snapshot resource gate.
+> **Archived 9 November 2026:** Completed Phase 1 analysis/qualification history, not current execution instructions. See [current SQL companion](../p02-integrated-sql-delivery-plan.md). Production installation is verified; whole-flow/provider acceptance remains separate.
+
+> **Whole-P02 status, 7 November 2026:** This qualified rewrite is one component of the [integrated SQL delivery plan](../p02-integrated-sql-delivery-plan.md). It does not close the original P02 scope or the failed full-workload snapshot resource gate.
 
 # P02.1 summary endpoint rewrite: local implementation and qualification
 

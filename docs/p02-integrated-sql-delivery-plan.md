@@ -1,4 +1,6 @@
-> **9 November 2026:** Phase 1 coordinated SQL/names/numeric/export and selected recovery-reader qualification passed in the owned restored VM. See [Phase 1 acceptance](p02-phase1-implementation.md). Production deployment, remaining P02 phases and provider/whole-flow acceptance remain separate.
+> **Current approved handoff, 9 November 2026:** Phase 1 SQL/names/numeric/export and selected recovery-reader package is deployed and verified at SQL commit `a202a51440f17233800b49801bd31c3ead2a9227`; prior preparation/approval holds below are historical. Remaining scope is D2 readers/factories/budgets/holder evidence, D3 file and six maintenance boundaries, D4 legacy/release compatibility, and D5 combined isolated qualification. Canonical Bot handover: `docs/task_packs/Startup Import Export Reliability - P02 Remaining Work Handover - 2026-11-09.md`. Production deployment remains separate. P03 settles actual blocking retained work; essential P04 convergence corrections precede the first normal import/export test where required. P05 gives final acceptance, not a reason to delay the first test. Preserve the SQL 3961 raw-history/index-rebuild limitation, all existing limits and the exhausted 21-input rehearsal allowance. Completed Phase 1 evidence is archived, not erased.
+
+> **9 November 2026:** Phase 1 coordinated SQL/names/numeric/export and selected recovery-reader qualification passed in the owned restored VM. See [Phase 1 acceptance](archive/p02-phase1-implementation.md). Production deployment, remaining P02 phases and provider/whole-flow acceptance remain separate.
 
 # P02 SQL companion: integrated analysis and delivery
 
@@ -14,9 +16,9 @@ This companion is an SQL navigation and ownership record, not another plan.
   fractions or bigint conversion failures, but 68,424 cells across 18 columns exceed
   int range (overlapping derived tables). Operator reports no known external use;
   restored matching jobs are absent. Fresh installed-binding verification remains D4.
-- D1: [deterministic names](p021-deterministic-names.md), the locally qualified
-  [nine-procedure endpoint rewrite](p021-summary-implementation.md), and the
-  [numeric/export alignment](p021-summary-numeric-type-review.md). Preserve baseline
+- D1: [deterministic names](archive/p021-deterministic-names.md), the locally qualified
+  [nine-procedure endpoint rewrite](archive/p021-summary-implementation.md), and the
+  [numeric/export alignment](archive/p021-summary-numeric-type-review.md). Preserve baseline
   comparison, exact output rules, current queued payloads, current-history rollback
   and index/grant contracts. The 139-column datatype package and 26-object shared-name package are implemented and qualified in the owned test copy; production rollout remains separate.
 - D2: passive metadata reads, factory/budget and actual-holder diagnostic contract;

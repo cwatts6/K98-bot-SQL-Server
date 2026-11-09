@@ -1,3 +1,5 @@
+> **Archived 9 November 2026:** Completed Phase 1 analysis/qualification history, not current execution instructions. See [current SQL companion](../p02-integrated-sql-delivery-plan.md). Production installation is verified; whole-flow/provider acceptance remains separate.
+
 > **Current status, 9 November 2026:** Phase 1 isolated SQL, shared latest names, numeric/export accuracy and recovery-reader qualification passed. Production release and the remaining P02 phases are separate. See the final acceptance section below.
 
 # P02 Phase 1: SQL, names, numeric types and exact exports

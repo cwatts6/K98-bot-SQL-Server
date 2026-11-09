@@ -1,3 +1,5 @@
+> **Archived 9 November 2026:** Completed Phase 1 analysis/qualification history, not current execution instructions. See [current SQL companion](../p02-integrated-sql-delivery-plan.md). Production installation is verified; whole-flow/provider acceptance remains separate.
+
 # P02.1 retained summary-cost evidence — 7 November 2026
 
 > **Approved rewrite implemented and locally qualified — 7 November 2026.** All eight metric routines and the alternate healed routine now use compact temporary endpoints. The complete focused local SQL suite passed 30 tests, including output parity, permissions and atomic rollback/cache restoration. See [implementation and qualification](p021-summary-implementation.md). No production deployment or retained VM workload ran; limits and remaining consumer/signing/full-rehearsal gates are unchanged. Earlier approval-pending wording below is historical.
