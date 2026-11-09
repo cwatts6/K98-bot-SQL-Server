@@ -1,4 +1,6 @@
-> **Integrated P02 scope, 7 November 2026:** This assessment is now part of the [combined SQL delivery plan](p02-integrated-sql-delivery-plan.md) and its canonical Bot P02 plan. Numeric alignment, export precision, original contention/maintenance obligations and recovery dependencies have one coordinated delivery sequence. Underlying-table review now covers all 75 tables / 325 columns, with no fractions or bigint conversion failures. The operator reports no known external use. Fresh installed-binding checks remain a release obligation; no type conversion or production deployment occurred.
+> **Archived 9 November 2026:** Completed Phase 1 analysis/qualification history, not current execution instructions. See [current SQL companion](../p02-integrated-sql-delivery-plan.md). Production installation is verified; whole-flow/provider acceptance remains separate.
+
+> **Integrated P02 scope, 7 November 2026:** This assessment is now part of the [combined SQL delivery plan](../p02-integrated-sql-delivery-plan.md) and its canonical Bot P02 plan. Numeric alignment, export precision, original contention/maintenance obligations and recovery dependencies have one coordinated delivery sequence. Underlying-table review now covers all 75 tables / 325 columns, with no fractions or bigint conversion failures. The operator reports no known external use. Fresh installed-binding checks remain a release obligation; no type conversion or production deployment occurred.
 
 # P02.1 summary numeric types: scope assessment
 
@@ -62,7 +64,7 @@ from type alignment has been measured here.
 
 ## Connection to existing deferred work
 
-[Phase 3 downstream inventory](../performance_remediation/kingdomscandata4/phase3/downstream_inventory.md)
+[Phase 3 downstream inventory](../../performance_remediation/kingdomscandata4/phase3/downstream_inventory.md)
 explicitly retained approximately 190 legacy float key/scan column entries,
 including DALL and delta tables, pending separate writer/consumer and exact-value
 proof. That count is a historical July inventory, not a fresh production count.

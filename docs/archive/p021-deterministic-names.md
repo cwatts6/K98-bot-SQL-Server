@@ -1,3 +1,5 @@
+> **Archived 9 November 2026:** Completed Phase 1 analysis/qualification history, not current execution instructions. See [current SQL companion](../p02-integrated-sql-delivery-plan.md). Production installation is verified; whole-flow/provider acceptance remains separate.
+
 # P02.1 deterministic historical-name selection — local implementation
 
 Operator-approved scope, 7 November 2026: fix historical name selection and bring
