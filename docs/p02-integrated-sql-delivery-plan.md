@@ -3,8 +3,8 @@
 # P02 SQL companion: integrated analysis and delivery
 
 7 November 2026. P02 remains open. The canonical cross-repository plan is the
-Bot task pack `docs/task_packs/Startup Import Export Reliability - P02 Integrated
-Analysis and Delivery Plan - 2026-11-07.md` in the active P02 Bot checkout.
+Bot task pack **Startup Import Export Reliability - P02 Integrated Analysis and
+Delivery Plan - 2026-11-07.md** in the active P02 Bot checkout.
 This companion is an SQL navigation and ownership record, not another plan.
 
 ## SQL scope in the combined solution
