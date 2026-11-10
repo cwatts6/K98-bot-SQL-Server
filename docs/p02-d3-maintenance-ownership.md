@@ -1,3 +1,5 @@
+> **Current D4 entry, 10 November 2026:** Private Bot PR739 is merged at `5ec55e3b`; no deployment occurred. Begin the [D4 SQL scope review](p02-d4-scope-handover.md) with installed/manual/legacy, dependencies, permissions/profiles, exact migration/rollback and combined updater integration. D4/D5 and separate deployment authorization remain required. Earlier checkpoints below retain historical evidence.
+
 > **Source closeout, 10 November 2026:** D3b-D3g SQL PRs 142-147 and Bot mirror PRs 513-519 are merged. Separate business and maintenance ownership is implemented across all six boundaries; D4 installed/manual/signing/release compatibility and D5 combined qualification remain open. No production deployment, SQL apply or backup invocation is implied. Earlier slice sections retain their historical evidence.
 
 # P02 D3b: bounded durable maintenance ownership
