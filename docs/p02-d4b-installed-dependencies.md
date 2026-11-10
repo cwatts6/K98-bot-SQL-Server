@@ -6,11 +6,12 @@ grant permissions, dispatch a backup or complete D4b's effective-permission gate
 
 ## KS4 sequence
 
-`sql_schema/dbo.KS4_UNO_SEQ.Sequence.sql` records the observed `int` sequence:
+`qualification/p02_d4/ks4_sequence.sql` records the observed `int` sequence:
 start 130489, increment 1, full signed-int range, no cycling and no cache. Its
 current value is operational state and deliberately does not appear in the file.
 
-This is reference material, like the other schema snapshots. D4c must require the
+This reference is kept outside the generated schema folder because the current
+nightly exporter does not export sequences and replaces that folder. D4c must require the
 existing sequence and compare its structural properties before changing producers.
 It must neither recreate nor restart it, derive its next value from a table maximum,
 consume a value for discovery, nor restore an earlier observed current value.

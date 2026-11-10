@@ -50,7 +50,7 @@ def dependencies():
             ) as con:
                 con.timeout = 3
                 con.execute(
-                    (ROOT / "sql_schema/dbo.KS4_UNO_SEQ.Sequence.sql").read_text()
+                    (ROOT / "qualification/p02_d4/ks4_sequence.sql").read_text()
                 )
                 template = (
                     ROOT / "qualification/p02_d4/msdb_log_backup_wrapper.template.sql"
