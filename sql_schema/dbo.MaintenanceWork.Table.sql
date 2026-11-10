@@ -4,6 +4,8 @@ CREATE TABLE dbo.MaintenanceWork (
     Kind varchar(24) NOT NULL CONSTRAINT PK_MaintenanceWork PRIMARY KEY,
     DueGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_Due DEFAULT 0,
     CompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_Completed DEFAULT 0,
+    KS4DueGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_KS4Due DEFAULT 0,
+    KS4CompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_KS4Done DEFAULT 0,
     ClaimedGeneration bigint NULL,
     ClaimID uniqueidentifier NULL,
     LastRequestID uniqueidentifier NULL,
@@ -18,6 +20,9 @@ CREATE TABLE dbo.MaintenanceWork (
         ('import','configuration','player_report','kvk_output','final_stats','post_import')),
     CONSTRAINT CK_MaintenanceWork_State CHECK (State IN
         ('pending','running','complete','failed','unknown')),
+    CONSTRAINT CK_MaintenanceWork_KS4 CHECK
+        (KS4CompletedGeneration>=0 AND KS4DueGeneration>=KS4CompletedGeneration
+         AND KS4DueGeneration<=DueGeneration AND (Kind='import' OR KS4DueGeneration=0)),
     CONSTRAINT CK_MaintenanceWork_Generation CHECK
         (DueGeneration>=CompletedGeneration AND CompletedGeneration>=0
          AND (ClaimedGeneration IS NULL OR

@@ -9,7 +9,12 @@ function Hash-Definition([string]$Value) {
 }
 $oldPath=Join-Path $RepositoryRoot 'migrations/20261010_001_stats_import_outcomes_collation.sql'
 if((Get-FileHash -LiteralPath $oldPath).Hash.ToLowerInvariant() -cne 'e423e79fd13234b91b62336ab8e34ff2b018b2bffcdfb3cd53dec1a9342ef315'){throw 'Historical migration changed'}
-$current=[IO.File]::ReadAllText((Join-Path $RepositoryRoot 'sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql'))
+# Validate D3 source separately; keep this historical encoding test bound to
+# its exact UTF-8 predecessor. Runtime source admission is deliberately unchanged.
+& (Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1') -RepositoryRoot $RepositoryRoot
+$predecessor=Join-Path $RepositoryRoot 'deploy/source_baselines/UPDATE_ALL2-before-d3c.txt'
+if((Get-FileHash -LiteralPath $predecessor).Hash.ToLowerInvariant() -cne '4b2e2472461fa3a11aac03a1b81901783a9495959ef7bcd1a7ef477c473a3978'){throw 'Pinned pre-D3c import source differs'}
+$current=[IO.File]::ReadAllText($predecessor)
 $source=Get-S11PreOutcomeSource $current
 $start=[regex]::Match($source,'(?m)^(ALTER PROCEDURE|CREATE OR ALTER PROCEDURE)').Index
 $source=$source.Substring($start).Trim()

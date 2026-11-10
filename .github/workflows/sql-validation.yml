@@ -51,6 +51,8 @@ jobs:
       - name: Verify P0 reporting extraction and receipt source contracts
         shell: pwsh
         run: |
+          python .\tests\test_d3c_import_business_preservation.py
+          if ($LASTEXITCODE -ne 0) { throw 'D3c import business preservation failed.' }
           .\tests\test_p02_d3_maintenance_source.ps1
           .\deploy\Test-P0ReceiptContracts.ps1
           .\tests\test_p02_phase1_release_runner.ps1

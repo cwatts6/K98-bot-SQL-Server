@@ -12,9 +12,9 @@ BEGIN
     IF NOT EXISTS(SELECT 1 FROM dbo.MaintenanceWork WHERE Kind=@Kind)
         THROW 51962, 'Unknown maintenance kind.', 1;
     DECLARE @r int, @released int, @claim uniqueidentifier=NEWID(),
-            @generation bigint, @state varchar(12), @log decimal(9,4),
+            @generation bigint, @ks4due bigint, @ks4done bigint, @includeKS4 bit, @state varchar(12), @log decimal(9,4),
             @resource nvarchar(255)=N'K98:post-import-stats:v1',
-            @snapshot bit=0, @owned bit=0;
+            @snapshot bit=0, @schema bit=0, @owned bit=0;
     BEGIN TRY
         EXEC @r=sys.sp_getapplock @Resource=@resource,
             @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
@@ -23,7 +23,7 @@ BEGIN
         -- A free exact session guard proves physical absence, not outcome.
         UPDATE dbo.MaintenanceWork SET State='unknown'
           WHERE Kind=@Kind AND State='running';
-        SELECT @generation=DueGeneration,@state=State
+        SELECT @generation=DueGeneration,@state=State,@ks4due=KS4DueGeneration,@ks4done=KS4CompletedGeneration
           FROM dbo.MaintenanceWork WHERE Kind=@Kind;
         IF @state='pending'
         BEGIN
@@ -32,18 +32,24 @@ BEGIN
             IF @r>=0
             BEGIN
                 SET @snapshot=1;
+                EXEC @r=sys.sp_getapplock @Resource=N'K98:maintenance-schema:v1',
+                    @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
+                IF @r>=0 SET @schema=1;
                 -- Preserve the existing log headroom gate. Missing evidence
                 -- defers optional work; it never creates business replay authority.
                 SELECT @log=used_log_space_in_percent FROM sys.dm_db_log_space_usage;
-                IF @log IS NOT NULL AND @log<70
+                IF @schema=1 AND @log IS NOT NULL AND @log<70
                 BEGIN
                     UPDATE dbo.MaintenanceWork SET State='running',ClaimID=@claim,
                         ClaimedGeneration=@generation,StartedUTC=SYSUTCDATETIME()
                       WHERE Kind=@Kind AND State='pending';
                     -- Fixed dispatch only. Later D3 slices add their real children.
-                    IF @Kind='post_import' EXEC dbo.usp_MaintenancePostImport;
+                    SET @includeKS4=CASE WHEN @ks4due>@ks4done THEN 1 ELSE 0 END;
+                    IF @Kind='import' EXEC dbo.usp_MaintenanceImport @IncludeKS4=@includeKS4;
+                    ELSE IF @Kind='post_import' EXEC dbo.usp_MaintenancePostImport;
                     ELSE THROW 51963, 'Maintenance child is not installed.', 1;
                     UPDATE dbo.MaintenanceWork SET CompletedGeneration=@generation,
+                        KS4CompletedGeneration=@ks4due,
                         CompletedUTC=SYSUTCDATETIME(),LastErrorNumber=NULL,
                         State=CASE WHEN DueGeneration=@generation THEN 'complete' ELSE 'pending' END
                       WHERE Kind=@Kind AND ClaimID=@claim AND State='running'
@@ -51,6 +57,12 @@ BEGIN
                     IF @@ROWCOUNT<>1 THROW 51964, 'Maintenance claim changed.', 1;
                 END;
             END;
+        END;
+        IF @schema=1
+        BEGIN
+            EXEC @released=sys.sp_releaseapplock @Resource=N'K98:maintenance-schema:v1',@LockOwner='Session';
+            IF @released<0 THROW 51965,'Maintenance schema release not acknowledged.',1;
+            SET @schema=0;
         END;
         IF @snapshot=1
         BEGIN
