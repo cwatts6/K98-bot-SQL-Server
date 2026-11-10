@@ -2,6 +2,7 @@
 
 This folder contains one generated file per SQL object:
 
+- `Schema.Name.Sequence.sql`
 - `Schema.Name.Table.sql`
 - `Schema.Name.View.sql`
 - `Schema.Name.StoredProcedure.sql`
