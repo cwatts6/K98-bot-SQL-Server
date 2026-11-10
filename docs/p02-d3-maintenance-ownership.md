@@ -53,8 +53,11 @@ fixture-only and are distinguished from unchanged child execution.
 The Bot tests are `tests/test_maintenance_owned_native.py` and
 `tests/test_maintenance_dal.py` in the companion repository. The native fixture
 requires `K98_P021_NATIVE_SQL=CREATE_DISPOSABLE_LOCAL_ONLY` and verifies the fixed
-local server identity before creating a UUID-named database. It never force
-disconnects retained sessions or changes retained server/database isolation settings.
+local server identity before creating a UUID-named database. The SQL repository
+proof `tests/test_maintenance_session_contract.py` separately requires
+`K98_D3_NATIVE_SQL=CREATE_DISPOSABLE_LOCAL_ONLY` and performs the same fixed local
+identity and owned-database checks. Neither fixture forcibly disconnects retained
+sessions or changes retained server/database isolation settings.
 
 D3c–g add the other real children and due boundaries. D3g owns backup queue
 claim/acknowledgement and post-success wait separation. Raw-history SNAPSHOT
@@ -200,8 +203,8 @@ not a claim that all unmanaged/manual producers or historical readers are qualif
 Required ranking access indexes and temporary calculation indexes remain in their
 active business queries; D5 owns their combined cost qualification.
 
-13 actual KVK native cases and127 combined native/caller/source cases passed.
-Exact business and unchanged child-source comparisons run in CI; all17 fixed
+13 actual KVK native cases and 127 combined native/caller/source cases passed.
+Exact business and unchanged child-source comparisons run in CI; all 17 fixed
 candidate mutation refusals pass. D4 installed/signing/manual compatibility and
 D5 scale/cost remain. No production SQL or installation occurred.
 
