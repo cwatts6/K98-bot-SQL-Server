@@ -21,7 +21,9 @@ deploys the Bot. Deployment remains held until D4/D5 and a separate release deci
 - Reconcile the missing authoritative dbo.KS4_UNO_SEQ and installed msdb
   usp_start_rok_tracker_log_backup definitions and rights. Identify the configured
   wrapper/job route without invoking a backup. Do not infer production definitions
-  from disposable fixtures or create guessed objects.
+  from disposable fixtures or create guessed objects. The [installed dependency source](p02-d4b-installed-dependencies.md)
+  records the observed sequence and redacted wrapper contract; effective installed
+  rights and migration bindings remain open.
 - Include MaintenanceWork, MaintenanceConfigurationWork, MaintenanceKvkWork and
   MaintenanceBackupWork, all due/claim/ACK/child routines, six fixed kinds and
   producer transactional intent. Qualify direct child guards and restricted
