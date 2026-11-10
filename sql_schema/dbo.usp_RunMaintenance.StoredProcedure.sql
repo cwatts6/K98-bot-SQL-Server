@@ -16,7 +16,8 @@ BEGIN
             @resource nvarchar(255)=N'K98:post-import-stats:v1',
             @snapshot bit=0, @schema bit=0, @delta bit=0, @player bit=0, @owned bit=0,
             @cfgrows bigint,@cfgcompleted bigint,@cfgbatch int,@cfgscan int,
-            @cfglarge bigint,@cfglargedone bigint,@pendingRows bigint,@largeDue bit,@kvkDone bit=1;
+            @cfglarge bigint,@cfglargedone bigint,@pendingRows bigint,@largeDue bit,@kvkDone bit=1,
+            @dashdue bigint,@dashdone bigint,@sumdue bigint,@sumdone bigint,@dashboard bit,@summary bit;
     BEGIN TRY
         EXEC @r=sys.sp_getapplock @Resource=@resource,
             @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
@@ -27,7 +28,9 @@ BEGIN
             UPDATE dbo.MaintenanceKvkWork SET State='unknown' WHERE State='running';
         UPDATE dbo.MaintenanceWork SET State='unknown'
           WHERE Kind=@Kind AND State='running';
-        SELECT @generation=DueGeneration,@state=State,@ks4due=KS4DueGeneration,@ks4done=KS4CompletedGeneration
+        SELECT @generation=DueGeneration,@state=State,@ks4due=KS4DueGeneration,@ks4done=KS4CompletedGeneration,
+            @dashdue=DashboardDueGeneration,@dashdone=DashboardCompletedGeneration,
+            @sumdue=SummaryDueGeneration,@sumdone=SummaryCompletedGeneration
           FROM dbo.MaintenanceWork WHERE Kind=@Kind;
         IF @state='pending'
         BEGIN
@@ -79,7 +82,14 @@ BEGIN
                     ELSE IF @Kind='player_report' EXEC dbo.usp_MaintenancePlayerReport;
                     ELSE IF @Kind='kvk_output' EXEC dbo.usp_MaintenanceKvkOutput
                         @Generation=@generation,@ClaimID=@claim,@AllDone=@kvkDone OUTPUT;
-                    ELSE IF @Kind='post_import' EXEC dbo.usp_MaintenancePostImport;
+                    ELSE IF @Kind='final_stats'
+                    BEGIN
+                        SET @dashboard=CASE WHEN @dashdue>@dashdone THEN 1 ELSE 0 END;
+                        SET @summary=CASE WHEN @sumdue>@sumdone THEN 1 ELSE 0 END;
+                        EXEC dbo.usp_MaintenanceFinalStats @Dashboard=@dashboard,@Summary=@summary,
+                            @Generation=@generation,@ClaimID=@claim;
+                    END;
+                    ELSE IF @Kind='post_import'  EXEC dbo.usp_MaintenancePostImport;
                     ELSE THROW 51963, 'Maintenance child is not installed.', 1;
                     IF @Kind='configuration'
                     BEGIN
@@ -90,6 +100,7 @@ BEGIN
                     END;
                     UPDATE dbo.MaintenanceWork SET CompletedGeneration=CASE WHEN @kvkDone=1 THEN @generation ELSE CompletedGeneration END,
                         KS4CompletedGeneration=@ks4due,
+                        DashboardCompletedGeneration=@dashdue,SummaryCompletedGeneration=@sumdue,
                         CompletedUTC=SYSUTCDATETIME(),LastErrorNumber=NULL,
                         State=CASE WHEN DueGeneration=@generation AND @kvkDone=1 THEN 'complete' ELSE 'pending' END
                       WHERE Kind=@Kind AND ClaimID=@claim AND State='running'

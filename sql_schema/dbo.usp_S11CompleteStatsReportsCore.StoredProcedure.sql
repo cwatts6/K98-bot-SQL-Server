@@ -139,13 +139,6 @@ BEGIN
 
         EXEC dbo.sp_Rebuild_ExcelForDashboard;
         
-        -- ⚡ OPTIMIZATION: Update statistics on newly built table
-        IF OBJECT_ID('dbo.EXCEL_FOR_DASHBOARD','U') IS NOT NULL
-        BEGIN
-            UPDATE STATISTICS dbo.EXCEL_FOR_DASHBOARD WITH SAMPLE 25 PERCENT;
-            PRINT 'EXCEL_FOR_DASHBOARD statistics updated';
-        END
-        
         SET @StepEnd = SYSUTCDATETIME();
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
         INSERT INTO @UpdateAll2PhaseAudit
@@ -233,6 +226,7 @@ BEGIN
                 WHERE PreparationID=@ExportPreparationID AND CompletedStage=0;
                 IF @@ROWCOUNT<>1 THROW 51961, 'Reporting prefix receipt changed.', 1;
             END;
+            EXEC dbo.usp_MaintenanceDue @Kind='final_stats',@FinalDashboard=1;
             COMMIT;
             SET @CompletedStage=1;
         END;
@@ -379,8 +373,6 @@ BEGIN
         
         DECLARE @RowsInserted INT = @@ROWCOUNT;
         
-        -- ⚡ OPTIMIZATION: Update statistics after bulk insert
-        UPDATE STATISTICS dbo.ALL_STATS_FOR_DASHBAORD WITH FULLSCAN;
         
         SET @StepEnd = SYSUTCDATETIME();
         SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
@@ -520,67 +512,9 @@ BEGIN
         -- *** NEW: Phase B Completion - Log Management ***
         ----------------------------------------------------------------
         
-        -- Force checkpoint to write dirty pages and minimize recovery time
-        SET @CurrentAuditPhase = N'update_all2_checkpoint_log';
-        SET @StepStart = SYSUTCDATETIME();
-        PRINT 'Executing CHECKPOINT to flush dirty pages...';
-        CHECKPOINT;
-        SET @StepEnd = SYSUTCDATETIME();
-        SET @StepDuration = DATEDIFF(MILLISECOND, @StepStart, @StepEnd);
-        INSERT INTO @UpdateAll2PhaseAudit
-            (PhaseName, PhaseStatus, StartedAtUtc, CompletedAtUtc, DurationMs, DetailsJson)
-        VALUES
-            (@CurrentAuditPhase, N'completed', @StepStart, @StepEnd, @StepDuration,
-             N'{"operation":"CHECKPOINT"}');
-        PRINT 'CHECKPOINT complete.';
-
-        -- Get final log usage
+        -- Optional upkeep and backup dispatch belong to the owned maintenance path.
         DECLARE @FinalLogUsedPct DECIMAL(5,2) = NULL;
-        BEGIN TRY
-            SELECT @FinalLogUsedPct = CAST(used_log_space_in_percent AS DECIMAL(5,2))
-            FROM sys.dm_db_log_space_usage;
-        END TRY
-        BEGIN CATCH
-            -- Fallback to DBCC
-            BEGIN TRY
-                CREATE TABLE #LogSpaceFinal (
-                    DatabaseName NVARCHAR(128),
-                    LogSize DECIMAL(18,2),
-                    LogSpaceUsedPercent DECIMAL(5,2),
-                    Status INT
-                );
-                INSERT INTO #LogSpaceFinal EXEC('DBCC SQLPERF(LOGSPACE)');
-                SELECT @FinalLogUsedPct = LogSpaceUsedPercent 
-                FROM #LogSpaceFinal 
-                WHERE DatabaseName = DB_NAME();
-                DROP TABLE #LogSpaceFinal;
-            END TRY
-            BEGIN CATCH
-                SET @FinalLogUsedPct = NULL;
-            END CATCH
-        END CATCH
-
-        -- Insert signal record for Python bot to detect
-        IF OBJECT_ID('dbo.LogBackupTriggerQueue', 'U') IS NOT NULL
-        BEGIN
-            INSERT INTO dbo.LogBackupTriggerQueue (
-                TriggerTime, 
-                ProcedureName, 
-                Reason, 
-                LogUsedPctBefore
-            )
-            VALUES (
-                SYSDATETIME(), 
-                'UPDATE_ALL2', 
-                'post_heavy_operation',
-                @FinalLogUsedPct
-            );
-            PRINT 'Log backup trigger queued (log usage: ' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), 'unknown') + '%).';
-        END
-
-        -- Attempt to trigger log backup job (non-blocking, best effort)
         DECLARE @LogBackupTriggered BIT = 0;
-        PRINT 'Log backup trigger queued for Python processing.';
 
         DECLARE @EndTime DATETIME = GETDATE();
         DECLARE @DurationSeconds INT = DATEDIFF(SECOND, @StartTime, @EndTime);
@@ -590,7 +524,7 @@ BEGIN
         PRINT 'Phase B Total: ' + CAST(@PhaseBDuration AS VARCHAR(10)) + 'ms';
         PRINT 'Log Usage: Initial=' + ISNULL(CAST(@CurrentLogUsedPct AS VARCHAR(10)), 'unknown') + 
               '%, Final=' + ISNULL(CAST(@FinalLogUsedPct AS VARCHAR(10)), 'unknown') + '%';
-        PRINT 'Log Backup Triggered: ' + CASE WHEN @LogBackupTriggered = 1 THEN 'Yes' ELSE 'No (queued for Python)' END;
+        PRINT 'Log Backup Triggered: ' + CASE WHEN @LogBackupTriggered = 1 THEN 'Yes' ELSE 'No (maintenance deferred)' END;
         PRINT '========================================';
 
         DECLARE @S11CompletionCounters TABLE (LastRunCounter int NOT NULL);
@@ -619,6 +553,7 @@ BEGIN
                 IF @@ROWCOUNT<>1 THROW 51961, 'Summary receipt changed.', 1;
             END;
             INSERT INTO dbo.Update_ALL_Complete (CompletionTime) VALUES (GETDATE());
+            EXEC dbo.usp_MaintenanceDue @Kind='final_stats',@FinalSummary=1;
             COMMIT;
         END;
 

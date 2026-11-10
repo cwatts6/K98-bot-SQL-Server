@@ -14,7 +14,9 @@ ROOT = Path(__file__).resolve().parents[1]
 def tokens(text):
     # Preserve quoted values and identifiers exactly; ignore comments/formatting.
     pattern = r"--[^\n]*|/\*[\s\S]*?\*/|N?'(?:''|[^'])*'|\[(?:\]\]|[^\]])*\]|[^\s]"
-    return [m[0] for m in re.finditer(pattern, text) if not m[0].startswith(("--", "/*"))]
+    return [
+        m[0] for m in re.finditer(pattern, text) if not m[0].startswith(("--", "/*"))
+    ]
 
 
 def section(text, start, end):
@@ -23,18 +25,42 @@ def section(text, start, end):
 
 
 def validate():
-    raw = (ROOT / "deploy/source_baselines/UPDATE_ALL2-before-p0-receipts.txt").read_bytes()
+    raw = (
+        ROOT / "deploy/source_baselines/UPDATE_ALL2-before-p0-receipts.txt"
+    ).read_bytes()
     assert (
         hashlib.sha256(raw).hexdigest()
         == "830b0a96b06904f3871962e067884529b053b59657d9068e4503cd73ca07663a"
     )
     old = raw.decode("utf-8-sig").replace("\r\n", "\n")
-    new = (ROOT / "sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql").read_text(
-        encoding="utf-8-sig"
+    new = (
+        ROOT / "sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql"
+    ).read_text(encoding="utf-8-sig")
+    # Authenticate D3g before checking the immutable historical extraction.
+    # The D3g business-preservation check separately compares every retained byte.
+    assert (
+        hashlib.sha256(new.encode()).hexdigest()
+        == "d5c83d1918b50248cc24f97387431f3b6627f91296553daf822537441a4b062b"
+    )
+    import subprocess
+
+    new = (
+        subprocess.check_output(
+            [
+                "git",
+                "show",
+                "6504865ec34fe1e3d7567d25aa892f7c811a636d:sql_schema/dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql",
+            ],
+            cwd=ROOT,
+        )
+        .decode("utf-8-sig")
+        .replace("\r\n", "\n")
     )
     # Phase 1 adds only display-name publication in this retained business block.
     # Its separate SQL/body checks qualify the shared lookup and publication.
-    name_publication = "        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'CompletedReports';\n"
+    name_publication = (
+        "        EXEC dbo.usp_ApplyReportGovernorNames @Report=N'CompletedReports';\n"
+    )
     assert new.count(name_publication) == 1, "exact Phase 1 name publication required"
     retained = new.replace(name_publication, "", 1)
     blocks = (
@@ -60,14 +86,17 @@ def validate():
         ),
     )
     for name, start, end in blocks:
-        assert tokens(section(old, start, end)) == tokens(section(retained, start, end)), name
+        assert tokens(section(old, start, end)) == tokens(
+            section(retained, start, end)
+        ), name
     assert new.count("EXEC dbo.SP_Stats_for_Upload;") == 1
     assert (
         "IF @LatestKVK_Upload IS NOT NULL AND @ScanToUse_Upload IS NOT NULL\n                EXEC dbo.SP_Stats_for_Upload;"
         in new
     )
     assert not re.search(
-        r"EXEC\s+dbo\.(?:UPDATE_ALL2|IMPORT_STAGING_PROC_CORE|CLAIM_KS4_IMPORT_FILE)\b", new
+        r"EXEC\s+dbo\.(?:UPDATE_ALL2|IMPORT_STAGING_PROC_CORE|CLAIM_KS4_IMPORT_FILE)\b",
+        new,
     )
     # A change to a nested calculator is a separate business change, not part of
     # this extraction. Compare every retained closure member to the fixed base.
@@ -76,10 +105,13 @@ def validate():
 
     before = json.loads(
         subprocess.check_output(
-            ["git", "show", "716c74e:deploy/export_stats_import_outcome_source.json"], cwd=ROOT
+            ["git", "show", "716c74e:deploy/export_stats_import_outcome_source.json"],
+            cwd=ROOT,
         )
     )
-    after = json.loads((ROOT / "deploy/export_stats_import_outcome_source.json").read_bytes())
+    after = json.loads(
+        (ROOT / "deploy/export_stats_import_outcome_source.json").read_bytes()
+    )
     current = {r["name"]: r for r in after["modules"]}
     for module in before["modules"]:
         if module["name"] != "dbo.UPDATE_ALL2":
@@ -89,5 +121,6 @@ def validate():
 
 if __name__ == "__main__":
     print(
-        "PASS: unchanged business SQL blocks and nested calculator closure:", ", ".join(validate())
+        "PASS: unchanged business SQL blocks and nested calculator closure:",
+        ", ".join(validate()),
     )

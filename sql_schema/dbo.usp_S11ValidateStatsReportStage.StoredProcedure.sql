@@ -11,6 +11,9 @@ BEGIN
     DECLARE @LockResult int;
     EXEC dbo.ACQUIRE_KS4_IMPORT_LOCK @LockTimeout=0,@LockResult=@LockResult OUTPUT;
     IF @LockResult<0 THROW 51961, 'Scan writer is active; reporting remains held.', 1;
+    EXEC @LockResult=sys.sp_getapplock @Resource=N'K98:maintenance-schema:v1',
+        @LockMode='Shared',@LockOwner='Transaction',@LockTimeout=0;
+    IF @LockResult<0 THROW 51966,'Report maintenance is active; reporting remains held.',1;
     -- The non-coordinated legacy entry point still uses these same business
     -- calculations. It has no durable continuation and cannot adopt one.
     IF @PreparationID IS NULL RETURN;
