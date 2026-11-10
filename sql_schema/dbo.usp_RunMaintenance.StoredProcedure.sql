@@ -14,7 +14,7 @@ BEGIN
     DECLARE @r int, @released int, @claim uniqueidentifier=NEWID(),
             @generation bigint, @ks4due bigint, @ks4done bigint, @includeKS4 bit, @state varchar(12), @log decimal(9,4),
             @resource nvarchar(255)=N'K98:post-import-stats:v1',
-            @snapshot bit=0, @schema bit=0, @delta bit=0, @owned bit=0,
+            @snapshot bit=0, @schema bit=0, @delta bit=0, @player bit=0, @owned bit=0,
             @cfgrows bigint,@cfgcompleted bigint,@cfgbatch int,@cfgscan int,
             @cfglarge bigint,@cfglargedone bigint,@pendingRows bigint,@largeDue bit;
     BEGIN TRY
@@ -38,6 +38,12 @@ BEGIN
                     @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
                 IF @r>=0 SET @delta=1;
                 IF @delta=1
+                BEGIN
+                    EXEC @r=sys.sp_getapplock @Resource=N'K98:StatsForUpload:Publish',
+                        @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
+                    IF @r>=0 SET @player=1;
+                END;
+                IF @player=1
                 BEGIN
                     EXEC @r=sys.sp_getapplock @Resource=N'K98:maintenance-schema:v1',
                         @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
@@ -68,6 +74,7 @@ BEGIN
                     ELSE IF @Kind='configuration' EXEC dbo.usp_MaintenanceConfiguration
                         @RowsProcessed=@pendingRows,@LastBatchRows=@cfgbatch,@NewMaxScan=@cfgscan,
                         @LargeBatchDue=@largeDue,@Generation=@generation;
+                    ELSE IF @Kind='player_report' EXEC dbo.usp_MaintenancePlayerReport;
                     ELSE IF @Kind='post_import' EXEC dbo.usp_MaintenancePostImport;
                     ELSE THROW 51963, 'Maintenance child is not installed.', 1;
                     IF @Kind='configuration'
@@ -93,6 +100,12 @@ BEGIN
             EXEC @released=sys.sp_releaseapplock @Resource=N'K98:maintenance-schema:v1',@LockOwner='Session';
             IF @released<0 THROW 51965,'Maintenance schema release not acknowledged.',1;
             SET @schema=0;
+        END;
+        IF @player=1
+        BEGIN
+            EXEC @released=sys.sp_releaseapplock @Resource=N'K98:StatsForUpload:Publish',@LockOwner='Session';
+            IF @released<0 THROW 51965,'Maintenance player publication release not acknowledged.',1;
+            SET @player=0;
         END;
         IF @delta=1
         BEGIN
