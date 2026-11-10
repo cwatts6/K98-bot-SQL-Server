@@ -20,13 +20,13 @@ BEGIN
     BEGIN
             ----------------------------------------------------------------
             -- SMART INDEX MAINTENANCE for KS4: Check fragmentation first
-            -- Thresholds: 
+            -- Thresholds:
             --   - Skip if < 10% fragmentation
             --   - REORGANIZE if 10-30% fragmentation (online, low impact)
             --   - REBUILD if > 30% fragmentation
             ----------------------------------------------------------------
             PRINT 'Checking KingdomScanData4 index fragmentation...';
-            
+
             DECLARE @IndexMaintLog TABLE (
                 IndexName NVARCHAR(128),
                 FragmentationPercent DECIMAL(5,2),
@@ -39,21 +39,21 @@ BEGIN
             DECLARE @SQL NVARCHAR(MAX);
 
             DECLARE idx_cursor CURSOR LOCAL FAST_FORWARD FOR
-                SELECT 
+                SELECT
                     i.name AS IndexName,
                     ips.avg_fragmentation_in_percent AS Fragmentation
                 FROM sys.dm_db_index_physical_stats(
-                    DB_ID(), 
-                    OBJECT_ID('dbo.KingdomScanData4'), 
+                    DB_ID(),
+                    OBJECT_ID('dbo.KingdomScanData4'),
                     NULL, NULL, 'LIMITED'
                 ) AS ips
-                INNER JOIN sys.indexes AS i 
-                    ON ips.object_id = i.object_id 
+                INNER JOIN sys.indexes AS i
+                    ON ips.object_id = i.object_id
                     AND ips.index_id = i.index_id
-                WHERE 
+                WHERE
                     i.name IN (
                         'CIX_KS4_ScanOrder_Governor',
-                        'IX_KSD4_Governor_ScanOrder', 
+                        'IX_KSD4_Governor_ScanOrder',
                         'IX_KS4_Governor_ScanDate',
                         'IX_KSD4_Gov_ScanOrder'
                     )

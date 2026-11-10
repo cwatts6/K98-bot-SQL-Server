@@ -9,7 +9,7 @@ $expected=@{
     'sql_schema/dbo.usp_RunMaintenance.StoredProcedure.sql'='95d3dd730d1ac96bae96164ac92f32c9a110a5c9ae2d72daf2aad2a2ba788d25'
     'sql_schema/dbo.usp_update_stats.StoredProcedure.sql'='dbaf8e463c94e03b72aea7f0a6f8202b07f96632eb63935effee54c5ff78fb5c'
     'sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql'='07b56ac1e0d96a9f2a4d4ded0422c26dae4c0ed78e536cb754790eb4273b7c49'
-    'sql_schema/dbo.usp_MaintenanceImport.StoredProcedure.sql'='b4e01f41428f0f6ecb12f2b45bf9ebbc6b822f5bc24f74c52b4dfbe82938cf15'
+    'sql_schema/dbo.usp_MaintenanceImport.StoredProcedure.sql'='9098becea8286181f474cf4e332903aae70adbb4f95df5c20d5abef022fab8ab'
 }
 foreach($path in $expected.Keys) {
     $text=[IO.File]::ReadAllText((Join-Path $RepositoryRoot $path)).Replace("`r`n","`n")

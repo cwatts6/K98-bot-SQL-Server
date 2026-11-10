@@ -39,8 +39,11 @@ def test_import_business_and_upkeep_are_preserved_exactly():
     child = (
         ROOT / "sql_schema/dbo.usp_MaintenanceImport.StoredProcedure.sql"
     ).read_text()
-    assert ks5 in child
-    assert ks4.replace(business, "") in child
+    assert "\n".join(line.rstrip() for line in ks5.splitlines()) in child
+    assert (
+        "\n".join(line.rstrip() for line in ks4.replace(business, "").splitlines())
+        in child
+    )
     assert "Refresh_PlayerScanMeta" not in child
     assert "UPDATE STATISTICS" not in current and "ALTER INDEX" not in current
     # The typed/file/scan importer has no upkeep to extract.
