@@ -130,3 +130,33 @@ source preservation and all seven candidate mutation refusals pass. Historical
 encoding/source tests use authenticated immutable predecessors; runtime installer
 admission is unchanged. D4 owns final permissions/source/consumer compatibility;
 D5 owns combined scale and cost. No production execution or installation occurred.
+
+## D3d configuration maintenance candidate
+
+CREATE_DELTA_TABLES retains its full business calculation/insert prefix and adds
+only transactional due registration before the existing COMMIT. sp_TARGETS_MASTER
+is unchanged, including its typed outer transaction guard and publication identity.
+Optional statistics, fragmentation upkeep and DeltaProcessingLog run afterward
+through the existing worker. A fixed singleton coalesces rows/scan and qualifying
+large-batch generations, preserving 168-hour/5000-row eligibility with or without
+the optional log. No per-request backlog is introduced.
+
+All maintenance acquires the existing DeltaPreprocessing session mutex at zero
+wait before claim, in producer-compatible order. The Bot acknowledges all four
+guard releases before pool return. Configuration counter/main-claim completion
+is one short owned transaction; rollback failure cannot mask the original error.
+Successful or ineligible upkeep has its own generation/disposition before timing
+logging. A log failure retains that evidence and FirstLogErrorNumber while the
+packet remains failed without automatic replay. Index failures are no longer
+swallowed; identifiers are quoted, dbo scope fixed and cursor lifetime local.
+
+Qualification: 18 configuration-native cases plus existing import/maintenance
+regressions (combined 67 cases) pass, including real fragmented-index rebuilding,
+standalone/nested commit/rollback, thresholds/coalescing, failed child/log/ack,
+physical guard order and cursor cleanup. Six separate typed-parent contract tests
+pass using their existing nested stub; this is not full combined production
+publication qualification. Exact retained business/caller comparison runs in CI.
+The authoritative KS4 table refers to KS4_UNO_SEQ without a repository sequence
+definition; the owned fixture omits only that default and supplies explicit
+SCAN_UNO. D4 must reconcile the actual installed dependency, not infer its schema.
+No production installation/execution occurred. D4/D5 boundaries remain unchanged.

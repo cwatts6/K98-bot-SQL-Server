@@ -14,7 +14,9 @@ BEGIN
     DECLARE @r int, @released int, @claim uniqueidentifier=NEWID(),
             @generation bigint, @ks4due bigint, @ks4done bigint, @includeKS4 bit, @state varchar(12), @log decimal(9,4),
             @resource nvarchar(255)=N'K98:post-import-stats:v1',
-            @snapshot bit=0, @schema bit=0, @owned bit=0;
+            @snapshot bit=0, @schema bit=0, @delta bit=0, @owned bit=0,
+            @cfgrows bigint,@cfgcompleted bigint,@cfgbatch int,@cfgscan int,
+            @cfglarge bigint,@cfglargedone bigint,@pendingRows bigint,@largeDue bit;
     BEGIN TRY
         EXEC @r=sys.sp_getapplock @Resource=@resource,
             @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
@@ -32,22 +34,49 @@ BEGIN
             IF @r>=0
             BEGIN
                 SET @snapshot=1;
-                EXEC @r=sys.sp_getapplock @Resource=N'K98:maintenance-schema:v1',
+                EXEC @r=sys.sp_getapplock @Resource=N'K98:TargetPublication:DeltaPreprocessing',
                     @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
-                IF @r>=0 SET @schema=1;
+                IF @r>=0 SET @delta=1;
+                IF @delta=1
+                BEGIN
+                    EXEC @r=sys.sp_getapplock @Resource=N'K98:maintenance-schema:v1',
+                        @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
+                    IF @r>=0 SET @schema=1;
+                END;
                 -- Preserve the existing log headroom gate. Missing evidence
                 -- defers optional work; it never creates business replay authority.
                 SELECT @log=used_log_space_in_percent FROM sys.dm_db_log_space_usage;
-                IF @schema=1 AND @log IS NOT NULL AND @log<70
+                IF @delta=1 AND @schema=1 AND @log IS NOT NULL AND @log<70
                 BEGIN
+                    IF @Kind='configuration'
+                    BEGIN
+                        SELECT @generation=DueGeneration FROM dbo.MaintenanceWork WHERE Kind=@Kind;
+                        SELECT @cfgrows=DueRows,@cfgcompleted=CompletedRows,@cfgbatch=LastBatchRows,
+                            @cfgscan=LastScan,@cfglarge=LargeBatchGeneration,@cfglargedone=CompletedLargeBatchGeneration
+                          FROM dbo.MaintenanceConfigurationWork WHERE ID=1;
+                        IF @cfgrows IS NULL THROW 51962,'Configuration summary missing.',1;
+                        SET @pendingRows=@cfgrows-@cfgcompleted;
+                        IF @pendingRows<=0 OR @cfgbatch>@pendingRows THROW 51962,'Configuration maintenance summary does not match pending work.',1;
+                        SET @largeDue=CASE WHEN @cfglarge>@cfglargedone THEN 1 ELSE 0 END;
+                    END;
                     UPDATE dbo.MaintenanceWork SET State='running',ClaimID=@claim,
                         ClaimedGeneration=@generation,StartedUTC=SYSUTCDATETIME()
                       WHERE Kind=@Kind AND State='pending';
                     -- Fixed dispatch only. Later D3 slices add their real children.
                     SET @includeKS4=CASE WHEN @ks4due>@ks4done THEN 1 ELSE 0 END;
                     IF @Kind='import' EXEC dbo.usp_MaintenanceImport @IncludeKS4=@includeKS4;
+                    ELSE IF @Kind='configuration' EXEC dbo.usp_MaintenanceConfiguration
+                        @RowsProcessed=@pendingRows,@LastBatchRows=@cfgbatch,@NewMaxScan=@cfgscan,
+                        @LargeBatchDue=@largeDue,@Generation=@generation;
                     ELSE IF @Kind='post_import' EXEC dbo.usp_MaintenancePostImport;
                     ELSE THROW 51963, 'Maintenance child is not installed.', 1;
+                    IF @Kind='configuration'
+                    BEGIN
+                        BEGIN TRANSACTION;
+                        UPDATE dbo.MaintenanceConfigurationWork SET CompletedRows=@cfgrows,
+                            CompletedLargeBatchGeneration=@cfglarge WHERE ID=1;
+                        IF @@ROWCOUNT<>1 THROW 51964,'Configuration summary changed.',1;
+                    END;
                     UPDATE dbo.MaintenanceWork SET CompletedGeneration=@generation,
                         KS4CompletedGeneration=@ks4due,
                         CompletedUTC=SYSUTCDATETIME(),LastErrorNumber=NULL,
@@ -55,6 +84,7 @@ BEGIN
                       WHERE Kind=@Kind AND ClaimID=@claim AND State='running'
                         AND ClaimedGeneration=@generation;
                     IF @@ROWCOUNT<>1 THROW 51964, 'Maintenance claim changed.', 1;
+                    IF @Kind='configuration' COMMIT TRANSACTION;
                 END;
             END;
         END;
@@ -63,6 +93,12 @@ BEGIN
             EXEC @released=sys.sp_releaseapplock @Resource=N'K98:maintenance-schema:v1',@LockOwner='Session';
             IF @released<0 THROW 51965,'Maintenance schema release not acknowledged.',1;
             SET @schema=0;
+        END;
+        IF @delta=1
+        BEGIN
+            EXEC @released=sys.sp_releaseapplock @Resource=N'K98:TargetPublication:DeltaPreprocessing',@LockOwner='Session';
+            IF @released<0 THROW 51965,'Maintenance delta release not acknowledged.',1;
+            SET @delta=0;
         END;
         IF @snapshot=1
         BEGIN
@@ -76,6 +112,13 @@ BEGIN
     END TRY
     BEGIN CATCH
         DECLARE @error int=ERROR_NUMBER();
+        BEGIN TRY
+            IF XACT_STATE()<>0 ROLLBACK; -- only the worker-owned short acknowledgement transaction
+        END TRY
+        BEGIN CATCH
+            -- Preserve the first child/acknowledgement failure. The caller must
+            -- still establish physical rollback/release before returning a pool handle.
+        END CATCH;
         -- Keep the first failure separate from current state. Transport loss can
         -- prevent this update: running then remains unknown until inspected.
         BEGIN TRY

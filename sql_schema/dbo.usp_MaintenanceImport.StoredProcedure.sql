@@ -6,6 +6,8 @@ WITH EXECUTE AS OWNER
 AS
 BEGIN
     SET NOCOUNT ON;
+    IF COALESCE(APPLOCK_MODE('public','K98:TargetPublication:DeltaPreprocessing','Session'),'NoLock')<>'Exclusive'
+        THROW 51962,'Maintenance delta guard required.',1;
     IF COALESCE(APPLOCK_MODE('public','K98:post-import-stats:v1','Session'),'NoLock')<>'Exclusive'
        OR COALESCE(APPLOCK_MODE('public','k98-legacy-output-snapshot','Session'),'NoLock')<>'Exclusive'
        OR COALESCE(APPLOCK_MODE('public','K98:maintenance-schema:v1','Session'),'NoLock')<>'Exclusive'
