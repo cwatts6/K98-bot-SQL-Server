@@ -1,0 +1,99 @@
+# P02 D3b: bounded durable maintenance ownership
+
+This is the SQL companion to the Bot D3b maintenance ownership slice. The
+operator authorized completing D3b–g, merging focused Bot mirror PRs, and creating
+and reviewing the combined private Bot PR. Production installation remains held
+until after D5. No production SQL, provider, retained recovery or restart was run.
+
+## Contract
+
+`dbo.MaintenanceWork` has six fixed rows. `dbo.usp_MaintenanceDue` joins its
+caller's transaction and coalesces due generations. It neither commits nor
+rolls back an outer business transaction. A same latest request ID does not add
+another generation; this is not general historic request replay authority.
+
+`dbo.usp_RunMaintenance` is autocommit-only. Its actual worker session acquires
+the existing `K98:post-import-stats:v1` lock and the existing SQL snapshot writer
+guard without waiting. Retaining the older maintenance resource prevents overlap
+with older callers. Known log use below 70 percent is required before claim.
+Only pending work runs. A free worker lock with a durable running claim changes
+the claim to unknown; it does not retry the child. Failed/unknown states retain
+the original claim and first failure for reviewed reconciliation. New due work
+during a claim remains pending after completion of that generation.
+
+`dbo.usp_update_stats` records post-import work and invokes the worker. Its
+result contains the finite durable receipt, consumed by the matching Bot DAL.
+`dbo.usp_MaintenancePostImport` retains the intentional `sp_updatestats` child
+under owner execution and checks both worker guards. Resource observation runs
+in the caller context: placing that DMV inside database-owner impersonation
+failed native qualification with SQL 15562. No TRUSTWORTHY change or new server
+grant was used to bypass that boundary. SQL error paths retain guards until the
+Bot explicitly acknowledges release on the still-owned session. A fresh-process
+native experiment proved that default ODBC pooling retains locks after close.
+The corrected DAL releases and verifies before pool return; uncertain release
+retains the open connection/cursor and closes admission. No global pooling setting
+was changed. The failed baseline is retained in the Bot qualification artifacts.
+
+## Qualification and remaining scope
+
+Eleven opted-in native tests passed on 10 November 2026 using only a uniquely
+created local disposable database. They exercise real `sp_updatestats`, durable
+receipts, exact latest-request deduplication, outer rollback/nested-commit
+visibility, concurrent exclusion, producer-first and maintenance-first arrival,
+generation arrival during the real child, child fault injection, process death,
+and refusal of a missing child or caller transaction. Two additional cases keep
+a default-pooled worker process alive after success and injected child failure,
+then prove both SQL guards are available before process exit. Process death accepts only
+the two evidenced outcomes: durable completion before disconnect is observed,
+or an unknown claim; neither allows blind replay. Injected gates/errors are
+fixture-only and are distinguished from unchanged child execution.
+
+The Bot tests are `tests/test_maintenance_owned_native.py` and
+`tests/test_maintenance_dal.py` in the companion repository. The native fixture
+requires `K98_P021_NATIVE_SQL=CREATE_DISPOSABLE_LOCAL_ONLY` and verifies the fixed
+local server identity before creating a UUID-named database. It never force
+disconnects retained sessions or changes retained server/database isolation settings.
+
+D3c–g add the other real children and due boundaries. D3g owns backup queue
+claim/acknowledgement and post-success wait separation. Raw-history SNAPSHOT
+versus index REBUILD (SQL 3961) remains open until D3c's actual overlap tests.
+All existing 8 GiB memory/disk floors, log/version-store limits and D5 balanced
+cost gates remain in force. This small fixture does not qualify production
+scale, restricted installed principals or the combined workflow.
+
+These schema snapshots are source candidates, not an installer. D4 must include
+the exact predecessor/postimage deployment and signing profiles, dependencies,
+new procedure permissions, installed/manual paths and coordinated Bot/SQL
+compatibility. Do not run these files piecemeal in production. No downgrade that
+discards outstanding maintenance records is authorized. Separate Bot/SQL Changes
+security reviews and PR checks remain required before merge.
+
+SQL Changes scan `d305e947-8e39-4f05-b290-16991aeaee71` reviewed executable
+revision `48dc44ad` with zero security findings. It explicitly retained the
+companion pooled-close reliability correction and D4/D5 limits. The later executable correction is qualified below.
+
+## Review closeout (10 November 2026)
+
+The GitHub review identified implicit transaction mode as a durability defect:
+`@@TRANCOUNT=0` alone does not establish autocommit. Both public/worker entry
+points now refuse `SET IMPLICIT_TRANSACTIONS ON` before any table access. The two
+native regressions failed before the fix and passed afterward; they are committed
+in `tests/test_maintenance_session_contract.py`. Combined Bot/native qualification
+passed 13 cases. The additional native cases above are included in the eleven,
+not eleven plus two.
+
+Exact correction Changes scan `cf8d43d4-579e-4353-a0d1-d015565fd6a0`
+covered all eight changed paths through `287c73e` with zero findings. Its measured
+usage was 660,506 tokens (656,864 input, 605,440 cached input, 3,642 output).
+Both SQL validation CI runs passed at that head and refreshed GitHub code review
+reported no findings. The first failure and fixed-test evidence remain retained.
+
+Review comments on repeatable seeding and execution context were reconciled
+against the source-only boundary. This CREATE TABLE snapshot is intentionally
+not a reapplicable installer. D4 must preserve existing outstanding work and
+qualify exact installed source/signing, restricted-principal DMV access and
+same-owner access. Restoring owner impersonation would reintroduce the observed
+SQL 15562 failure. Historical P0 installation manifests and migrations remain
+immutable; the offline test first authenticates these five D3 sources, then
+checks the pinned pre-D3 P0 body. Each changed-source mutation is rejected.
+No current D3 installer or production permission/compatibility claim is supplied.

@@ -51,6 +51,7 @@ jobs:
       - name: Verify P0 reporting extraction and receipt source contracts
         shell: pwsh
         run: |
+          .\tests\test_p02_d3_maintenance_source.ps1
           .\deploy\Test-P0ReceiptContracts.ps1
           .\tests\test_p02_phase1_release_runner.ps1
           python .\validation\validate_p0_reporting_equivalence.py
