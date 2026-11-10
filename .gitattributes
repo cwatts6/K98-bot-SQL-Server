@@ -49,3 +49,6 @@ migrations/20261023_001_legacy_export_closeout.sql text eol=lf
 
 # Phase 1 release authenticates the exact committed migration bytes.
 migrations/20261109_001_p02_phase1_sql_exports.sql text eol=lf
+
+# Immutable pre-D3c encoding fixture; preserve exact historical bytes.
+deploy/source_baselines/UPDATE_ALL2-before-d3c.txt -text

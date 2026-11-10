@@ -97,3 +97,36 @@ SQL 15562 failure. Historical P0 installation manifests and migrations remain
 immutable; the offline test first authenticates these five D3 sources, then
 checks the pinned pre-D3 P0 body. Each changed-source mutation is rejected.
 No current D3 installer or production permission/compatibility claim is supplied.
+
+## D3c import maintenance candidate
+
+UPDATE_ALL2 now records import maintenance due in its own Phase A transaction.
+Only KS5 sampled statistics and conditional KS4 index/statistics upkeep move to
+usp_MaintenanceImport. Required Refresh_PlayerScanMeta remains in the import;
+typed/history writes, scan allocation, file/digest, receipts and archive remain
+unchanged. The exact source comparison runs in CI. IMPORT_STAGING_PROC_CORE
+contains no eligible upkeep and is unchanged.
+
+The same six bounded kind rows carry import-specific KS4 due/completed generations.
+Only actual KS4 promotion requests KS4 upkeep. Each claim acknowledges its captured
+generation; newer work remains pending. No per-import queue or new scheduler is
+introduced. The explicit post-import route processes due import work and returns
+both finite receipts, preserving outstanding maintenance separately from business
+completion.
+
+All maintenance now acquires K98:maintenance-schema:v1 Exclusive/Session before
+claim. Managed SNAPSHOT readers take Shared/Transaction through the Bot helper;
+rollback releases that guard. Producers do not acquire this resource, preserving
+metadata/producer independence. Unknown rollback retains open custody; pooled
+maintenance release explicitly verifies all three session resources. This does
+not qualify unmanaged legacy/manual readers.
+
+Native qualification: five import cases run real sampled statistics and fragmented
+index rebuilds, conditional KS4 scope, rollback, both managed reader arrival
+orders and a new generation arriving during a running claim. The combined native
+maintenance and existing snapshot selection passed 28 cases. Fixture delays are
+identified separately from unchanged real child work. Exact business/upkeep
+source preservation and all seven candidate mutation refusals pass. Historical
+encoding/source tests use authenticated immutable predecessors; runtime installer
+admission is unchanged. D4 owns final permissions/source/consumer compatibility;
+D5 owns combined scale and cost. No production execution or installation occurred.

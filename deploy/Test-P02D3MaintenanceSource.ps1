@@ -3,11 +3,13 @@ $ErrorActionPreference='Stop'
 # Offline source custody only. This is not an installed permission/source
 # allowlist or an installer; D4 must qualify the coordinated final release.
 $expected=@{
-    'sql_schema/dbo.MaintenanceWork.Table.sql'='cbfd167a825c5903b49ef8882bc990d351e7e67f6f94f04ecb71c5b9323fe200'
-    'sql_schema/dbo.usp_MaintenanceDue.StoredProcedure.sql'='c0f9cd9fedcefd7a031a8c7541fe10d7c4165cdc6fb5397bc3c670743b0cd2dc'
-    'sql_schema/dbo.usp_MaintenancePostImport.StoredProcedure.sql'='b5000239fb1289b45543984b0682ace13c8f52947aa3ceb7dec140d0c02240cd'
-    'sql_schema/dbo.usp_RunMaintenance.StoredProcedure.sql'='d1a534de14b621dba5c0df1c573eb8d3c44e29c143b519912f9ec6f99368fe8e'
-    'sql_schema/dbo.usp_update_stats.StoredProcedure.sql'='a38bc052259aef2d64ba9217618532dd29e4f731ffc48f914bff45a7ae3196de'
+    'sql_schema/dbo.MaintenanceWork.Table.sql'='5415c834690180f5fcca45e1667de916c5b33671d9037bd55f03109c7993a4d3'
+    'sql_schema/dbo.usp_MaintenanceDue.StoredProcedure.sql'='512f44bbe2491b85d5089585c8320c06aaa01444e15fbaa8ad1fab50d8249c92'
+    'sql_schema/dbo.usp_MaintenancePostImport.StoredProcedure.sql'='71e1d870b0e7d9fb1fa23407fbc9d8f26bae44f36e005dbe38d08d415ab979d5'
+    'sql_schema/dbo.usp_RunMaintenance.StoredProcedure.sql'='95d3dd730d1ac96bae96164ac92f32c9a110a5c9ae2d72daf2aad2a2ba788d25'
+    'sql_schema/dbo.usp_update_stats.StoredProcedure.sql'='dbaf8e463c94e03b72aea7f0a6f8202b07f96632eb63935effee54c5ff78fb5c'
+    'sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql'='07b56ac1e0d96a9f2a4d4ded0422c26dae4c0ed78e536cb754790eb4273b7c49'
+    'sql_schema/dbo.usp_MaintenanceImport.StoredProcedure.sql'='9098becea8286181f474cf4e332903aae70adbb4f95df5c20d5abef022fab8ab'
 }
 foreach($path in $expected.Keys) {
     $text=[IO.File]::ReadAllText((Join-Path $RepositoryRoot $path)).Replace("`r`n","`n")
@@ -16,4 +18,4 @@ foreach($path in $expected.Keys) {
     finally { $hash.Dispose() }
     if($actual -cne $expected[$path]){throw "Unreviewed D3 maintenance source: $path"}
 }
-Write-Output 'PASS: five fixed D3b source candidates; no SQL connection or deployment authority.'
+Write-Output 'PASS: seven fixed D3c source candidates; no SQL connection or deployment authority.'

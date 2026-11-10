@@ -7,8 +7,9 @@ BEGIN
     SET NOCOUNT ON;
     IF @@TRANCOUNT<>0 OR (@@OPTIONS & 2)=2 THROW 51962, 'Post-import maintenance requires autocommit.', 1;
     EXEC dbo.usp_MaintenanceDue @Kind='post_import',@RequestID=@RequestID;
+    EXEC dbo.usp_RunMaintenance @Kind='import';
     EXEC dbo.usp_RunMaintenance @Kind='post_import';
     SELECT Kind,DueGeneration,CompletedGeneration,ClaimedGeneration,ClaimID,
         State,FirstErrorNumber,LastErrorNumber
-      FROM dbo.MaintenanceWork WHERE Kind='post_import';
+      FROM dbo.MaintenanceWork WHERE Kind IN ('import','post_import');
 END;
