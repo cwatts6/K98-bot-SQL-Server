@@ -76,7 +76,8 @@ BEGIN
             -- Failed evidence persistence leaves the original running claim.
             -- Preserve the child error below; never manufacture completion.
         END CATCH;
-        -- Closing the dedicated connection is the final owner of failed release.
+        -- The caller must explicitly acknowledge session release before returning
+        -- this connection to an ODBC pool; close alone may retain these guards.
         -- Do not mask the original SQL failure with an attempted second release.
         THROW;
     END CATCH;
