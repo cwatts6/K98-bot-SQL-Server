@@ -8,7 +8,7 @@ BEGIN
     SET LOCK_TIMEOUT 0;
     -- The actual worker owns both guards; no journal-session/age lease can
     -- outlive it or admit another worker while this one still executes.
-    IF @@TRANCOUNT<>0 THROW 51962, 'Maintenance requires its own autocommit session.', 1;
+    IF @@TRANCOUNT<>0 OR (@@OPTIONS & 2)=2 THROW 51962, 'Maintenance requires its own autocommit session.', 1;
     IF NOT EXISTS(SELECT 1 FROM dbo.MaintenanceWork WHERE Kind=@Kind)
         THROW 51962, 'Unknown maintenance kind.', 1;
     DECLARE @r int, @released int, @claim uniqueidentifier=NEWID(),

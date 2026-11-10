@@ -5,7 +5,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_update_stats @RequestID uniqueidentifier = NUL
 AS
 BEGIN
     SET NOCOUNT ON;
-    IF @@TRANCOUNT<>0 THROW 51962, 'Post-import maintenance requires autocommit.', 1;
+    IF @@TRANCOUNT<>0 OR (@@OPTIONS & 2)=2 THROW 51962, 'Post-import maintenance requires autocommit.', 1;
     EXEC dbo.usp_MaintenanceDue @Kind='post_import',@RequestID=@RequestID;
     EXEC dbo.usp_RunMaintenance @Kind='post_import';
     SELECT Kind,DueGeneration,CompletedGeneration,ClaimedGeneration,ClaimID,
