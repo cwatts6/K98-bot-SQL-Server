@@ -9,7 +9,8 @@ $bodies = [regex]::Matches($migration,"EXEC sys\.sp_executesql N'(?<body>(?:[^']
 foreach ($name in @('UPDATE_ALL2','usp_S11CompleteStatsReports','usp_S11CompleteStatsReportsCore','usp_S11ValidateStatsReportStage','usp_update_stats')) {
     $text = [IO.File]::ReadAllText((Join-Path $RepositoryRoot "sql_schema/dbo.$name.StoredProcedure.sql")).Replace("`r`n","`n")
     if($name -ceq 'UPDATE_ALL2') {
-        & (Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1') -RepositoryRoot $RepositoryRoot
+        & python (Join-Path $RepositoryRoot 'tests/test_d4_child_admission_source.py')
+        if ($LASTEXITCODE -ne 0) { throw 'D4 maintenance source custody failed.' }
         $historical=& git -C $RepositoryRoot show '8ba5850a1f9fca700b828d2363a7794aa0c5fbd3:sql_schema/dbo.UPDATE_ALL2.StoredProcedure.sql'
         if($LASTEXITCODE -ne 0){throw 'Pinned pre-D3c import source is unavailable'}
         $text=($historical -join "`n")+"`n"
@@ -17,13 +18,15 @@ foreach ($name in @('UPDATE_ALL2','usp_S11CompleteStatsReports','usp_S11Complete
     if($name -ceq 'usp_update_stats') {
         # Authenticate the D3 candidate before checking the immutable P0 body.
         # This test bridge supplies no production installation permission.
-        & (Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1') -RepositoryRoot $RepositoryRoot
+        & python (Join-Path $RepositoryRoot 'tests/test_d4_child_admission_source.py')
+        if ($LASTEXITCODE -ne 0) { throw 'D4 maintenance source custody failed.' }
         $historical=& git -C $RepositoryRoot show '3dcd9d1f5356a1e2c9022450a1e7f4f555717361:sql_schema/dbo.usp_update_stats.StoredProcedure.sql'
         if($LASTEXITCODE -ne 0){throw 'Pinned pre-D3 maintenance source is unavailable'}
         $text=($historical -join "`n")+"`n"
     }
     if($name -in @('usp_S11CompleteStatsReportsCore','usp_S11ValidateStatsReportStage')) {
-        & (Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1') -RepositoryRoot $RepositoryRoot
+        & python (Join-Path $RepositoryRoot 'tests/test_d4_child_admission_source.py')
+        if ($LASTEXITCODE -ne 0) { throw 'D4 maintenance source custody failed.' }
         $historical=& git -C $RepositoryRoot show ("6504865ec34fe1e3d7567d25aa892f7c811a636d:sql_schema/dbo.$name.StoredProcedure.sql")
         if($LASTEXITCODE -ne 0){throw 'Pinned pre-D3g report source is unavailable'}
         $text=($historical -join "`n")+"`n"

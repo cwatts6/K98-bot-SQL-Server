@@ -7,6 +7,9 @@ WITH EXECUTE AS OWNER
 AS
 BEGIN
     SET NOCOUNT ON;
+    -- Direct calls must obey the same session boundary as the worker.
+    IF @@TRANCOUNT<>0 OR (@@OPTIONS & 2)=2
+        THROW 51962,'Maintenance child requires its own autocommit session.',1;
     IF COALESCE(APPLOCK_MODE('public','K98:TargetPublication:DeltaPreprocessing','Session'),'NoLock')<>'Exclusive'
         THROW 51962,'Maintenance delta guard required.',1;
     IF APPLOCK_MODE('public','K98:post-import-stats:v1','Session')<>'Exclusive'

@@ -8,6 +8,11 @@ WITH EXECUTE AS OWNER
 AS
 BEGIN
     SET NOCOUNT ON;
+    -- Direct calls must obey the same session boundary as the worker.
+    IF @@TRANCOUNT<>0 OR (@@OPTIONS & 2)=2
+        THROW 51962,'Maintenance child requires its own autocommit session.',1;
+    IF COALESCE(APPLOCK_MODE('public','K98:StatsForUpload:Publish','Session'),'NoLock')<>'Exclusive'
+        THROW 51962,'Maintenance player publication guard required.',1;
     DECLARE @StartTime datetime2=SYSUTCDATETIME();
     DECLARE @MaintenanceRowThreshold int=5000,@MaintenanceHourThreshold int=168;
     IF COALESCE(APPLOCK_MODE('public','K98:post-import-stats:v1','Session'),'NoLock')<>'Exclusive'
