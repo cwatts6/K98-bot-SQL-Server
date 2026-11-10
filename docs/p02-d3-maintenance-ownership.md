@@ -211,8 +211,8 @@ registered inside each corresponding stage transaction. The shared schema guard
 now also protects the legacy report entry before output changes.
 
 MaintenanceBackupWork is one coalesced row, separate from historical unowned queue
-rows. The final_stats child creates demand only after summary upkeep and only when
-the optional legacy queue installation is present. Claim requires its own
+rows. The backup claim observes committed summary demand independently of statistics
+headroom or outcome, only when the optional legacy queue installation is present. Claim requires its own
 autocommit session and retains the existing physical maintenance guard throughout
 Python dispatch and exact claim/generation acknowledgement. Missing physical owner
 means unknown outcome; failed/unknown attempts never age out or replay. Newer demand

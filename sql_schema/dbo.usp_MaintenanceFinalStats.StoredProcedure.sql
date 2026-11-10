@@ -25,15 +25,5 @@ BEGIN
     BEGIN
         UPDATE STATISTICS dbo.ALL_STATS_FOR_DASHBAORD WITH FULLSCAN;
         CHECKPOINT;
-        -- Preserve optional installation eligibility. Historical queue rows are
-        -- never adopted, expired, or inferred unattempted by their age.
-        IF OBJECT_ID('dbo.LogBackupTriggerQueue','U') IS NOT NULL
-        BEGIN
-            UPDATE dbo.MaintenanceBackupWork WITH (UPDLOCK) SET DueGeneration=@Generation,
-                DueUTC=SYSUTCDATETIME(),State=CASE WHEN State='requested' THEN 'pending' ELSE State END
-              WHERE ID=1 AND DueGeneration<@Generation;
-            IF NOT EXISTS(SELECT 1 FROM dbo.MaintenanceBackupWork WHERE ID=1)
-                THROW 51964,'Backup maintenance summary missing.',1;
-        END;
     END;
 END;
