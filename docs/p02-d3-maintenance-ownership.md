@@ -1,3 +1,5 @@
+> **Source closeout, 10 November 2026:** D3b-D3g SQL PRs 142-147 and Bot mirror PRs 513-519 are merged. Separate business and maintenance ownership is implemented across all six boundaries; D4 installed/manual/signing/release compatibility and D5 combined qualification remain open. No production deployment, SQL apply or backup invocation is implied. Earlier slice sections retain their historical evidence.
+
 # P02 D3b: bounded durable maintenance ownership
 
 This is the SQL companion to the Bot D3b maintenance ownership slice. The
@@ -225,3 +227,35 @@ ACK persistence failure and continued refusal to replay. Business-preservation
 checks compare every retained core byte and preserve the eight-column result.
 D4 still owns installed permissions/signing/manual compatibility and the missing
 msdb wrapper source qualification; D5 owns scale/cost. No deployment authority.
+
+## Final merged source receipts
+
+| Slice | SQL PR | Merge |
+| --- | --- | --- |
+| D3b ownership |142|8ba5850a1f9fca700b828d2363a7794aa0c5fbd3|
+| D3c import |143|faddbd12ea0ea5d376214bd60d6a8ae3cf802338|
+| D3d configuration |144|adb5f8a7f662be667fe0326d195ffaf5569704fa|
+| D3e player report |145|2af0a70e268376ae978c4bc8988792c88fd295db|
+| D3f KVK output |146|6504865ec34fe1e3d7567d25aa892f7c811a636d|
+| D3g final reports/backup |147|0d93e22841e65b229126dd479508e2bd0e34e611|
+
+D3g final reviewed head 9cb0895cb2dc1d9bf59cf7c898b36ddbe7e17d89 has clear code
+review, zero unresolved threads and two passing SQL CI runs. Independent review
+caught and corrected backup eligibility coupled to low-log statistics upkeep;
+committed summary demand now permits separate backup relief without widening the
+statistics threshold. Fourteen final native D3g tests pass, with backup dispatch
+simulated. The earlier combined selection passed 122 checks. Actual high-load costs,
+installed wrapper behavior and backup completion remain unqualified.
+
+Security Changes scans 3276c65e-3ec5-43d3-ab80-acc48bb8c59a (17 paths) and
+4b1addf0-1e6d-4dfc-a427-cbbcd9563cc9 (four correction paths) completed with zero
+security findings. The correction is separately committed; earlier evidence remains
+immutable. Full Bot regression/log-isolation evidence is recorded in the canonical
+Bot D3 delivery closeout. This two-document update has no runtime, grant, migration
+or permission change; source/security tests are not repeated solely for prose.
+
+D4 must supply the coordinated migration and exact installed contracts for all
+four maintenance ledgers and their children/producers, verify direct/manual callers,
+reconcile missing KS4_UNO_SEQ and installed msdb wrapper definitions, and preserve
+historical unowned backup rows. Do not manually apply these schema snapshots, infer
+permissions from OWNER declarations, enable TRUSTWORTHY or replay uncertain work.
