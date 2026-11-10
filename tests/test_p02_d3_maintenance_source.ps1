@@ -4,7 +4,7 @@ $check=Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1'
 $fixture=Join-Path ([IO.Path]::GetTempPath()) ('k98-d3-source-'+[guid]::NewGuid().ToString('N'))
 $source=Join-Path $fixture 'sql_schema'
 $null=[IO.Directory]::CreateDirectory($source)
-$names=@('dbo.MaintenanceWork.Table.sql','dbo.usp_MaintenanceDue.StoredProcedure.sql','dbo.usp_MaintenancePostImport.StoredProcedure.sql','dbo.usp_RunMaintenance.StoredProcedure.sql','dbo.usp_update_stats.StoredProcedure.sql','dbo.UPDATE_ALL2.StoredProcedure.sql','dbo.usp_MaintenanceImport.StoredProcedure.sql','dbo.CREATE_DELTA_TABLES.StoredProcedure.sql','dbo.MaintenanceConfigurationWork.Table.sql','dbo.usp_MaintenanceConfigurationDue.StoredProcedure.sql','dbo.usp_MaintenanceConfiguration.StoredProcedure.sql','dbo.SP_Stats_for_Upload.StoredProcedure.sql','dbo.usp_MaintenancePlayerReport.StoredProcedure.sql','dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql','dbo.MaintenanceKvkWork.Table.sql','dbo.usp_MaintenanceKvkDue.StoredProcedure.sql','dbo.usp_MaintenanceKvkOutput.StoredProcedure.sql')
+$names=@('dbo.MaintenanceWork.Table.sql','dbo.usp_MaintenanceDue.StoredProcedure.sql','dbo.usp_MaintenancePostImport.StoredProcedure.sql','dbo.usp_RunMaintenance.StoredProcedure.sql','dbo.usp_update_stats.StoredProcedure.sql','dbo.UPDATE_ALL2.StoredProcedure.sql','dbo.usp_MaintenanceImport.StoredProcedure.sql','dbo.CREATE_DELTA_TABLES.StoredProcedure.sql','dbo.MaintenanceConfigurationWork.Table.sql','dbo.usp_MaintenanceConfigurationDue.StoredProcedure.sql','dbo.usp_MaintenanceConfiguration.StoredProcedure.sql','dbo.SP_Stats_for_Upload.StoredProcedure.sql','dbo.usp_MaintenancePlayerReport.StoredProcedure.sql','dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql','dbo.MaintenanceKvkWork.Table.sql','dbo.usp_MaintenanceKvkDue.StoredProcedure.sql','dbo.usp_MaintenanceKvkOutput.StoredProcedure.sql','dbo.MaintenanceBackupWork.Table.sql','dbo.usp_MaintenanceFinalStats.StoredProcedure.sql','dbo.usp_MaintenanceBackupClaim.StoredProcedure.sql','dbo.usp_MaintenanceBackupAcknowledge.StoredProcedure.sql','dbo.usp_S11CompleteStatsReportsCore.StoredProcedure.sql','dbo.usp_S11ValidateStatsReportStage.StoredProcedure.sql')
 foreach($name in $names){Copy-Item -LiteralPath (Join-Path $RepositoryRoot "sql_schema/$name") -Destination $source}
 & $check -RepositoryRoot $fixture
 foreach($name in $names){
@@ -18,4 +18,4 @@ foreach($name in $names){
     if(-not $refused){throw "D3 source mutation was admitted: $name"}
 }
 & $check -RepositoryRoot $fixture
-Write-Output "PASS: all seventeen D3 source mutations rejected; fixture retained at $fixture"
+Write-Output "PASS: all twenty-three D3 source mutations rejected; fixture retained at $fixture"

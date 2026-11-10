@@ -22,6 +22,12 @@ foreach ($name in @('UPDATE_ALL2','usp_S11CompleteStatsReports','usp_S11Complete
         if($LASTEXITCODE -ne 0){throw 'Pinned pre-D3 maintenance source is unavailable'}
         $text=($historical -join "`n")+"`n"
     }
+    if($name -in @('usp_S11CompleteStatsReportsCore','usp_S11ValidateStatsReportStage')) {
+        & (Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1') -RepositoryRoot $RepositoryRoot
+        $historical=& git -C $RepositoryRoot show ("6504865ec34fe1e3d7567d25aa892f7c811a636d:sql_schema/dbo.$name.StoredProcedure.sql")
+        if($LASTEXITCODE -ne 0){throw 'Pinned pre-D3g report source is unavailable'}
+        $text=($historical -join "`n")+"`n"
+    }
     if($name -ceq 'usp_S11CompleteStatsReportsCore') {
         # The historical P0 manifest remains immutable. Check the current core
         # against the exact Phase 1 migration, then validate P0 using its pinned source.

@@ -202,3 +202,26 @@ active business queries; D5 owns their combined cost qualification.
 Exact business and unchanged child-source comparisons run in CI; all17 fixed
 candidate mutation refusals pass. D4 installed/signing/manual compatibility and
 D5 scale/cost remain. No production SQL or installation occurred.
+
+## D3g final report and backup request ownership
+
+The report core keeps its admission headroom checks and stage receipts. Dashboard
+SAMPLE25 and summary FULLSCAN/completion CHECKPOINT become scoped final_stats work,
+registered inside each corresponding stage transaction. The shared schema guard
+now also protects the legacy report entry before output changes.
+
+MaintenanceBackupWork is one coalesced row, separate from historical unowned queue
+rows. The backup claim observes committed summary demand independently of statistics
+headroom or outcome, only when the optional legacy queue installation is present. Claim requires its own
+autocommit session and retains the existing physical maintenance guard throughout
+Python dispatch and exact claim/generation acknowledgement. Missing physical owner
+means unknown outcome; failed/unknown attempts never age out or replay. Newer demand
+is retained when an older request is acknowledged. Requested means acknowledged
+dispatch, not completed backup. No production Agent call was used in qualification.
+
+D3g disposable native tests cover real statistics and CHECKPOINT, stage intent
+rollback/commit, worker exclusion, backup live owner, orphan unknown, exact ACK,
+ACK persistence failure and continued refusal to replay. Business-preservation
+checks compare every retained core byte and preserve the eight-column result.
+D4 still owns installed permissions/signing/manual compatibility and the missing
+msdb wrapper source qualification; D5 owns scale/cost. No deployment authority.
