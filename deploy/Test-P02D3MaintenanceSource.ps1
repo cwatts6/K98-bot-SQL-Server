@@ -13,7 +13,7 @@ $expected=@{
     'sql_schema/dbo.CREATE_DELTA_TABLES.StoredProcedure.sql'='8b8757bc34e2ca46208ffbd6f0655cc2f49d9aa789517fdd10c71b9458bdd4f6'
     'sql_schema/dbo.MaintenanceConfigurationWork.Table.sql'='55153b6243a04cfb710d210975c318ceff77cfc2151ab0070cb8043641f26d27'
     'sql_schema/dbo.usp_MaintenanceConfigurationDue.StoredProcedure.sql'='114aa7b30bd236851ac64273f12ca3ba5deba9003bbcd49bb5cb2e5bebcc8b3b'
-    'sql_schema/dbo.usp_MaintenanceConfiguration.StoredProcedure.sql'='80b03e934e04d2c9915805be589dd300241d593194af141445a501e45d5fbbee'
+    'sql_schema/dbo.usp_MaintenanceConfiguration.StoredProcedure.sql'='a5735621f703128f10e99dcdcd2b775c6ee5c2857810abda495d797ae18272db'
 }
 foreach($path in $expected.Keys) {
     $text=[IO.File]::ReadAllText((Join-Path $RepositoryRoot $path)).Replace("`r`n","`n")

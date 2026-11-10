@@ -181,8 +181,14 @@ BEGIN
 
     END TRY
     BEGIN CATCH
-        UPDATE dbo.MaintenanceConfigurationWork
-           SET FirstLogErrorNumber=COALESCE(FirstLogErrorNumber,ERROR_NUMBER()) WHERE ID=1;
+        DECLARE @logError int=ERROR_NUMBER();
+        BEGIN TRY
+            UPDATE dbo.MaintenanceConfigurationWork
+               SET FirstLogErrorNumber=COALESCE(FirstLogErrorNumber,@logError) WHERE ID=1;
+        END TRY
+        BEGIN CATCH
+            -- Diagnostic persistence must not replace the original timing-log error.
+        END CATCH;
         -- The durable upkeep generation above remains independent. A failed
         -- packet cannot automatically replay completed upkeep for a timing log.
         THROW;
