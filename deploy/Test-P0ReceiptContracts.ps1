@@ -8,6 +8,14 @@ $migration = [IO.File]::ReadAllText((Join-Path $RepositoryRoot 'migrations/20261
 $bodies = [regex]::Matches($migration,"EXEC sys\.sp_executesql N'(?<body>(?:[^']|'')*)';",[Text.RegularExpressions.RegexOptions]::Singleline)
 foreach ($name in @('UPDATE_ALL2','usp_S11CompleteStatsReports','usp_S11CompleteStatsReportsCore','usp_S11ValidateStatsReportStage','usp_update_stats')) {
     $text = [IO.File]::ReadAllText((Join-Path $RepositoryRoot "sql_schema/dbo.$name.StoredProcedure.sql")).Replace("`r`n","`n")
+    if($name -ceq 'usp_update_stats') {
+        # Authenticate the D3 candidate before checking the immutable P0 body.
+        # This test bridge supplies no production installation permission.
+        & (Join-Path $RepositoryRoot 'deploy/Test-P02D3MaintenanceSource.ps1') -RepositoryRoot $RepositoryRoot
+        $historical=& git -C $RepositoryRoot show '3dcd9d1f5356a1e2c9022450a1e7f4f555717361:sql_schema/dbo.usp_update_stats.StoredProcedure.sql'
+        if($LASTEXITCODE -ne 0){throw 'Pinned pre-D3 maintenance source is unavailable'}
+        $text=($historical -join "`n")+"`n"
+    }
     if($name -ceq 'usp_S11CompleteStatsReportsCore') {
         # The historical P0 manifest remains immutable. Check the current core
         # against the exact Phase 1 migration, then validate P0 using its pinned source.
