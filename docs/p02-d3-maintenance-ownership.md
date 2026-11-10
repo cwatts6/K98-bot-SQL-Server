@@ -70,5 +70,30 @@ security reviews and PR checks remain required before merge.
 
 SQL Changes scan `d305e947-8e39-4f05-b290-16991aeaee71` reviewed executable
 revision `48dc44ad` with zero security findings. It explicitly retained the
-companion pooled-close reliability correction and D4/D5 limits. This subsequent
-comment/documentation clarification has no executable SQL change.
+companion pooled-close reliability correction and D4/D5 limits. The later executable correction is qualified below.
+
+## Review closeout (10 November 2026)
+
+The GitHub review identified implicit transaction mode as a durability defect:
+`@@TRANCOUNT=0` alone does not establish autocommit. Both public/worker entry
+points now refuse `SET IMPLICIT_TRANSACTIONS ON` before any table access. The two
+native regressions failed before the fix and passed afterward; they are committed
+in `tests/test_maintenance_session_contract.py`. Combined Bot/native qualification
+passed 13 cases. The additional native cases above are included in the eleven,
+not eleven plus two.
+
+Exact correction Changes scan `cf8d43d4-579e-4353-a0d1-d015565fd6a0`
+covered all eight changed paths through `287c73e` with zero findings. Its measured
+usage was 660,506 tokens (656,864 input, 605,440 cached input, 3,642 output).
+Both SQL validation CI runs passed at that head and refreshed GitHub code review
+reported no findings. The first failure and fixed-test evidence remain retained.
+
+Review comments on repeatable seeding and execution context were reconciled
+against the source-only boundary. This CREATE TABLE snapshot is intentionally
+not a reapplicable installer. D4 must preserve existing outstanding work and
+qualify exact installed source/signing, restricted-principal DMV access and
+same-owner access. Restoring owner impersonation would reintroduce the observed
+SQL 15562 failure. Historical P0 installation manifests and migrations remain
+immutable; the offline test first authenticates these five D3 sources, then
+checks the pinned pre-D3 P0 body. Each changed-source mutation is rejected.
+No current D3 installer or production permission/compatibility claim is supplied.
