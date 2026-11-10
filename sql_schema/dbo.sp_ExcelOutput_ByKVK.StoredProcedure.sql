@@ -82,6 +82,11 @@ BEGIN
 
     BEGIN TRY
         BEGIN TRANSACTION;
+        DECLARE @MaintenanceSchemaResult int;
+        EXEC @MaintenanceSchemaResult=sys.sp_getapplock @Resource=N'K98:maintenance-schema:v1',
+            @LockMode='Shared',@LockOwner='Transaction',@LockTimeout=0;
+        IF @MaintenanceSchemaResult<0
+            THROW 51966,'KVK publication deferred while maintenance owns schema.',1;
 
         -- Fresh staging
         TRUNCATE TABLE dbo.STAGING_STATS;
@@ -662,14 +667,6 @@ BEGIN
         @pScan = @Scan,
         @pKVK  = @KVK;
 
-	-- Call index creation procedure with BOTH parameters
-	EXEC dbo.sp_Create_Excel_For_Kvk_Indexes @FullTableName = @ExcelTblFull, @TableBase = @ExcelTbl;
-
-	-- ✅ NEW: Update statistics for optimal query performance
-    DECLARE @UpdateStatsSQL NVARCHAR(MAX) = N'UPDATE STATISTICS ' + @ExcelTblFull + N' WITH FULLSCAN;';
-    EXEC sp_executesql @UpdateStatsSQL;
-    PRINT 'Updated statistics on ' + @ExcelTblFull + ' with FULLSCAN';
-
     DROP TABLE IF EXISTS #DKP, #HD1;
 
     EXEC dbo.sp_Refresh_View_EXCEL_FOR_KVK_All;
@@ -677,6 +674,8 @@ BEGIN
         @KVKNo = @KVK,
         @FinalScanOrder = @LatestScanToUse,
         @FinalizationBasis = N'LIVE_OUTPUT';
+
+        EXEC dbo.usp_MaintenanceKvkDue @KVKNo=@KVK;
 
 	        COMMIT TRANSACTION;
     END TRY

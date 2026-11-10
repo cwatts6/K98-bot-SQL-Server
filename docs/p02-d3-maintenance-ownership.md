@@ -179,3 +179,26 @@ failure with committed report rows retained. D2 statement limits are unchanged.
 Exact full business-source comparison runs in CI. Thirteen fixed source candidates
 and all mutation refusals pass. Installed permissions/signing/manual compatibility
 remain D4, scale/cost D5. No production SQL or deployment occurred.
+
+## D3f KVK output maintenance candidate
+
+The real output calculation, views and exact receipt stay in the business
+transaction. Only the post-output nonunique indexes and FULLSCAN are deferred.
+A typed positive KVK due helper validates the canonical dbo output object and
+KVKFinalReportHeader, coalescing one row per output identity. Claim identity is
+retained separately from newer due object/revision fields. One target is processed
+per worker call; aggregate completion waits until all captured targets complete.
+Earlier per-target completion survives later failure; failed/unknown claims never
+automatically replay. Existing unique indexes are preserved without DROP.
+
+The actual output producer takes the existing maintenance-schema Shared transaction
+lock at zero wait before its first mutation. This excludes the maintenance worker,
+including standalone producer calls, without adding a sixth session guard. It is
+not a claim that all unmanaged/manual producers or historical readers are qualified.
+Required ranking access indexes and temporary calculation indexes remain in their
+active business queries; D5 owns their combined cost qualification.
+
+13 actual KVK native cases and127 combined native/caller/source cases passed.
+Exact business and unchanged child-source comparisons run in CI; all17 fixed
+candidate mutation refusals pass. D4 installed/signing/manual compatibility and
+D5 scale/cost remain. No production SQL or installation occurred.
