@@ -16,13 +16,15 @@ BEGIN
             @resource nvarchar(255)=N'K98:post-import-stats:v1',
             @snapshot bit=0, @schema bit=0, @delta bit=0, @player bit=0, @owned bit=0,
             @cfgrows bigint,@cfgcompleted bigint,@cfgbatch int,@cfgscan int,
-            @cfglarge bigint,@cfglargedone bigint,@pendingRows bigint,@largeDue bit;
+            @cfglarge bigint,@cfglargedone bigint,@pendingRows bigint,@largeDue bit,@kvkDone bit=1;
     BEGIN TRY
         EXEC @r=sys.sp_getapplock @Resource=@resource,
             @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
         IF @r<0 RETURN;
         SET @owned=1;
         -- A free exact session guard proves physical absence, not outcome.
+        IF @Kind='kvk_output'
+            UPDATE dbo.MaintenanceKvkWork SET State='unknown' WHERE State='running';
         UPDATE dbo.MaintenanceWork SET State='unknown'
           WHERE Kind=@Kind AND State='running';
         SELECT @generation=DueGeneration,@state=State,@ks4due=KS4DueGeneration,@ks4done=KS4CompletedGeneration
@@ -75,6 +77,8 @@ BEGIN
                         @RowsProcessed=@pendingRows,@LastBatchRows=@cfgbatch,@NewMaxScan=@cfgscan,
                         @LargeBatchDue=@largeDue,@Generation=@generation;
                     ELSE IF @Kind='player_report' EXEC dbo.usp_MaintenancePlayerReport;
+                    ELSE IF @Kind='kvk_output' EXEC dbo.usp_MaintenanceKvkOutput
+                        @Generation=@generation,@ClaimID=@claim,@AllDone=@kvkDone OUTPUT;
                     ELSE IF @Kind='post_import' EXEC dbo.usp_MaintenancePostImport;
                     ELSE THROW 51963, 'Maintenance child is not installed.', 1;
                     IF @Kind='configuration'
@@ -84,10 +88,10 @@ BEGIN
                             CompletedLargeBatchGeneration=@cfglarge WHERE ID=1;
                         IF @@ROWCOUNT<>1 THROW 51964,'Configuration summary changed.',1;
                     END;
-                    UPDATE dbo.MaintenanceWork SET CompletedGeneration=@generation,
+                    UPDATE dbo.MaintenanceWork SET CompletedGeneration=CASE WHEN @kvkDone=1 THEN @generation ELSE CompletedGeneration END,
                         KS4CompletedGeneration=@ks4due,
                         CompletedUTC=SYSUTCDATETIME(),LastErrorNumber=NULL,
-                        State=CASE WHEN DueGeneration=@generation THEN 'complete' ELSE 'pending' END
+                        State=CASE WHEN DueGeneration=@generation AND @kvkDone=1 THEN 'complete' ELSE 'pending' END
                       WHERE Kind=@Kind AND ClaimID=@claim AND State='running'
                         AND ClaimedGeneration=@generation;
                     IF @@ROWCOUNT<>1 THROW 51964, 'Maintenance claim changed.', 1;
