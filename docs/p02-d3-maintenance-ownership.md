@@ -160,3 +160,22 @@ The authoritative KS4 table refers to KS4_UNO_SEQ without a repository sequence
 definition; the owned fixture omits only that default and supplies explicit
 SCAN_UNO. D4 must reconcile the actual installed dependency, not infer its schema.
 No production installation/execution occurred. D4/D5 boundaries remain unchanged.
+
+## D3e player report maintenance candidate
+
+SP_Stats_for_Upload preserves its full validated report publication, naming,
+provenance and standalone/savepoint transaction behavior. Only its FULLSCAN
+becomes a transactional player_report due marker. The fixed deferred child runs
+FULLSCAN after committed business work. Every maintenance kind now takes the
+existing StatsForUpload:Publish mutex at zero wait before claim (post_import
+sp_updatestats also touches the report). A standalone publication transaction
+therefore leaves maintenance pending without claiming it. All five session guards
+are explicitly acknowledged before pooled return in the Bot companion.
+
+Nine actual player-report native cases qualify the real procedure, tables and
+naming helper/view, including outer rollback/commit, invalid provenance, due-write
+failure, real statistics, publication contention and actual missing-object upkeep
+failure with committed report rows retained. D2 statement limits are unchanged.
+Exact full business-source comparison runs in CI. Thirteen fixed source candidates
+and all mutation refusals pass. Installed permissions/signing/manual compatibility
+remain D4, scale/cost D5. No production SQL or deployment occurred.

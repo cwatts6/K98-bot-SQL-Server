@@ -9,8 +9,9 @@ BEGIN
     EXEC dbo.usp_MaintenanceDue @Kind='post_import',@RequestID=@RequestID;
     EXEC dbo.usp_RunMaintenance @Kind='import';
     EXEC dbo.usp_RunMaintenance @Kind='configuration';
+    EXEC dbo.usp_RunMaintenance @Kind='player_report';
     EXEC dbo.usp_RunMaintenance @Kind='post_import';
     SELECT Kind,DueGeneration,CompletedGeneration,ClaimedGeneration,ClaimID,
         State,FirstErrorNumber,LastErrorNumber
-      FROM dbo.MaintenanceWork WHERE Kind IN ('import','configuration','post_import');
+      FROM dbo.MaintenanceWork WHERE Kind IN ('import','configuration','player_report','post_import');
 END;
