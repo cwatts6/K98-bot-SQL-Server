@@ -34,6 +34,7 @@ jobs:
         run: |
           .\deploy\Test-SqlFileEncoding.ps1
           .\deploy\Test-ModuleReleaseProfile.ps1
+          .\tests\test_d4_release_runner.ps1
           $fixture = Join-Path $env:RUNNER_TEMP 'kvk-history-test-profile.json'
           python .\validation\build_history_release_profile.py --database-collation Latin1_General_CI_AS --tempdb-collation Latin1_General_CI_AS --compatibility-level 160 --output $fixture
           if ($LASTEXITCODE -ne 0) { throw 'Offline test profile generation failed.' }
@@ -63,6 +64,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'D3c import business preservation failed.' }
           python .\tests\test_d4_child_admission_source.py
           if ($LASTEXITCODE -ne 0) { throw 'D4 child source custody failed.' }
+          python .\tests\test_d4_release_source.py
+          if ($LASTEXITCODE -ne 0) { throw 'D4 combined release source custody failed.' }
           .\deploy\Test-P0ReceiptContracts.ps1
           .\tests\test_p02_phase1_release_runner.ps1
           python .\validation\validate_p0_reporting_equivalence.py

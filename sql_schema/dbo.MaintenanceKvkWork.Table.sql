@@ -2,13 +2,13 @@ SET ANSI_NULLS ON;
 SET QUOTED_IDENTIFIER ON;
 GO
 CREATE TABLE dbo.MaintenanceKvkWork (
-    KVKNo int NOT NULL PRIMARY KEY,
+    KVKNo int NOT NULL CONSTRAINT PK_MaintenanceKvkWork PRIMARY KEY,
     DueGeneration bigint NOT NULL,
-    CompletedGeneration bigint NOT NULL DEFAULT(0),
+    CompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceKvkWork_CompletedGeneration DEFAULT(0),
     DueObjectID int NOT NULL,
     DueObjectCreateDate datetime NOT NULL,
     DueHeaderRevision int NOT NULL,
-    State varchar(12) NOT NULL DEFAULT('pending'),
+    State varchar(12) NOT NULL CONSTRAINT DF_MaintenanceKvkWork_State DEFAULT('pending'),
     ClaimID uniqueidentifier NULL,
     ClaimedGeneration bigint NULL,
     ClaimedObjectID int NULL,

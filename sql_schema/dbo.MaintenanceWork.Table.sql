@@ -6,10 +6,10 @@ CREATE TABLE dbo.MaintenanceWork (
     CompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_Completed DEFAULT 0,
     KS4DueGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_KS4Due DEFAULT 0,
     KS4CompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_KS4Done DEFAULT 0,
-    DashboardDueGeneration bigint NOT NULL DEFAULT 0,
-    DashboardCompletedGeneration bigint NOT NULL DEFAULT 0,
-    SummaryDueGeneration bigint NOT NULL DEFAULT 0,
-    SummaryCompletedGeneration bigint NOT NULL DEFAULT 0,
+    DashboardDueGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_DashboardDueGeneration DEFAULT 0,
+    DashboardCompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_DashboardCompletedGeneration DEFAULT 0,
+    SummaryDueGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_SummaryDueGeneration DEFAULT 0,
+    SummaryCompletedGeneration bigint NOT NULL CONSTRAINT DF_MaintenanceWork_SummaryCompletedGeneration DEFAULT 0,
     CONSTRAINT CK_MaintenanceWork_Final CHECK (
         DashboardCompletedGeneration>=0 AND DashboardCompletedGeneration<=DashboardDueGeneration
         AND DashboardDueGeneration<=DueGeneration AND SummaryCompletedGeneration>=0
