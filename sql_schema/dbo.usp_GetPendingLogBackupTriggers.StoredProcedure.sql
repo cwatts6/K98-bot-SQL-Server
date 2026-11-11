@@ -12,10 +12,13 @@ BEGIN
     SET NOCOUNT ON;
 
     -- A drained, coordinated D4 transition preserves the historical queue.
-    -- Hidden metadata must never be mistaken for the legacy-only deployment.
-    IF ISNULL(HAS_PERMS_BY_NAME(DB_NAME(), N'DATABASE', N'VIEW DEFINITION'), 0) <> 1
+    -- Observe only this fixed identity under dbo; caller metadata DENYs cannot
+    -- disguise the new deployment. The queue operation retains caller context.
+    DECLARE @P02LedgerPresent bit;
+    EXEC dbo.usp_P02LegacyQueueState @LedgerPresent=@P02LedgerPresent OUTPUT;
+    IF @P02LedgerPresent IS NULL
         THROW 52942, 'Legacy backup queue deployment state is unavailable; no queue work was performed.', 1;
-    IF OBJECT_ID(N'dbo.MaintenanceBackupWork') IS NOT NULL
+    IF @P02LedgerPresent = 1
         THROW 52941, 'Legacy backup queue is held by P02 maintenance; historical rows must be preserved.', 1;
 
     

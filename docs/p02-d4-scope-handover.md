@@ -110,7 +110,7 @@ This supplement changes prose only; no runtime, SQL, grant or migration bytes ch
 
 The [legacy boundary slice](p02-d4b-legacy-boundaries.md) records the completed
 bounded caller checks and the operator-approved refusal of the three legacy roots.
-It also protects historical backup queue APIs when the new ledger is present or
-metadata is hidden. Definitions and data are retained; no installed objects or
+It also protects historical backup queue APIs when the new ledger is present,
+using a fixed dbo metadata helper so caller metadata denials cannot hide it. Definitions and data are retained; no installed objects or
 permissions changed. Combined migration, exact permission/startup bindings and
 D5 qualification remain open as specified above.

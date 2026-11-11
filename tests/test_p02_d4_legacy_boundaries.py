@@ -2,6 +2,7 @@
 
 import hashlib
 import json
+import re
 from pathlib import Path
 
 import pytest
@@ -52,6 +53,12 @@ def test_original_definitions_are_retained_exactly():
 @pytest.fixture(scope="module")
 def legacy(dependencies):
     con, _ = dependencies
+    helper = (
+        ROOT / "sql_schema/dbo.usp_P02LegacyQueueState.StoredProcedure.sql"
+    ).read_text(encoding="utf-8-sig")
+    for batch in re.split(r"(?im)^GO\s*$", helper):
+        if batch.strip():
+            con.execute(batch)
     for name in (*RETIRED, *QUEUE):
         source = (ROOT / f"sql_schema/dbo.{name}.StoredProcedure.sql").read_text(
             encoding="utf-8-sig"
@@ -159,7 +166,7 @@ def test_new_contract_holds_old_queue_without_adoption_or_expiry(legacy, ledger_
         con.execute("EXECUTE AS USER=N'd4_queue_hidden';")
         try:
             for name in QUEUE:
-                assert refused(con, CALLS[name])[0] == 52942
+                assert refused(con, CALLS[name])[0] == 52941
         finally:
             con.execute("REVERT;")
         assert queue_rows(con) == before
@@ -191,13 +198,74 @@ def test_legacy_only_deployment_retains_original_queue_behavior(legacy):
     assert queue_rows(con) == []
 
 
-def test_hidden_metadata_refuses_even_without_new_ledger(legacy):
+def test_legacy_only_caller_does_not_need_extra_metadata_grants(legacy):
+    con = legacy
+    con.execute("EXECUTE AS USER=N'd4_queue_hidden';")
+    try:
+        assert con.execute(CALLS[QUEUE[0]]).fetchall() == []
+        assert con.execute("SELECT USER_NAME()").fetchval() == "d4_queue_hidden"
+    finally:
+        con.execute("REVERT;")
+
+
+@pytest.mark.parametrize("denial", ("OBJECT::dbo.MaintenanceBackupWork", "SCHEMA::dbo"))
+def test_narrow_metadata_denial_cannot_reopen_legacy_queue(legacy, denial):
+    con = legacy
+    con.execute("CREATE TABLE dbo.MaintenanceBackupWork(ID int);")
+    before = queue_rows(con)
+    con.execute(f"DENY VIEW DEFINITION ON {denial} TO d4_legacy_allowed;")
+    try:
+        con.execute("EXECUTE AS USER=N'd4_legacy_allowed';")
+        try:
+            assert (
+                con.execute(
+                    "SELECT HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','VIEW DEFINITION')"
+                ).fetchval()
+                == 1
+            )
+            assert (
+                con.execute("SELECT OBJECT_ID(N'dbo.MaintenanceBackupWork')").fetchval()
+                is None
+            )
+            for name in QUEUE:
+                assert refused(con, CALLS[name])[0] == 52941
+        finally:
+            con.execute("REVERT;")
+        assert queue_rows(con) == before
+    finally:
+        con.execute(f"REVOKE VIEW DEFINITION ON {denial} FROM d4_legacy_allowed;")
+        con.execute("DROP TABLE dbo.MaintenanceBackupWork;")
+
+
+def test_changed_metadata_owner_refuses_before_queue_access(legacy):
     con = legacy
     before = queue_rows(con)
-    con.execute("EXECUTE AS USER=N'd4_queue_hidden';")
+    con.execute(
+        "ALTER AUTHORIZATION ON OBJECT::dbo.usp_P02LegacyQueueState TO d4_queue_hidden;"
+    )
     try:
         for name in QUEUE:
             assert refused(con, CALLS[name])[0] == 52942
+        assert con.execute("SELECT USER_NAME()").fetchval() == "dbo"
+        assert queue_rows(con) == before
     finally:
-        con.execute("REVERT;")
-    assert queue_rows(con) == before
+        con.execute(
+            "ALTER AUTHORIZATION ON OBJECT::dbo.usp_P02LegacyQueueState TO SCHEMA OWNER;"
+        )
+
+
+def test_missing_metadata_helper_never_falls_back(legacy):
+    con = legacy
+    before = queue_rows(con)
+    con.execute("DROP PROCEDURE dbo.usp_P02LegacyQueueState;")
+    try:
+        for name in QUEUE:
+            assert refused(con, CALLS[name])[0] == 2812
+        assert queue_rows(con) == before
+    finally:
+        source = (
+            ROOT / "sql_schema/dbo.usp_P02LegacyQueueState.StoredProcedure.sql"
+        ).read_text(encoding="utf-8-sig")
+        for batch in re.split(r"(?im)^GO\s*$", source):
+            if batch.strip():
+                con.execute(batch)

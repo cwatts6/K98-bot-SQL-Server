@@ -44,18 +44,22 @@ Raw host receipts, account names and job identifiers remain private.
 ## Historical backup queue coexistence
 
 The old `usp_GetPendingLogBackupTriggers`, `usp_MarkLogBackupTriggerProcessed` and
-`usp_CleanupLogBackupTriggerQueue` now require visible database definitions before
-deciding deployment state. Missing metadata capability raises 52942, never an
-assumption that the new ledger is absent. If any object named
-`dbo.MaintenanceBackupWork` exists, all three raise 52941 before selecting,
-marking or deleting queue rows. A wrong-type object also refuses.
+`usp_CleanupLogBackupTriggerQueue` ask the fixed metadata-only helper
+`usp_P02LegacyQueueState` whether any object named `dbo.MaintenanceBackupWork`
+exists. Only that observation runs as the module owner, and the helper requires
+its effective user to be dbo. A changed owner raises 52942; a missing helper
+raises the ordinary missing-procedure error. Neither permits a legacy fallback.
 
-When the new ledger is absent and the caller has VIEW DEFINITION, the existing
-queue behavior is retained. No new permission grant, queue adoption, age-based
-expiry, conversion of request to completion, or alternate dispatch is introduced.
-The boundary protects these APIs; it does not revoke existing direct-table rights.
+The three queue APIs retain EXECUTE AS CALLER, original parameters and ordinary
+EXECUTE authorization. If the helper reports an existing ledger, all three raise
+52941 before selecting, marking or deleting queue rows. A wrong-type object also
+refuses. Database, schema and object metadata denials on the caller cannot hide
+the ledger from the helper. With no ledger, original queue behavior is retained
+without adding a caller metadata grant. There is no new permission grant, queue
+adoption, age-based expiry, conversion of request to completion, or alternate
+dispatch. The boundary protects these APIs; it does not revoke direct-table rights.
 
-D4c must install the guards during a drained, coordinated transition before new
+D4c must install the helper before the guards during a drained, coordinated transition before new
 maintenance processing is admitted. The guards alone do not close a concurrent
 legacy call that passed its check before deployment. Historical queue rows,
 unknown results and new outstanding work must survive migration and resume.
@@ -69,7 +73,8 @@ Native tests create a uniquely owned disposable local K98DEV database with resou
 and identity gates. They exercise all three retirement calls under autocommit,
 ambient and implicit transaction modes, denied callers, repeated guarded queue
 calls, table/wrong-type ledger identities, hidden metadata with and without the
-ledger, and the original legacy-only queue behavior. Sentinel data and queue rows
+ledger, narrower object/schema denials, changed/missing helper ownership and the
+original legacy-only queue behavior. Sentinel data and queue rows
 are compared across refusals. Archived definitions are checked byte-for-byte.
 No wrapper, backup job, business procedure or installed application is invoked.
 
@@ -81,7 +86,7 @@ slice, with Deep off. Bot architecture/deferred/test-selection scripts are not
 applicable to this SQL-only patch; native tests, SQL repository validation and the
 updated publication-contract validator cover its changed surfaces.
 
-Validation result: 22 focused native tests passed, Black and Ruff passed, and
+Validation result after review correction: 26 focused native tests passed, Black and Ruff passed, and
 `deploy/Validate-SqlRepo.ps1` passed. The full KVK publication-contract script
 stops in its unchanged atomic-configuration prerequisite with `Atomic
 configuration forward source drift`. Its helper, prerequisite validator, manifest
@@ -89,3 +94,9 @@ and target module are identical to base b8e6b925; this is the existing historica
 validator/D3-source mismatch, not caused by this slice. It is recorded for D4c's
 combined contract update. The new retirement behavior is exercised natively above;
 the full historical publication gate is not claimed as passed.
+
+The first reviewed implementation checked database VIEW DEFINITION in the caller
+context. PR review identified that narrower object/schema DENYs could still hide
+the ledger. A new native regression reproduced that bypass before the correction;
+the fixed helper and both denial cases now pass. The initial 22-test/security
+receipt belongs to the superseded head and does not qualify the corrected diff.
