@@ -58,3 +58,6 @@ deploy/source_baselines/UPDATE_ALL-before-p02-d4.txt -text
 deploy/source_baselines/UPDATE_RALLY_DATA-before-p02-d4.txt -text
 deploy/source_baselines/TEST-before-p02-d4.txt -text
 qualification/p02_d4/legacy_source_history.json text eol=lf
+
+# D4 coordinator authenticates the exact fixed single-batch payload.
+migrations/20261111_001_p02_d4_combined.sql text eol=lf

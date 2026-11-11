@@ -1,0 +1,196 @@
+{
+  "version": 1,
+  "profile": "p02_d4_v1",
+  "migration_id": "20261111_001_p02_d4_combined",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "requires": [
+    {
+      "migration_id": "20261003_001_export_legacy_direct_permissions",
+      "sha256": "06ae12fe70cd66778f6ef41cdeebc0f614fa82894712215d018f4d042812c58e",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261008_001_sql_auth_import_file_visibility",
+      "sha256": "dde9189ac05cb699b2114775eef5769b7ab7e629b63d4c1681427d53ed3c5aaf",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261010_002_stats_import_outcomes_encoding",
+      "sha256": "3792c37de9642cdb33579a4afec820f9d21a4eb14e8388281f3c40eed01c5aa9",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261022_001_p0_pipeline_receipts",
+      "sha256": "90bba6abaef59f24f027d9059d0d41b7d944b06bc311e6bde761a574adc88f87",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261106_001_personal_stats_daily_read_plan",
+      "sha256": "bb0e3161d8c3df96452e2631dfcbb8bbb9e0637877631624716129e76d7129a8",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261109_001_p02_phase1_sql_exports",
+      "sha256": "520b58c1b25d80bd28f32324d99b5fede0d6191ddab93ac93469ed5c1f6e4041",
+      "status": "Applied"
+    }
+  ],
+  "script": {
+    "file": "20261111_001_p02_d4_combined.sql",
+    "sha256": "8c0c99d92c14cac6da6e22076a5620927bac4c8af3deaa50950d66062381a8dc"
+  },
+  "images": [
+    {
+      "name": "dbo.CREATE_DELTA_TABLES",
+      "before": "fb34777cd40ede3395b3903823fff7cfcbe73da9e9ef9c9ae86010f09249889f",
+      "after": "2f78fbe5f9418712265648c85d7ed9c58a205ae18488bc6568ae33ebe3397793"
+    },
+    {
+      "name": "dbo.MaintenanceBackupWork",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "740c7cb8ad58eb89f7f2df4bd0e7cd518557f9f0bb037c5343fb012e541c6e80"
+    },
+    {
+      "name": "dbo.MaintenanceConfigurationWork",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "a0072fa4e5f8afbac6e0eeb9a02adb4dafcb811659d5ca18051ae139213f9b76"
+    },
+    {
+      "name": "dbo.MaintenanceKvkWork",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "3539273f1f39c0c4cfe831191ea24db1336953408029bd81a4c67c0e276bcda6"
+    },
+    {
+      "name": "dbo.MaintenanceWork",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "d1939f3b6fa43bfbd1f840bb1d5860055bd3cc81c4066a86597850f1c607c48d"
+    },
+    {
+      "name": "dbo.SP_Stats_for_Upload",
+      "before": "cfb1d4e0491242b0ddb672438d227e1046d15e056bca1403b0716d71d634917f",
+      "after": "dfd1502ae4db0a859d9a85fce5b183781e2dd991198e4dc2abf23200966aef9d"
+    },
+    {
+      "name": "dbo.TEST",
+      "before": "7646c93613283ba3bdd002d1e4a480534de5c9243c22ed1eb4e165cdd2615f24",
+      "after": "515f9552057942901bb6557ad9d51415e04a9cbbe5e7de63fc5df92fe344aed7"
+    },
+    {
+      "name": "dbo.UPDATE_ALL",
+      "before": "3969a21fdc08aa2a4aef5a1332081fe3544c49788225bc8a4193b5164d3842c5",
+      "after": "5506cfb8684b10a591acd529c9564af85c26f94d0ea4ea0d82832835414e18be"
+    },
+    {
+      "name": "dbo.UPDATE_ALL2",
+      "before": "2f08d98403ea37ce363c02b2ef246cc3ce3bf3ce7a589f0254af5e598c9da97c",
+      "after": "8561f9554e639b71b26ba941a3bc7c4a8023ced02766116a6f911e31ea6b8929"
+    },
+    {
+      "name": "dbo.UPDATE_RALLY_DATA",
+      "before": "84be327db1970c5642a6687f64399a9b745b54c1e69b608368ecb2809dfc2a96",
+      "after": "1d14e58fb0e8c4b37df4807f6451cdd6bd28f2a5b51fd1d2ad1959dec61608e3"
+    },
+    {
+      "name": "dbo.sp_ExcelOutput_ByKVK",
+      "before": "69a091e26695bf67853284e2b1c0f4a2abf273564c8a799d35e32273e883f02e",
+      "after": "38104d910f4471811ad883d8f1e39b6d729ed83b3d87c39c82fe7ca0df995ba2"
+    },
+    {
+      "name": "dbo.usp_CleanupLogBackupTriggerQueue",
+      "before": "c1647983f18e9a6098778f12f1ffd7bcc641ef7674eeeda81cbe88a5bdf10b51",
+      "after": "30bfa0d5371f538c64aa4e5e840acf5c160fa4333810391a949e4e92e604b591"
+    },
+    {
+      "name": "dbo.usp_GetPendingLogBackupTriggers",
+      "before": "dc95212e1cb93c84af7344d89040817518b6a39641a3569d56728ca679e6e01a",
+      "after": "0db465697a0e96d74f6b785fedd9b444a756bc7f2e00ce11da2c842b5ab6d5cc"
+    },
+    {
+      "name": "dbo.usp_MaintenanceBackupAcknowledge",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "d1b08fe27a17158c1f1e1ce9ae1ec6382cc2c900a81ab928b44bb2f2dfa8876a"
+    },
+    {
+      "name": "dbo.usp_MaintenanceBackupClaim",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "774eadc67446c8d84fb886c8f69acf9e0ea1ddbd9ddbed048fd799a3aef97853"
+    },
+    {
+      "name": "dbo.usp_MaintenanceConfiguration",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "f1c079a2836921e6757ca7fc01e4e850da510114a81d4090f57af4d77bc9073c"
+    },
+    {
+      "name": "dbo.usp_MaintenanceConfigurationDue",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "aafe79bf7f977c297bc548c55545d7edd09c9b3072e5e5d54c6b3fcd3623680b"
+    },
+    {
+      "name": "dbo.usp_MaintenanceDue",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "2a87f91f8de3a8ab19e12bb43eb0a394b5d8d8827b3c05bdf0abea14d3701015"
+    },
+    {
+      "name": "dbo.usp_MaintenanceFinalStats",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "9d00149dd0009631271dee01c28b03cdb0dc30e3df53d331f3bf8f19ff28d731"
+    },
+    {
+      "name": "dbo.usp_MaintenanceImport",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "29de00dfb7f973cd19542353478e30d5b19c59a53fc9c7357b4f4f29927d70e6"
+    },
+    {
+      "name": "dbo.usp_MaintenanceKvkDue",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "2023a6ae177b73dfb83d58b53c59228442af826f1b9b065d4048b943e04adc46"
+    },
+    {
+      "name": "dbo.usp_MaintenanceKvkOutput",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "54c819f0e40a0db3b56bef5d28685f45ac1f07d52b6b2c5de11762a1ca0b897e"
+    },
+    {
+      "name": "dbo.usp_MaintenancePlayerReport",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "0a2962ce1f53588bde772e88ddfe4cc03a4ce9ac2e2d15a4d58acc4f96dfdddc"
+    },
+    {
+      "name": "dbo.usp_MaintenancePostImport",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "2240b22eeeea3ab3d1c7bf73ed3bbbfbf102656038fba87156506a28037859a7"
+    },
+    {
+      "name": "dbo.usp_MarkLogBackupTriggerProcessed",
+      "before": "0b4b571b3d1bea8cbdb10d36cbcd517f96bd36c2414910b4efc592858969f970",
+      "after": "7bb5e7437056ef04ce54b95f69f27a65de7f3e684c8db137cb614f8fc661e662"
+    },
+    {
+      "name": "dbo.usp_P02LegacyQueueState",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "d1fe8f432d17eb867e8abba752bc73a313bc7b2e935689715e2fad4c912d904a"
+    },
+    {
+      "name": "dbo.usp_RunMaintenance",
+      "before": "5ad38304b535c2987dbd24657c1a11b884984ff600d9f389deb0d4e634fee792",
+      "after": "21704a0796eaab1fc958c4293d10de0a33978390c078dd567523f991f3e85344"
+    },
+    {
+      "name": "dbo.usp_S11CompleteStatsReportsCore",
+      "before": "8a1fbc0a2a0506f6889b83810d1bc1c32682c7b0a6ee9864682888abb43eeeab",
+      "after": "f08a6f8e35d16961861e7ff09c68ac14f945a5e046e9227e49864cd591d03a1b"
+    },
+    {
+      "name": "dbo.usp_S11ValidateStatsReportStage",
+      "before": "fced6dcd192a8421a854d1b114761c73ad78e4633ff16ce0a4e8558465ab42e9",
+      "after": "bb2b45f52bd4c20fa6c5830d37aed2cdf42be405b88219cadf6972d6a43615e4"
+    },
+    {
+      "name": "dbo.usp_update_stats",
+      "before": "568bfa66315f36248bf1cf31df0476b205ad5601e898d1bbd3b1bc5a3c027b37",
+      "after": "18ef3bc1377592be2177da2a1fda3e0253d921d0498783bc63ebf9dc2222cce8"
+    }
+  ]
+}

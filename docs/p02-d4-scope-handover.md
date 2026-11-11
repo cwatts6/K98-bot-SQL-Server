@@ -114,3 +114,10 @@ It also protects historical backup queue APIs when the new ledger is present,
 using a fixed dbo metadata helper so caller metadata denials cannot hide it. Definitions and data are retained; no installed objects or
 permissions changed. Combined migration, exact permission/startup bindings and
 D5 qualification remain open as specified above.
+
+## D4c combined SQL package, 11 November 2026
+
+The [combined release package](p02-d4c-combined-release.md) defines the exact
+30-object Phase 1 successor, native images, ledger initialization and durable
+receipt resume. Final permission/startup and updater bindings remain open; this
+source delivery does not install SQL, deploy the Bot or qualify D5.
