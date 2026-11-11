@@ -105,3 +105,12 @@ permission/schema order, old queued payloads and rollback/write boundary remain
 open. D5 retains the full combined cost/fault/restart/real-child gates and unchanged
 limits. D6/D7 and P03/P04 retain their existing operational/acceptance boundaries.
 This supplement changes prose only; no runtime, SQL, grant or migration bytes change.
+
+## D4b legacy boundary source, 11 November 2026
+
+The [legacy boundary slice](p02-d4b-legacy-boundaries.md) records the completed
+bounded caller checks and the operator-approved refusal of the three legacy roots.
+It also protects historical backup queue APIs when the new ledger is present or
+metadata is hidden. Definitions and data are retained; no installed objects or
+permissions changed. Combined migration, exact permission/startup bindings and
+D5 qualification remain open as specified above.

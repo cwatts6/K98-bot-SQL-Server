@@ -52,3 +52,9 @@ migrations/20261109_001_p02_phase1_sql_exports.sql text eol=lf
 
 # Immutable pre-D3c encoding fixture; preserve exact historical bytes.
 deploy/source_baselines/UPDATE_ALL2-before-d3c.txt -text
+
+# Preserve exact pre-retirement source bytes across Windows checkouts.
+deploy/source_baselines/UPDATE_ALL-before-p02-d4.txt -text
+deploy/source_baselines/UPDATE_RALLY_DATA-before-p02-d4.txt -text
+deploy/source_baselines/TEST-before-p02-d4.txt -text
+qualification/p02_d4/legacy_source_history.json text eol=lf
