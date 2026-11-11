@@ -9,8 +9,8 @@ does not change that fixed payload or establish installed acceptance.
 
 - Bounded installed and host evidence plus read-only catalog checks reconcile
   legacy, scheduled, direct-child, backup and configured identity paths. The
-  operator reports no manual/external use and approved retirement of UPDATE_ALL,
-  UPDATE_RALLY_DATA and TEST if caller checks passed. Those checks passed within
+  operator reports no manual/external use and approved retirement of `dbo.UPDATE_ALL`,
+  `dbo.UPDATE_RALLY_DATA` and `dbo.TEST` if caller checks passed. Those checks passed within
   the recorded scope; absence of recorded recent calls is not a complete use history.
 - The three retired roots retain archived definitions and data; after installation
   they refuse with 52940 before mutations. UPDATE_ALL2 and the separate daily Rally
