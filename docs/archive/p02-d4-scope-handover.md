@@ -1,4 +1,6 @@
-> **D4 SQL delivery, 11 November 2026:** PRs 150-154 are merged; the fixed combined package is bound to `ba5c6acb`. See the [D4 delivery and D5 handoff](p02-d4-delivery-handoff.md) for installed/caller dispositions, approved legacy retirement, permissions, migration and Bot integration. Source delivery is not deployment or whole-flow acceptance. D5 integrated qualification and separate D6 authorization remain required. Earlier dated checkpoints below are historical.
+> **Archived 11 November 2026:** Superseded planning or delivered D4 evidence. Use the [active D5 scope](../p02-d5-scope-handover.md). Preserve the historical body below; do not replay dated instructions.
+
+> **D4 SQL delivery, 11 November 2026:** PRs 150-154 are merged; the fixed combined package is bound to `ba5c6acb`. See the [D4 delivery and D5 handoff](../p02-d4-delivery-handoff.md) for installed/caller dispositions, approved legacy retirement, permissions, migration and Bot integration. Source delivery is not deployment or whole-flow acceptance. D5 integrated qualification and separate D6 authorization remain required. Earlier dated checkpoints below are historical.
 
 # P02 D4 SQL scope companion
 
@@ -23,7 +25,7 @@ deploys the Bot. Deployment remains held until D4/D5 and a separate release deci
 - Reconcile the missing authoritative dbo.KS4_UNO_SEQ and installed msdb
   usp_start_rok_tracker_log_backup definitions and rights. Identify the configured
   wrapper/job route without invoking a backup. Do not infer production definitions
-  from disposable fixtures or create guessed objects. The [installed dependency source](p02-d4b-installed-dependencies.md)
+  from disposable fixtures or create guessed objects. The [installed dependency source](../p02-d4b-installed-dependencies.md)
   records the observed sequence and redacted wrapper contract; effective installed
   rights and migration bindings remain open.
 - Include MaintenanceWork, MaintenanceConfigurationWork, MaintenanceKvkWork and
@@ -110,7 +112,7 @@ This supplement changes prose only; no runtime, SQL, grant or migration bytes ch
 
 ## D4b legacy boundary source, 11 November 2026
 
-The [legacy boundary slice](p02-d4b-legacy-boundaries.md) records the completed
+The [legacy boundary slice](../p02-d4b-legacy-boundaries.md) records the completed
 bounded caller checks and the operator-approved refusal of the three legacy roots.
 It also protects historical backup queue APIs when the new ledger is present,
 using a fixed dbo metadata helper so caller metadata denials cannot hide it. Definitions and data are retained; no installed objects or
@@ -119,7 +121,7 @@ D5 qualification remain open as specified above.
 
 ## D4c combined SQL package, 11 November 2026
 
-The [combined release package](p02-d4c-combined-release.md) defines the exact
+The [combined release package](../p02-d4c-combined-release.md) defines the exact
 30-object Phase 1 successor, native images, ledger initialization and durable
 receipt resume. Final permission/startup and updater bindings remain open; this
 source delivery does not install SQL, deploy the Bot or qualify D5.

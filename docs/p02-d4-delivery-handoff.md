@@ -1,3 +1,5 @@
+> **Current P02 checkpoint, 11 November 2026:** Private Bot PR740 is merged at `ef8aee34`; D2/D3/D4 are not deployed. Use the [D5 scope and handover](p02-d5-scope-handover.md) for review-first integrated qualification, the failed Personal Stats drain evidence and all remaining owners. Fixed SQL payload remains `ba5c6acb`. D6 release approval and P03/P04 action gates remain separate; earlier dated checkpoints below are historical.
+
 # P02 D4 SQL delivery and D5 handoff
 
 D4 SQL source delivery is complete in PRs 150-154. The combined release is bound
