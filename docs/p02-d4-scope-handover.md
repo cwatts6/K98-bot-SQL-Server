@@ -1,3 +1,5 @@
+> **D4 SQL delivery, 11 November 2026:** PRs 150-154 are merged; the fixed combined package is bound to `ba5c6acb`. See the [D4 delivery and D5 handoff](p02-d4-delivery-handoff.md) for installed/caller dispositions, approved legacy retirement, permissions, migration and Bot integration. Source delivery is not deployment or whole-flow acceptance. D5 integrated qualification and separate D6 authorization remain required. Earlier dated checkpoints below are historical.
+
 # P02 D4 SQL scope companion
 
 The canonical plan is the Bot task pack **Startup Import Export Reliability - P02
