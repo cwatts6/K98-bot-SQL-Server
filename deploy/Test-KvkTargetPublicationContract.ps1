@@ -110,11 +110,12 @@ Assert-Contains $delta "BEGIN CATCH[\s\S]+@DeltaPreprocessingLockHeld = 1[\s\S]+
 Assert-Before $delta 'sys.sp_releaseapplock' '-- Step 6: LIGHTWEIGHT MAINTENANCE' 'The shared delta helper must release its mutex before optional maintenance.'
 foreach ($caller in @(
     @{ Source = $master; Name = 'sp_TARGETS_MASTER' },
-    @{ Source = $updateAll; Name = 'UPDATE_ALL' },
     @{ Source = $loop; Name = 'sp_Loop_ExcelOutput_ByKVK' }
 )) {
     Assert-Contains $caller.Source '(?i)EXEC\s+(?:dbo\.)?CREATE_DELTA_TABLES' "$($caller.Name) must continue to route delta preprocessing through the mutex-owning helper."
 }
+Assert-Contains $updateAll "BEGIN\s+THROW 52940, 'dbo\.UPDATE_ALL is retired by P02 D4;[^']*', 1;\s+END\s*$" 'Retired UPDATE_ALL must refuse before any work.'
+Assert-NotContains $updateAll '(?i)EXEC\s+(?:dbo\.)?CREATE_DELTA_TABLES' 'Retired UPDATE_ALL must no longer invoke delta preprocessing.'
 Assert-Contains $master "SET @SourceScanType = N'MATCHMAKING_SCAN'" 'The master procedure must persist the matchmaking source branch.'
 Assert-Contains $master "SET @SourceScanType = N'DRAFTSCAN'" 'The master procedure must persist the draft source branch.'
 Assert-Contains $master 'WHERE ScanOrder = @Scan' 'The master procedure must validate the exact selected scan.'

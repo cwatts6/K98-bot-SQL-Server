@@ -1,0 +1,20 @@
+{
+  "sourceRevision": "b8e6b9258abae2d0abf4775b711e7bf98d9b7c70",
+  "modules": [
+    {
+      "name": "dbo.UPDATE_ALL",
+      "path": "deploy/source_baselines/UPDATE_ALL-before-p02-d4.txt",
+      "sha256": "c4e28d91f76402bd7cd102f149f0122a90ee8670876d519f95895dd2a09b2896"
+    },
+    {
+      "name": "dbo.UPDATE_RALLY_DATA",
+      "path": "deploy/source_baselines/UPDATE_RALLY_DATA-before-p02-d4.txt",
+      "sha256": "9764efb9471e0cec5459c0c555dd908795c0ef9287c6286b9479e6542e197f01"
+    },
+    {
+      "name": "dbo.TEST",
+      "path": "deploy/source_baselines/TEST-before-p02-d4.txt",
+      "sha256": "7261da51f1f5c549355dcbf0b18828697f1db976c2385913f7b58659445369dd"
+    }
+  ]
+}
