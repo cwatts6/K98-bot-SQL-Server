@@ -51,7 +51,8 @@ they cannot be deployed to the retained VM or production.
 Frozen full-workflow limits: five balanced measured pairs after warmup; ON overall
 median <= OFF x 1.20 + 1,000 ms and each report-stage median <= OFF x 1.20 + 250 ms;
 observed version store <512 MiB; disk reserve >=8 GiB; sampled log use <70 percent;
-approved host free-memory prerequisite 8 GiB; actual short observers and a bounded
+approved development-host free-memory prerequisite 8 GiB before isolated VM
+startup, not production admission (see [resource scope](deployment-resource-scope.md)); actual short observers and a bounded
 30-second held snapshot. No RCSI change or limit increase is proposed.
 
 Existing release blockers include name source-byte drift in historical permission

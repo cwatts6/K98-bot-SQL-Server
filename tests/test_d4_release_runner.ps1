@@ -39,7 +39,7 @@ Reject {Read-K98ModuleProfile $copy $newHash $id} 'Fixed qualified D4 profile' '
 # Query transport doubles exercise the production decision logic. The separate
 # opt-in native suite exercises the real metadata SQL and durable receipt reads.
 $script:state=[pscustomobject]@{server_name='mini_AMD';database_name='ROK_TRACKER';snapshot_isolation_state=1;is_read_committed_snapshot_on=$false;is_read_only=$false;user_access=0}
-$script:dependencyCalls=0;$script:resourceCalls=0;$script:inject=$false
+$script:dependencyCalls=0;$script:resourceCalls=0;$script:inject=$false;$script:resourceSql=''
 $script:tx=[object]::new()
 function Invoke-K98ModuleQuery($Connection,$Transaction,[string]$Sql,[hashtable]$Values=@{}) {
  if(-not [object]::ReferenceEquals($Transaction,$script:tx)){throw 'Transaction propagation lost'}
@@ -49,8 +49,12 @@ function Invoke-K98ModuleQuery($Connection,$Transaction,[string]$Sql,[hashtable]
   if($script:inject){throw 'Injected native dependency refusal'}
   return ,@()
  }
- if($Sql -like '*sys.dm_db_log_space_usage*' -or $Sql -like '*sys.dm_os_sys_memory*'){
+ # A production host below the development VM-start memory prerequisite is
+ # valid here. Fail if the deployment path tries to impose that unrelated gate.
+ if($Sql -like '*sys.dm_os_sys_memory*'){throw 'VM startup memory check reached production admission'}
+ if($Sql -like '*sys.dm_db_log_space_usage*'){
   $script:resourceCalls++
+  $script:resourceSql=$Sql
   if($script:inject){throw 'Injected resource refusal'}
   return ,@()
  }
@@ -72,7 +76,10 @@ $script:inject=$true
 Reject {Assert-K98D4Dependencies $null $script:tx} 'Injected native dependency' 'Dependency refusal propagates'
 $script:inject=$false
 Assert-K98D4Resources $null $script:tx
-Require ($script:resourceCalls -eq 2) 'Existing storage thresholds and added memory reserve both checked'
+Require ($script:resourceCalls -eq 1) 'Production assesses storage without querying the VM startup memory floor'
+Require ($script:resourceSql.Contains('used_log_space_in_percent<70')) 'Production log ceiling remains below 70 percent'
+Require ($script:resourceSql.Contains('<524288')) 'Production version-store ceiling remains below 512 MiB'
+Require ($script:resourceSql.Contains('<8589934592') -and $script:resourceSql.Contains('v.available_bytes IS NULL')) 'Production disk reserve and missing-volume refusal remain intact'
 $script:inject=$true
 Reject {Assert-K98D4Resources $null $script:tx} 'Injected resource' 'Resource refusal propagates'
 Write-Output ('PASS: '+$checks.Count+' fixed D4 reader/target/transaction/refusal checks. No SQL connection. Fixture retained: '+$scratch)

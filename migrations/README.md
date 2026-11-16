@@ -1,5 +1,13 @@
 # SQL Migrations
 
+## Resource requirement scope
+
+Read [deployment resource scope](../docs/deployment-resource-scope.md) before
+adding or interpreting deployment guards. The 8 GiB available-host-memory
+prerequisite belongs to isolated development VM startup, not production SQL
+admission. The production disk, log and version-store checks remain unchanged.
+Never transplant a qualification threshold without its environment and timing.
+
 ## Personal Stats read-plan companion — 2026-11-06
 
 Local implementation and disposable qualification are complete on `codex/p016-personal-stats-read-plan`; this is not publication or deployment approval. Apply only exact migration `20261106_001_personal_stats_daily_read_plan.sql` through an explicitly selected, approved server/database, after backup and live predecessor/index inventory. Do not rely on the legacy runner's production defaults. Schema snapshots remain reference exports; the migration is the deployment artifact.

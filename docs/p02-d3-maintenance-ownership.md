@@ -66,8 +66,10 @@ sessions or changes retained server/database isolation settings.
 D3c–g add the other real children and due boundaries. D3g owns backup queue
 claim/acknowledgement and post-success wait separation. Raw-history SNAPSHOT
 versus index REBUILD (SQL 3961) remains open until D3c's actual overlap tests.
-All existing 8 GiB memory/disk floors, log/version-store limits and D5 balanced
-cost gates remain in force. This small fixture does not qualify production
+The 8 GiB host-memory prerequisite belongs to development VM startup; it is not
+a production admission floor. Disk reserves, log/version-store limits and D5
+balanced cost gates remain in force; see [resource scope](deployment-resource-scope.md).
+This small fixture does not qualify production
 scale, restricted installed principals or the combined workflow.
 
 These schema snapshots are source candidates, not an installer. D4 must include
