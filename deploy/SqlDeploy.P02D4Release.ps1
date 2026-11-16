@@ -69,8 +69,7 @@ IF ISNULL((SELECT IS_SRVROLEMEMBER(N'sysadmin',SUSER_SNAME(owner_sid)) FROM sys.
 function Assert-K98D4Resources($Connection,$Transaction=$null) {
     . "$PSScriptRoot\SqlDeploy.Phase1Release.ps1"
     Assert-K98Phase1Resources $Connection $Transaction
-    $null=Invoke-K98ModuleQuery $Connection $Transaction @'
-IF NOT EXISTS(SELECT 1 FROM sys.dm_os_sys_memory WHERE available_physical_memory_kb>=8388608)
- THROW 52981,'D4 memory would cross the unchanged 8 GiB reserve.',1;
-'@
+    # The 8 GiB host-memory prerequisite belongs to isolated VM startup, not
+    # production SQL admission. Retain the disk/log/version-store gates above.
+    # See docs/deployment-resource-scope.md and test_d4_release_runner.ps1.
 }

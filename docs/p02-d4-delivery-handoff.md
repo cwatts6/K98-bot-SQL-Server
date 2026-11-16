@@ -55,8 +55,10 @@ D5 owns final combined output/state correctness, exact numeric/rounding behavior
 old queued payloads, real maintenance children, both ownership orders, saturation,
 known holders, cancellation, lost acknowledgements, physical cleanup, restart and
 balanced cost qualification. Preserve SQL 3961 evidence and the consumed 21-input
-allowance; no additional business input copy is authorized. Keep RCSI off, memory
-and disk floors at 8 GiB, log threshold at 70 percent and version-store threshold
+allowance; no additional business input copy is authorized. Keep RCSI off and the
+disk reserve at 8 GiB. The host-memory prerequisite applies only before isolated
+development VM startup, not production admission; see
+[resource scope](deployment-resource-scope.md). Keep log threshold at 70 percent and version-store threshold
 at 512 MiB. The canonical Bot plan retains the detailed timing and sampling limits.
 
 D6 requires separate deployment approval, fresh exact source/updater/seed and

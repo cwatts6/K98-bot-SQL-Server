@@ -62,7 +62,9 @@ assertions or increasing limits. The Bot handover links retained failed/success
 logs and PR740 comments 6793114051 / 6793565436. Keep this separate from SQL 51400,
 lock-holder attribution and SQL 3961 unless direct evidence connects them.
 
-Keep RCSI off, free memory/disk >=8 GiB, log <70 percent for optional statistics,
+Keep RCSI off and disk reserve >=8 GiB. The 8 GiB free-host-memory prerequisite
+applies before isolated development VM startup, not production SQL admission
+(see [resource scope](deployment-resource-scope.md)). Keep log <70 percent for optional statistics,
 version store <512 MiB. Short observations retain three-second statements and zero
 row-lock wait; metadata holds remain bounded at 30 seconds. Overall median
 ON <= OFF * 1.20 + 1000 ms and per-report stage <= OFF * 1.20 + 250 ms after warmup and five balanced pairs.

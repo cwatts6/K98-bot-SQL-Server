@@ -45,7 +45,10 @@ fixed enabled backup job and msdb owner capability are checked without dispatch.
 The sequence current value is intentionally neither pinned nor consumed.
 
 Resource gates retain log below 70%, version store below 512 MiB and data/log/temp
-volume reserves of at least 8 GiB, and add the agreed 8 GiB available-memory floor.
+volume reserves of at least 8 GiB. The 8 GiB host-memory prerequisite applies
+only before starting the isolated development VM, not to production admission;
+see [deployment resource scope](deployment-resource-scope.md). The added SQL-host
+memory guard was an incorrect expansion of that requirement and is removed.
 Dependencies and resources are checked again inside the release transaction.
 All DDL, eight initial rows and the Applied/Succeeded receipts commit together.
 Before commit, failure rolls back. After commit, the same release verifies the
@@ -62,9 +65,11 @@ either installer is an approved route.
 
 ## Validation and limits
 
-- `tests/test_d4_release_runner.ps1`: 19 Windows PowerShell 5.1 checks for fixed
+- `tests/test_d4_release_runner.ps1`: Windows PowerShell 5.1 checks for fixed
   package admission, replacement/damaged input, target state, transaction
-  propagation and dependency/resource refusal. Included in CI.
+  propagation and dependency/resource refusal, including rejection of any
+  VM-memory query on the production path and unchanged storage thresholds.
+  Included in CI.
 - `tests/test_d4_release_source.py`: exact complete payload reconstruction from
   all 30 current authoritative definitions and historical prerequisite custody.
   Included in CI; no database required.
