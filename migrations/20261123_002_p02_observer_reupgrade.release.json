@@ -1,0 +1,36 @@
+{
+  "version": 1,
+  "profile": "p02_observer_return_v1",
+  "migration_id": "20261123_002_p02_observer_reupgrade",
+  "action": "reupgrade",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "requires": [
+    {
+      "migration_id": "20261120_001_p02_catalogue_observer",
+      "sha256": "cd3bcb8c1f7303b8b45d5dc2b3d118aad70002f684ae847ffaf400c056bc1692",
+      "status": "Applied"
+    },
+    {
+      "migration_id": "20261123_001_p02_observer_return",
+      "sha256": "c7d24d3e25c3a3f62fba6484e993c26a19fcb8cefe1d55a607027907beced71c",
+      "status": "Applied"
+    }
+  ],
+  "protocol_sha256": "73be803fe432907cccee0ed86fe593e733b6d682959f4e526f6d7ec47d7a53cc",
+  "script": {
+    "file": "20261123_002_p02_observer_reupgrade.sql",
+    "sha256": "50d94978e3635ab7566efda43d8ec932136f3ce4f39520f90750cad4eb5f41c9"
+  },
+  "checks": {
+    "before": {
+      "file": "20261123_002_p02_observer_reupgrade.before.sql",
+      "sha256": "b03be9f1358a1b2fe95294a35a583f89be9fdd1ac86f52bd5c495c538de56300"
+    },
+    "after": {
+      "file": "20261123_002_p02_observer_reupgrade.after.sql",
+      "sha256": "250c2fc646480c8101d0d2435a368948401a52f68c7e2d32c6730eb5567da86d"
+    }
+  }
+}

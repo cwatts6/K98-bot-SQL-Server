@@ -1,0 +1,50 @@
+{
+  "version": 1,
+  "profile": "p02_catalogue_observer_v1",
+  "migration_id": "20261120_001_p02_catalogue_observer",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "requires": [
+    {
+      "migration_id": "20261111_001_p02_d4_combined",
+      "sha256": "57944777e50b7dc9200220cfcc2ce767edb22a2e0972e02bc2cd6f04e23e8171",
+      "status": "Applied"
+    }
+  ],
+  "script": {
+    "file": "20261120_001_p02_catalogue_observer.sql",
+    "sha256": "871d8f8b4bf1ffe274ba9e66b2fe0544dbf1b049237145f012d1d8fccb3c3b9b"
+  },
+  "protocol_sha256": "73be803fe432907cccee0ed86fe593e733b6d682959f4e526f6d7ec47d7a53cc",
+  "legacy_source_sha256": "3cf2fbef5f1f53e170d7ccc7832bf60870a86dc6fccd5944cfb11555a4631d68",
+  "predecessor_bodies_utf16le_lf": {
+    "dbo.sp_ExcelOutput_ByKVK": "97b4bc47a73277d20049558d33fdc623c84bc8f3a16779128d049d9fad29f918",
+    "dbo.usp_RunMaintenance": "eb05004d539c1ae5fbb4d83685c6916dc7fefd29428788e5238ea75202327138",
+    "dbo.usp_S11ValidateStatsReportStage": "8a0b6f7cdad350a08408e40c384771bff43e6a879ca9cc32aa967983e28af18d"
+  },
+  "source_files": {
+    "sql_schema/dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql": "2221175a43b48910aeae5a4d7fa7e80a1832183cee46cff0ee1591c946bbeea2",
+    "sql_schema/dbo.usp_P02BeginCatalogueMutation.StoredProcedure.sql": "a2799f6d5c25410a4757b4142084ec9effbd92d1e9abaff4218ad6b88de9298a",
+    "sql_schema/dbo.usp_P02EndCatalogueMutation.StoredProcedure.sql": "b48f7d3bac19287ed40498478050acce31cd253870b0574696d08805ee8de68c",
+    "sql_schema/dbo.usp_P02ReadObservationBoundary.StoredProcedure.sql": "63ccdb5fe6a3f0a1fe35fec512e2e9f8671c047aa70b09c0565f99b736a3f542",
+    "sql_schema/dbo.usp_RunMaintenance.StoredProcedure.sql": "112539360f231a13b34efa486ee8a000ab0ca8c044b37750bfe8ddb744fd0021",
+    "sql_schema/dbo.usp_S11ValidateStatsReportStage.StoredProcedure.sql": "ce0db59a1b3e49562947083484e949323e946193cf397865796c726e2818b0a2",
+    "sql_schema/tr_P02CatalogueObservation.DatabaseTrigger.sql": "6cd535cf9032934bcbeaa7811b7fa8363f1e5d7cdb1a7289c2542eb99d3bf74b",
+    "sql_schema/dbo.tr_P02HeaderObservation.Trigger.sql": "fb80f53a33ccee93d6e32bf657a0590786243854fad8408d9788000e88ef6440",
+    "sql_schema/dbo.tr_P02KvkWorkObservation.Trigger.sql": "4db6f634aeb39bbbe52c0dcde8e6f96e21e0fd6de0e3d6f01d69d52e0d3441c8",
+    "sql_schema/dbo.tr_P02MaintenanceObservation.Trigger.sql": "827a4f03b6fad94dae00492ab40ce7ac31712d5d64f91cad009edcd3a483d8ea",
+    "sql_schema/dbo.P02ObservationGeneration.Sequence.sql": "86d6433cd041fa420038ded8e82cbe5abdd8bfb7df0265cc9e0e7f6edda55104"
+  },
+  "bootstrap_generation": 1,
+  "checks": {
+    "before": {
+      "file": "20261120_001_p02_catalogue_observer.before.sql",
+      "sha256": "9fa6a35c624d40376669d6eb529ddc6b77f8e100d15e2be25082445fad79fa18"
+    },
+    "after": {
+      "file": "20261120_001_p02_catalogue_observer.after.sql",
+      "sha256": "250c2fc646480c8101d0d2435a368948401a52f68c7e2d32c6730eb5567da86d"
+    }
+  }
+}

@@ -23,6 +23,10 @@ BEGIN
             @LockMode='Exclusive',@LockOwner='Session',@LockTimeout=0;
         IF @r<0 RETURN;
         SET @owned=1;
+        -- Cover early unknown-state repair, every child, and failure recording.
+        -- On failure the existing caller retains physical ownership; it must
+        -- acknowledge this marker too before pooling/reusing the connection.
+        EXEC dbo.usp_P02BeginCatalogueMutation @Owner='Session';
         -- A free exact session guard proves physical absence, not outcome.
         IF @Kind='kvk_output'
             UPDATE dbo.MaintenanceKvkWork SET State='unknown' WHERE State='running';
@@ -137,6 +141,7 @@ BEGIN
         EXEC @released=sys.sp_releaseapplock @Resource=@resource,@LockOwner='Session';
         IF @released<0 THROW 51965, 'Maintenance release not acknowledged.', 1;
         SET @owned=0;
+        EXEC dbo.usp_P02EndCatalogueMutation;
     END TRY
     BEGIN CATCH
         DECLARE @error int=ERROR_NUMBER();

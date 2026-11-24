@@ -1,12 +1,14 @@
-"""Offline custody of the complete D4 payload and current authoritative sources."""
+"""Offline custody of the complete D4 payload and its genuine historical sources."""
 
 import hashlib
 import json
 from pathlib import Path
 import re
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 ID = "20261111_001_p02_d4_combined"
+PRE_OBSERVER_SOURCE = "73b004d4a834f87fe3e559480d99dd597995fd91"
 
 
 def test_fixed_release_source_custody():
@@ -37,8 +39,21 @@ def test_fixed_release_source_custody():
     parts = []
     for name in order:
         kind = "Table" if name in tables else "StoredProcedure"
-        source = (ROOT / f"sql_schema/dbo.{name}.{kind}.sql").read_text(
-            encoding="utf-8-sig"
+        # A fixed historical migration must use its genuine pre-observer source.
+        # Current observer-bearing snapshots are authenticated independently by
+        # test_d4_child_admission_source; never rewrite the old migration image.
+        source = (
+            subprocess.check_output(
+                [
+                    "git",
+                    "show",
+                    f"{PRE_OBSERVER_SOURCE}:sql_schema/dbo.{name}.{kind}.sql",
+                ],
+                cwd=ROOT,
+                timeout=10,
+            )
+            .decode("utf-8-sig")
+            .replace("\r\n", "\n")
         )
         if kind == "Table":
             body = "\n".join(
@@ -84,5 +99,5 @@ def test_fixed_release_source_custody():
 if __name__ == "__main__":
     test_fixed_release_source_custody()
     print(
-        "PASS: fixed complete D4 payload equals all 30 authoritative sources; historical Phase 1 requirements retained."
+        "PASS: fixed complete D4 payload equals all 30 genuine pre-observer sources; historical Phase 1 requirements retained."
     )

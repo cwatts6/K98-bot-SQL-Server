@@ -54,6 +54,54 @@ function Test-K98RollbackScriptMatchesMigration {
     return $rollbackContent -match "(?im)^\s*RollbackForMigrationId\s*:\s*$escapedMigrationId\s*$"
 }
 
+function Get-K98ReleaseCheckSidecars {
+    param([Parameter(Mandatory=$true)][string]$RepoRoot)
+
+    # Source validation only. Check files are authenticated profile members, not
+    # executable migrations; orphaned or drifted members must fail validation.
+    $directory = Join-Path $RepoRoot 'migrations'
+    if (-not (Test-Path -LiteralPath $directory)) { return }
+    $validated = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $candidates = @(Get-ChildItem -LiteralPath $directory -Filter '*.sql' -File |
+        Where-Object { $_.Name -cmatch '^([0-9]{8}_[0-9]{3}_[a-z0-9_]+)\.(before|after)\.sql$' })
+    foreach ($candidate in $candidates) {
+        if ($validated.Contains($candidate.Name)) { continue }
+        $match = [regex]::Match($candidate.Name, '^([0-9]{8}_[0-9]{3}_[a-z0-9_]+)\.(before|after)\.sql$')
+        $identifier = $match.Groups[1].Value
+        $profilePath = Join-Path $directory ($identifier + '.release.json')
+        if (-not (Test-Path -LiteralPath $profilePath -PathType Leaf)) { throw "Orphan release check: $($candidate.Name)" }
+        $profile = Get-Content -Raw -Encoding UTF8 -LiteralPath $profilePath | ConvertFrom-Json
+        if ($profile.version -ne 1 -or $profile.migration_id -cne $identifier -or
+            $profile.script.file -cne ($identifier + '.sql')) { throw "Release check profile identity differs: $identifier" }
+        foreach ($kind in @('script', 'before', 'after')) {
+            if ($kind -ceq 'script') {
+                $member = $profile.script
+                $expectedName = $identifier + '.sql'
+            } else {
+                $member = $profile.checks.$kind
+                $expectedName = $identifier + '.' + $kind + '.sql'
+            }
+            if ($null -eq $member -or $member.file -cne $expectedName -or
+                [string]$member.sha256 -cnotmatch '^[a-f0-9]{64}$') { throw "Release member binding differs: $expectedName" }
+            $path = Join-Path $directory $expectedName
+            if (-not (Test-Path -LiteralPath $path -PathType Leaf)) { throw "Release member missing: $expectedName" }
+            $item = Get-Item -Force -LiteralPath $path
+            if ($item.Attributes -band [IO.FileAttributes]::ReparsePoint) { throw "Release member is a reparse point: $expectedName" }
+            if ((Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash.ToLowerInvariant() -cne $member.sha256) {
+                throw "Release member hash differs: $expectedName"
+            }
+            if ($kind -cne 'script') {
+                $text = Get-Content -Raw -Encoding UTF8 -LiteralPath $path
+                if ($text -match '(?i)(Password\s*=|Pwd\s*=|User\s+ID\s*=|AccessToken|DiscordWebhook|ConnectionString)') {
+                    throw "Release check may contain a secret or connection string: $expectedName"
+                }
+                $null = $validated.Add($expectedName)
+            }
+        }
+    }
+    return @($validated)
+}
+
 try {
     $repoRoot = (Resolve-Path $RepoPath).ProviderPath
     $requiredDirs = @("sql_schema", "migrations", "deploy", "docs", "logs", "reports", "exports")
@@ -66,8 +114,9 @@ try {
     $migrationDir = Join-Path $repoRoot "migrations"
     $migrationFiles = @()
     if (Test-Path $migrationDir) {
+        $releaseChecks = @(Get-K98ReleaseCheckSidecars -RepoRoot $repoRoot)
         $migrationFiles = Get-ChildItem -Path $migrationDir -Filter "*.sql" -File |
-            Where-Object { $_.Name -notmatch "\.rollback\.sql$" } |
+            Where-Object { $_.Name -notmatch "\.rollback\.sql$" -and $_.Name -cnotin $releaseChecks } |
             Sort-Object Name
     }
     $rollbackDir = Join-Path $migrationDir "rollback"

@@ -87,6 +87,7 @@ BEGIN
             @LockMode='Shared',@LockOwner='Transaction',@LockTimeout=0;
         IF @MaintenanceSchemaResult<0
             THROW 51966,'KVK publication deferred while maintenance owns schema.',1;
+        EXEC dbo.usp_P02BeginCatalogueMutation @Owner='Transaction';
 
         -- Fresh staging
         TRUNCATE TABLE dbo.STAGING_STATS;

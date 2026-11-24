@@ -12,6 +12,13 @@ import subprocess
 
 ROOT = Path(__file__).resolve().parents[1]
 PREDECESSOR = "0ebe0d3fe099ec62c76333c8b58c9049d93dcece"
+D4_PRE_OBSERVER = "73b004d4a834f87fe3e559480d99dd597995fd91"
+# Exact reviewed observer successors; original D3/D4 pins remain unchanged.
+OBSERVER_CHANGED = {
+    "sql_schema/dbo.usp_RunMaintenance.StoredProcedure.sql": "112539360f231a13b34efa486ee8a000ab0ca8c044b37750bfe8ddb744fd0021",
+    "sql_schema/dbo.sp_ExcelOutput_ByKVK.StoredProcedure.sql": "2221175a43b48910aeae5a4d7fa7e80a1832183cee46cff0ee1591c946bbeea2",
+    "sql_schema/dbo.usp_S11ValidateStatsReportStage.StoredProcedure.sql": "ce0db59a1b3e49562947083484e949323e946193cf397865796c726e2818b0a2",
+}
 HISTORICAL_CHECKER_SHA256 = (
     "e050f95323fdd1a713afd155be7b0c578d8b46e02e325a1eb2350a7adfd884ac"
 )
@@ -60,6 +67,15 @@ def test_historical_and_current_source_custody():
     }
     verify(historical, old)
     expected = dict(old, **CHANGED)
+    d4_sources = {
+        path: subprocess.check_output(
+            ["git", "-C", str(ROOT), "show", D4_PRE_OBSERVER + ":" + path], timeout=10
+        )
+        for path in expected
+    }
+    verify(d4_sources, expected)
+    assert len(OBSERVER_CHANGED) == 3 and set(OBSERVER_CHANGED) <= set(expected)
+    expected = dict(expected, **OBSERVER_CHANGED)
     current = {path: (ROOT / path).read_bytes() for path in expected}
     verify(current, expected)
     # Both Windows checkout and repository line endings authenticate identically.
@@ -89,7 +105,7 @@ def test_historical_and_current_source_custody():
         else:
             raise AssertionError("Missing source admitted: " + path)
     print(
-        "PASS: 23 historical and current pins, ten exact successors, LF/CRLF, mutations and missing members"
+        "PASS: D3/D4 historical pins and three exact observer successors, LF/CRLF, mutations and missing members"
     )
 
 
