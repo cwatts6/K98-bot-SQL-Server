@@ -32,7 +32,14 @@ def test_kvk_business_preservation():
 """
     due = "        EXEC dbo.usp_MaintenanceKvkDue @KVKNo=@KVK;\n\n"
     assert new.count(guard) == new.count(due) == 1
-    assert new.replace(guard, "", 1).replace(due, "", 1) == old
+    observer = "        EXEC dbo.usp_P02BeginCatalogueMutation @Owner='Transaction';\n"
+    assert new.count(observer) == 1
+    assert new.replace(guard, "", 1).replace(due, "", 1).replace(observer, "", 1) == old
+    assert (
+        new.index(guard)
+        < new.index(observer)
+        < new.index("TRUNCATE TABLE dbo.STAGING_STATS")
+    )
     assert new.index(guard) < new.index("TRUNCATE TABLE dbo.STAGING_STATS")
     assert new.index(due) > new.index("EXEC dbo.usp_RecordKvkFinalReportCompletion")
     for name in (
