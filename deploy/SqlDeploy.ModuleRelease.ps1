@@ -3,6 +3,14 @@
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 
+function ConvertFrom-K98ModuleJson([string]$Json) {
+    # PS 7.5+ otherwise converts canonical timestamp strings to DateTime. The
+    # installation receipt compares the original JSON types on PS 5.1 and 7.
+    if((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')) {
+        return ConvertFrom-Json -InputObject $Json -DateKind String
+    }
+    return ConvertFrom-Json -InputObject $Json
+}
 function Get-K98ModuleHash([byte[]]$Bytes) {
     $h=[Security.Cryptography.SHA256]::Create()
     try {return ([BitConverter]::ToString($h.ComputeHash($Bytes))).Replace('-','').ToLowerInvariant()} finally {$h.Dispose()}
@@ -14,6 +22,16 @@ function Read-K98ModuleProfile([string]$Path,[string]$Expected,[string]$Migratio
     $raw=[IO.File]::ReadAllBytes($Path)
     if($raw.Length -gt 1MB -or $Expected -cnotmatch '^[a-f0-9]{64}$' -or (Get-K98ModuleHash $raw) -cne $Expected){throw 'Profile checksum/size differs'}
     $p=[Text.UTF8Encoding]::new($false,$true).GetString($raw)|ConvertFrom-Json
+    if($p.profile -ceq 'p02_observer_return_v1') {
+        if($p.migration_id -cne $MigrationId){throw 'Exact observer return migration identity required'}
+        . "$PSScriptRoot\SqlDeploy.P02ObserverReturn.ps1"
+        return Read-K98ObserverReturnProfile $p $Path
+    }
+    if($p.profile -ceq 'p02_catalogue_observer_v1') {
+        if($p.migration_id -cne $MigrationId){throw 'Exact observer migration identity required'}
+        . "$PSScriptRoot\SqlDeploy.P02ObserverRelease.ps1"
+        return Read-K98ObserverProfile $p $Path
+    }
     if($p.profile -ceq 'p02_d4_v1') {
         if($p.migration_id -cne $MigrationId){throw 'Exact D4 migration identity required'}
         . "$PSScriptRoot\SqlDeploy.P02D4Release.ps1"
@@ -105,6 +123,9 @@ compatibility_level FROM sys.databases WHERE database_id=DB_ID();
     foreach($pair in @(@('database_collation','db_collation'),@('tempdb_collation','temp_collation'),@('compatibility_level','compatibility_level'))) {
         if([string]$Profile.($pair[0]) -cne [string]$e.($pair[1])){throw ('SQL compatibility '+$pair[0]+' expected='+$Profile.($pair[0])+' observed='+$e.($pair[1]))}
     }
+    # Only the observer successor recognizes its own database trigger. Its
+    # pinned postimage (or preimage absence) is verified before deployment writes.
+    $observer=($Profile.profile -cin @('p02_catalogue_observer_v1','p02_observer_return_v1'))
     # DDL triggers could perform effects outside this bounded profile. Refuse
     # instead of claiming transaction rollback proves those effects absent.
     $null=Invoke-K98ModuleQuery $Connection $Transaction @'
@@ -112,12 +133,13 @@ IF OBJECT_ID(N'dbo.SchemaMigrationHistory',N'U') IS NULL OR OBJECT_ID(N'dbo.Depl
  THROW 51950,'Existing deployment history tables are required.',1;
 IF HAS_PERMS_BY_NAME(NULL,NULL,'VIEW ANY DEFINITION')<>1 OR HAS_PERMS_BY_NAME(DB_NAME(),'DATABASE','VIEW DEFINITION')<>1
  THROW 51950,'Deployment metadata visibility is required.',1;
-IF EXISTS(SELECT 1 FROM sys.triggers WHERE parent_class=0 AND is_disabled=0)
+IF EXISTS(SELECT 1 FROM sys.triggers WHERE parent_class=0 AND is_disabled=0
+ AND (@observer=0 OR name<>N'tr_P02CatalogueObservation'))
  OR EXISTS(SELECT 1 FROM sys.server_triggers WHERE is_disabled=0)
  THROW 51950,'Enabled DDL triggers are unsupported by module_grants_v1.',1;
 IF EXISTS(SELECT 1 FROM sys.triggers WHERE parent_id IN (OBJECT_ID(N'dbo.SchemaMigrationHistory'),OBJECT_ID(N'dbo.DeploymentRunHistory')) AND is_disabled=0)
  THROW 51950,'Deployment ledger triggers are unsupported by module_grants_v1.',1;
-'@
+'@ @{observer=[int]$observer}
     foreach($r in $Profile.requires) {
         $rows=Invoke-K98ModuleQuery $Connection $Transaction 'SELECT Status,ChecksumSha256 FROM dbo.SchemaMigrationHistory WHERE MigrationId=@id;' @{id=$r.migration_id}
         if($rows.Count -ne 1 -or $rows[0].Status -cne $r.status -or $rows[0].ChecksumSha256 -cne $r.sha256){throw ('Required migration differs: '+$r.migration_id+' expected='+$r.status+'/'+$r.sha256)}
@@ -135,6 +157,16 @@ IF (SELECT recovery_model_desc FROM sys.databases WHERE database_id=DB_ID())<>'S
     }
 }
 function Assert-K98ModuleImages($Connection,$Transaction,$Loaded,[bool]$After) {
+    if($Loaded.Profile.profile -ceq 'p02_observer_return_v1') {
+        . "$PSScriptRoot\SqlDeploy.P02ObserverReturn.ps1"
+        Assert-K98ObserverReturnImages $Connection $Transaction $Loaded $After
+        return
+    }
+    if($Loaded.Profile.profile -ceq 'p02_catalogue_observer_v1') {
+        . "$PSScriptRoot\SqlDeploy.P02ObserverRelease.ps1"
+        Assert-K98ObserverImages $Connection $Transaction $Loaded $After
+        return
+    }
     if($Loaded.Profile.profile -ceq 'p02_d4_v1') {
         . "$PSScriptRoot\SqlDeploy.P02D4Release.ps1"
         Assert-K98D4Images $Connection $Transaction $Loaded $After
@@ -192,7 +224,7 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
         if($rows.Count -ne 1 -or $rows[0].Status -cne 'Applied' -or $rows[0].ChecksumSha256 -cne $Hash -or $rows[0].GitCommit -cne $Commit){throw ('Migration history differs: '+$p.migration_id+' expected=Applied/'+$Hash+'/'+$Commit+'; preserve Failed history and use a reviewed corrective identity.')}
         $completed=Invoke-K98ModuleQuery $Connection $null "SELECT Status,GitCommit,ErrorMessage FROM dbo.DeploymentRunHistory WHERE DeploymentId=@attempt AND BranchName=@profile;" @{attempt=$rows[0].DeploymentId;profile=$p.profile}
         if($completed.Count -ne 1 -or $completed[0].Status -cne 'Succeeded' -or $completed[0].GitCommit -cne $Commit){throw ('Committed migration attempt differs: '+$p.migration_id+'; retain history and inspect its linked deployment attempt.')}
-        $binding=$completed[0].ErrorMessage|ConvertFrom-Json
+        $binding=ConvertFrom-K98ModuleJson $completed[0].ErrorMessage
         if($binding.migration_id -cne $p.migration_id -or $binding.profile_sha256 -cne $Hash -or $binding.sql_commit -cne $Commit -or $binding.release_id -cne $ReleaseId){throw ('Committed migration release differs: '+$p.migration_id+' expected_release='+$ReleaseId+' observed_release='+$binding.release_id+'; resume the original release, do not replay or adopt its receipt.')}
         Assert-K98ModuleImages $Connection $null $Loaded $true
         if($p.profile -ceq 'coordinated_recovery_v1') {
@@ -200,12 +232,21 @@ function Get-K98ModuleOutcome($Connection,$Loaded,[string]$Hash,[string]$Commit,
             Assert-K98RecoveryHistory $Connection $null $Loaded $Commit $rows[0].DeploymentId $true
         }
         if($p.profile -ceq 'p02_phase1_v1' -and (Get-K98Phase1SnapshotState $Connection) -ne 1){throw 'Committed Phase 1 schema has changed snapshot settings; inspect, do not reapply SQL'}
+        if($p.profile -ceq 'p02_observer_return_v1') {
+            . "$PSScriptRoot\SqlDeploy.P02ObserverReturn.ps1"
+            Assert-K98ObserverReturnBinding $Connection $Loaded $binding
+        }
+        if($p.profile -ceq 'p02_catalogue_observer_v1') {
+            . "$PSScriptRoot\SqlDeploy.P02ObserverRelease.ps1"
+            Assert-K98ObserverCommittedBinding $Connection $Loaded $binding
+            $Loaded.ObserverDeploymentId=[string]$rows[0].DeploymentId
+        }
         return 'committed'
     }
-    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1',N'mge_finalisation_v1',N'p02_phase1_v1',N'p02_d4_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
+    $attempts=Invoke-K98ModuleQuery $Connection $null "SELECT BranchName,Status,ErrorMessage FROM dbo.DeploymentRunHistory WHERE BranchName IN (N'module_grants_v1',N'additive_tables_v1',N'coordinated_recovery_v1',N'mge_finalisation_v1',N'p02_phase1_v1',N'p02_d4_v1',N'p02_catalogue_observer_v1',N'p02_observer_return_v1') AND JSON_VALUE(ErrorMessage,'$.migration_id')=@id;" @{id=$p.migration_id}
     foreach($a in $attempts) {
         if($a.BranchName -cne $p.profile){throw ('Migration profile identity differs: '+$p.migration_id+'; retain the original attempt and use a reviewed corrective identity.')}
-        $b=$a.ErrorMessage|ConvertFrom-Json
+        $b=ConvertFrom-K98ModuleJson $a.ErrorMessage
         if($b.profile_sha256 -cne $Hash -or $b.sql_commit -cne $Commit -or $b.release_id -cne $ReleaseId -or $a.Status -cnotin @('Started','Failed')){throw ('Migration attempt identity/outcome differs: '+$p.migration_id)}
     }
     Assert-K98ModuleImages $Connection $null $Loaded $false
@@ -230,6 +271,8 @@ function Invoke-K98ModuleRelease([string]$ServerName,[string]$DatabaseName,[stri
     $loaded=Read-K98ModuleProfile $ProfilePath $ProfileSHA256 $MigrationId
     if($loaded.Profile.profile -ceq 'p02_phase1_v1'){. "$PSScriptRoot\SqlDeploy.Phase1Release.ps1"}
     if($loaded.Profile.profile -ceq 'p02_d4_v1'){. "$PSScriptRoot\SqlDeploy.P02D4Release.ps1"}
+    if($loaded.Profile.profile -cin @('p02_catalogue_observer_v1','p02_observer_return_v1')){. "$PSScriptRoot\SqlDeploy.P02ObserverRelease.ps1";. "$PSScriptRoot\SqlDeploy.P02D4Release.ps1"}
+    if($loaded.Profile.profile -ceq 'p02_observer_return_v1'){. "$PSScriptRoot\SqlDeploy.P02ObserverReturn.ps1"}
     $builder=[Data.SqlClient.SqlConnectionStringBuilder]::new()
     $builder['Data Source']=$ServerName;$builder['Initial Catalog']=$DatabaseName;$builder['Integrated Security']=$true
     $builder['Encrypt']=$true;$builder['TrustServerCertificate']=$true;$builder['Connect Timeout']=10;$builder['Application Name']='K98_Module_Release_v1'
@@ -244,11 +287,11 @@ EXEC @result=sys.sp_getapplock @Resource=N'K98_Module_Release_v1',@LockMode='Exc
 IF @result<0 THROW 51950,'SQL_RELEASE_BUSY: active or unresolved SQL owner; wait, then inspect status.',1;
 '@
         Assert-K98ModuleEnvironment $connection $null $loaded.Profile
-        if($loaded.Profile.profile -ceq 'p02_d4_v1'){Assert-K98D4Dependencies $connection}
+        if($loaded.Profile.profile -cin @('p02_d4_v1','p02_catalogue_observer_v1','p02_observer_return_v1')){Assert-K98D4Dependencies $connection}
         $state=Get-K98ModuleOutcome $connection $loaded $ProfileSHA256 $ExpectedCommit $ReleaseId
         if($state -cne 'committed' -and $Operation -in @('Preflight','Apply')){Assert-K98ModuleEnvironment $connection $null $loaded.Profile -Backup}
         if($loaded.Profile.profile -ceq 'p02_phase1_v1' -and $state -cne 'committed' -and $Operation -in @('Preflight','Apply')){Assert-K98Phase1Resources $connection $null}
-        if($loaded.Profile.profile -ceq 'p02_d4_v1' -and $state -cne 'committed' -and $Operation -in @('Preflight','Apply')){Assert-K98D4Resources $connection}
+        if($loaded.Profile.profile -cin @('p02_d4_v1','p02_catalogue_observer_v1','p02_observer_return_v1') -and $state -cne 'committed' -and $Operation -in @('Preflight','Apply')){Assert-K98D4Resources $connection}
         if($Operation -ceq 'Apply' -and $state -cne 'committed') {
             $attempt=[guid]::NewGuid().ToString()
             $binding=@{migration_id=$MigrationId;profile_sha256=$ProfileSHA256;sql_commit=$ExpectedCommit;release_id=$ReleaseId}|ConvertTo-Json -Compress
@@ -264,7 +307,7 @@ VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,
             if($loaded.Profile.profile -ceq 'coordinated_recovery_v1') {
                 . "$PSScriptRoot\SqlDeploy.RecoveryRelease.ps1"
                 Invoke-K98RecoveryChain $connection $transaction $loaded $ExpectedCommit $attempt
-            }elseif($loaded.Profile.profile -cin @('mge_finalisation_v1','p02_phase1_v1','p02_d4_v1')) {
+            }elseif($loaded.Profile.profile -cin @('mge_finalisation_v1','p02_phase1_v1','p02_d4_v1','p02_catalogue_observer_v1','p02_observer_return_v1')) {
                 foreach($sql in $loaded.Commands){$null=Invoke-K98ModuleQuery $connection $transaction $sql}
             }elseif($loaded.Profile.profile -ceq 'additive_tables_v1') {
                 foreach($table in $loaded.Tables){$null=Invoke-K98ModuleQuery $connection $transaction $table.Create}
@@ -273,13 +316,22 @@ VALUES(@attempt,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),DB_NAME(),@commit,
                 foreach($g in $loaded.Profile.grants){$null=Invoke-K98ModuleQuery $connection $transaction ('GRANT '+$g.permission+' ON OBJECT::['+$g.schema+'].['+$g.name+'] TO ['+$g.principal+'];')}
             }
             Assert-K98ModuleImages $connection $transaction $loaded $true
-            if($loaded.Profile.profile -ceq 'p02_d4_v1'){Assert-K98D4Dependencies $connection $transaction;Assert-K98D4Resources $connection $transaction}
+            if($loaded.Profile.profile -cin @('p02_d4_v1','p02_catalogue_observer_v1','p02_observer_return_v1')){Assert-K98D4Dependencies $connection $transaction;Assert-K98D4Resources $connection $transaction}
             if($loaded.Profile.profile -ceq 'p02_phase1_v1'){Assert-K98Phase1Resources $connection $transaction}
+            if($loaded.Profile.profile -ceq 'p02_observer_return_v1') {
+                $incarnation=Get-K98OriginalObserverBinding $connection $transaction $loaded
+                $binding=@{migration_id=$MigrationId;profile_sha256=$ProfileSHA256;sql_commit=$ExpectedCommit;release_id=$ReleaseId;observation_installation=$incarnation}|ConvertTo-Json -Depth 8 -Compress
+            }
+            if($loaded.Profile.profile -ceq 'p02_catalogue_observer_v1') {
+                $incarnation=Get-K98ObserverIncarnation $connection $transaction $loaded -Bootstrap
+                $binding=@{migration_id=$MigrationId;profile_sha256=$ProfileSHA256;sql_commit=$ExpectedCommit;release_id=$ReleaseId;observation_installation=$incarnation}|ConvertTo-Json -Depth 8 -Compress
+            }
             $null=Invoke-K98ModuleQuery $connection $transaction @'
 INSERT dbo.SchemaMigrationHistory(MigrationId,MigrationFile,ChecksumSha256,AppliedAtUtc,AppliedBy,MachineName,GitCommit,BranchName,DeploymentId,Status,DurationMs)
 VALUES(@id,@file,@hash,SYSUTCDATETIME(),ORIGINAL_LOGIN(),HOST_NAME(),@commit,@profile,@attempt,N'Applied',0);
-UPDATE dbo.DeploymentRunHistory SET Status=N'Succeeded',FinishedAtUtc=SYSUTCDATETIME() WHERE DeploymentId=@attempt AND Status=N'Started';
-'@ @{id=$MigrationId;file=($MigrationId+'.release.json');hash=$ProfileSHA256;commit=$ExpectedCommit;attempt=$attempt;profile=$loaded.Profile.profile}
+UPDATE dbo.DeploymentRunHistory SET Status=N'Succeeded',FinishedAtUtc=SYSUTCDATETIME(),ErrorMessage=@binding WHERE DeploymentId=@attempt AND Status=N'Started';
+IF @@ROWCOUNT<>1 THROW 51950,'Exact started deployment receipt required.',1;
+'@ @{id=$MigrationId;file=($MigrationId+'.release.json');hash=$ProfileSHA256;commit=$ExpectedCommit;attempt=$attempt;profile=$loaded.Profile.profile;binding=$binding}
             $commitRequested=$true
             $transaction.Commit();$transaction.Dispose();$transaction=$null
             $state=Get-K98ModuleOutcome $connection $loaded $ProfileSHA256 $ExpectedCommit $ReleaseId
@@ -291,7 +343,12 @@ UPDATE dbo.DeploymentRunHistory SET Status=N'Succeeded',FinishedAtUtc=SYSUTCDATE
             $result.read_committed_snapshot_changed=$false
             if($state -cne 'committed' -and $result.snapshot_state -eq 1){$result.next_action='Schema preimage is verified; snapshot mode is already enabled. Resume only this same drained release. Do not repeat completed SQL or disable snapshot blindly.'}
         }
-        Write-Host ($result|ConvertTo-Json -Compress)
+        if($loaded.Profile.profile -ceq 'p02_catalogue_observer_v1' -and $state -ceq 'committed') {
+            $result.release_id=$ReleaseId
+            $result.deployment_id=$loaded.ObserverDeploymentId
+            $result.observation_installation=$loaded.ObserverInstallation
+        }
+        Write-Host ($result|ConvertTo-Json -Depth 8 -Compress)
         if($Operation -ceq 'Preflight'){return 0}
         return $code
     }catch {

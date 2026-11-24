@@ -61,3 +61,24 @@ qualification/p02_d4/legacy_source_history.json text eol=lf
 
 # D4 coordinator authenticates the exact fixed single-batch payload.
 migrations/20261111_001_p02_d4_combined.sql text eol=lf
+
+# Observer release and protocol authenticate these exact reviewed LF bytes.
+migrations/20261120_001_p02_catalogue_observer.sql text eol=lf
+migrations/20261120_001_p02_catalogue_observer.before.sql text eol=lf
+migrations/20261120_001_p02_catalogue_observer.after.sql text eol=lf
+sql_schema/tr_P02CatalogueObservation.DatabaseTrigger.sql text eol=lf
+sql_schema/dbo.tr_P02HeaderObservation.Trigger.sql text eol=lf
+sql_schema/dbo.tr_P02KvkWorkObservation.Trigger.sql text eol=lf
+sql_schema/dbo.tr_P02MaintenanceObservation.Trigger.sql text eol=lf
+sql_schema/dbo.usp_P02BeginCatalogueMutation.StoredProcedure.sql text eol=lf
+sql_schema/dbo.usp_P02EndCatalogueMutation.StoredProcedure.sql text eol=lf
+sql_schema/dbo.usp_P02ReadObservationBoundary.StoredProcedure.sql text eol=lf
+sql_schema/dbo.P02ObservationGeneration.Sequence.sql text eol=lf
+
+# Fixed P02 return/reupgrade profiles authenticate exact LF payload bytes.
+migrations/20261123_001_p02_observer_return.sql text eol=lf
+migrations/20261123_001_p02_observer_return.before.sql text eol=lf
+migrations/20261123_001_p02_observer_return.after.sql text eol=lf
+migrations/20261123_002_p02_observer_reupgrade.sql text eol=lf
+migrations/20261123_002_p02_observer_reupgrade.before.sql text eol=lf
+migrations/20261123_002_p02_observer_reupgrade.after.sql text eol=lf
