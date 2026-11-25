@@ -87,3 +87,8 @@ migrations/20261123_002_p02_observer_reupgrade.after.sql text eol=lf
 migrations/20261125_001_p02_observer_xml_options.sql text eol=lf
 migrations/20261125_001_p02_observer_xml_options.before.sql text eol=lf
 migrations/20261125_001_p02_observer_xml_options.after.sql text eol=lf
+
+# Corrected marker release retains exact reviewed LF payloads on Windows.
+migrations/20261125_002_p02_observer_options_marker.sql text eol=lf
+migrations/20261125_002_p02_observer_options_marker.before.sql text eol=lf
+migrations/20261125_002_p02_observer_options_marker.after.sql text eol=lf
