@@ -6,6 +6,14 @@ FOR DDL_DATABASE_LEVEL_EVENTS
 AS
 BEGIN
     SET NOCOUNT ON;
+    -- EVENTDATA XML methods require these options independently of the DDL caller.
+    -- Trigger scope restores the caller's options on return, including warnings OFF.
+    SET ANSI_NULLS ON;
+    SET ANSI_PADDING ON;
+    SET ANSI_WARNINGS ON;
+    SET ARITHABORT ON;
+    SET CONCAT_NULL_YIELDS_NULL ON;
+    SET NUMERIC_ROUNDABORT OFF;
     DECLARE @event xml=EVENTDATA();
     -- Never permit reset/replacement of an admitted counter. A drained migration
     -- must explicitly remove this protection and create a new contract identity.
