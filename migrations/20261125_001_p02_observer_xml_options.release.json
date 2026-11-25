@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "profile": "p02_observer_options_v1",
+  "migration_id": "20261125_001_p02_observer_xml_options",
+  "database_collation": "Latin1_General_CI_AS",
+  "tempdb_collation": "SQL_Latin1_General_CP1_CI_AS",
+  "compatibility_level": 160,
+  "requires": [
+    {
+      "migration_id": "20261120_001_p02_catalogue_observer",
+      "sha256": "cd3bcb8c1f7303b8b45d5dc2b3d118aad70002f684ae847ffaf400c056bc1692",
+      "status": "Applied"
+    }
+  ],
+  "protocol_sha256": "b2bcb43e6558077a02e8a71bb7a5e638d385de12c9ce8ac13f4418efabef45cc",
+  "script": {
+    "file": "20261125_001_p02_observer_xml_options.sql",
+    "sha256": "3bf3472ad07214c1a2a0b2cea29a49621cf053305f891ebca38c3fb1056e29fc"
+  },
+  "checks": {
+    "before": {
+      "file": "20261125_001_p02_observer_xml_options.before.sql",
+      "sha256": "250c2fc646480c8101d0d2435a368948401a52f68c7e2d32c6730eb5567da86d"
+    },
+    "after": {
+      "file": "20261125_001_p02_observer_xml_options.after.sql",
+      "sha256": "c8e04459453f82feb84aead4999696a6b07f714ad5adca51dfc72fe47faa7257"
+    }
+  }
+}

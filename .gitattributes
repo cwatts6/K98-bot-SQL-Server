@@ -82,3 +82,8 @@ migrations/20261123_001_p02_observer_return.after.sql text eol=lf
 migrations/20261123_002_p02_observer_reupgrade.sql text eol=lf
 migrations/20261123_002_p02_observer_reupgrade.before.sql text eol=lf
 migrations/20261123_002_p02_observer_reupgrade.after.sql text eol=lf
+
+# Fixed forward correction authenticates the exact committed LF payload.
+migrations/20261125_001_p02_observer_xml_options.sql text eol=lf
+migrations/20261125_001_p02_observer_xml_options.before.sql text eol=lf
+migrations/20261125_001_p02_observer_xml_options.after.sql text eol=lf
