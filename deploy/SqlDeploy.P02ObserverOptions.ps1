@@ -5,8 +5,13 @@ $ErrorActionPreference='Stop'
 
 function Read-K98ObserverOptionsProfile($Profile,[string]$Path) {
     Assert-K98ModuleFields $Profile @('version','profile','migration_id','database_collation','tempdb_collation','compatibility_level','requires','protocol_sha256','script','checks')
-    if($Profile.version -ne 1 -or $Profile.profile -cne 'p02_observer_options_v1' -or $Profile.migration_id -cne '20261125_001_p02_observer_xml_options' -or
-       (Get-K98ModuleHash ([IO.File]::ReadAllBytes($Path))) -cne 'ebf2a575c20c439a8f63496171c0602a649c0e09ddb7c05fa6b8abef66017bfe'){throw 'Fixed reviewed observer options profile required'}
+    $profiles=@{
+        '20261125_001_p02_observer_xml_options'='ebf2a575c20c439a8f63496171c0602a649c0e09ddb7c05fa6b8abef66017bfe'
+        '20261125_002_p02_observer_options_marker'='0376bc6e8b13e87fb67ff97976c91fbcc1d644ca8e4fe91c068a7b050e84bf97'
+    }
+    if($Profile.version -ne 1 -or $Profile.profile -cne 'p02_observer_options_v1' -or
+       -not $profiles.ContainsKey([string]$Profile.migration_id) -or
+       (Get-K98ModuleHash ([IO.File]::ReadAllBytes($Path))) -cne $profiles[[string]$Profile.migration_id]){throw 'Fixed reviewed observer options profile required'}
     Assert-K98ModuleFields $Profile.checks @('before','after')
     $texts=@{}
     foreach($phase in @('script','before','after')) {
