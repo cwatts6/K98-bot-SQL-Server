@@ -16,9 +16,19 @@ bot promotion.
 | External backup | Off-machine backup copy | Every 15 minutes |
 | Export branch | Drift evidence and recovery snapshot | `export/prod-schema-YYYYMMDD-HHMMSS` |
 
-For dedicated DEV work, read **K98 DEV — Master Architecture & Operating Principles** and the latest DEV-06 handoff indexed in the SDLC-01 register’s **Drive sources** tab in K98 DEV LAB. DEV-07 workflow evidence is pending until its owner publishes a handoff. Record the accepted profile, actual principal, validated TLS endpoint, database, compatible Bot/SQL revisions and permitted effects. Restored recovery databases retain their own restrictions. An approved task can exercise only capabilities commissioned for its target.
+For dedicated DEV work, read **K98 DEV — Master Architecture & Operating Principles** and the
+latest DEV-06 handoff indexed in the SDLC-01 register’s **Drive sources** tab in K98 DEV LAB.
+DEV-07 workflow evidence is pending until its owner publishes a handoff. Record the accepted
+profile, actual principal, validated TLS endpoint, database, compatible Bot/SQL revisions and
+permitted effects. Restored recovery databases retain their own restrictions. An approved task
+can exercise only capabilities commissioned for its target.
 
-Author intentional changes under [migrations](../migrations/README.md) and update the matching [expected-state snapshots](../sql_schema/README.md) as applicable. For a paired release, pin migration IDs and hashes, native pre/post validation, compatibility with the previous Bot version and the recovery decision. The following commands, Windows identity, backup assumptions and certificate settings describe the human-controlled production workflow. DEV uses its own configuration and target validation.
+Author intentional changes under [migrations](../migrations/README.md) and update the matching
+[expected-state snapshots](../sql_schema/README.md) as applicable. For a paired release, pin
+migration IDs and hashes, native pre/post validation, compatibility with the previous Bot
+version and the recovery decision. The following commands, Windows identity, backup assumptions
+and certificate settings describe the human-controlled production workflow. DEV uses its own
+configuration and target validation.
 
 ## Tooling Prerequisites
 
