@@ -9,14 +9,16 @@ bot promotion.
 | --- | --- | --- |
 | Local SQL repo | SQL development and tooling | `C:\K98-bot-SQL-Server` |
 | GitHub SQL repo | Source of truth for intentional SQL changes | PR-driven workflow |
+| Isolated dedicated DEV guest | Synthetic or explicitly commissioned SQL work | Bind the task to the enrolled endpoint, identity, working database and profile. Confirm installed objects and migration evidence before use. |
 | Production SQL Server | Runtime database | SQL Server 2022, `ROK_TRACKER` |
 | Bot machine | Current deployment machine | Uses Windows Auth |
 | Backup folder | Local SQL backup landing folder | `C:\sql_backup` |
 | External backup | Off-machine backup copy | Every 15 minutes |
 | Export branch | Drift evidence and recovery snapshot | `export/prod-schema-YYYYMMDD-HHMMSS` |
 
-There is no DEV or UAT SQL environment today. The migration and validation model is designed so
-additional environments can be added later without replacing the process.
+For dedicated DEV work, consult the current Master Architecture and DEV-06/DEV-07 handoffs in the K98 DEV LAB project folder. Record the accepted profile, actual principal, validated TLS endpoint, database, compatible Bot/SQL revisions and permitted effects. Restored recovery databases retain their own restrictions. An approved task can exercise only capabilities commissioned for its target.
+
+Author intentional changes under [migrations](../migrations/README.md) and update the matching [expected-state snapshots](../sql_schema/README.md) as applicable. For a paired release, pin migration IDs and hashes, native pre/post validation, compatibility with the previous Bot version and the recovery decision. The following commands, Windows identity, backup assumptions and certificate settings describe the human-controlled production workflow. DEV uses its own configuration and target validation.
 
 ## Tooling Prerequisites
 
